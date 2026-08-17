@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "devpilot"
+version = "0.1.0"
+description = "DevPilot 研发场景垂直化定制层（基于 DeerFlow 2.0）：研发 Skills + 7 字段评测 + AI 组件测试工具包"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx",      # 工具包出站 HTTP（直接依赖，不引入 requests/aiohttp）
+    "openpyxl",   # M7 Excel 多 sheet 报告
+]
+
+[project.optional-dependencies]
+# 评测 CLI / post-run 扩展需要 deerflow（由 backend 工作区提供，不在此声明以免重复安装）。
+# 真实安装时请保证 deerflow-harness 已可用（backend 的 venv 天然满足）。
+
+[tool.hatch.build.targets.wheel]
+# 包代码在 src/ 布局（src/devpilot/）。不写 packages，交给 hatchling 自动发现；
+# 显式 packages = ["devpilot"] 反而会让它在路径依赖构建下产出空轮子。
+exclude = ["devpilot/evaluation/tests", "devpilot/toolkit/tests"]
