@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "example_only": true,
+  "project": {
+    "name": "示例：企业问答组件验收"
+  },
+  "component": {
+    "name": "示例问答服务",
+    "component_kind": "model",
+    "model_family": "llm",
+    "task_type": "qa",
+    "supplier_version": "example-v1"
+  },
+  "endpoint": {
+    "curl": "curl --request POST 'https://model.example.invalid/v1/chat/completions' --header 'Content-Type: application/json' --data '{\"model\":\"example-model\",\"messages\":[{\"role\":\"user\",\"content\":\"示例问题\"}],\"stream\":true}'",
+    "credential_ref": "credential-demo",
+    "transport": "openai_chat",
+    "response_mode": "streaming"
+  },
+  "sample_input": {
+    "question": "示例制度中退款窗口为多久？"
+  },
+  "sample_output": {
+    "answer": "示例制度规定为 7 天。"
+  },
+  "sources": [
+    {
+      "source_id": "src-demo-001",
+      "artifact_id": "artifact-demo-policy",
+      "source_version": "example-v1",
+      "authorized_uses": [
+        "dataset_construction",
+        "judging"
+      ],
+      "permission_status": "pending_confirmation",
+      "sensitivity": "internal"
+    }
+  ],
+  "load_permission": {
+    "status": "pending_approval",
+    "max_concurrency": 10,
+    "max_requests_per_level": 100,
+    "max_duration_seconds_per_level": 60,
+    "window_start": null,
+    "window_end": null
+  },
+  "notes": [
+    "仅为脱敏格式样例；域名不可调用；来源/凭据/文件 ID 均为占位符，不能据此正式执行。"
+  ]
+}

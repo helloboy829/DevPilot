@@ -2,6 +2,27 @@
 
 This file provides guidance to AI coding agents (Claude Code, Codex, and others) when working with the DeerFlow frontend. It is the source of truth; the sibling `CLAUDE.md` imports it via `@AGENTS.md`.
 
+## DevPilot Evaluation UX Direction (2026-11-06)
+
+Read [the documentation index](../docs/README.md) and
+[the evaluation UI design](../docs/DevPilot_前端交互设计.md).
+The current component-tests page is a prototype inside the chat workbench;
+planned evaluation routes are not implemented yet. New work should organize
+around projects, submissions, interface debugging, datasets, frozen plans, runs,
+a review center, optional script export, reports,
+remediation/retests, and reviewed knowledge. Keep the assistant contextual,
+separate execution status from acceptance verdict, and never render missing
+metrics as zero or completed as PASS. Hide non-core navigation before removing
+upstream routes; preserve authentication, artifact access, and legacy history.
+Read [debug/export](../docs/DevPilot_接口调试与脚本导出设计.md) and
+[human review](../docs/DevPilot_人工复核工作台设计.md). The review center and
+inline result review must share task state and detail components, showing the
+component/version, complete Q/A, expected criteria and source evidence. Never
+turn a technical error into PASS via a UI override. Export capability remains
+disabled until standalone packaging and semantic-equivalence tests pass.
+Host commands in the tables below are shorthand: invoke them through the root
+scripts/pnpm.py runner (for example, python scripts/pnpm.py check from repo root).
+
 ## Project Overview
 
 DeerFlow Frontend is a Next.js 16 web interface for an AI agent system. It communicates with a LangGraph-based backend to provide thread-based AI conversations with streaming responses, artifacts, and a skills/tools system.

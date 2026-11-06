@@ -1,244 +1,82 @@
-# DevPilot 系统架构设计文档 v2.0
+# DevPilot 系统架构设计 v3.0
 
-## 1. 总体架构
+> 2026-11-06；当前与目标分开说明。业务口径以[数据集与指标规范](DevPilot_数据集与指标规范.md)为准。
 
-系统采用「Frontend + Backend + Agent Runtime + AI Infrastructure」分层架构，并以**双模式执行引擎**为核心。
+## 1. 当前架构
 
-```
-                        User (个人开发者 / 小团队)
-                              |
-                         Next.js (Web SaaS)
-                              |
-                        FastAPI (API Gateway / 多租户)
-                              |
-                   ┌──────────┴──────────┐
-              Manager Agent (路由分发)
-                   ┌──────────┴──────────┐
-           Pipeline 流水线          Agentic Loop 自由循环
-         (从零生成项目)            (修复/审查/脚本)
-              │                        │
-              └──────────┬─────────────┘
-                         │
-              LangGraph Runtime (状态机 + 编排)
-                         │
-   ┌─────────────┬───────┴───────┬─────────────┐
-   LLM Router   RAG           Tools        Sandbox
-   (国产为主)  (Milvus)   (文件/Git/Shell)  (Docker)
-                         │
-   ┌─────────────┬───────┴───────┬─────────────┐
-  PostgreSQL     Redis         Milvus      对象存储
-```
+Nginx:2026 → Next.js:3000 / FastAPI Gateway:8001；Gateway 内嵌 DeerFlow LangGraph runtime。
+组件测试 router → ComponentTestService → devpilot.toolkit → 目标 API；SQL 保存摘要，本地文件保存 raw.json/report.json。
+这一执行路径已有，不意味着 Agent 已自动完成提测和数据构建。完整问题见[现状审计](DevPilot_现状审计与修复清单.md)。
 
-## 2. 技术选型
+## 2. 目标：模块化单体 + 独立执行 Worker
 
-### 2.1 前端
+~~~text
+评测工作台（项目/调试/数据/方案/运行/复核/报告） + 上下文助手
+                  │ REST + 业务事件 SSE
+FastAPI 业务层：权限/版本/审批/任务/证据/凭据引用
+    ├── DeerFlow Agent：规划、生成候选、检索、解释、报告草稿
+    ├── 领域核心 devpilot：RequestSpec/adapter、数据检查、裁判、指标、结果模型
+    ├── 导出服务：受控模板 + 同版本核心 → 独立测试工程（不打包 Gateway）
+    ├── 复核服务：任务/分配/决定/仲裁 → 新 assessment → 报告修订
+    └── 持久化 Job → 有界 Worker → 经批准的目标 API
+                  │
+      SQL（业务真相）+ Artifact Store（不可变证据）
+                  │
+      审核知识索引（权限过滤，可选向量检索）
+~~~
 
-- Next.js + React + TypeScript + Tailwind CSS + shadcn/ui
-- 负责：Chat 界面、Agent 流程展示、Trace 查看、评测 Dashboard、文件浏览
+首版允许 Gateway 与 Worker 同部署进程，但必须 DB 持久化/租约/恢复；生产压测宜独立进程，避免负载影响交互和 Agent。后续扩容不需要改业务契约。
 
-### 2.2 后端
+## 3. 层次与依赖
 
-- FastAPI + Python
-- 负责：用户认证、多租户隔离、任务管理、API 网关、SSE 推送
+- backend/app：router、鉴权、业务服务、Job/Worker 调度、DeerFlow 工具适配与审批。
+- devpilot/src/devpilot：领域 schema/数据质量/判定/性能统计/transport/报告结构，不依赖 app 或 DeerFlow。
+- backend/packages/harness：通用 Agent/模型/工具/沙箱/运行设施；不得反向导入 app 或 devpilot 业务逻辑。
+- backend/packages/extension-api：公共扩展契约；插件由 operator 配置加载。
 
-### 2.3 Agent 框架
+**App → Harness / App → devpilot**；App 把模型调用以 callable/协议注入纯核心。既有 runner 的懒导入兼容暂留，逐步迁移，不扩大反向耦合。
+现有 component_tests ORM 位于 harness 属历史落点；新领域表优先业务层，迁移复用现有 engine/session/Alembic，不在一次重构中移动全部旧表。
 
-- LangGraph
-- 原因：状态管理、节点编排、条件分支、循环执行、Human-in-the-loop、Checkpoint 恢复
+## 4. 关键边界
 
-### 2.4 LLM 策略
+- Agent 建议不能直接改已冻结数据、阈值、凭据、外网权限或发布结论。
+- 工具返回类型化 ID、摘要、阻断原因；不向模型灌入海量 raw/图片/密钥。
+- Job 与 Run 在业务 DB 持久化；LangGraph checkpoint 负责助手上下文，不替代 Job 状态。
+- 执行观测、裁判结果与验收判定分层；重判/重算不重复调目标。
+- 性能采样独立于 LLM 编排，循环中不调用 Agent 逐个发请求。
+- 调试请求同样经 Worker 出站控制；人和 Agent 共享 RequestSpec，不从浏览器直连被测接口。
+- 接入检查/确认、平台运行、导出绑定相同版本语义；导出不复制另一套统计算法。
+- 复核任务服务与聊天/runtime 解耦；原始观测、自动判断、人工决定和解析后结果分层。
 
-- **国产模型为主**（DeepSeek / Qwen 等），满足数据合规与低成本
-- **多模型路由（LLM Router）**：按节点/任务复杂度路由
-  - 简单节点（Planner / Research / Report）→ 低价国产模型
-  - 复杂节点（Architect / Coding / Evaluation）→ 更强模型
-- **LLM 接口层抽象**：统一适配，可无痛切换/接入新模型（含 Claude / GPT 作为可选增强）
+## 5. 执行与一致性
 
-### 2.5 基础设施
+提交事务创建不可变 run snapshot、job 和 outbox 事件；Worker 原子 claim、持有 fencing lease、心跳；租约失效旧 Worker 不得覆盖新结果。
+效果按 case/attempt 写证据，恢复仅重试明确允许的未完成项；目标副作用无法保证 exactly-once，Agent 场景默认不自动重放。
+性能任务重启标 interrupted，新 run 重开完整测量窗，不拼接压测。
+DB/文件无法同事务：临时写→校验 hash→原子发布→登记 manifest；失败留下可清理孤儿，不能宣称报告成功。
 
-| 组件 | 技术 | 用途 |
-| --- | --- | --- |
-| 关系数据库 | PostgreSQL | 用户、任务、评测、Trace |
-| 缓存/短期记忆 | Redis | 会话、任务状态、限流 |
-| 向量数据库 | Milvus | RAG 知识库、长期记忆 |
-| 对象存储 | S3 兼容（MinIO/OSS） | 工作空间文件、知识文档 |
-| 沙箱 | Docker + gVisor/Firecracker | 隔离执行用户/Agent 代码 |
+## 6. 数据与技术选型
 
-## 3. 执行引擎设计（双模式）
+本地 SQLite + 文件存储；多人/并发 Worker 推荐 PostgreSQL；Redis 仅作为后续通知/速率限制/队列优化，非真相源必选项。
+检索先结构化元数据和全文；验证召回需求后选 pgvector 或专用向量库，**Milvus 非 MVP 前提**。不先引入微服务和九个常驻 Agent。
+外部压测器以可选 backend 接口集成：workload → 执行器 → 原始观测 → 统一指标，未完成等价性校准前不能混算。
 
-### 3.1 路由分发
+## 7. 安全与可观测性
 
-Manager Agent 接收用户任务，依据任务类型路由：
+身份/资源权限→输入校验→目的地策略→凭据注入→有界执行→脱敏证据→发布审批。私网目标可由管理员授权；默认 TLS 验证，支持受信企业 CA。
+日志关联 project/run/job/attempt/trace，指标记录 Worker 负载、成功/错误、队列、租约和预算；输出/来源视为不可信数据，防 prompt injection。
 
-| 任务类型 | 模式 | 说明 |
-| --- | --- | --- |
-| Web 全栈生成 | Pipeline | 9 节点固定工序 |
-| 脚本/工具生成 | Agentic Loop | 短链自由循环（可叠加轻量 Planner） |
-| 代码审查/重构 | Agentic Loop | 读代码 + 分析 + 建议 |
-| Bug 修复 | Agentic Loop | 定位 → 修改 → 验证 |
+## 8. 兼容迁移
 
-### 3.2 Pipeline 流水线模式
+保留 /api/component-tests 为 legacy；新领域走 /api/evaluation。旧运行保留历史事实和 legacy/unverified 标记；显式重跑后才能生成新版 verdict。新导航渐进切换，保留聊天兼容入口；迁移附备份和回退，不立即删除上游模块。
 
-```
-Manager → Planner → Research → Architect → Coding
-        → Execution → Testing → Evaluation → Report
-```
+## 9. 新增领域服务与执行边界
 
-- 优点：结构化、可预期、可追踪
-- 适用：从零生成项目、需求明确的多步骤任务
+目标代码落点：app 中增加 endpoint-debug/export/review 应用服务及有界 Job；devpilot 中增加 RequestSpec、共享 runner、导出模板、review resolver 和 assessment schema。具体包名由实现 PR 确定，不提前声称目录已经存在。
 
-### 3.3 Agentic Loop 自由循环模式
+- EndpointCheck 是一次有预算的接入观测，Confirmation 是绑定内容的人工确认，两者不等于压测批准。
+- ScriptExport 读取已授权的冻结快照生成 artifact，独立于平台部署可运行；外部结果走隔离导入，不能冒充 Worker 认证结果。
+- ReviewTask 指向明确 subject revision/hash，HumanDecision 不覆盖 Judgment；事务生成新 Resolution/RunAssessmentRevision、指标与 outbox。报告绑定特定 assessment，变化后重新审签。
+- 项目级业务 SSE 承载调试/导出/复核待办变化；run SSE 保持运行事件，不把目标 SSE、助手 token 和工作台业务通知混成一条协议。
 
-```
-┌─────────────────────────────────────┐
-│  Agent (单强模型 + 长上下文)        │
-│    think → act → observe → repeat   │
-└──────────────┬──────────────────────┘
-               │ 调用
-   ┌───────────┴───────────┐
-   │ 工具集               │ 沙箱
-   │ 读/写/编辑文件        │ Docker 隔离容器
-   │ Shell 执行           │ 含项目 + 工具环境
-   │ Git                  │
-   │ 代码搜索 / RAG        │
-   └───────────────────────┘
-```
-
-- 优点：灵活、类 Claude Code 体验，适合探索式任务
-- 约束：设最大迭代次数上限 + token 上限，防止失控
-
-### 3.4 自修复循环
-
-两种模式均支持测试失败后的自修复：
-
-```
-Testing 失败 → Coding → Execution → 重新 Testing
-```
-
-- 最大迭代次数：默认 3（可配置）
-- 超限则终止，保存 Checkpoint，产出失败报告
-
-## 4. Agent 架构设计（9 节点）
-
-### Manager Agent
-系统入口。职责：接收用户目标、初始化任务状态、路由到执行模式、调度后续 Agent。
-
-### Planner Agent
-输入：用户需求。输出：任务图（需求分析 → 数据库设计 → 代码生成 → 测试 → 评估）。
-
-### Research Agent
-职责：判断是否需要知识检索、调用 RAG 获取背景资料、为下游提供上下文。
-
-### Architect Agent
-职责：系统设计、技术选型、模块划分。
-
-### Coding Agent
-能力：文件生成、代码修改、项目初始化。
-
-### Execution Agent
-能力：调用 Docker/Python/Shell，执行编译、测试、检查。
-
-### Testing Agent
-职责：生成测试用例、执行测试、分析失败原因、触发 Coding 自修复循环。
-
-### Evaluation Agent
-职责：LLM-as-Judge。输出 7 字段评测标准（camelCase）：
-
-```
-{
-  taskScore: 90,        // 任务完成度
-  codeScore: 85,        // 代码质量
-  testScore: 80,        // 测试覆盖/通过率
-  hallucinationRate: 0.03, // 幻觉率
-  confidence: 88,       // 置信度
-  overall: 86,          // 综合评分
-  report: "评测报告摘要"
-}
-```
-
-### Report Agent
-职责：汇总各 Agent 执行结果，生成最终交付报告。
-
-## 5. RAG 架构
-
-```
-Document → Parser → Chunk → Embedding → Milvus → Retriever → Reranker → LLM
-```
-
-- Embedding：BGE 系列（中文友好）
-- Vector DB：Milvus
-- 定位：Agent 能力增强模块（为 Planner/Architect/Coding 注入知识），非文档问答
-- 首版为 P1，MVP 后迭代
-
-## 6. Memory 设计
-
-### 短期记忆（Short Memory）
-Redis 保存：当前任务状态、Agent 上下文、中间结果。
-
-### 长期记忆（Long Memory）
-Milvus 保存：用户偏好、历史任务经验、优秀方案。
-
-## 7. Tool 设计
-
-Agent 工具（统一接口：name / description / input_schema / execute）：
-
-| 工具 | 功能 |
-| --- | --- |
-| File Manager | 读写、编辑、浏览文件 |
-| Git Tool | Clone、查看提交、分析代码 |
-| Code Executor | 沙箱内执行代码、运行测试 |
-| Shell Tool | 沙箱内执行 Shell 命令 |
-| Browser/Search | 查询技术资料 |
-| RAG Retriever | 知识库检索（P1） |
-
-## 8. Agent Trace 设计
-
-记录完整执行链路：User Input → Planner → Retriever → LLM → Tool Call → Result。
-
-字段：Agent 名称、输入、输出、Token 消耗、执行时间、状态。
-
-## 9. 多租户与安全架构
-
-### 9.1 多租户隔离
-
-- SaaS 单实例多租户，**首版仅个人空间**（无共享项目）
-- 隔离维度：PostgreSQL 按 user_id 隔离、对象存储按 user 前缀、沙箱按任务独立容器
-- 预留：共享项目/团队空间作为后续扩展（tenant_id 字段预留）
-
-### 9.2 安全纵深防御
-
-- **沙箱隔离**（最高风险）：网络隔离、资源限额（CPU/内存）、执行超时、只读文件系统、gVisor/Firecracker 微 VM 隔离
-- 认证：JWT + bcrypt
-- 接口：Rate Limit + 输入校验
-- 数据：TLS 传输 + 敏感数据加密
-
-## 10. 部署架构（SaaS）
-
-```
-                    CDN / WAF
-                        |
-                   Next.js (前端)
-                        |
-                   FastAPI (API 网关，多副本)
-                        |
-          ┌─────────────┼─────────────┐
-          │             │             │
-    Agent Runtime   PostgreSQL    Redis
-    (LangGraph)     (主从)        (集群)
-          │             │             │
-     Docker 沙箱池   Milvus      对象存储
-     (动态创建)      (托管)      (MinIO/OSS)
-```
-
-- 前端/后端/Agent 无状态，可水平扩展
-- 沙箱动态创建销毁，任务级隔离
-- 监控：Prometheus + Grafana；日志：ELK/Loki
-- 本地开发用 Docker Compose 一键起全套
-
-## 11. 后续扩展方向
-
-- Multi Model Router 增强（接入 Claude/GPT 作为复杂任务增强）
-- 共享项目 + 成员权限（兑现小团队定位）
-- RAG 知识库全量上线
-- Agent Benchmark（自动测试 Agent 能力）
-- 企业权限体系 + 私有化部署
+详见[调试与导出](DevPilot_接口调试与脚本导出设计.md)、[复核工作台](DevPilot_人工复核工作台设计.md)。

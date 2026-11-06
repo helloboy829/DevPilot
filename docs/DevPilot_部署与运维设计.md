@@ -1,156 +1,55 @@
-# DevPilot 部署与运维设计 v1.0
+# DevPilot 部署与运维设计 v3.0
 
-## 0. 文档说明
+> 2026-11-06；当前拓扑 + 目标运维要求，不代表已完成生产验证。
 
-本文档定义 DevPilot 的部署架构、环境规划、CI/CD、监控告警与运维规范。DevPilot 为 SaaS 部署形态，本地开发用 Docker Compose 一键起全套。
+## 1. 当前服务与启动
 
-## 1. 部署架构总览
-
-```text
-                    CDN / WAF / 负载均衡
-                            |
-                       Next.js (前端，静态 + SSR)
-                            |
-                       FastAPI (API 网关，多副本，无状态)
-                            |
-        ┌───────────────────┼───────────────────┐
-        │                   │                   │
-  Agent Runtime        PostgreSQL         Redis
-  (LangGraph 副本)     (主从 + 备份)      (集群)
-        │                   │                   │
-  Docker 沙箱池          Milvus           对象存储
-  (动态创建销毁)         (托管/集群)      (MinIO/OSS/S3)
-```
-
-## 2. 环境规划
-
-| 环境 | 用途 | 规模 |
+| 服务 | 端口 | 角色 |
 | --- | --- | --- |
-| Local | 本地开发 | Docker Compose 单机 |
-| Staging | 测试/预发 | 单副本，近似生产 |
-| Production | 生产 | 多副本，高可用 |
+| Nginx | 2026 | 统一公开入口 |
+| Gateway | 8001 | REST + 嵌入式 LangGraph runtime |
+| Frontend | 3000 | Next.js |
+| Provisioner | 8002 | 仅 provisioner/K8s 沙箱模式需要 |
 
-## 3. 本地开发环境（Docker Compose）
+Compose 入口默认发布到 127.0.0.1；Gateway 的容器内 0.0.0.0 不是对外发布。公网/局域网发布需显式 BIND_HOST、TLS/认证和网关策略，不能为方便改裸端口绑定。
+/api/langgraph/* 经 Nginx 改写到 Gateway /api/*；其他 /api/* 走业务 routers。SSE 不缓冲/压缩，静态文本仍可压缩。
 
-```yaml
-services:
-  frontend:    # Next.js
-    build: ./frontend
-    ports: ["3000:3000"]
-  backend:     # FastAPI
-    build: ./backend
-    ports: ["8000:8000"]
-    depends_on: [database, cache, vector]
-  agent:       # LangGraph Runtime
-    build: ./agent
-    depends_on: [backend, sandbox]
-  database:    # PostgreSQL
-    image: postgres:16
-    volumes: ["pg_data:/var/lib/postgresql/data"]
-  vector:      # Milvus
-    image: milvusdb/milvus
-  cache:       # Redis
-    image: redis:7
-  minio:       # 对象存储（S3 兼容）
-    image: minio/minio
-```
+依赖 Python 3.12+、uv、Node.js 22+、项目锁定 pnpm；Windows 按 Install.md 选择受支持运行方式，不假定 make/bash 原生可用。host pnpm 使用 scripts/pnpm.py。
+根目录 config.example.yaml → config.yaml、extensions_config.example.json → extensions_config.json；真实密钥与配置不可提交 Git。make doctor / make dev / make up 作用见根 AGENTS.md。
 
-一键启动：`docker compose up -d`。
+## 2. 当前部署阻断
 
-## 4. 生产环境部署（Kubernetes）
+backend 依赖 ../devpilot，而当前 Dockerfile 未完整拷贝该包；先修 builder、runtime、editable 安装路径与开发挂载，再声称容器可用。本轮未执行 Docker build。
+本机缺完整依赖/正式配置，未启动服务；纯工具测试通过不替代镜像健康检查。
 
-### 4.1 组件部署方式
+## 3. 目标部署形态
 
-| 组件 | 部署方式 | 扩缩容 |
-| --- | --- | --- |
-| 前端 Next.js | Deployment + Ingress | HPA（CPU/请求） |
-| FastAPI | Deployment（无状态） | HPA |
-| Agent Runtime | Deployment（无状态） | HPA（任务队列深度） |
-| PostgreSQL | 云托管 RDS 或 StatefulSet | 主从 |
-| Redis | 云托管或 StatefulSet | 集群 |
-| Milvus | 云托管或 Operator | 按需 |
-| 对象存储 | 云 OSS/S3 托管 | 托管 |
+- 单人试点：Gateway + Worker 可同部署，但任务仍持久化；SQLite + 受控文件卷。
+- 团队受控使用：PostgreSQL + 独立有界 Worker + artifact 卷/对象存储；压测 Worker 与交互隔离。
+- Redis/专用向量库按实测引入；Provisioner 仅实际需要隔离脚本执行时启用。
 
-### 4.2 沙箱池管理（重点）
+目标 evaluation profile 关闭非核心外连/IM/定时能力、隐藏非评测 UI；这不是当前已有的统一配置项，需实现 capability 与集成测试。保留助手所需 LangGraph/鉴权/存储。
 
-沙箱是 DevPilot 最特殊的运维对象，采用**动态创建销毁**策略：
+## 4. 安全运营
 
-- 每个任务启动时创建独立沙箱容器，任务结束立即销毁
-- 预热池：预创建空闲沙箱，降低冷启动延迟（目标 < 5s）
-- 沙箱运行在**独立节点池**（gVisor/Firecracker 隔离），与业务服务物理隔离
-- 资源限额：CPU / 内存 / 磁盘 / 网络 / 执行超时，超限即终止
-- 沙箱镜像分层：基础工具镜像 + 任务类型专用镜像
+私网组件通过管理员维护域名/端口/网段允许列表；拒绝 metadata/link-local/回环等未批准目标，DNS 校验绑定连接地址，重试/重定向再次应用策略。网络侧 egress 防线配合应用层，不用 URL 字符串黑名单替代。
+TLS 默认验证，企业自签证书通过受信 CA 配置；遗留 HTTP-only 组件需显式风险豁免与网络隔离，不能全局 verify=False。
+密钥服务或加密存储的主密钥不与密文放同库，日志脱敏并轮换。上传限额、恶意文件/解压炸弹隔离、artifact 路径校验与下载权限。LocalSandbox 不是强隔离边界，不为评测默认开启 host bash。
 
-## 5. CI/CD 流水线
+## 5. 配额、故障与应急
 
-```text
-Push → 单元测试 → 集成测试 → 沙箱安全测试 → 构建镜像 → 部署 Staging
-     → E2E + 性能 + 成本回归 → 部署 Production（灰度）
-```
+每租户/用户/项目/目标/全局限制并发、请求、运行数、时长、数据大小及费用；排队有界。压测批准窗口、紧急停止、目标健康异常降载和取消传播。
+Job lease/heartbeat 过期告警；效果按规则恢复、性能标 interrupted 并新运行，不悄悄续接。目标端无法停止的请求记录未确定副作用，不声称全部已撤销。
+监控队列时长、卡住任务、错误率、发生器 CPU/内存/网络、磁盘/存储、裁判不可用和预算。日志以 project/run/job/trace 关联，不落敏感完整响应。
 
-- 镜像构建：多阶段 Dockerfile，前端/后端/Agent 独立镜像
-- 灰度发布：先 10% 流量 → 观察指标 → 全量
-- 回滚：镜像版本回滚，秒级
+## 6. 备份、迁移与发布
 
-## 6. 监控与告警
+备份 DB、artifact manifest/数据、模板、授权元数据、配置版本及密钥服务恢复流程；SQLite 用一致性备份方案，不直接复制活跃 WAL 数据文件。恢复演练验证 FK、hash 和权限；组织确定 RPO/RTO 后测试，不凭文档承诺。
+发布先离线回归→镜像 import/迁移烟测→历史项目试点→小范围；数据库 additive migration，保留旧读兼容。回滚应用不删新证据；知识索引、Prompt 和模板可回滚版本。
+真实外部评测与负载测试单独 opt-in。故障支持包必须脱敏，禁止上传目标凭据、隐私数据和完整验收答案。
 
-### 6.1 监控指标
+## 7. 调试、导出与复核运维边界
 
-| 类别 | 指标 |
-| --- | --- |
-| 应用 | 请求量、错误率、P95 延迟、SSE 首字节 |
-| Agent | 任务成功率、单任务耗时、token 消耗、迭代次数分布 |
-| 沙箱 | 池大小、冷启动延迟、逃逸尝试次数、资源超限次数 |
-| 基础设施 | CPU/内存/磁盘/网络、数据库连接数、队列深度 |
-| 成本 | 按模型/任务的 token 与费用、单任务成本 |
-
-### 6.2 技术栈
-
-- 指标：Prometheus + Grafana
-- 日志：ELK 或 Loki（结构化日志）
-- Trace：OpenTelemetry + Jaeger
-- 告警：Alertmanager → 企业微信/邮件
-
-### 6.3 关键告警
-
-| 告警 | 阈值 | 级别 |
-| --- | --- | --- |
-| 沙箱逃逸尝试 | > 0 | P0（立即） |
-| 单任务成本突增 | > 基线 20% | P1 |
-| 任务成功率骤降 | < 60% | P1 |
-| API 错误率 | > 1% | P1 |
-| 沙箱池耗尽 | 空置 < 10% | P2 |
-
-## 7. 日志规范
-
-- 结构化 JSON 日志，字段统一（trace_id、task_id、user_id、agent_name）
-- 全链路 trace_id 贯穿（前端→API→Agent→工具）
-- 敏感信息脱敏（token、密码、密钥）
-
-## 8. 备份与恢复
-
-| 对象 | 策略 | RPO | RTO |
-| --- | --- | --- | --- |
-| PostgreSQL | 每日全量 + 实时 WAL 归档 | < 5min | < 30min |
-| 对象存储 | 跨区副本 / 版本控制 | 实时 | < 1h |
-| Milvus | 定期快照 + 重建 | < 24h | < 4h |
-| Redis | 持久化（AOF），短期记忆可重建 | 可重建 | — |
-
-## 9. 安全运维
-
-- 定期沙箱渗透测试（每月）
-- 镜像安全扫描（Trivy/Clair）
-- 依赖漏洞扫描（Snyk/Dependabot）
-- 密钥管理（Vault / 云 KMS），不落盘
-- 最小权限原则（服务账号、网络策略、RBAC）
-- 审计日志保留与合规
-
-## 10. 容量规划
-
-| 阶段 | 用户规模 | 资源估算 |
-| --- | --- | --- |
-| MVP | < 1000 注册，< 100 并发 | 单节点即可 |
-| 增长期 | 万级注册 | 服务多副本 + 沙箱独立节点池 |
-| 规模化 | 十万级 | 全组件高可用 + 多可用区 |
-
-关键扩容信号：沙箱池利用率、任务队列深度、token 消耗增长曲线。
+调试台显示实际 Worker 执行域并复用出站策略；复核附件走鉴权/隔离渲染，不由浏览器自动访问任意外链。独立导出工程使用受控依赖源与锁定版本，可选受审 wheelhouse；产物校验、下载权限/过期和敏感导出审计独立配置，禁止把 secrets 或工作机路径夹带进 ZIP。
+外部结果压缩包按不可信上传处理，限制解压大小/文件数并拒绝路径穿越/链接逃逸；验证后仍标 provenance/trust，不能跳过人工采信。已下载工程不能由平台保证停止或继续强制网络政策，应通过目标侧凭据/配额/网络控制撤销访问。
+监控补充 review 队列/领取过期/冲突与裁决重算失败、export 自检/依赖失败、confirmation 过期；已发布报告修订的通知失败可重试但不覆写旧件。

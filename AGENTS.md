@@ -12,6 +12,29 @@ guide rather than expecting full detail here:
 - **[frontend/AGENTS.md](frontend/AGENTS.md)** — frontend depth: Next.js App Router layout,
   thread/streaming data flow, code style, commands.
 
+## DevPilot Product Direction (2026-11-06)
+
+DevPilot is being specialized into an **AI component evaluation workbench and
+bounded evaluation Agent**, not a general coding SaaS. Read
+[docs/README.md](docs/README.md) and the linked baseline audit before implementing.
+The revised documents describe a target design, not completed runtime features.
+
+- Prioritize authorized, reviewed, versioned datasets and reproducible evidence.
+- Agents propose/generate/explain; deterministic services enforce execution,
+  denominators, budgets, approvals, and acceptance. Missing evidence is never PASS.
+- Keep App → Harness and App → devpilot dependencies; do not add business imports
+  to the harness. Keep raw acceptance answers separate from ordinary memory/RAG.
+- Retain legacy APIs/chat until explicitly migrated. Hide/disable non-core features
+  before deletion; do not claim an evaluation profile switch already exists.
+- Use one RequestSpec and versioned execution core for debug, platform runs and
+  optional standalone exports. Do not implement independent LLM-generated runners.
+- Human review uses one task service for the review center and inline results;
+  keep observations, automatic judgments, human decisions and assessments separate.
+- Maintain project documentation in Chinese and English only; do not delete
+  runtime locales or licenses as part of documentation cleanup.
+- New evaluation API/UI/contracts remain planned. Existing component-tests has
+  known correctness/security/durability/packaging gaps listed in the audit.
+
 ## What is DeerFlow
 
 DeerFlow is a LangGraph-based AI super-agent system with a full-stack architecture. The
@@ -143,8 +166,8 @@ Host-side pnpm consumers, including the root/frontend Makefiles and local diagno
 - Backend work → **[backend/AGENTS.md](backend/AGENTS.md)**
 - Frontend work → **[frontend/AGENTS.md](frontend/AGENTS.md)**
 - Setup & install → **[Install.md](Install.md)**, **[CONTRIBUTING.md](CONTRIBUTING.md)**
-- Project overview & usage → **[README.md](README.md)** (translations: `README_zh.md`,
-  `README_ja.md`, `README_fr.md`, `README_ru.md`)
+- Project overview & usage → **[README.md](README.md)** (DevPilot); upstream reference:
+  **[English](README_upstream.md)** and **[中文](README_zh.md)**
 - Security policy → **[SECURITY.md](SECURITY.md)**
 - Changes → **[CHANGELOG.md](CHANGELOG.md)**
 - Cutting a release → **[RELEASING.md](RELEASING.md)**

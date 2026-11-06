@@ -1,212 +1,91 @@
-# DevPilot 数据库详细设计 v1.0
+# DevPilot 数据库详细设计 v3.0
 
-## 0. 文档说明
+> 2026-11-06；第 1 节当前，其余为目标逻辑模型，**尚无对应完整迁移**。复用现有 SQLAlchemy/Alembic，不再假设所有场景已用 PostgreSQL/Milvus。
 
-本文档定义 DevPilot 关系数据库（PostgreSQL）的详细表结构。向量数据（RAG/长期记忆）由 Milvus 承载，见《RAG知识库与数据架构设计文档》，本文档不重复。
+## 1. 当前基线
 
-**约定**：
+component_tests 与 component_test_runs 位于 backend/packages/harness/deerflow/persistence/component_tests/，迁移为 3fc2ac02a9d4_add_component_tests.py。当前存对象/参数/摘要，raw/report 为文件；无法表达数据版本、审批、知识权限与整改闭环。api_token 明文/序列化问题必须优先修复。
 
-- 数据库命名：表名/字段统一 snake_case
-- 主键：UUID v4（对外暴露，避免信息泄露与分布式冲突）
-- 时间戳：所有表含 `created_at` / `updated_at`（TIMESTAMPTZ）
-- 多租户：首版仅个人空间，统一以 `user_id` 隔离；预留 `tenant_id` 字段用于后续共享项目/团队
+## 2. 目标关系模型
 
-## 1. ER 关系总览
+所有业务对象带 id、owner_user_id、project_id（项目表自身除外）、created_at/updated_at；不可变版本仅 created_at。团队化前不凭 project_id 允许跨 owner 读取。JSON 用于冻结配置/观测扩展，不替代 FK 和授权边界。
 
-```
-users 1───N projects 1───N tasks 1───N agent_executions
-                                       1───N trace_spans
-                                       1───N approvals
-                                       1───1 evaluation_results
-                                       1───N workspace_files
-users 1───N knowledge_documents (P1)
-users 1───N usage_records (P1)
-```
+| 表 | 关键字段 / 约束 |
+| --- | --- |
+| eval_projects | name、business_status、final_verdict、revision；owner 索引 |
+| eval_submissions | project、submitter、material_artifact_id、validated_fields、revision |
+| eval_components / eval_component_versions | logical component、task_type、supplier_version、fingerprint、provenance；版本不可变 |
+| eval_endpoint_revisions | component_version_id、request_spec/schema_version/hash、adapter/extractor_version、credential_ref、destination_policy_id；不可变 |
+| eval_environment_revisions | project、公共变量、execution_zone、credential_version_ref、destination_policy_revision、hash；秘密独立引用 |
+| eval_endpoint_checks | endpoint/environment_revision、request_hash、job_id、check_findings、stream_observability、脱敏artifact_refs、status/timestamps |
+| eval_endpoint_confirmations | endpoint/check/environment refs、binding_hash、credential_version_ref、actor、valid_until、revoked_at/reason；不可覆盖 |
+| eval_credentials | owner、encrypted_secret / external_secret_ref、key_version；不经通用 to_dict 暴露 |
+| eval_source_documents | artifact_id/hash、授权/用途/敏感级别、source_version、retention、deleted_at |
+| eval_datasets / eval_dataset_versions | dataset、version、status、manifest_artifact_id/hash、quality_card、revision；unique(dataset_id,version) |
+| eval_dataset_cases | dataset_version_id、case_id、input/expected refs、split/slices、origin、source_refs、label_status；unique(version,case_id) |
+| eval_plans | revision/status、dataset_version_id、endpoint_revision_id、rubric_ref、effect/perf config、thresholds、budgets、snapshot_hash |
+| eval_approvals | subject_type/id/revision/hash、decision、actor、role、comment；审批绑定内容，不能复用到新 revision |
+| eval_runs | current_assessment_revision、plan_id、component_version_id、test_type、immutable_snapshot/hash、status、verdict、counts、started/finished、revision |
+| eval_jobs | run_id(可空)、kind、status、attempt、lease_owner、lease_until、fencing_token、heartbeat、error_code、cancel_requested |
+| eval_case_results | run_id、case_id、执行观测/错误类型、raw_artifact_id、timings、response_hash；每个逻辑 case 一个主观测，有效 outcome 来自 assessment |
+| eval_request_attempts | run_id、case_id/request_id、attempt_index、attempt_status、timings、token_source、raw_ref；unique(run,request,attempt) |
+| eval_judgments | result_id、revision、judge/rubric/model/prompt refs、verdict、evidence；自动裁判不可变，人工决定另表 |
+| eval_review_tasks | kind、subject_type/id/revision/hash、policy_ref/hash、round、required_for_acceptance、status、priority、revision；同轮subject唯一 |
+| eval_review_assignments | task_id/round、slot、assignee、status(active/submitted/expired/released)、lease_until、claim_token；独立双审slot |
+| eval_review_drafts | task/round/actor、body、revision；可清理暂存，不是正式决定 |
+| eval_review_decisions | task/assignment/round、actor、action、reason_code/comment、evidence_refs、subject_hash、supersedes_id；不可变 |
+| eval_review_resolutions | task/round、revision、policy/adjudicator、decision_refs、effective_outcome/validity、reason/evidence；不可变 |
+| eval_run_assessments | run_id、revision、judgment/resolution_refs、counts/metric_refs、verdict/blocked_reasons、aggregation_version/hash；unique(run,revision) |
+| eval_metrics | run_id、assessment_revision_ref(可空)、level/repeat/slice、name、value_nullable、unit、applicability、sample_count、aggregation_version；测量基值不改写 |
+| eval_artifacts | content_hash、storage_key、media_type、size、sensitivity、retention、publish_status；路径不由用户直接决定 |
+| eval_reports | project_id、template_version、run_assessment_refs、snapshot_hash、artifact_id、status、approved_by、supersedes_id；发布版本不可变 |
+| eval_script_exports | endpoint/confirmation_ref、plan_snapshot_ref(骨架可空)、mode、authorized_scope、core/exporter_version、manifest_hash、job/artifact_ref、status |
+| eval_external_result_imports | export_id(可空)、upload_artifact_ref、declared_manifest/environment、validation_findings、trust_status、review_approval_ref、external_run_ref；与平台证据隔离 |
+| eval_remediations | project_id、issue_refs、responsible_party、status、change_note、new_component_version_id |
+| eval_retests | baseline_run_id、new_run_id、scope(full/subset)、comparability、change_refs |
+| eval_knowledge_entries | source_refs、scope、sensitivity、status、revision、reviewer、index_version；知识版本可回滚 |
+| eval_events / eval_outbox | aggregate_id、seq、event_type、payload、delivery_status；unique(aggregate_id,seq) |
+| eval_idempotency_keys | actor/route/key、request_hash、response_resource_id、expires_at；unique(scope,key) |
 
-## 2. 表结构定义
+report.status 为 draft/in_review/approved/published/retired；知识 status 为 candidate/in_review/published/retired。与运行 verdict 不混用。Job 为 queued/running/completed/failed/cancelled/interrupted，取消意图另存；Run 使用规范的完整状态含 cancelling。
 
-### 2.1 users — 用户表
+## 3. 约束和一致性
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | 用户 ID |
-| email | VARCHAR(255) | UNIQUE, NOT NULL | 登录邮箱 |
-| password_hash | VARCHAR(255) | NOT NULL | bcrypt 密码哈希 |
-| nickname | VARCHAR(100) | | 昵称 |
-| status | VARCHAR(20) | DEFAULT 'active' | active / disabled |
-| created_at / updated_at | TIMESTAMPTZ | | 时间戳 |
+- 项目下引用对象必须同 owner/project；复用共享知识走显式授权，不靠跨项目裸 FK。
+- frozen dataset/plan 不可写内容；审批 hash、run snapshot hash 对齐。
+- case 主 outcome 的五类计数守恒；N=0 pass_rate null；不保存 NaN/Infinity。
+- 同一 run 的有效主结果通过 unique/版本指针控制，重复 attempt 不重复计分。
+- CaseResult 的执行观测与自动 Judgment 不因人工决定改变；有效 outcome/计数来自指定 assessment，五类计数仍守恒。
+- task subject 多态引用由服务端做类型白名单、同 project/owner 和不可变 hash 校验；能建具体 FK 的引用优先 FK，不能只靠用户传 subject_id。
+- 每个 review slot 同时仅一个 active assignment，DB 唯一约束/事务原子领取；Decision 校验当前 task round/hash/lease，双审 actor 不重复，历史不覆写。
+- 自动解析/仲裁产物、新 assessment、run 最新指针和 outbox 同事务更新；使用 run revision/锁避免并发重算丢失。
+- 报告固定引用 assessment；变化只标记需重审和新修订，不原地更新已发布内容。
+- claim/lease 需原子更新；每次写结果校验 fencing token，过期 Worker 写入被拒绝。
+- 请求外部 API 和 SQL 无分布式事务，不承诺目标 exactly-once；记录 ambiguous outcome。
+- 成功发布 artifact 前不能登记报告完成；写失败支持重试和孤儿清理。
 
-### 2.2 projects — 项目表（个人，预留团队）
+## 4. 索引与体积
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | 项目 ID |
-| user_id | UUID | FK→users, NOT NULL | 归属用户（个人空间） |
-| tenant_id | UUID | NULL | 预留：团队/租户 ID |
-| name | VARCHAR(200) | NOT NULL | 项目名称 |
-| description | TEXT | | 项目描述 |
-| status | VARCHAR(20) | DEFAULT 'active' | active / archived / deleted |
-| created_at / updated_at | TIMESTAMPTZ | | 时间戳 |
+索引覆盖 (owner,project,created_at)、(status,lease_until)、(run,case)、(run,level,repeat,metric)、(aggregate,seq)。不要一次为任意 JSON 建索引；以查询实测选择。
+大响应、图像和轨迹存 artifact，DB 存摘要/hash/ref；敏感内容加密/限制下载。性能逐请求原始样本可分片归档，聚合可从原始记录重建。
 
-索引：`idx_projects_user` (user_id)
+## 5. 迁移与回退
 
-### 2.3 tasks — 任务表
+1. 备份旧 DB/文件，保留原表；新表以 additive migration 建立。
+2. 旧 token 迁入 credential store，使用专用 DTO；验证后清空旧明文，轮换已可能泄露凭据。
+3. 旧对象显式导入成 legacy 记录，缺版本/授权/冻结数据不伪造；旧 PASS 不自动升级。
+4. 新运行只写新契约，兼容读取层可展示旧记录；避免长期无事务双写。
+5. SQLite 与 PostgreSQL 分别迁移/幂等/锁竞争测试；生产降级优先应用回滚，不逆向删除已有新数据。
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | 任务 ID |
-| user_id | UUID | FK→users, NOT NULL | 归属用户 |
-| project_id | UUID | FK→projects, NOT NULL | 归属项目 |
-| title | VARCHAR(200) | NOT NULL | 任务标题 |
-| goal | TEXT | NOT NULL | 任务目标（自然语言） |
-| task_type | VARCHAR(30) | NOT NULL | fullstack_gen / script_gen / code_review / bug_fix |
-| exec_mode | VARCHAR(20) | NOT NULL | pipeline / agentic_loop |
-| status | VARCHAR(20) | NOT NULL | CREATED / RUNNING / PAUSED / SUCCESS / FAILED / CANCELLED |
-| checkpoint | JSONB | | 恢复点（LangGraph checkpoint 引用） |
-| workspace_id | UUID | FK→workspaces | 关联工作空间 |
-| token_used | BIGINT | DEFAULT 0 | 累计 token 消耗 |
-| credit_used | NUMERIC(10,2) | DEFAULT 0 | 累计信用点消耗 |
-| error_message | TEXT | | 失败原因 |
-| started_at / finished_at | TIMESTAMPTZ | | 起止时间 |
-| created_at / updated_at | TIMESTAMPTZ | | 时间戳 |
+## 6. 保留、删除与审计
 
-索引：`idx_tasks_user` (user_id)、`idx_tasks_project` (project_id)、`idx_tasks_status` (status)
+原始业务数据、凭据、报告、匿名经验采用不同保留策略，实际期限由组织确认。删除同时处理 artifact、索引、缓存与访问许可；审计仅保留合法必要的 tombstone，不借不可变之名无限保留隐私数据。备份含删除数据的过渡风险须记录。发布报告按 policy 保留版本，撤销访问不等于改写历史结果。
 
-### 2.4 agent_executions — Agent 执行记录（节点级）
+## 7. 新资源一致性与迁移边界
 
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | 执行记录 ID |
-| task_id | UUID | FK→tasks, NOT NULL | 归属任务 |
-| agent_name | VARCHAR(50) | NOT NULL | Manager/Planner/Coding... |
-| exec_mode | VARCHAR(20) | NOT NULL | pipeline / agentic_loop |
-| status | VARCHAR(20) | NOT NULL | running / success / failed / skipped |
-| input | JSONB | | 输入 |
-| output | JSONB | | 输出 |
-| token_input / token_output | BIGINT | | token 消耗 |
-| duration_ms | BIGINT | | 执行耗时 |
-| model_name | VARCHAR(100) | | 使用的模型 |
-| prompt_version | VARCHAR(50) | | Prompt 版本 |
-| error_message | TEXT | | 失败原因 |
-| started_at / finished_at | TIMESTAMPTZ | | 起止时间 |
-| created_at | TIMESTAMPTZ | | 创建时间 |
+ReviewTask.status 使用 queued/in_review/escalated/resolved/cancelled；assignment.status 使用 active/submitted/expired/released；Decision/Resolution 是不可变记录而非另外一套 run.status。独立任务的 decision 不以 reviewed=true 代替策略满足状态。对 cancelled/旧 round 的提交拒绝并保留审计。
+ExternalResultImport 的 trust_status=unverified/under_review/accepted/rejected；采集/校验 Job.status 独立。accepted 只表示获准按标注的范围采信，不意味 run 或项目 PASS。导出状态复用 Job.status，缺 artifact/manifest 时不能 completed。
 
-索引：`idx_agent_exec_task` (task_id)、`idx_agent_exec_agent` (agent_name)
-
-### 2.5 trace_spans — Trace 链路（工具/子步骤级）
-
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | Span ID |
-| task_id | UUID | FK→tasks, NOT NULL | 归属任务 |
-| execution_id | UUID | FK→agent_executions | 归属节点 |
-| parent_span_id | UUID | NULL | 父 Span（树形） |
-| span_type | VARCHAR(30) | NOT NULL | llm / tool / retriever |
-| name | VARCHAR(200) | NOT NULL | 步骤名称 |
-| input / output | JSONB | | 输入输出 |
-| token_used | BIGINT | | token |
-| duration_ms | BIGINT | | 耗时 |
-| status | VARCHAR(20) | NOT NULL | success / error |
-| started_at / finished_at | TIMESTAMPTZ | | 起止时间 |
-
-索引：`idx_span_task` (task_id)、`idx_span_exec` (execution_id)
-
-### 2.6 workspace_files — 工作空间文件元数据
-
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | 文件 ID |
-| task_id | UUID | FK→tasks, NOT NULL | 归属任务 |
-| path | TEXT | NOT NULL | 相对路径 |
-| size | BIGINT | | 文件大小 |
-| object_key | TEXT | | 对象存储 key（实际内容存对象存储） |
-| content_hash | VARCHAR(64) | | 内容 SHA-256 |
-| created_at / updated_at | TIMESTAMPTZ | | 时间戳 |
-
-索引：`idx_files_task` (task_id)
-
-### 2.7 evaluation_results — 评测结果
-
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | 评测 ID |
-| task_id | UUID | FK→tasks, UNIQUE | 归属任务（一对一） |
-| task_score | NUMERIC(5,2) | | 任务完成度 0-100 |
-| code_score | NUMERIC(5,2) | | 代码质量 0-100 |
-| test_score | NUMERIC(5,2) | | 测试评分 0-100 |
-| hallucination_rate | NUMERIC(5,4) | | 幻觉率 0-1 |
-| confidence | NUMERIC(5,2) | | 置信度 0-100 |
-| overall | NUMERIC(5,2) | | 综合评分 0-100 |
-| report | TEXT | | 评测报告摘要 |
-| detail | JSONB | | 评测明细（各维度打分理由） |
-| model_name | VARCHAR(100) | | 评测模型 |
-| created_at | TIMESTAMPTZ | | 时间戳 |
-
-索引：`idx_eval_task` (task_id)
-
-### 2.8 approvals — 审批记录
-
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | 审批 ID |
-| task_id | UUID | FK→tasks, NOT NULL | 归属任务 |
-| execution_id | UUID | FK→agent_executions | 触发审批的节点 |
-| action_type | VARCHAR(50) | NOT NULL | commit / exec_command / db_write / file_delete |
-| payload | JSONB | NOT NULL | 待审批操作详情 |
-| status | VARCHAR(20) | NOT NULL | pending / approved / rejected / timeout |
-| decided_by | UUID | FK→users | 审批人 |
-| decided_at | TIMESTAMPTZ | | 决策时间 |
-| created_at | TIMESTAMPTZ | | 时间戳 |
-
-索引：`idx_approval_task` (task_id)、`idx_approval_status` (status)
-
-### 2.9 knowledge_documents — 知识文档（P1）
-
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | 文档 ID |
-| user_id | UUID | FK→users, NOT NULL | 归属用户 |
-| name | VARCHAR(255) | NOT NULL | 文件名 |
-| source_type | VARCHAR(20) | NOT NULL | md / pdf / docx / html / git |
-| object_key | TEXT | | 原始文件存储 key |
-| chunk_count | INT | | 切分块数 |
-| status | VARCHAR(20) | | processing / ready / failed |
-| created_at / updated_at | TIMESTAMPTZ | | 时间戳 |
-
-索引：`idx_knowledge_user` (user_id)
-
-### 2.10 usage_records — 用量记录（P1）
-
-| 字段 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| id | UUID | PK | 用量 ID |
-| user_id | UUID | FK→users, NOT NULL | 归属用户 |
-| task_id | UUID | FK→tasks | 关联任务 |
-| metric | VARCHAR(20) | NOT NULL | token_input / token_output / credit |
-| amount | NUMERIC(20,2) | NOT NULL | 数量 |
-| model_name | VARCHAR(100) | | 模型 |
-| recorded_at | TIMESTAMPTZ | NOT NULL | 记录时间 |
-
-索引：`idx_usage_user_time` (user_id, recorded_at)
-
-## 3. 索引与约束策略
-
-- 高频查询路径均建索引（user_id、task_id、status）
-- 外键统一加约束，保证引用完整性
-- `tasks.status` 等枚举字段用 VARCHAR + CHECK 约束（易演进，避免 PG ENUM 迁移成本）
-- 大 JSONB 字段（checkpoint、detail、input/output）按需查询，避免 SELECT *
-
-## 4. 多租户隔离设计
-
-首版仅个人空间，隔离策略：
-
-1. **应用层**：所有查询强制带 `user_id` 过滤（ORM 层统一注入）
-2. **数据库层**：表均含 `user_id` 外键，配合索引保证查询性能
-3. **预留演进**：`projects` 表已含 `tenant_id` 字段，后续共享项目/团队空间无需改表结构
-
-## 5. 数据生命周期
-
-- 任务/文件：用户可删除（软删除 + 定时清理对象存储）
-- Trace/execution：保留 N 天（默认 30）后归档/清理
-- 评测结果：随任务保留
-- 审计/用量记录：长期保留（合规与计费）
+增加索引：task(project,status,priority)、task(subject_type,id,hash,kind,policy,round) 唯一；assignment(task,round,slot) 的 active 唯一与 actor 防重复；decision(task,round,actor,created_at)；assessment(run,revision) 唯一；check(endpoint,environment,created_at)、export(project,status)、import(export,trust_status)。跨 SQLite/Postgres 的条件唯一约束由迁移测试验证。
+凭据明文不进入 RequestSpec、Confirmation hash 输入的可公开副本或 export manifest；只存版本引用。导出金标授权、外部结果采信与复核访问形成独立 audit 记录，可复用现有可审计事件设施但必须覆盖这些动作。
+以上是新增逻辑表，不代表迁移文件已经生成；具体实现与[API](DevPilot_API接口设计文档.md)及[专题](DevPilot_人工复核工作台设计.md)同 PR 落地。

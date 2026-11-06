@@ -1,34 +1,37 @@
-# DevPilot 定制层
+# DevPilot 领域定制层
 
-本目录存放 DevPilot 基于 DeerFlow 2.0 的**研发场景垂直化定制**，与上游 DeerFlow 代码保持边界清晰。
+> 2026-11-06。定位从通用研发定制调整为 AI 组件评测；以下严格区分当前代码与目标。
 
-## 目录说明
+## 当前结构
 
-```
+~~~text
 devpilot/
-├── pyproject.toml     # 可安装包声明（便于 gateway 以 `pip install -e` 引入）
-├── evaluation/        # 评测体系（7 字段 LLM-as-Judge，见 evaluation/README.md）
-│   ├── judge.py       #   纯逻辑核心（零依赖）
-│   ├── metrics.py     #   指标聚合
-│   ├── runner.py      #   对接 deerflow 模型工厂
-│   ├── cli.py         #   命令行入口
-│   ├── extension.py   #   post-run 自动评测挂载点（plugins 机制）
-│   └── tests/         #   15 个 unittest 用例
-└── README.md
-```
+├── pyproject.toml
+└── src/devpilot/
+    ├── toolkit/       # effect/perf/transports/report，初版组件测试
+    │   └── tests/     # 32 个纯单元测试
+    └── evaluation/    # legacy：代码产物七字段 LLM-as-Judge
+        └── tests/     # 15 个纯单元测试
+~~~
 
-研发专用 Skills 放在 `skills/custom/`（DeerFlow 原生自定义技能约定），不在本目录。
+Gateway 的 backend/app/component_tests/service.py 调用 toolkit；不是已经由 Lead Agent 自动完成端到端评测。
+当前基础文本判定与阶梯负载可复用，但仍有误 PASS、待审分母、TLS/凭据、耐久执行、原始观测与 Docker 打包问题，见[审计](../docs/DevPilot_现状审计与修复清单.md)。
 
-## 定制范围（已确认，去掉多租户与计费）
+## 目标边界（待实施）
 
-| 模块 | 位置 | 状态 |
-| --- | --- | --- |
-| 研发专用 Skills（5 个） | `skills/custom/` | ✅ 已填充 Prompt（代码生成 / Bug 修复 / 测试生成 / 代码审查 / 架构评审） |
-| 评测体系 | `devpilot/evaluation/` | ✅ 已实现并端到端验证（CLI + post-run 扩展挂载点） |
-| 操作级审批（后续） | 待定 | 基于 DeerFlow guardrails/authz 扩展 |
+本包承担纯领域 schema、数据质量、指标/门禁、适配器、报告事实模型。业务持久化、鉴权、审批、调度与 DeerFlow 工具桥接置 backend/app；模型调用通过协议注入，不扩散对 app/harness 的反向依赖。既有 evaluation runner 和文本 judge 的惰性 deerflow import 属迁移遗留。
+七字段 taskScore/codeScore 等只用于历史编码产物，不作为 CV/QA/Agent 统一验收标准。未被版本管理的 skills/custom 不属于已交付功能；领域技能需可打包、可测试、可追踪。
 
-## 与上游的关系
+## 文档和测试
 
-- 上游：`bytedance/deer-flow`（MIT）
-- 组织方式：平铺 fork（源码直接拷贝进本仓库，不带 .git 历史）
-- 定制原则：优先使用 DeerFlow 扩展机制（`skills/custom`、`plugins`、MCP、middleware），避免改动核心代码
+[总索引](../docs/README.md) · [数据/指标](../docs/DevPilot_数据集与指标规范.md) · [实施计划](../docs/DevPilot_业务流程与迭代计划.md)
+
+仓库根目录 PowerShell：
+
+~~~powershell
+$env:PYTHONPATH = (Join-Path (Get-Location) 'devpilot/src')
+python -B -X utf8 -m unittest discover -s devpilot/src/devpilot/evaluation/tests -v
+python -B -X utf8 -m unittest discover -s devpilot/src/devpilot/toolkit/tests -v
+~~~
+
+本轮 47 项通过，但未运行全栈、真实模型或 Docker；新版本需求尚无完整实现。宿主 backend 通过 ../devpilot editable 引用，本包必须同时存在于镜像 builder/runtime 和开发挂载路径，当前缺口待修复。

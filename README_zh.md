@@ -1,6 +1,8 @@
+> **Upstream reference / 上游底座参考**：This document describes DeerFlow, not the completion status of DevPilot's evaluation product. See [DevPilot README](README.md) and [the current design baseline](docs/README.md). / 本文介绍上游能力，不代表 DevPilot 评测闭环已经实现。
+
 # 🦌 DeerFlow - 2.0
 
-[English](./README.md) | 中文 | [日本語](./README_ja.md) | [Français](./README_fr.md) | [Русский](./README_ru.md)
+[English](./README_upstream.md) | 中文 | [DevPilot](./README.md)
 
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](./backend/pyproject.toml)
 [![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white)](./Makefile)

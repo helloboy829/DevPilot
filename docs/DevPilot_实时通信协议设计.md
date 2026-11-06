@@ -1,244 +1,54 @@
-# DevPilot 实时通信协议设计 v1.0
+# DevPilot 实时通信协议 v3.0
 
-## 0. 文档说明
+> 2026-11-06；目标业务事件协议，待实现。现有 LangGraph 聊天流保持原协议，不把聊天 token 当评测进度。
 
-本文档定义 DevPilot 前后端实时通信协议，包括 SSE 事件类型与字段级结构、Human-in-the-loop 审批数据流。本文档是《API接口设计文档》第 6、7 章的协议级细化。
+## 1. 通道职责
 
-## 1. 通信方式选择
+REST 创建/审批/取消并查询权威快照；GET /api/evaluation/runs/{id}/events 传该运行通知，GET /api/evaluation/projects/{id}/events 传项目调试/导出/复核/报告待办。首版不另造 WebSocket。若 SSE 不可用，前端轮询 project/run/job/review 快照降级。
+所有流与下载均做同等资源权限校验；事件不含原始 token、完整答案/图像、内网凭据或文件绝对路径。
 
-| 场景 | 方式 | 说明 |
-| --- | --- | --- |
-| 服务端 → 客户端单向推送 | **SSE**（首选） | 任务执行过程、审批请求、状态变更 |
-| 双向交互（暂停/恢复/审批） | REST + SSE | 客户端操作走 REST，服务端推送走 SSE |
-| 复杂双向（可选扩展） | WebSocket | 多 Agent 面板实时状态 |
+## 2. 事件包
 
-首版统一用 **SSE + REST**，WebSocket 作为扩展。
+~~~text
+id: 42
+event: run.progress
+data: {"schema_version":"1.0","stream_type":"run","stream_id":"run-001","project_id":"project-001","run_id":"run-001","seq":42,"occurred_at":"2026-11-06T08:00:00Z","subject_type":"run","subject_id":"run-001","subject_revision":7,"payload":{"completed_cases":95,"total_cases":100}}
 
-## 2. SSE 协议规范
+~~~
 
-### 2.1 连接建立
+上述为 run 流示例。统一 envelope 含 stream_type(run/project)、stream_id、project_id、seq、occurred_at、subject_type/id/revision 和 payload；run_id 对无运行的调试/数据复核可为空。seq 为各 stream 内持久递增序号，id 等于其十进制字符串；客户端按 (stream_type,stream_id,seq) 去重。run 的 revision 是主体修订，不等于 seq；同一业务事件同时投影到两条流时附 event_id，客户端只做缓存失效，不重复执行操作。不承诺网络 exactly-once。
 
-```
-GET /api/agent/stream/{taskId}
-Authorization: Bearer {jwt}
-Accept: text/event-stream
-```
+## 3. 事件种类
 
-- 连接建立后，服务端持续推送该任务的事件流
-- 客户端可用 `Last-Event-ID` 实现断线重连续传
+| event | payload 摘要 |
+| --- | --- |
+| run.queued / run.started | snapshot_hash、job_ref、started_at |
+| run.progress | 各 outcome 计数、当前阶段；允许节流但终态必须准确 |
+| case.completed | case_id、outcome、result_ref；大内容另取 |
+| review.required / review.task.updated | task_ref、kind、reason、status、subject_revision；详情按 REST 权限取 |
+| review.resolved | task_ref、resolution_revision、affected_run_refs；不推送完整决定或金标 |
+| endpoint.check.completed / endpoint.confirmation.updated | check/confirmation_ref、status、binding_revision；不传 raw 响应 |
+| script.export.completed / script.export.failed | export_ref、job_ref、artifact_ref 或安全错误码；下载仍鉴权 |
+| external_result.review.required | import_ref、验证摘要、待采信范围 |
+| perf.level.started / perf.level.completed | concurrency、repeat、窗口、metric_refs |
+| run.cancelling | actor、reason |
+| run.completed | status=completed、verdict、summary_ref、blocked_reasons |
+| run.failed / run.cancelled / run.interrupted | status、错误/中断类别、恢复指引 |
+| run.verdict.updated / run.assessment.updated | 人工复核或重判后的 verdict、assessment_revision、required_review_open_count |
+| report.ready / report.review.invalidated | report_id、status、assessment_refs、需重审原因；不等于已发布 |
 
-### 2.2 事件格式
+completed ≠ PASS。审批/人工复核属于独立资源，通过 approval/task_ref 获取并经 REST 决策；不在 SSE 里执行状态变更。run.completed 后可有 review/verdict/report 事件，不能因执行结束永远停掉业务更新。
 
-```text
-event: {event_type}
-id: {event_id}
-data: {json_payload}
+## 4. 重连、丢事件与终态
 
-```
+- 服务先鉴权再流式发送；heartbeat 使用 SSE 注释，不计业务 seq。
+- Last-Event-ID 重放保留期内事件；前端先拉快照再订阅，重放后按 revision/seq 合并。
+- 游标超出保留范围/无效时返回 409 EVENT_CURSOR_EXPIRED，前端取全量快照和新游标，不能猜状态。
+- outbox 提交与业务状态同事务；广播失败可重发，客户端不依赖每个 progress 必达。
+- 客户端断开不取消任务；取消须显式 REST；浏览器关闭后任务仍由 Worker 负责。
+- SSE 空闲/网络断开采用有界退避重连；auth 失效停止重连，避免无限请求。
 
-- `event`：事件类型（见 §2.3）
-- `id`：单调递增事件 ID，用于重连续传
-- `data`：JSON 载荷（camelCase）
+## 5. 前端一致性与代理
 
-### 2.3 事件类型清单
-
-#### task_status — 任务状态变更
-
-```json
-{
-  "taskId": "task_001",
-  "status": "RUNNING",
-  "message": "任务开始执行",
-  "timestamp": "2026-08-13T10:00:00Z"
-}
-```
-
-status 取值：CREATED / RUNNING / PAUSED / SUCCESS / FAILED / CANCELLED
-
-#### agent — Agent 节点状态
-
-```json
-{
-  "taskId": "task_001",
-  "agent": "Planner",
-  "execMode": "pipeline",
-  "status": "start | running | end",
-  "message": "正在拆分任务",
-  "timestamp": "2026-08-13T10:00:01Z"
-}
-```
-
-#### tool — 工具调用状态
-
-```json
-{
-  "taskId": "task_001",
-  "tool": "exec_command",
-  "status": "start | success | error",
-  "input": {"command": "pytest"},
-  "output": "3 passed",
-  "durationMs": 120,
-  "timestamp": "2026-08-13T10:00:05Z"
-}
-```
-
-#### approval — 审批请求（核心）
-
-```json
-{
-  "taskId": "task_001",
-  "approvalId": "apv_001",
-  "actionType": "git_commit",
-  "payload": {
-    "command": "git commit -m 'feat: order module'",
-    "files": ["src/order.py"]
-  },
-  "createdAt": "2026-08-13T10:00:10Z",
-  "expiresAt": "2026-08-13T10:30:10Z"
-}
-```
-
-#### trace — 链路信息
-
-```json
-{
-  "taskId": "task_001",
-  "executionId": "exec_001",
-  "spanType": "llm | tool | retriever",
-  "name": "Coding LLM Call",
-  "status": "success",
-  "durationMs": 1500,
-  "tokenUsed": 8000
-}
-```
-
-#### error — 错误
-
-```json
-{
-  "taskId": "task_001",
-  "code": "602",
-  "message": "工具调用失败",
-  "agent": "Coding",
-  "timestamp": "2026-08-13T10:00:20Z"
-}
-```
-
-#### complete — 任务完成（含评测摘要）
-
-```json
-{
-  "taskId": "task_001",
-  "status": "SUCCESS",
-  "evaluation": {
-    "taskScore": 90,
-    "codeScore": 85,
-    "testScore": 80,
-    "hallucinationRate": 0.03,
-    "confidence": 88,
-    "overall": 86,
-    "report": "评测报告摘要"
-  },
-  "timestamp": "2026-08-13T10:05:00Z"
-}
-```
-
-### 2.4 心跳与重连
-
-- 心跳：服务端每 30s 发送 `event: ping`（data 为空）
-- 重连：客户端断开后携带 `Last-Event-ID` 重连，服务端从该 ID 续推未消费事件
-- 事件保留：服务端缓存该任务最近事件（Redis，TTL 1 小时）
-
-## 3. Human-in-the-loop 审批数据流（字段级）
-
-### 3.1 审批触发
-
-Agent 调用 `requires_approval=True` 的工具时：
-
-1. 后端创建 approval 记录（status=pending）
-2. 任务状态置为 PAUSED
-3. LangGraph 在 approval_node 处 `interrupt()` 挂起
-
-### 3.2 审批事件推送
-
-服务端通过 SSE 推送 `approval` 事件（见 §2.3），前端弹出审批卡片。
-
-### 3.3 审批决策
-
-客户端调用 REST 接口：
-
-```text
-POST /api/approval/{approvalId}/decision
-```
-
-Request：
-
-```json
-{
-  "decision": "approve | reject",
-  "comment": "可选备注"
-}
-```
-
-Response：
-
-```json
-{
-  "approvalId": "apv_001",
-  "status": "approved",
-  "taskId": "task_001"
-}
-```
-
-### 3.4 决策后续
-
-| 决策 | 后端行为 | 后续事件 |
-| --- | --- | --- |
-| approve | `interrupt()` 返回 "approve"，Agent 继续执行 | `task_status`（RUNNING） |
-| reject | `interrupt()` 返回 "reject"，跳过该操作 | `task_status`（RUNNING）或 FAILED |
-| timeout（30min） | 默认按 reject 处理，终止任务 | `task_status`（FAILED）+ `error`（604） |
-
-### 3.5 审批状态机
-
-```text
-pending → approved →（Agent 继续）
-        → rejected →（跳过操作 / 终止）
-        → timeout →（默认 rejected）
-```
-
-## 4. WebSocket 扩展协议（可选）
-
-复杂交互场景（多 Agent 面板、代码生成进度条）可启用 WebSocket：
-
-```text
-ws://host/api/ws/{taskId}
-
-客户端 → 服务端：
-  {"type": "pause", "taskId": "..."}
-  {"type": "resume", "taskId": "..."}
-  {"type": "approval_decision", "approvalId": "...", "decision": "approve"}
-
-服务端 → 客户端：
-  （复用 SSE 事件类型，作为 message.type 推送）
-```
-
-首版不实现，接口预留。
-
-## 5. 事件与 API 的衔接
-
-| 客户端动作 | API | 触发的事件 |
-| --- | --- | --- |
-| 创建任务 | POST /api/task/create | task_status(CREATED) |
-| 启动任务 | POST /api/agent/run | task_status(RUNNING) + agent(start) |
-| 订阅实时流 | GET /api/agent/stream/{id} | 持续推送上述所有事件 |
-| 审批决策 | POST /api/approval/{id}/decision | task_status(RUNNING/FAILED) |
-| 查询 Trace | GET /api/trace/{taskId} | （同步返回，非事件） |
-| 查询评测 | GET /api/evaluation/report/{id} | （同步返回，非事件） |
-
-## 6. 前端消费规范
-
-- SSE 用 `EventSource` 或 fetch 流式读取（需自定义 header 时用 fetch）
-- 事件按类型分发到对应 UI 组件（Agent 面板、工具日志、审批弹窗、Trace 图）
-- 审批事件必须置顶 + 强提醒，防止阻塞被忽略
-- 断线自动重连（携带 Last-Event-ID），重连期间展示「重连中」
-- 事件乱序容忍：以 `id` 排序去重
+TanStack Query 管理快照；事件触发定向 invalidation/受控合并。不直接累加 received_count，避免重复事件污染分母。
+Nginx 对 SSE 关闭缓冲与压缩，配置合理超时；不要同时全站禁用静态资源压缩。沿用当前 /api/langgraph/* 的重写，仅新增业务路由；部署测试覆盖代理后的重连而非只测本机 FastAPI。

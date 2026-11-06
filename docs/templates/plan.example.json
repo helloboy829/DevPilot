@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "example_only": true,
+  "name": "示例 QA 基准 v1",
+  "status": "draft",
+  "dataset_version_id": "ds-qa-v1",
+  "endpoint_revision_id": "endpoint-qa-v1",
+  "rubric_ref": "qa-rubric-v1",
+  "effect": {
+    "concurrency": 2,
+    "timeout_seconds": 30,
+    "retries": 0,
+    "judge_policy": "calibrated_semantic_with_review",
+    "criteria": {
+      "pass_rate_min": 0.95,
+      "error_rate_max": 0.01,
+      "pending_max": 0,
+      "min_cases": 50
+    }
+  },
+  "perf": {
+    "load_mode": "closed_concurrency",
+    "concurrency_levels": [
+      1,
+      5,
+      10
+    ],
+    "warmup_requests": 5,
+    "max_requests_per_level": 100,
+    "max_duration_seconds_per_level": 60,
+    "stop_policy": "first_limit",
+    "drain_timeout_seconds": 30,
+    "repeats": 3,
+    "timeout_seconds": 30,
+    "retries": 0,
+    "criteria": {
+      "required_levels": [
+        1,
+        5,
+        10
+      ],
+      "repeat_policy": "all_repeats_must_pass",
+      "min_successful_requests_per_level": 50,
+      "success_rate_min": 0.99,
+      "p95_latency_max_ms": 5000,
+      "ttft_p95_max_ms": 1500
+    }
+  },
+  "budgets": {
+    "max_total_target_requests": 1500,
+    "max_job_seconds": 3600
+  },
+  "notes": [
+    "阈值仅演示，须业务审批；每档 warmup+正式请求及重复均计成本；effect 的数据量另受总预算限制。",
+    "dataset.example.jsonl 仅展示两条格式，不满足本方案 min_cases；源/凭据/裁判校准/负载许可缺失不可启动。",
+    "TTFT 仅用于启用文本流式且内容增量可观测的调用；非流式/仅状态流不适用，应可测但缺内容为 UNAVAILABLE，不能填 0。",
+    "抽检率/人员只是格式示例，须业务审批冻结；抽检未完成仍阻断正式放行，不能把抽检外样本自动视为已审。"
+  ],
+  "environment_revision_id": "env-qa-v1",
+  "endpoint_confirmation_id": "confirmation-example-not-approved",
+  "review_policy": {
+    "version": "example-review-policy-v1",
+    "reviewer_count": 1,
+    "blind": false,
+    "all_pending_require_review": true,
+    "pass_sample_rate": 0.1,
+    "pass_sample_seed": 20261106,
+    "required_reviews_block_acceptance": true
+  }
+}

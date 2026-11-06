@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "example_only": true,
+  "assignment_id": "assignment-example",
+  "expected_revision": 3,
+  "subject_revision": 1,
+  "subject_hash": "sha256:EXAMPLE_NOT_A_REAL_HASH",
+  "action": "fail",
+  "reason_code": "required_fact_missing",
+  "comment": "回答未包含冻结 rubric 要求的退货申请期限；仅作示例，不来自真实评测。",
+  "evidence_refs": [
+    {
+      "artifact_id": "artifact-output-example",
+      "locator": "answer:paragraph-1"
+    },
+    {
+      "artifact_id": "source-example",
+      "locator": "page:2;section:returns"
+    }
+  ],
+  "notes": [
+    "用于 case_judgment；actor 来自服务端身份，不接受客户端伪造。",
+    "正式请求须用真实已授权 subject hash/assignment 与必填证据；example_only/notes 是示例说明，不是正式字段。"
+  ]
+}

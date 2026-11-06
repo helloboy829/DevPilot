@@ -1,102 +1,59 @@
-# DevPilot 评测体系（7 字段 LLM-as-Judge）
+# Legacy：编码产物七字段 LLM-as-Judge
 
-对一次研发任务做机器可读的 7 字段评分，用于 DevPilot 的质量度量与后续优化闭环。
+> 2026-11-06。历史兼容模块，不是 DevPilot 的通用 AI 组件验收协议。产品已转向[评测工作台](../../../../README.md)，新版口径见[数据集与指标规范](../../../../docs/DevPilot_数据集与指标规范.md)。
+> 旧记录中的端到端/插件加载声明本轮未复验，仅 15 项纯单测已复跑。不要将这个 fail-open post-run 评分用于正式通过门禁。
 
-## 7 字段评分标准
+## 1. 当前范围
 
-| 字段（camelCase） | 含义 | 范围 |
-| --- | --- | --- |
-| `taskScore` | 任务完成度 | 0–100 |
-| `codeScore` | 代码质量 | 0–100 |
-| `testScore` | 测试覆盖与通过情况 | 0–100 |
-| `hallucinationRate` | 幻觉率（越接近 0 越好） | 0–1 |
-| `confidence` | 评测置信度 | 0–100 |
-| `overall` | 综合评分 | 0–100 |
-| `report` | 评测报告摘要 | 文本 |
+judge.py / metrics.py 为纯逻辑；runner.py / extension.py 在使用时惰性调用 DeerFlow 模型能力。cli.py 扫描编码任务产物并生成评分，extension.py 可在 lead 成功完成后触发兼容评分。
 
-综合评分公式（见 `judge.py::compute_overall`）：
+| 字段 | 范围 / 含义 |
+| --- | --- |
+| taskScore | 0–100，任务完成度 |
+| codeScore | 0–100，代码质量 |
+| testScore | 0–100，测试评价 |
+| hallucinationRate | 0–1，模型主观估计，非经过标注统计的真实幻觉率 |
+| confidence | 0–100，模型主观置信度，非已校准概率 |
+| overall | 0–100，按下式聚合 |
+| report | 文本摘要 |
 
-```
+~~~text
 overall = (taskScore×0.35 + codeScore×0.30 + testScore×0.20 + confidence×0.15)
           × (1 − hallucinationRate)
-```
+~~~
 
-## 模块结构
+以上权重属于历史编码评分，不能迁移为 CV/QA/Agent 统一权重。
 
-```
-evaluation/
-├── judge.py      # 纯逻辑核心（零依赖）：SEVEN_FIELDS、EvaluationResult、compute_overall、
-│                 #   parse_judge_output（剥离 <think>、代码围栏后取 JSON）、build_prompt
-├── metrics.py    # aggregate()：一批结果的均分 / 幻觉率 / 通过率
-├── runner.py     # judge_with_model()：惰性调用 deerflow.models.create_chat_model
-├── cli.py        # 命令行入口 + collect_artifacts()（扫描工作区产物）
-├── extension.py  # post-run 自动评测挂载点（TaskLifecycleContributor，走 plugins 机制）
-└── tests/test_judge_metrics.py  # 15 个 unittest 用例（纯逻辑，无外部依赖）
-```
+## 2. CLI 与插件（具备完整环境时）
 
-`judge.py` / `metrics.py` 不依赖 `deerflow`，可独立单测；`runner.py` / `extension.py`
-只在使用时惰性 import `deerflow`，避免加载扩展时拖慢网关启动。
+先按 backend 安装流程安装包括 ../devpilot 的本地依赖，再在 backend 的虚拟环境执行：
 
-## 两种用法
+~~~bash
+python -m devpilot.evaluation.cli --requirement "示例编码任务" --workspace /path/to/workspace --out report.json
+~~~
 
-### 1. CLI（已验证端到端）
+命令需要已安装包、正确配置及模型访问权限；本轮未调用真实模型。
 
-对一次研发任务的产物目录做评测，输出 7 字段 JSON 报告：
+operator-controlled config.yaml：
 
-```bash
-# 在 repo 根目录，PYTHONPATH 含 repo 根 + backend/packages/harness
-python -m devpilot.evaluation.cli \
-  --requirement "实现一个回文判断函数 is_palindrome(s)..." \
-  --workspace /path/to/task/workspace \
-  --tests /path/to/test-output.txt \
-  --out report.json
-```
-
-参数：
-- `--requirement` / `--requirement-file`：任务需求文本（二选一）
-- `--workspace`：产物工作区目录（扫描源码/文本文件，上限 40 个文件 × 4000 字符）
-- `--tests`：测试输出文件（`python -m unittest -v` 之类的通过/失败信息）
-- `--transcript`：研发过程对话摘录（可选，用于幻觉率/置信度）
-- `--model`：评测用模型名（默认取 `config.yaml` 首个模型）
-- `--out`：报告输出 JSON 路径
-
-### 2. post-run 自动评测（挂载点，已验证加载）
-
-通过 DeerFlow 官方 `plugins:` 扩展机制，在**主智能体（lead）任务成功完成后**
-自动收集该线程工作区产物 → 评测 → 写报告到 `outputs/evaluation/<run_id>.json`。
-
-`config.yaml`：
-
-```yaml
+~~~yaml
 plugins:
   - use: devpilot.evaluation.extension:install
     config:
       enabled: true
-      model: deepseek-v4      # 可选，评测用模型名
-      requirement: "..."      # 可选，静态需求（覆盖工作区 task-requirement.txt）
-```
+      model: configured-judge-model
+~~~
 
-触发条件（`extension.py`）：`info.kind == "lead"` 且 `outcome == completed`；
-子任务、失败/中断不触发。全程 **fail-open**——任何异常只记日志，不阻断研发主流程。
+model 必须是实际配置的模型名。plugins 为 startup-only，变更需重启；不要写成 module:，也不要放到 API-writable extensions_config.json。插件异常只记录日志，不阻断原编码流程，因此不构成验收保障。
+容器中的包路径须先修复，不能仅把 repo 根加入 PYTHONPATH：真实包位于 devpilot/src。
 
-**前置条件**：`devpilot` 必须能被网关进程 import。二选一：
+## 3. 纯逻辑测试
 
-```bash
-# 方式 A：可编辑安装进网关 venv（一次性）
-/app/backend/.venv/bin/pip install -e /app/project/devpilot
+仓库根目录 PowerShell：
 
-# 方式 B：网关进程环境变量加 repo 根
-#   docker-compose gateway service -> environment: PYTHONPATH=/app/project
-```
+~~~powershell
+$env:PYTHONPATH = (Join-Path (Get-Location) 'devpilot/src')
+python -B -X utf8 -m unittest discover -s devpilot/src/devpilot/evaluation/tests -v
+~~~
 
-改 `plugins` 需要重启网关（`plugins` 是 startup-only 字段）。
-
-## 运行单测
-
-```bash
-python -m unittest discover -s devpilot/evaluation/tests -v
-```
-
-15 个用例覆盖：评分钳制、overall 回填、camelCase 序列化、`compute_overall`
-加权与幻觉惩罚、`strip_think_blocks`、`parse_judge_output`（干净 JSON / 蛇形 /
-代码围栏+think / 缺 overall / 垃圾输入）、`build_prompt`、`aggregate`。
+后续保留历史读兼容；正式评测采用 task-specific rubric、明确分母、待审/阻断与证据链，迁移不覆盖旧结果。

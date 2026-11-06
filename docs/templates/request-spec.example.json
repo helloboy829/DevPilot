@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "example_only": true,
+  "transport": "openai_chat",
+  "adapter_version": "example-adapter-v1",
+  "environment_revision_id": "env-qa-v1",
+  "credential_ref": "credential-demo",
+  "credential_version": "example-v1",
+  "method": "POST",
+  "url_template": "https://model.example.invalid/v1/chat/completions",
+  "query": {},
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body_template": {
+    "model": "example-model",
+    "messages": [
+      {
+        "role": "user",
+        "content": ""
+      }
+    ],
+    "stream": true
+  },
+  "input_bindings": [
+    {
+      "source": "case.input.question",
+      "destination": "/body/messages/0/content",
+      "value_type": "string",
+      "required": true
+    }
+  ],
+  "extractor": {
+    "version": "example-extractor-v1",
+    "protocol": "openai_sse",
+    "content_path": "choices[0].delta.content",
+    "terminal_rule": "openai_done"
+  },
+  "business_success_rule": "example-rule-requires-review",
+  "limits": {
+    "timeout_seconds": 30,
+    "max_response_bytes": 1048576,
+    "retries": 0
+  },
+  "destination_policy_id": "policy-example-not-approved",
+  "side_effects": "none_declared",
+  "notes": [
+    "设计示例，adapter/extractor/rule 需实际实现、注册并测试；引用未创建，域名不可调用。",
+    "鉴权由已审核 adapter 解析 credential_ref，在发送时注入；无明文 Authorization。",
+    "expected/rubric 未映射到被测请求；仅支持已声明的输入绑定路径，不执行表达式。"
+  ]
+}
