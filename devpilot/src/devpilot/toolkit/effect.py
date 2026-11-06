@@ -8,7 +8,8 @@
 
 - **执行 / 评估分离**：``effect_run`` 只产出原始返回，``effect_eval`` 只读 raw，
   支持显式传 raw 文件路径反复重评。
-- **MANUAL_REVIEW 不计入自动通过率**：手动评审样本既不抬高也不拉低自动判定。
+- **主通过率 = passed / total**：待审、错误和未执行样本不从分母消失。
+- ``auto_pass_rate`` 仅为自动判定子集的诊断比例，不能用于验收放行。
 - ``reference_text`` 走 LLM-as-Judge：复用 ``devpilot.evaluation.judge`` 的
   ``strip_think_blocks`` + 稳健 JSON 解析，但换新 schema（accuracy/completeness/structure），
   不再用 7 字段。
@@ -53,7 +54,7 @@ class EffectJudgeResult:
         if not isinstance(self.report, str):
             self.report = str(self.report or "")
 
-    def fill_overall(self) -> "EffectJudgeResult":
+    def fill_overall(self) -> EffectJudgeResult:
         """overall 未给出时用均分回填。"""
         if self.overall <= 0:
             self.overall = round((self.accuracy + self.completeness + self.structure) / 3, 2)
@@ -79,7 +80,7 @@ class EffectThresholds:
     overall_min: float = 0.0
 
     @classmethod
-    def from_criteria(cls, criteria: Mapping[str, Any] | None) -> "EffectThresholds":
+    def from_criteria(cls, criteria: Mapping[str, Any] | None) -> EffectThresholds:
         effect = (criteria or {}).get("effect") or {}
         return cls(
             accuracy_min=float(effect.get("accuracy_min") or 0.0),
@@ -95,7 +96,7 @@ class EffectSampleResult:
 
     sample_index: int
     validation_type: str
-    status: str  # passed | failed | manual_review | error
+    status: str  # passed | failed | manual_review | error | not_run
     judge: EffectJudgeResult | None = None
     reference_text: str | None = None
     output_text: str | None = None
@@ -122,11 +123,13 @@ class EffectReport:
     failed: int = 0
     manual_review: int = 0
     error: int = 0
-    auto_total: int = 0  # total - manual_review
+    auto_total: int = 0  # passed + failed + error; diagnostic subset only
     auto_pass_rate: float = 0.0
     overall: str = "REVIEW"  # PASS | FAIL | REVIEW
     samples: list[EffectSampleResult] = field(default_factory=list)
     summary: dict[str, Any] = field(default_factory=dict)
+    not_run: int = 0
+    pass_rate: float = 0.0  # passed / total; primary rate
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -135,6 +138,8 @@ class EffectReport:
             "failed": self.failed,
             "manual_review": self.manual_review,
             "error": self.error,
+            "not_run": self.not_run,
+            "pass_rate": round(self.pass_rate, 4),
             "auto_total": self.auto_total,
             "auto_pass_rate": round(self.auto_pass_rate, 4),
             "overall": self.overall,
@@ -279,12 +284,7 @@ async def effect_run(
 
 
 def _judge_meets_thresholds(judge: EffectJudgeResult, thresholds: EffectThresholds) -> bool:
-    return (
-        judge.accuracy >= thresholds.accuracy_min
-        and judge.completeness >= thresholds.completeness_min
-        and judge.structure >= thresholds.structure_min
-        and judge.overall >= thresholds.overall_min
-    )
+    return judge.accuracy >= thresholds.accuracy_min and judge.completeness >= thresholds.completeness_min and judge.structure >= thresholds.structure_min and judge.overall >= thresholds.overall_min
 
 
 async def effect_eval(
@@ -302,36 +302,50 @@ async def effect_eval(
     """
     thresholds = EffectThresholds.from_criteria(criteria)
     sample_results: list[EffectSampleResult] = []
-    samples = samples or [{} for _ in results]
+    if samples is None:
+        samples = [{} for _ in results]
+    if len(results) > len(samples):
+        raise ValueError("More results than planned samples; the denominator cannot be extended")
 
-    for idx, result in enumerate(results):
-        meta = samples[idx] if idx < len(samples) else {}
+    for idx, meta in enumerate(samples):
+        reference_text = str(meta.get("reference_text") or "")
+        if idx >= len(results):
+            sample_results.append(
+                EffectSampleResult(
+                    sample_index=idx,
+                    validation_type=validation_type,
+                    status="not_run",
+                    reference_text=reference_text,
+                    error="No result for planned sample",
+                )
+            )
+            continue
+        result = results[idx]
+        if not result.success:
+            sample_results.append(
+                EffectSampleResult(
+                    sample_index=idx,
+                    validation_type=validation_type,
+                    status="error",
+                    reference_text=reference_text,
+                    output_text=result.text,
+                    error=result.error or "调用失败",
+                )
+            )
+            continue
         if validation_type == "manual_review":
             sample_results.append(
                 EffectSampleResult(
                     sample_index=idx,
                     validation_type=validation_type,
                     status="manual_review",
-                    reference_text=None,
+                    reference_text=reference_text,
                     output_text=result.text,
                 )
             )
             continue
 
         if validation_type == "reference_text":
-            reference_text = str(meta.get("reference_text") or "")
-            if not result.success:
-                sample_results.append(
-                    EffectSampleResult(
-                        sample_index=idx,
-                        validation_type=validation_type,
-                        status="error",
-                        reference_text=reference_text,
-                        output_text=result.text,
-                        error=result.error or "调用失败",
-                    )
-                )
-                continue
             judge = await judge_reference_text(result.text, reference_text, model_name=model_name)
             passed = _judge_meets_thresholds(judge, thresholds)
             # 评测解析失败（overall=0 且 report 含解析/评测失败）视为 failed，不吞掉。
@@ -375,19 +389,22 @@ def _build_effect_report(samples: Sequence[EffectSampleResult]) -> EffectReport:
             auto_judged.append(s)
         elif s.status == "manual_review":
             report.manual_review += 1
+        elif s.status == "not_run":
+            report.not_run += 1
         else:  # error
             report.error += 1
             auto_judged.append(s)
 
+    report.pass_rate = report.passed / report.total if report.total else 0.0
     report.auto_total = len(auto_judged)
     report.auto_pass_rate = (report.passed / report.auto_total) if report.auto_total else 0.0
 
-    if report.auto_total == 0:
-        report.overall = "REVIEW"
-    elif report.failed == 0 and report.error == 0:
-        report.overall = "PASS"
-    else:
+    if report.failed or report.error:
         report.overall = "FAIL"
+    elif not report.total or report.manual_review or report.not_run:
+        report.overall = "REVIEW"
+    else:
+        report.overall = "PASS"
 
     judged = [s for s in auto_judged if s.judge is not None]
     if judged:

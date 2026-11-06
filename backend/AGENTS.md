@@ -18,6 +18,11 @@ Debug checks/confirmations, script exports and human-review resources are also
 planned: see [debug/export](../docs/DevPilot_接口调试与脚本导出设计.md) and
 [review workbench](../docs/DevPilot_人工复核工作台设计.md). UI and Agent share
 application services; exported runners share versioned pure-core semantics.
+The first core-gate slice (2026-11-07) adds primary effect pass_rate/not_run,
+required-metric sample counts and check_reasons, and marks newly assembled
+reports/summaries as assessment_version=component-test.i0.v1. Legacy auto_*
+fields are diagnostic only; historical rows without the version are not upgraded.
+These guards do not implement durable frozen datasets or validate streaming capability.
 Human decisions cannot mutate observations or frozen answers; generate a new
 assessment and reapprove affected reports. Agents cannot submit human approvals.
 

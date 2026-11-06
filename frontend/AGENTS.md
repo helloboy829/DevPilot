@@ -20,6 +20,10 @@ inline result review must share task state and detail components, showing the
 component/version, complete Q/A, expected criteria and source evidence. Never
 turn a technical error into PASS via a UI override. Export capability remains
 disabled until standalone packaging and semantic-equivalence tests pass.
+The I0 core-report contract (2026-11-07) adds pass_rate, not_run, metric sample
+counts, check_reasons and assessment_version. They are optional in TypeScript
+only because stored legacy reports lack them; never synthesize a primary rate
+from legacy auto_pass_rate or imply that old PASS met the new guards.
 Host commands in the tables below are shorthand: invoke them through the root
 scripts/pnpm.py runner (for example, python scripts/pnpm.py check from repo root).
 

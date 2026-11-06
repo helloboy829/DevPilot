@@ -21,13 +21,15 @@
 | 能力 | 当前状态 |
 | --- | --- |
 | Gateway、认证、LangGraph、模型/工具/沙箱/聊天 | 底座代码已存在，本机未完成全栈运行验证 |
-| 组件 CRUD、四类 transport、基础 effect/perf、JSON 报告 | 已有初版；存在误 PASS、安全/恢复和部署缺口 |
+| 组件 CRUD、四类 transport、基础 effect/perf、JSON 报告 | 已有初版；首批核心判定回归已修复，安全/恢复、能力验证和部署仍有缺口 |
 | 提测/数据质量/审批/冻结/整改/正式模板报告/知识体系 | 新版目标方案，尚待分期实现 |
 | 接口调试台、独立脚本导出、人工复核中心 | 详细设计已更新，尚无对应完整实现，不是当前可用功能 |
 | 评测中心 UI / DeerFlow 非核心功能裁剪 | 交互与裁剪方案已写，未改页面或删除模块 |
-| 自定义纯单元测试 | 47 项通过（15 legacy evaluation + 32 toolkit），非端到端验收 |
+| 自定义纯单元测试 | 73 项通过（15 legacy evaluation + 58 toolkit），非端到端验收 |
 
 不再以旧“通用研发 SaaS、九 Agent、Milvus 必选、五个已交付研发 Skills”描述当前产品。
+
+2026-11-07 首批修复：新增主通过率 `pass_rate = passed / total` 与 `not_run`；待审/未执行不能放行；无成功请求或必需性能指标缺失/覆盖不全不能 PASS。新报告带 `assessment_version=component-test.i0.v1`，保留历史报告，不把旧 PASS 自动升级为新版结论。当前仍用原型的 PASS/FAIL/REVIEW 状态，并未实现目标生命周期或正式人工复核模块。具体范围与未完成项见[审计清单](docs/DevPilot_现状审计与修复清单.md)。
 
 ## 文档入口
 

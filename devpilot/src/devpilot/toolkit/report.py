@@ -14,6 +14,8 @@ from typing import Any
 from devpilot.toolkit.effect import EffectReport
 from devpilot.toolkit.perf import PerfReport
 
+ASSESSMENT_VERSION = "component-test.i0.v1"
+
 
 def build_component_test_report(
     component: Mapping[str, Any],
@@ -28,6 +30,7 @@ def build_component_test_report(
     ``component`` 为组件注册表的一行（含 id/name/transport/validation_type 等）。
     """
     report: dict[str, Any] = {
+        "assessment_version": ASSESSMENT_VERSION,
         "component": {
             "id": component.get("id"),
             "name": component.get("name"),
@@ -52,21 +55,27 @@ def build_run_summary(
     perf_report: PerfReport | None = None,
 ) -> dict[str, Any]:
     """构造写入 run 行 ``result`` 列的紧凑摘要（供列表页/状态轮询展示）。"""
-    overall = "PASS"
-    if effect_report is not None and perf_report is not None:
-        overall = "PASS" if (effect_report.overall == "PASS" and perf_report.overall == "PASS") else "FAIL"
-    elif effect_report is not None:
-        overall = effect_report.overall
-    elif perf_report is not None:
-        overall = perf_report.overall
+    reports = [r for r in (effect_report, perf_report) if r is not None]
+    required = {"effect": effect_report, "perf": perf_report}.get(test_type)
+    if any(r.overall == "FAIL" for r in reports):
+        overall = "FAIL"
+    elif required is None or any(r.overall != "PASS" for r in reports):
+        overall = "REVIEW"
+    else:
+        overall = "PASS"
 
     summary: dict[str, Any] = {
+        "assessment_version": ASSESSMENT_VERSION,
         "overall": overall,
         "component_name": component.get("name"),
         "test_type": test_type,
     }
     if effect_report is not None:
         summary["effect"] = {
+            "total": effect_report.total,
+            "pass_rate": effect_report.pass_rate,
+            "error": effect_report.error,
+            "not_run": effect_report.not_run,
             "passed": effect_report.passed,
             "failed": effect_report.failed,
             "manual_review": effect_report.manual_review,
@@ -77,6 +86,8 @@ def build_run_summary(
         s = perf_report.summary
         summary["perf"] = {
             "overall": perf_report.overall,
+            "checks": dict(perf_report.checks),
+            "check_reasons": dict(perf_report.check_reasons),
             "concurrency": s.concurrency if s else None,
             "success_rate": s.success_rate if s else None,
             "success_qps": s.success_qps if s else None,

@@ -58,7 +58,7 @@ export type ComponentTestType = "effect" | "perf";
 export type EffectSampleResult = {
   sample_index: number;
   validation_type: string;
-  status: "passed" | "failed" | "manual_review" | "error";
+  status: "passed" | "failed" | "manual_review" | "error" | "not_run";
   judge: {
     accuracy: number;
     completeness: number;
@@ -77,6 +77,9 @@ export type EffectReport = {
   failed: number;
   manual_review: number;
   error: number;
+  // Optional only for compatibility with stored legacy reports.
+  not_run?: number;
+  pass_rate?: number;
   auto_total: number;
   auto_pass_rate: number;
   overall: "PASS" | "FAIL" | "REVIEW";
@@ -99,20 +102,28 @@ export type PerfLevelResult = {
   latency_p99_ms: number | null;
   ttft_p50_ms: number | null;
   ttft_p95_ms: number | null;
+  latency_sample_count?: number;
+  ttft_sample_count?: number;
 };
 
 export type PerfReport = {
   overall: "PASS" | "FAIL";
   summary: PerfLevelResult | null;
   checks: Record<string, boolean>;
+  check_reasons?: Record<string, string>;
   levels: PerfLevelResult[];
 };
 
 export type RunResultSummary = {
+  assessment_version?: string;
   overall: "PASS" | "FAIL" | "REVIEW";
   component_name: string;
   test_type: ComponentTestType;
   effect?: {
+    total?: number;
+    pass_rate?: number;
+    error?: number;
+    not_run?: number;
     passed: number;
     failed: number;
     manual_review: number;
@@ -120,6 +131,8 @@ export type RunResultSummary = {
     overall: string;
   };
   perf?: {
+    checks?: Record<string, boolean>;
+    check_reasons?: Record<string, string>;
     overall: string;
     concurrency: number | null;
     success_rate: number | null;
@@ -146,6 +159,7 @@ export type ComponentTestRun = {
 };
 
 export type ComponentTestReport = {
+  assessment_version?: string;
   component: {
     id: string;
     name: string;

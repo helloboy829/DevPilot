@@ -20,8 +20,8 @@
 
 | ID / 优先级 | 证据与问题 | 修复与回归要求 |
 | --- | --- | --- |
-| F01 / P0 | **已复现**：perf_eval 对全失败且只配 p95 阈值返回 PASS；默认成功率下限 0，缺指标跳过 | 明确最小成功数、成功率门槛；缺必需指标 BLOCKED；每个必测档验收，不只取最高档 |
-| F02 / P0 | **已复现**：成功但缺 TTFT，配置 TTFT 阈值仍 PASS | 适用性与可用性分离；方案拒绝不适用阈值，运行缺证据阻断 |
+| F01 / P0 | **核心已修复（2026-11-07）**：全失败/零请求/无有效窗口不能 PASS，必需 p95 缺失不再跳过；见新增回归 | Gateway/真实负载与更完整有效性验收仍待完成 |
+| F02 / P0 | **缺证据门禁已修复（2026-11-07）**：必需 TTFT 缺失、无效或覆盖成功请求不全时 FAIL；无阈值不要求 TTFT | 能力适用性、NOT_APPLICABLE/UNAVAILABLE 状态、缓冲检测与方案阶段拒绝仍待实现 |
 | F03 / P0 | **已复现**：API/前端接收 structure/reference_values/field_completeness，effect_eval 不支持 | 实现并测试或入口 422/隐藏；能力声明一致 |
 | F04 / P0 | **静态发现**：backend 依赖 ../devpilot；Dockerfile 构建/运行未拷贝包 | builder/runtime/开发挂载一致；干净构建和容器 import；本轮未实际构建 |
 | F05 / P0 | **静态发现**：service/transports 显式 verify=False，URL 仅非空检查 | TLS 默认校验/信任 CA；SSRF、DNS、重定向策略；不简单封掉内网 |
@@ -32,7 +32,7 @@
 | F10 / P1 | **静态发现**：仅 JSON；有 openpyxl 不等于已有 Excel 报告 | 模板版本/证据/审批/脱敏，按用户真实模板适配 |
 | F11 / P1 | **静态发现**：toolkit 测试未显式纳入 backend 默认目录，未找到该域专属服务/前端测试 | CI 纳入；补 API、owner、恢复、前端与 E2E |
 | F12 / P0 文档 | 旧 README 为 SaaS/九 Agent/Milvus；声称五个研发 Skills 已交付但 tracked 文件缺失 | 本轮更新文档与路径；历史 live 声明不是当前验证 |
-| F13 / P0 | **已复现**：_build_effect_report 对 1 passed + 1 manual_review 输出 auto_pass_rate=1、overall=PASS；待审被移出分母 | 新主通过率以冻结 N_total 为分母；待审为 NEEDS_REVIEW；旧 auto_pass_rate 仅作辅助且不能放行 |
+| F13 / P0 | **核心已修复（2026-11-07）**：1 passed + 1 manual_review → pass_rate=1/2、overall=REVIEW；保留 auto_pass_rate 仅作诊断；缺结果记 not_run | 当前按传入 samples 固定分母，数据库冻结版本/正式人审与目标 NEEDS_REVIEW 生命周期仍待实现 |
 | F14 / P0 | **静态发现**：PerfLevelResult 仅聚合，service 将 levels 写 raw.json，未持久化逐请求 PerfSample；TPS 使用 total_tokens（可含输入）且混合估算来源 | 保存每请求 timing/attempt/token 来源与输入输出分开；补 mean；指标离线重算/报告不可冒充纯输出 TPS |
 
 复现摘要：
@@ -41,7 +41,7 @@
 - F03：validation_type=structure → unsupported validation。
 - F13：两条数据一条 passed、一条 manual_review → 旧逻辑 PASS / 自动通过率 100%；新版主通过率应为 1/2 且待复核。
 
-## 3. 验证范围
+## 3. 文档基线验证范围（2026-11-06）
 
 本地 Python 3.9.12；项目要求 3.12+；未发现 uv、backend/.venv、frontend/node_modules、config.yaml、extensions_config.json。
 自定义纯逻辑 unittest 已验证 **47 项通过（15 evaluation + 32 toolkit）**，不覆盖上述误判，也不是 Gateway/前端/部署验收。
@@ -67,3 +67,18 @@ python -B -X utf8 -m unittest discover -s devpilot/src/devpilot/toolkit/tests -v
 - 文档检查：27 个 Markdown、97 个本地链接、3 个 JSON 围栏、5 个 JSON 文件、2 条 JSONL、20 列 UTF-8 BOM CSV，未发现断链/语法/编码错误；RequestSpec 的 input.question 与数据样例绑定一致。
 - 重新运行 evaluation 15 + toolkit 32 = **47 项既有纯单测通过**；git diff --check 通过。旧单测包含旧口径断言，不代表本清单 P0 已解决。
 - 本次未改运行时代码、未实现新增 API/页面/独立 runner，也未运行完整后端/前端/容器/真实目标；上述新验收用例仍待开发。
+
+## 6. I0 首批核心判定修复（2026-11-07）
+
+已按“先红灯、后实现”修复 F01、F13 的核心判定及 F02 的缺证据门禁，并扩展相邻回归：
+
+- 效果主通过率固定为 passed/total；待审、错误、未执行保留。传入 samples 时不允许结果静默扩充分母；结果不足时逐项 not_run。未提供 samples 的 legacy 调用仍按 results 数量处理，不冒充正式冻结。
+- manual_review 先检查目标调用错误；error 不能转成人工语义待审。成功的待审样本保留 actual/reference。
+- 性能配置的延迟/TTFT 阈值不可因值为 None 而省略；非有限/负测量和缺覆盖不能放行。增加 latency_sample_count/ttft_sample_count 与 check_reasons；非流式未配 TTFT 时不要求其有值。阈值拒绝 NaN/Inf/负数，成功率范围为 0–1，判定以准确计数而非四舍五入比例为准。
+- 报告摘要缺所需报告时 REVIEW；FAIL 优先，待审不被改成 PASS/FAIL。新增主通过率/分母/错误/未执行和性能失败原因。新报告与摘要标 assessment_version=component-test.i0.v1；不回写旧报告。前端仅同步兼容类型，未重做页面。
+
+验证：本地 Python 3.9.12，evaluation 15 + toolkit 58 = **73 项纯单测通过**，比原基线新增 26 项；用例包含 transport/LLM mock，不调用真实目标/模型。修改的 6 个 Python 文件经 Ruff 0.14.11 按 backend/ruff.toml 检查与格式校验通过。前端按规定运行 python scripts/pnpm.py check，但因 frontend/node_modules 不存在、缺 eslint 未通过；本机 Node.js 20.19.5 也低于项目要求 22+。
+
+补充文档检查：修改文件未发现疑似密钥，模板 JSON/JSONL 可解析，Git 空白检查通过；75 处本地链接引用无新增断链。backend/AGENTS.md 中另有 19 处提交前已存在的上游文档缺失引用，已识别为遗留导航问题，后续按实际保留模块整理，不创建空壳文档冒充实现。
+
+**未完成**：完整 Python 3.12+/uv 环境、Gateway/前端/容器/真实接口验收；流式能力/缓冲有效性验证；裁判校准/更完整 schema 校验；安全、持久化与 F03–F09/F14。原型仍按最高并发档验收，吞吐仍可能含输入 token，raw 仍非逐请求采样。I0 仅完成首个切片，不代表正式可用或整体安全。

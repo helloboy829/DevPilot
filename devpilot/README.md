@@ -9,13 +9,13 @@ devpilot/
 ├── pyproject.toml
 └── src/devpilot/
     ├── toolkit/       # effect/perf/transports/report，初版组件测试
-    │   └── tests/     # 32 个纯单元测试
+    │   └── tests/     # 58 个纯单元测试
     └── evaluation/    # legacy：代码产物七字段 LLM-as-Judge
         └── tests/     # 15 个纯单元测试
 ~~~
 
 Gateway 的 backend/app/component_tests/service.py 调用 toolkit；不是已经由 Lead Agent 自动完成端到端评测。
-当前基础文本判定与阶梯负载可复用，但仍有误 PASS、待审分母、TLS/凭据、耐久执行、原始观测与 Docker 打包问题，见[审计](../docs/DevPilot_现状审计与修复清单.md)。
+当前基础文本判定与阶梯负载可复用，首批固定分母和缺指标门禁已修复；仍有裁判/能力验证、TLS/凭据、耐久执行、原始观测与 Docker 打包问题，见[审计](../docs/DevPilot_现状审计与修复清单.md)。
 
 ## 目标边界（待实施）
 
@@ -34,4 +34,12 @@ python -B -X utf8 -m unittest discover -s devpilot/src/devpilot/evaluation/tests
 python -B -X utf8 -m unittest discover -s devpilot/src/devpilot/toolkit/tests -v
 ~~~
 
-本轮 47 项通过，但未运行全栈、真实模型或 Docker；新版本需求尚无完整实现。宿主 backend 通过 ../devpilot editable 引用，本包必须同时存在于镜像 builder/runtime 和开发挂载路径，当前缺口待修复。
+2026-11-07 共 73 项通过，但未运行全栈、真实模型或 Docker；新版本需求尚无完整实现。宿主 backend 通过 ../devpilot editable 引用，本包必须同时存在于镜像 builder/runtime 和开发挂载路径，当前缺口待修复。
+
+## I0 首批核心修复（2026-11-07）
+
+- `EffectReport.pass_rate` 是主通过率，分母包含 manual_review/error/not_run；`auto_pass_rate` 保留为诊断项，不能放行。传入 samples 时以其长度为分母，缺结果显式 not_run，多余结果拒绝；这不是已落库的冻结数据集功能。
+- 目标调用失败先记 error，不能转为人工语义待审。manual_review 保留实际输出和参考文本，尚无人工决策服务。
+- 性能无请求/无成功/无有效时间窗不能 PASS；配置的 p95/TTFT 门槛必须存在且覆盖所有成功请求，未配置 TTFT 不要求其有值。`check_reasons` 说明失败原因。非有限/负阈值拒绝，成功率用准确计数判定。
+- 新 JSON 报告和摘要带 `assessment_version=component-test.i0.v1`；旧 JSON 不改写。缺报告为 REVIEW，已知 FAIL 优先，其余待审不会被摘要改成 PASS。
+- `latency_sample_count`/`ttft_sample_count` 仅是有效观测数，不等同于已经验证的流式能力/缓冲检测；不能据此声称满足全部目标 TTFT 规范。当前最高并发档验收、总 token 吞吐及仅聚合落盘仍属原型限制。
