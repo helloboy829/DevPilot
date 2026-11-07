@@ -170,3 +170,11 @@ def test_cancellation_releases_worker_slot(monkeypatch):
         assert not gate.locked()
 
     asyncio.run(scenario())
+
+
+def test_structured_text_blocks_from_responses_and_gemini_are_supported(monkeypatch):
+    graph = SimpleNamespace(ainvoke=AsyncMock(return_value={"messages": [AIMessage(content=[{"type": "text", "text": json.dumps(advice())}])]}))
+    monkeypatch.setattr(assistant, "create_chat_model", MagicMock())
+    monkeypatch.setattr(assistant, "create_agent", lambda **kwargs: graph)
+    result = asyncio.run(assistant.run_report_assistant(config(), facts(), get_template("component-evaluation-en", "1.0.0")))
+    assert result["advice"] == advice()

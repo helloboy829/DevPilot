@@ -8,9 +8,11 @@
 
 - `devpilot.http`、`devpilot.reporting.project`：纯逻辑，不依赖 App/Harness。
 - `app.evaluation`：出站策略、冻结计划、确定性调度。
-- `app.reporting.intake`：报告字段建议，无工具/记忆/持久会话。
+- `app.reporting.intake`：报告多轮字段建议，无工具/记忆/持久会话；前文由客户端携带，不是可信证据。
 - `deerflow.config.managed_models`：不依赖 App 的可选加密模型配置覆盖层。
 - Gateway：认证/权限/授权、边界限制；前端始终通过现有认证/CSRF fetcher。
+
+默认 /workspace 进入 /workspace/evaluations。主导航围绕组件、定时评测、报告与模型连接；渠道与最近会话只在聊天/Agents 路由显示。首页库存来自本人组件接口，失败显示未知，不能把登记数称为通过数。
 
 ## 2. 新 API 与权限
 
@@ -24,7 +26,7 @@
 | `POST /api/reports/project/intake` | threads:write + runs:create + consent；需求文本发送给明确配置的模型 |
 | `/api/model-management` | 管理员；GET 目录，PUT models/roles，DELETE 指定模型，POST 指定模型 probe |
 
-敏感新路由验证失败不回显提交值；响应禁止缓存。模型变更使用 revision 防止覆盖并发编辑。模型适配器为白名单，不接受任意 Python import。YAML 模型不能从页面覆盖，同名冲突拒绝加载。
+敏感新路由验证失败不回显提交值；响应禁止缓存。模型变更使用 revision 防止覆盖并发编辑。模型协议白名单扩展到 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini Developer API；保持旧 openai_compatible ID 兼容。服务商标签、地址和模型 ID 自定义；不接受任意 Python import、SDK kwargs 或认证头。YAML 模型不能从页面覆盖，同名冲突拒绝加载。
 
 ## 3. 运行配置
 
@@ -52,6 +54,12 @@ DEVPILOT_MODEL_ENCRYPTION_KEY=<由密钥管理注入的 Fernet key；不要写�
 
 报告模型可通过页面绑定 `report_advisor`，也可继续由管理员用 `config.yaml -> reports_agent` 配置命名模型。移除页面绑定时恢复 operator 配置，不保证关闭 operator 已启用的助手。默认 Agent 与报告角色已接通，其余角色仅预留绑定。
 
+### 连接档案与切换
+
+模型页提供协议预设、连接搜索/新增/编辑/复制、默认切换与角色路由。复制不携带密钥；修改已有档案的 endpoint/protocol 时必须重新输入或明确清除旧密钥。留空只在地址和协议不变时保留旧值。每次修改携带 revision，冲突先重载，不静默覆盖。
+
+受控参数：temperature 0..2、top_p (0,1]、max_tokens 1..65536、timeout_seconds 1..300、max_retries 0..2。上游模型可能有更严格限制，需单独验证。Responses 显式 store=false；Gemini 固定 API-key Developer API（vertexai=false）。连接档案并非共享服务商密钥实体；不支持 OAuth、任意 JSON 导入、自动 failover 或全 CC Switch 客户端切换。
+
 ## 4. 定时评测语义
 
 计划保存组件非凭据配置哈希、数据与负载参数、时间/时区，运行时读取本人组件凭据。凭据轮换不要求复制计划；URL、协议、响应模式和标准变更会使旧计划拒绝执行。启动重新检查用户和运行权限。性能每档请求数、并发、档数、单次超时均受限；不接受自由 prompt、delivery 或用户指定 headers/judge。
@@ -66,12 +74,14 @@ DEVPILOT_MODEL_ENCRYPTION_KEY=<由密钥管理注入的 Fernet key；不要写�
 
 两个可选 Agent 路径：
 
-1. 需求整理：用户主动填写的短文本；可含主动输入的名称，页面明确提醒，不自动附带现有指标/本地文件。返回严格字段建议和问题；确认后只填写基础字段，不修改测量值。多个组件建议先列出，当前确认自动填首组件，其余逐个填报。
+1. 需求整理：可见多轮对话，用户主动填写的短文本；可含主动输入的名称，页面明确提醒，不自动附带现有指标/本地文件。返回严格字段建议和问题；确认后只填写基础字段，不修改测量值。多个组件建议先列出，当前确认自动填首组件，其余逐个填报。
 2. 指标解释：旧助手只接收白名单汇总 DTO，不发名称/自由文本/原始证据。解释也是待人工确认的非事实附录。
 
-两者无工具、记忆、checkpointer/store、tracing，限制超时/输出/并发，无自动重试，不回显 provider 原始错误。模型服务商的日志留存仍由运营者政策控制。当前不是完整持久多轮问答，也没有正式报告审批权限。
+两者无工具、记忆、checkpointer/store、tracing，限制超时/输出/并发，无自动重试，不回显 provider 原始错误。模型服务商的日志留存仍由运营者政策控制。多轮上限为 10 轮（history 最多 9 个已完成往返），当前消息不超过 4000 字符，序列化上下文不超过 24000 字符。每轮重新同意发送本轮及前文；使用严格 message/proposal DTO，不接受任意 role/system 消息。仅当前页面内存、离开不恢复，非服务端持久会话，也没有正式报告审批权限。
 
 ## 6. 当前限制与下一步
+
+详见[实现矩阵与下一步](DevPilot_实现进度与下一步.md)，按代码证据区分已完成切片、原型和未实现领域，不能以导航存在宣布里程碑完成。
 
 - 调试支持常用 HTTP/JSON，不支持完整 Postman，也未统一到所有旧评测适配器或导出脚本。
 - 新调试/定时路径使用严格出站；旧手动工具链的出站策略尚需统一，不应宣称全平台安全工作完成。

@@ -107,10 +107,10 @@ async def run_report_assistant(config: Any, facts: ReportFacts, template: Report
         message = result["messages"][-1]
         if not isinstance(message, AIMessage) or message.tool_calls or message.invalid_tool_calls:
             raise AssistantUnavailable("invalid_response")
-        if not isinstance(message.content, str) or len(message.content) > 16000:
+        if len(message.text) > 16000:
             raise AssistantUnavailable("invalid_response")
         try:
-            advice = validate_advice(json.loads(message.content))
+            advice = validate_advice(json.loads(message.text))
         except (ValueError, TypeError, ReportValidationError):
             raise AssistantUnavailable("invalid_response") from None
         return {

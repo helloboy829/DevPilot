@@ -12,6 +12,7 @@ from app.gateway.authz import require_permission
 from app.gateway.deps import get_config, get_optional_user_from_request
 from app.gateway.private_route import PrivateValidationRoute
 from app.reporting import assistant
+from app.reporting.intake_contract import IntakeContext
 
 router = APIRouter(route_class=PrivateValidationRoute, prefix="/api/reports", tags=["reports"])
 
@@ -92,9 +93,7 @@ class ProjectPreviewRequest(BaseModel):
     components: list[dict[str, Any]] = Field(min_length=1, max_length=30)
 
 
-class IntakeRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-    message: str = Field(min_length=1, max_length=4000)
+class IntakeRequest(IntakeContext):
     language: str = Field(pattern="^(zh|en)$")
     consent: bool
 
@@ -131,7 +130,7 @@ async def report_intake(payload: IntakeRequest, request: Request, config=Depends
     if payload.consent is not True:
         raise HTTPException(422, "Consent is required to send the entered requirements to the configured model")
     try:
-        return JSONResponse(await propose_fields(config, payload.message, payload.language), headers={"Cache-Control": "private, no-store"})
+        return JSONResponse(await propose_fields(config, payload.message, payload.language, history=payload.history), headers={"Cache-Control": "private, no-store"})
     except assistant.AssistantUnavailable as exc:
         code = {"busy": 429, "timeout": 504, "provider_error": 502, "invalid_response": 502}.get(str(exc), 503)
         raise HTTPException(code, "Report requirements assistant unavailable: " + str(exc)) from None

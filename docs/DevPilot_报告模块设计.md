@@ -111,7 +111,7 @@ DOCX/PDF 后续由同一冻结事实渲染，不能另起模型重新算数。�
 
 ### 职责与明确边界
 
-DeerFlow 底座已有模型工厂和 LangChain/LangGraph 编排。报告业务在 `backend/app/reporting/assistant.py` 复用它们，不启动具备文件/网络/沙箱/记忆能力的通用 lead agent，也不在纯领域包里引入模型 SDK。当前是**单轮、无工具的受限建议 Agent**，不是自主执行整个评测流程。
+DeerFlow 底座已有模型工厂和 LangChain/LangGraph 编排。报告业务在 `backend/app/reporting/assistant.py` 复用它们，不启动具备文件/网络/沙箱/记忆能力的通用 lead agent，也不在纯领域包里引入模型 SDK。本节指标解释仍是**单轮、无工具的受限建议 Agent**；第 10 节需求整理现支持有界多轮。两者都不是自主执行整个评测流程。
 
 - 输入：经过确定性验证的效果/性能汇总计数、指标适用性与来源枚举、程序计算的通过率/调用成功率、BASELINE/ACCEPTANCE 和模板语言。
 - 不送模型：项目/组件/人员名称、版本与测试时间自由文本、环境/范围/方法/证据/限制正文、原始报告、逐条 Q/A、金标、内部地址、凭据。服务端构造 allowlist DTO，不依赖模型自我脱敏；这些指标仍可能敏感，必须获准后再发送。
@@ -148,3 +148,11 @@ DeerFlow 底座已有模型工厂和 LangChain/LangGraph 编排。报告业务�
 当前 API 无状态，**无法认证客户端回传文本真的来自该模型**。附录 source 固定为 `client_supplied_ai_advice_unverified`；模型名仅客户端声明，人工确认也不是签名或审批。不能将其当作可信审计日志。未来持久化建议需绑定 owner、revision 和服务端保存的原始建议，再建立可认证来源。
 
 无附录时保留 `manual-preview.v1` 原格式；有附录使用 `advisory-preview.v1`，manifest 追加 `advisory_sha256`，下载包含建议快照。中英模板 `1.0.0` 内容和模板 hash 不改；新增模板版本仍需显式选用，旧报告不自动重渲染。正式修订/发布/审批仍未实现。
+
+## 10. 多组件需求多轮（2026-11-07）
+
+需求助手复用 DeerFlow 模型工厂和无工具 LangGraph，现支持补充、修正与可见历史，不再只处理当前一条输入。客户端每次提交 message、language、consent 和 history；history 只能是 {message, proposal} 的已完成往返，服务器验证 schema 并构造角色消息，不接受任意 system/tool 历史。前文建议不等于确认事实，最新明确修正优先。
+
+最多 10 轮、当前输入 4000 字符、序列化上下文 24000 字符；每轮重新同意发送当前输入及前文。历史仅当前页面内存，离开不恢复。达到上限须开始新对话，不静默截断。重置对话不清空手工指标，字段确认只填项目/标题/首组件，其他组件仍逐个加入项目快照；不能改写计数、阈值或测量值。返回 round 和 conversation_persisted=false。
+
+这不是持久报告会话/修订账本，也没有正式发布权。未来服务端会话需 owner/权限、revision、保留/删除策略和服务端存证；不能直接启用通用记忆自动保存报告材料。模型四协议及角色配置见[工作台交付](DevPilot_Evaluation_Workspace.md)。

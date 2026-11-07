@@ -128,3 +128,20 @@ docker exec devpilot-ci-node sh -lc 'cd /workspace/frontend && CI=1 SKIP_ENV_VAL
 前端中间一轮全量格式检查曾因 AGENTS.md 多余空行失败，已修正并完整重跑；较早 E2E 为 **149 passed、1 flaky**，抖动来自既有 Lark 弹窗用例重试，最终 **151 项首过**，没有删除或放宽旧断言。
 
 本地回归成功不替代新提交的 GitHub Actions。当前仍为无状态未核验 DRAFT 和可选建议附录：尚无持久报告/可信建议来源、正式审批、模板上传或 DOCX/PDF；模型供应商数据策略及参数兼容还需接入后按授权做 smoke test。项目完整自动化评测闭环也仍需按审计清单推进。
+
+## 2026-11-07：模型连接、评测默认首页与报告多轮
+
+环境仍为独立 Docker 副本，宿主只读挂载、Python 3.12 与锁定前端依赖；不修改本地其他项目，不调用真实业务接口或付费模型。测试工作目录为 backend/frontend，前端 pnpm 经 `scripts/pnpm.py`。
+
+最终后端：`PYTHONPATH=.:/workspace/devpilot/src PWD=/workspace/backend UV_NO_SYNC=1 .venv/bin/python -m pytest -q --tb=short -m 'not live' tests/`，**11,372 passed、73 skipped**；未提供全部可选数据库/网络环境，跳过不计通过。纯领域 `unittest discover`：evaluation **15**、toolkit **58**，共 **73** 通过。`ruff check .` 和 `ruff format --check .`（1152 文件）通过；模型/报告专项 **44** 通过。四类协议均通过真实 SDK 本地构造和配置覆盖/角色路由测试，不代表外部端点已连通。
+
+前端 `check`、全量 `format`、生产 `build` 通过；128 个单测文件、**988 项通过**。认证恢复浏览器测试 **2 项通过**。普通浏览器回归最终结果补充于下方。
+
+过程记录：修改前副本曾出现 uv 离线重装、PWD 环境缺失及一个 teardown 时序失败；规范副本测试环境后未复现。中间全量采集发现模型配置文件重构遗漏 catalog runtime helper，已恢复并新增四协议覆盖/角色路由测试，最终全量通过。前端首次内置 webServer 120 秒等待超时，改为先单独生产构建再启动同一构建测试，不修改仓库超时或跳过用例。第一次完整浏览器为 156 passed、2 failed：旧 landing 仍断言聊天默认路由、新测试的原生 select 使用不准确 label 定位；改为校验评测默认路由与 heading、精确 combobox 和四个 option，相关 12 项中的 landing 通过，最终评测专项 **7 项通过**，未放宽协议/密钥隔离断言。
+
+布局程序检查：桌面 1440px 下评测首页/模型/组件/报告，以及移动 390px 评测首页无文档横向溢出；截图仅保存在忽略的运行目录。此项是浏览器几何检查，不代表已做人工视觉验收。
+最终结果补充（2026-11-07）：普通 Playwright 浏览器回归 **158 项全部通过**（`CI=1 PLAYWRIGHT_SKIP_WEB_SERVER=1 ... playwright test --workers=1 --reporter=line`）；单独认证恢复用例 **2 项通过**。最终再次执行前端 `check` 与全量 `format` 均通过。验证副本曾将认证回归生成的 `test-results-auth/.last-run.json` 扫入 Prettier；仅将该临时输出移出源码目录后重跑，没有修改规则、放宽断言或更改产品代码。
+
+本地 Docker 已更新为本轮构建的网关/前端，入口仍为 `http://127.0.0.1:2026`。网关与 Redis 健康，前端生产构建完成；HTTP 冒烟验证首页/登录页可达、未登录工作区重定向至登录、受保护的模型/报告/定时评测 API 返回 401。现有账号、凭据、配置和数据卷未重置；未代用户登录或创建账号，未执行真实模型或客户接口请求。镜像、运行配置、截图和结果仅保留于忽略的本地运行目录，不进入提交。
+
+更新后真实本地入口另做 headless 浏览器冒烟：从 /workspace 自动跳转 /login，标题 DevPilot，邮箱输入可编辑并清空，无页面异常或 5xx。未提交登录表单、未创建账号，也未尝试绕过认证进入用户工作区。

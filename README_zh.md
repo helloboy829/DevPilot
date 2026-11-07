@@ -12,6 +12,7 @@ DevPilot 基于 ByteDance DeerFlow 的 Agent 底座二次开发，面向 AI 模�
 
 | 入口 | 当前能力 |
 | --- | --- |
+| 评测工作台 `/workspace/evaluations` | 默认首页，展示真实组件库存、评测步骤和未实现能力；不虚构验收统计 |
 | 组件测试 `/workspace/component-tests` | 注册组件、初版效果/性能执行；新增完整 cURL 粘贴、解析、编辑、单次发送、查看/复制响应 |
 | 定时评测 `/workspace/evaluation-schedules` | 单次/cron/时区、冻结参数、暂停/恢复、执行历史；直接进入确定性评测器，不生成聊天或推送任务 |
 | 报告 `/workspace/reports` | 人工填写指标、单组件及项目多组件快照、固定版本中英文模板、Markdown/JSON 草稿下载 |
@@ -36,17 +37,21 @@ DevPilot 基于 ByteDance DeerFlow 的 Agent 底座二次开发，面向 AI 模�
 
 模板参考授权历史报告的通用章节结构，**不包含原始客户名称、历史指标或报告原文，不是原 DOCX 版式复刻**。模板按 ID+版本固定；未来更新新增版本，不覆盖已出具版本。
 
-可选报告 Agent 复用 DeerFlow 模型工厂和 LangGraph：输入需求 → 返回字段建议/待确认问题 → 人工确认 → 填写真实指标 → 生成草稿。当前是单轮结构化需求整理，尚非持久多轮对话。另有仅发送汇总指标的解释助手，两条路径均需显式同意。模型不能补测量值、修改分母、批准报告或把建议变成测试事实。
+可选报告 Agent 复用 DeerFlow 模型工厂和 LangGraph：输入需求 → 返回字段建议/待确认问题 → 人工确认 → 填写真实指标 → 生成草稿。现支持带前文的可见多轮需求对话（最多 10 轮、序列化上下文 24000 字符），每轮重新同意外发；仅页面内存，离开不恢复，并非持久会话。另有仅发送汇总指标的解释助手，两条路径均需显式同意。模型不能补测量值、修改分母、批准报告或把建议变成测试事实。
 
 ### 模型配置
 
-管理员先为 Gateway 设置 `DEVPILOT_MODEL_CATALOG_DIR` 到独立持久私有目录，重启后可在页面配置 OpenAI-compatible 或 Anthropic 模型。API Key 不回显，留空保留旧值；整个目录数据库加密，密钥通过 `DEVPILOT_MODEL_ENCRYPTION_KEY` 提供，或自动生成独立 `catalog.key`。生产使用独立密钥管理，并保护密文和密钥备份、Windows ACL。
+管理员先为 Gateway 设置 `DEVPILOT_MODEL_CATALOG_DIR` 到独立持久私有目录，重启后可在连接档案页面配置 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini Developer API；服务商标签、地址和模型 ID 可自定义，支持预设、搜索、复制档案和白名单高级参数（采样、输出上限、超时、重试）。这借鉴 CC Switch 的连接管理思路，不等于完整兼容其客户端/OAuth/代理能力。API Key 不回显，留空保留旧值；更换地址或协议必须重填或明确清除旧密钥，复制档案不复制密钥；整个目录数据库加密，密钥通过 `DEVPILOT_MODEL_ENCRYPTION_KEY` 提供，或自动生成独立 `catalog.key`。生产使用独立密钥管理，并保护密文和密钥备份、Windows ACL。
 
 - `general_agent`：通用 Agent 默认模型；会话仍可单次切换。
 - `report_advisor`：需求整理与报告建议；绑定后启用，调用前仍需同意。
 - 数据构建、效果裁判、复核助手：目前仅预留角色配置，尚未接通完整流水线。
 
 工作模型与被测组件分开管理。没有配置真实模型时仍可调试接口、人工填报；报告 Agent 会明确不可用，不静默回退。
+
+## 当前进度
+
+完整[实现矩阵与下一步](docs/DevPilot_实现进度与下一步.md)逐项区分已实现、部分与待开发；界面入口与角色绑定不等于全流程完成。
 
 ## 目标业务闭环与后续优先级
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+
 import {
   Sidebar,
   SidebarHeader,
@@ -19,6 +21,9 @@ export function WorkspaceSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const { open: isSidebarOpen } = useSidebar();
+  const chatWorkspace = /^\/workspace\/(chats|agents)(\/|$)/.test(
+    usePathname(),
+  );
   return (
     <>
       <Sidebar variant="sidebar" collapsible="icon" {...props}>
@@ -27,8 +32,8 @@ export function WorkspaceSidebar({
         </SidebarHeader>
         <SidebarContent>
           <WorkspaceNavChatList />
-          <WorkspaceChannelsList />
-          {isSidebarOpen && <RecentChatList />}
+          {chatWorkspace && <WorkspaceChannelsList />}
+          {chatWorkspace && isSidebarOpen && <RecentChatList />}
         </SidebarContent>
         <SidebarFooter>
           <WorkspaceNavMenu />

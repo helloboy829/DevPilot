@@ -15,10 +15,28 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from cryptography.fernet import Fernet
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ROLES = ("general_agent", "report_advisor", "dataset_generator", "evaluator_judge", "review_assistant")
-PROVIDERS = {"openai_compatible": "langchain_openai:ChatOpenAI", "anthropic": "langchain_anthropic:ChatAnthropic"}
+# Stable wire protocols, not a closed list of commercial providers.
+# Preserve openai_compatible for existing encrypted catalogs.
+PROVIDERS = {
+    "openai_compatible": "langchain_openai:ChatOpenAI",
+    "openai_responses": "langchain_openai:ChatOpenAI",
+    "anthropic": "langchain_anthropic:ChatAnthropic",
+    "gemini": "langchain_google_genai:ChatGoogleGenerativeAI",
+}
+
+
+class ModelParameters(BaseModel):
+    """Allowlisted sampling/transport settings, never executable SDK kwargs."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    top_p: float | None = Field(default=None, gt=0, le=1)
+    max_tokens: int | None = Field(default=None, ge=1, le=65536)
+    timeout_seconds: float = Field(default=60.0, ge=1, le=300)
+    max_retries: int = Field(default=0, ge=0, le=2)
 
 
 class ManagedModel(BaseModel):
@@ -26,10 +44,19 @@ class ManagedModel(BaseModel):
     name: str = Field(pattern=r"^[a-zA-Z][a-zA-Z0-9_-]{0,63}$")
     display_name: str = Field(default="", max_length=100)
     provider: str = "openai_compatible"
+    provider_name: str = Field(default="", max_length=100)
+    parameters: ModelParameters = Field(default_factory=ModelParameters)
+    clear_credential: bool = Field(default=False, exclude=True)
     model: str = Field(min_length=1, max_length=200)
     base_url: str = Field(min_length=1, max_length=2048)
     api_key: str | None = Field(default=None, min_length=1, max_length=4096, repr=False, exclude=True)
     enabled: bool = True
+
+    @model_validator(mode="after")
+    def credential_intent(self):
+        if self.clear_credential and self.api_key is not None:
+            raise ValueError("Supply a new credential OR clear the credential, not both")
+        return self
 
     @field_validator("provider")
     @classmethod
@@ -105,15 +132,17 @@ class ModelCatalog:
 
     def public(self):
         state = self.state()
-        return {"revision": state["revision"], "roles": state["roles"], "models": [{k: v for k, v in row.items() if k != "api_key"} | {"has_credential": bool(row.get("api_key"))} for row in state["models"]]}
+        return {"revision": state["revision"], "roles": state["roles"], "protocols": list(PROVIDERS), "models": [ManagedModel.model_validate(row).model_dump() | {"has_credential": bool(row.get("api_key"))} for row in state["models"]]}
 
     def save_model(self, model: ManagedModel, *, actor, expected_revision=None):
         def change(state):
             old = next((row for row in state["models"] if row["name"] == model.name), None)
             if not model.enabled and model.name in state["roles"].values():
                 raise ValueError("Unassign roles before disabling this model")
+            if old and old.get("api_key") and (old["base_url"] != model.base_url or old["provider"] != model.provider) and model.api_key is None and not model.clear_credential:
+                raise ValueError("Endpoint/protocol changed: re-enter or explicitly clear the credential")
             row = model.model_dump()
-            row["api_key"] = model.api_key if model.api_key is not None else (old or {}).get("api_key")
+            row["api_key"] = None if model.clear_credential else model.api_key if model.api_key is not None else (old or {}).get("api_key")
             state["models"] = [entry for entry in state["models"] if entry["name"] != model.name] + [row]
             if len(state["models"]) > 50:
                 raise ValueError("At most 50 managed models")
@@ -141,11 +170,31 @@ class ModelCatalog:
 
     def config_models(self, state=None):
         state = state or self.state()
-        return [
-            {"name": row["name"], "display_name": row["display_name"] or row["name"], "use": PROVIDERS[row["provider"]], "model": row["model"], "base_url": row["base_url"], "api_key": row.get("api_key") or "not-required"}
-            for row in state["models"]
-            if row["enabled"]
-        ]
+        models = []
+        for row in state["models"]:
+            profile = ManagedModel.model_validate(row)
+            if not profile.enabled:
+                continue
+            parameters = profile.parameters.model_dump(exclude_none=True)
+            parameters["timeout"] = parameters.pop("timeout_seconds")
+            config = {
+                "name": profile.name,
+                "display_name": profile.display_name or profile.name,
+                "use": PROVIDERS[profile.provider],
+                "model": profile.model,
+                "base_url": profile.base_url,
+                "api_key": profile.api_key or "not-required",
+                **parameters,
+            }
+            if profile.provider in {"openai_compatible", "openai_responses"}:
+                config["use_responses_api"] = profile.provider == "openai_responses"
+                if profile.provider == "openai_responses":
+                    config.update(output_version="responses/v1", store=False)
+            elif profile.provider == "gemini":
+                # Explicitly use the API-key Developer API, never ambient Vertex credentials.
+                config["vertexai"] = False
+            models.append(config)
+        return models
 
 
 def catalog_from_env():

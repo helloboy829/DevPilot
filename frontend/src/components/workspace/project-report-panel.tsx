@@ -13,6 +13,10 @@ interface Proposal {
   components: { name: string; version: string }[];
   questions: string[];
 }
+interface IntakeTurn {
+  message: string;
+  proposal: Proposal;
+}
 interface ProjectPreview {
   markdown: string;
   manifest: { template_version: string; facts_sha256: string };
@@ -32,6 +36,7 @@ export function ProjectReportPanel({
   const [selected, setSelected] = useState("");
   const [preview, setPreview] = useState<ProjectPreview | null>(null);
   const [requirements, setRequirements] = useState("");
+  const [history, setHistory] = useState<IntakeTurn[]>([]);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -42,6 +47,8 @@ export function ProjectReportPanel({
     revision.current++;
     setPreview(null);
     setProposal(null);
+    setHistory([]);
+    setRequirements("");
     setConsent(false);
     setBusy(false);
     void evaluationApi<{ templates: ReportTemplateSummary[] }>(
@@ -111,6 +118,16 @@ export function ProjectReportPanel({
     }
   }
   async function ask() {
+    if (!consent || !requirements.trim() || history.length >= 10) return;
+    const message = requirements.trim();
+    if (JSON.stringify({ message, history }).length > 24000) {
+      setError(
+        zh
+          ? "对话超过 24000 字符，请开始新对话。"
+          : "Conversation exceeds 24000 characters. Start a new conversation.",
+      );
+      return;
+    }
     const seq = ++revision.current;
     setBusy(true);
     setError("");
@@ -119,9 +136,13 @@ export function ProjectReportPanel({
     try {
       const result = await evaluationApi<{ proposal: Proposal }>(
         "reports/project/intake",
-        { message: requirements, language: zh ? "zh" : "en", consent: true },
+        { message, history, language: zh ? "zh" : "en", consent: true },
       );
-      if (seq === revision.current) setProposal(result.proposal);
+      if (seq === revision.current) {
+        setProposal(result.proposal);
+        setHistory([...history, { message, proposal: result.proposal }]);
+        setRequirements("");
+      }
     } catch (e) {
       if (seq === revision.current)
         setError(e instanceof Error ? e.message : "Assistant unavailable");
@@ -161,6 +182,84 @@ export function ProjectReportPanel({
           : "Sanitized templates follow the reference reports’ section structure, without customer content. Confirm assistant fields, fill each component below, stage snapshots, then generate one project draft. Markdown / JSON only; original DOCX styling is not reproduced yet."}
       </p>
       <fieldset disabled={busy} className="space-y-3">
+        <div className="bg-muted/20 rounded-xl border p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-semibold">
+              {zh ? "报告需求对话" : "Report requirements conversation"}
+            </h3>
+            <span className="text-muted-foreground text-xs">
+              {history.length} / 10 {zh ? "轮" : "rounds"}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy || history.length === 0}
+              onClick={() => {
+                revision.current++;
+                setHistory([]);
+                setRequirements("");
+                setProposal(null);
+                setConsent(false);
+                setError("");
+              }}
+            >
+              {zh ? "开始新对话" : "Start new conversation"}
+            </Button>
+          </div>
+          <p className="text-muted-foreground mt-2 text-xs leading-5">
+            {zh
+              ? "可逐轮补充和修正，助手会参考本次对话的前文。最多 10 轮、合计 24000 字符；仅当前页面内存，离开不恢复。前文建议未经核实，确认字段不会修改实测指标。"
+              : "Add or correct details over multiple turns. Up to 10 rounds and 24000 characters, held in page memory only; not resumable after leaving. Earlier suggestions are unverified; confirming fields never changes measured metrics."}
+          </p>
+          <div
+            role="log"
+            aria-label={zh ? "需求对话记录" : "Requirements conversation"}
+            aria-live="polite"
+            className="mt-4 max-h-80 space-y-4 overflow-y-auto"
+          >
+            {history.length === 0 && (
+              <p className="text-muted-foreground text-sm">
+                {zh
+                  ? "描述你的项目与组件，助手会列出待确认的问题。"
+                  : "Describe your project and components; the assistant will ask for missing details."}
+              </p>
+            )}
+            {history.map((turn, index) => (
+              <article key={index} className="space-y-3 text-sm">
+                <div className="bg-primary/10 ml-6 rounded-xl p-3">
+                  <p className="mb-1 font-medium">
+                    {zh ? "你" : "You"} · {index + 1}
+                  </p>
+                  <p className="break-words whitespace-pre-wrap">
+                    {turn.message}
+                  </p>
+                </div>
+                <div className="bg-background mr-6 rounded-xl border p-3">
+                  <p className="mb-2 font-medium">
+                    {zh
+                      ? "报告助手 · 待确认"
+                      : "Report assistant · Unconfirmed"}
+                  </p>
+                  <p>
+                    {turn.proposal.title} {turn.proposal.project_name}
+                  </p>
+                  <ul className="my-2 list-inside list-disc">
+                    {turn.proposal.components.map((component, i) => (
+                      <li key={i}>
+                        {component.name} {component.version}
+                      </li>
+                    ))}
+                  </ul>
+                  <ol className="list-inside list-decimal space-y-1">
+                    {turn.proposal.questions.map((question, i) => (
+                      <li key={i}>{question}</li>
+                    ))}
+                  </ol>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
         <label className="block text-sm">
           {zh ? "告诉报告助手你的需求" : "Describe report requirements"}
           <Textarea
@@ -185,16 +284,22 @@ export function ProjectReportPanel({
             onChange={(e) => setConsent(e.target.checked)}
           />
           {zh
-            ? "同意将上方输入的需求文本发送给已配置的报告模型（可能含你主动填写的名称）。不会自动附带本地文件、已录入指标或其他材料。"
-            : "Authorize sending only the requirements above to the configured report model, including names you enter. No files, entered metrics or other materials are attached automatically."}
+            ? "同意将本轮需求和上方全部对话记录发送给已配置的报告模型（可能含你主动填写的名称）。不会自动附带本地文件、已录入指标或其他材料；每轮需重新同意。"
+            : "Authorize sending only the requirements and conversation history above to the configured report model, including names you enter. No files, entered metrics or other materials are attached automatically. Consent is required each turn."}
         </label>
         <Button
-          disabled={!consent || !requirements.trim() || busy}
+          disabled={
+            !consent || !requirements.trim() || busy || history.length >= 10
+          }
           onClick={() => void ask()}
         >
-          {zh
-            ? "整理需求 / 追问关键字段"
-            : "Extract fields / ask missing details"}
+          {history.length > 0
+            ? zh
+              ? "继续对话"
+              : "Continue conversation"
+            : zh
+              ? "整理需求 / 追问关键字段"
+              : "Extract fields / ask missing details"}
         </Button>
         {proposal && (
           <div className="space-y-2 rounded border p-3">
@@ -203,9 +308,14 @@ export function ProjectReportPanel({
                 ? "AI 建议（待确认，不是测试事实）"
                 : "AI suggestions (unconfirmed, not test facts)"}
             </strong>
-            <pre className="text-sm whitespace-pre-wrap">
-              {JSON.stringify(proposal, null, 2)}
-            </pre>
+            <p className="text-sm">
+              {proposal.title} · {proposal.project_name}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {zh
+                ? "先填入项目及首个组件，再逐个确认其他组件。计数、性能数据和证据必须在事实表单中填写。"
+                : "Fill the shared project and first component, then confirm remaining components. Enter counters, performance and evidence in the facts form."}
+            </p>
             <Button
               variant="outline"
               onClick={() => {

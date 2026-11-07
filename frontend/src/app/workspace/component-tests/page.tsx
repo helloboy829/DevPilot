@@ -303,11 +303,33 @@ export default function ComponentTestsPage() {
 
   return (
     <WorkspaceContainer>
-      <WorkspaceHeader />
-      <WorkspaceBody>
-        <RequestDebugger />
-        <div className="mx-auto flex w-full max-w-(--container-width-md) flex-col gap-4 p-6">
-          <h1 className="text-2xl font-semibold">{t.sidebar.componentTests}</h1>
+      <WorkspaceHeader>
+        <h1 className="text-lg font-semibold">{t.sidebar.componentTests}</h1>
+      </WorkspaceHeader>
+      <WorkspaceBody className="overflow-y-auto">
+        <div className="mx-auto w-full max-w-7xl px-4 pt-6 md:px-8">
+          <section className="to-background rounded-2xl border bg-gradient-to-r from-emerald-500/10 p-6">
+            <h2 className="text-2xl font-semibold">
+              {locale === "zh-CN"
+                ? "先验证请求，再开展评测。"
+                : "Verify requests before evaluating."}
+            </h2>
+            <p className="text-muted-foreground mt-3 text-sm leading-6">
+              {locale === "zh-CN"
+                ? "① 粘贴 cURL 并验证响应 → ② 登记组件与能力 → ③ 使用受限参数运行效果 / 性能测试。调试结果不会自动注册为组件，数据冻结与审批仍待实现。"
+                : "1. Import cURL and verify the response → 2. Register the component and its capabilities → 3. Run bounded effect / performance tests. Debug requests are not automatically registered; dataset freezing and plan approval are not implemented yet."}
+            </p>
+          </section>
+        </div>
+        <div className="mx-auto w-full max-w-7xl px-4 pt-4 md:px-8">
+          <RequestDebugger />
+        </div>
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 md:p-8">
+          <h2 className="text-xl font-semibold">
+            {locale === "zh-CN"
+              ? "组件登记与运行记录"
+              : "Component registry & evaluation runs"}
+          </h2>
 
           {/* Create form */}
           <div className="grid gap-2 rounded-lg border p-4">

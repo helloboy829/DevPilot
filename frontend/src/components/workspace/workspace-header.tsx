@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquarePlus } from "lucide-react";
+import { FlaskConical, MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -19,6 +19,9 @@ export function WorkspaceHeader({ className }: { className?: string }) {
   const { t } = useI18n();
   const { state } = useSidebar();
   const pathname = usePathname();
+  const evaluationWorkspace = !/^\/workspace\/(chats|agents)(\/|$)/.test(
+    pathname,
+  );
   return (
     <>
       <div
@@ -41,9 +44,12 @@ export function WorkspaceHeader({ className }: { className?: string }) {
                 DevPilot
               </Link>
             ) : (
-              <div className="text-primary ml-2 cursor-default font-serif">
+              <Link
+                href="/workspace/evaluations"
+                className="text-primary ml-2 font-semibold tracking-tight"
+              >
                 DevPilot
-              </div>
+              </Link>
             )}
             <SidebarTrigger />
           </div>
@@ -55,9 +61,24 @@ export function WorkspaceHeader({ className }: { className?: string }) {
             isActive={pathname === "/workspace/chats/new"}
             asChild
           >
-            <Link className="text-muted-foreground" href="/workspace/chats/new">
-              <MessageSquarePlus size={16} />
-              <span>{t.sidebar.newChat}</span>
+            <Link
+              className="text-muted-foreground"
+              href={
+                evaluationWorkspace
+                  ? "/workspace/component-tests"
+                  : "/workspace/chats/new"
+              }
+            >
+              {evaluationWorkspace ? (
+                <FlaskConical size={16} />
+              ) : (
+                <MessageSquarePlus size={16} />
+              )}
+              <span>
+                {evaluationWorkspace
+                  ? t.sidebar.componentTests
+                  : t.sidebar.newChat}
+              </span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

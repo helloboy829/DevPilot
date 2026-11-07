@@ -202,3 +202,9 @@ These apply repo-wide; module guides own the module-specific detail.
   frontend tests live in `frontend/tests/`.
 - **Format before pushing** — run `make format` (backend) / `pnpm check` (frontend). Backend
   CI enforces `ruff format --check`, so formatting must be clean before a push.
+
+## Connection profiles and multi-turn intake (2026-11-07)
+
+Managed model protocols are allowlisted OpenAI Chat, OpenAI Responses, Anthropic Messages and Gemini Developer API; keep the old openai_compatible wire ID. Only controlled ModelParameters are API-writable. Never copy credentials on duplication; endpoint/protocol changes require new credentials or explicit clear_credential. Preserve catalog_from_env/catalog_signature/overlay_models integration and role precedence. Responses uses store=false; Gemini explicitly disables Vertex mode.
+
+Report intake accepts bounded client-held message/proposal turns, not arbitrary roles: at most 10 rounds, current message 4000 characters, serialized context 24000 characters. Require fresh consent per round; suggestions are unverified and cannot update metrics. No memory/store/tools/persistent conversation. /workspace defaults to /workspace/evaluations; chat remains a secondary compatible route. Keep inventory counts distinct from acceptance statistics and label unfinished capabilities honestly. See the implementation matrix in docs for the remaining lifecycle gaps.

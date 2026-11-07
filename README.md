@@ -8,10 +8,11 @@
 
 | Page | Implemented scope |
 | --- | --- |
+| `/workspace/evaluations` | Default evaluation-first landing page with real component inventory and explicit remaining capabilities |
 | `/workspace/component-tests` | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses |
 | `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery |
 | `/workspace/reports` | Manual single-component and multi-component project snapshots, pinned Chinese/English templates, Markdown/JSON draft downloads |
-| `/workspace/models` | Administrator model catalog, write-only encrypted credentials, explicit connectivity probes, default/report role assignments |
+| `/workspace/models` | Connection profiles for OpenAI Chat, OpenAI Responses, Anthropic and Gemini; controlled parameters, encrypted write-only credentials, probes and default/report role routing |
 | Chat | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger |
 
 The unified local entry point is `http://127.0.0.1:2026`. See [Install.md](Install.md), [AGENTS.md](AGENTS.md) and module guides for installation and full-stack `make dev`/Docker commands. Do not commit local configuration, credentials or customer materials.
@@ -32,6 +33,12 @@ Set `DEVPILOT_MODEL_CATALOG_DIR` to a private persistent Gateway directory. Admi
 `general_agent` controls the default platform model; chat may override it. `report_advisor` enables report intake/advice, still requiring per-call consent. Dataset generation, evaluation judge and review assistant are **reserved bindings only**, not completed pipelines. Platform working models are separate from evaluated targets. No real provider is configured by this change and no customer/provider call is required for mock tests.
 
 Operator models in `config.yaml` remain operator-owned. Preserve the `deerflow` package, compatibility keys/environment variables, upstream attribution and license; user-facing product branding is DevPilot.
+
+## Current delivery status
+
+The report requirements assistant now supports a bounded, visible multi-turn conversation (10 rounds, 24000-character serialized context, page memory only). Every turn requires consent; confirming fields never alters measured metrics. Model profiles support custom provider labels/endpoints/model IDs, duplication without credentials, and explicit credential decisions when changing endpoints or protocols. This borrows connection-management patterns, not full CC Switch compatibility.
+
+See the [implementation matrix](docs/DevPilot_实现进度与下一步.md) for delivered, partial and unimplemented capabilities. Dataset governance/freeze, a human review center, durable execution, standalone exports and formal report/template lifecycle remain unfinished.
 
 ## Next milestones
 

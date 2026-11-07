@@ -38,14 +38,20 @@ test.describe("Landing page", () => {
 
   test("Open DevPilot link navigates to workspace", async ({ page }) => {
     mockLangGraphAPI(page);
+    await page.route("**/api/component-tests/components*", (route) =>
+      route.fulfill({ json: { components: [] } }),
+    );
 
     await page.goto("/");
 
     const getStarted = page.getByRole("link", { name: /open devpilot/i });
     await getStarted.click();
 
-    // Should redirect to /workspace/chats/new
-    await page.waitForURL("**/workspace/chats/new");
-    await expect(page).toHaveURL(/\/workspace\/chats\/new/);
+    // The product entry is evaluation-first; chat remains a secondary route.
+    await page.waitForURL("**/workspace/evaluations");
+    await expect(page).toHaveURL(/\/workspace\/evaluations/);
+    await expect(
+      page.getByRole("heading", { name: "Evaluation workbench", exact: true }),
+    ).toBeVisible();
   });
 });

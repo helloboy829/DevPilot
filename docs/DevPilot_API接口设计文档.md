@@ -167,3 +167,9 @@ ReviewTask kind=dataset_label/case_judgment/measurement_validity；status=queued
 claim/submit 使用幂等键；变更同时检查 task revision、assignment lease、subject hash/round。已提交决定可通过 reopen+新决定修订；无权限自批/仲裁为 403。报告生成请求必须引用 assessment_revision，不能只引用会变的 run_id。
 
 dataset-versions/{id}/reviews、plans/{id}/reviews、reports/{id}/reviews 是整体 Approval；ReviewTask 决定不能越级成为这些 Approval。人工提交例见[review-decision](templates/review-decision.example.json)。
+
+## 9. 已实现更新：模型连接与报告多轮（2026-11-07）
+
+模型管理 model 增 provider_name、parameters 和只写 clear_credential；provider 支持 openai_compatible、openai_responses、anthropic、gemini。parameters 仅接收 temperature/top_p/max_tokens/timeout_seconds/max_retries。变更 endpoint/protocol 时必须重填或明确清除旧凭据；PUT 仍校验 revision、admin，返回不含 api_key。
+
+POST /api/reports/project/intake 向后兼容不带 history 的旧请求；新增 history: [{message, proposal}]，最多 9 个已完成往返，当前轮使总数不超过 10，序列化上下文不超过 24000 字符。proposal 只允许 title/project_name/components/questions，拒绝任意 role、指标或额外字段。每轮 consent=true 且 threads:write+runs:create，返回 round、conversation_persisted=false；历史不持久、不被当作证据。参见[当前实现矩阵](DevPilot_实现进度与下一步.md)。
