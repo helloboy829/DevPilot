@@ -36,7 +36,12 @@ import { cn } from "@/lib/utils";
 
 const NONE = "—";
 
-const TRANSPORTS = ["openai_chat", "dify_chat", "dify_workflow", "http_post"] as const;
+const TRANSPORTS = [
+  "openai_chat",
+  "dify_chat",
+  "dify_workflow",
+  "http_post",
+] as const;
 const RESPONSE_MODES = ["blocking", "streaming"] as const;
 const VALIDATION_TYPES = [
   "reference_text",
@@ -71,7 +76,9 @@ function formatTimestamp(value: string | null, locale: string): string {
   }).format(date);
 }
 
-function parseParams(text: string): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
+function parseParams(
+  text: string,
+): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
   try {
     const value = JSON.parse(text) as unknown;
     if (value !== null && typeof value === "object" && !Array.isArray(value)) {
@@ -79,7 +86,10 @@ function parseParams(text: string): { ok: true; value: Record<string, unknown> }
     }
     return { ok: false, error: "not-an-object" };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -89,8 +99,12 @@ export default function ComponentTestsPage() {
   const componentsQuery = useComponents();
   const components = componentsQuery.data ?? [];
 
-  const [statusFilter, setStatusFilter] = useState<"all" | "enabled" | "disabled">("all");
-  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "enabled" | "disabled"
+  >("all");
+  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
+    null,
+  );
 
   // Create form state.
   const [name, setName] = useState("");
@@ -100,7 +114,8 @@ export default function ComponentTestsPage() {
   const [apiToken, setApiToken] = useState("");
   const [responseMode, setResponseMode] = useState<string>("blocking");
   const [supportsStreaming, setSupportsStreaming] = useState(false);
-  const [validationType, setValidationType] = useState<string>("reference_text");
+  const [validationType, setValidationType] =
+    useState<string>("reference_text");
   const [acceptanceCriteria, setAcceptanceCriteria] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -113,7 +128,8 @@ export default function ComponentTestsPage() {
   const [editApiToken, setEditApiToken] = useState("");
   const [editResponseMode, setEditResponseMode] = useState<string>("blocking");
   const [editSupportsStreaming, setEditSupportsStreaming] = useState(false);
-  const [editValidationType, setEditValidationType] = useState<string>("reference_text");
+  const [editValidationType, setEditValidationType] =
+    useState<string>("reference_text");
   const [editAcceptanceCriteria, setEditAcceptanceCriteria] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -139,7 +155,8 @@ export default function ComponentTestsPage() {
     return !component.enabled;
   });
   const selectedComponent =
-    filteredData.find((component) => component.id === selectedComponentId) ?? filteredData[0];
+    filteredData.find((component) => component.id === selectedComponentId) ??
+    filteredData[0];
   const runsQuery = useComponentRuns(selectedComponent?.id);
   const runs = runsQuery.data ?? [];
 
@@ -276,7 +293,9 @@ export default function ComponentTestsPage() {
       );
     }
     if (result.perf) {
-      bits.push(`${ct.result.successRate}: ${result.perf.success_rate ?? NONE}`);
+      bits.push(
+        `${ct.result.successRate}: ${result.perf.success_rate ?? NONE}`,
+      );
     }
     return bits.join(" · ");
   };
@@ -391,7 +410,9 @@ export default function ComponentTestsPage() {
                   criteria = parseAcceptanceCriteria(acceptanceCriteria);
                 } catch (error) {
                   setFormError(
-                    error instanceof Error ? error.message : ct.create.invalidJson,
+                    error instanceof Error
+                      ? error.message
+                      : ct.create.invalidJson,
                   );
                   return;
                 }
@@ -466,7 +487,9 @@ export default function ComponentTestsPage() {
                     <div className="font-medium">{component.name}</div>
                     <div className="text-muted-foreground text-sm">
                       {transportLabel(component.transport)} ·{" "}
-                      {component.enabled ? ct.detail.enabled : ct.detail.disabled}
+                      {component.enabled
+                        ? ct.detail.enabled
+                        : ct.detail.disabled}
                     </div>
                   </button>
                 );
@@ -529,14 +552,18 @@ export default function ComponentTestsPage() {
                       />
                       <Input
                         value={editComponentCode}
-                        onChange={(event) => setEditComponentCode(event.target.value)}
+                        onChange={(event) =>
+                          setEditComponentCode(event.target.value)
+                        }
                         placeholder={ct.create.componentCode}
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <select
                           className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                           value={editTransport}
-                          onChange={(event) => setEditTransport(event.target.value)}
+                          onChange={(event) =>
+                            setEditTransport(event.target.value)
+                          }
                         >
                           {TRANSPORTS.map((value) => (
                             <option key={value} value={value}>
@@ -565,14 +592,18 @@ export default function ComponentTestsPage() {
                       />
                       <Input
                         value={editApiToken}
-                        onChange={(event) => setEditApiToken(event.target.value)}
+                        onChange={(event) =>
+                          setEditApiToken(event.target.value)
+                        }
                         placeholder={ct.create.apiToken}
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <select
                           className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                           value={editResponseMode}
-                          onChange={(event) => setEditResponseMode(event.target.value)}
+                          onChange={(event) =>
+                            setEditResponseMode(event.target.value)
+                          }
                         >
                           {RESPONSE_MODES.map((value) => (
                             <option key={value} value={value}>
@@ -600,14 +631,18 @@ export default function ComponentTestsPage() {
                         placeholder={ct.create.acceptanceCriteriaPlaceholder}
                       />
                       {editError && (
-                        <div className="text-destructive text-sm">{editError}</div>
+                        <div className="text-destructive text-sm">
+                          {editError}
+                        </div>
                       )}
                       <Button
                         size="sm"
                         onClick={() => {
                           let criteria: Record<string, unknown>;
                           try {
-                            criteria = parseAcceptanceCriteria(editAcceptanceCriteria);
+                            criteria = parseAcceptanceCriteria(
+                              editAcceptanceCriteria,
+                            );
                           } catch (error) {
                             setEditError(
                               error instanceof Error
@@ -663,8 +698,14 @@ export default function ComponentTestsPage() {
                   {/* Runs list */}
                   <div className="text-muted-foreground text-sm">
                     {runs.length === 1
-                      ? ct.detail.runsCountOne.replace("{count}", String(runs.length))
-                      : ct.detail.runsCount.replace("{count}", String(runs.length))}
+                      ? ct.detail.runsCountOne.replace(
+                          "{count}",
+                          String(runs.length),
+                        )
+                      : ct.detail.runsCount.replace(
+                          "{count}",
+                          String(runs.length),
+                        )}
                   </div>
                   <div className="flex flex-col gap-2">
                     {runs.length > 0 ? (
@@ -753,12 +794,8 @@ export default function ComponentTestsPage() {
       <Dialog open={runOpen} onOpenChange={setRunOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {testTypeLabel(runTestType)}
-            </DialogTitle>
-            <DialogDescription>
-              {ct.result.report}
-            </DialogDescription>
+            <DialogTitle>{testTypeLabel(runTestType)}</DialogTitle>
+            <DialogDescription>{ct.result.report}</DialogDescription>
           </DialogHeader>
           <Textarea
             rows={8}
@@ -781,12 +818,15 @@ export default function ComponentTestsPage() {
       </Dialog>
 
       {/* Report dialog */}
-      <Dialog open={Boolean(reportRunId)} onOpenChange={(open) => !open && setReportRunId(null)}>
+      <Dialog
+        open={Boolean(reportRunId)}
+        onOpenChange={(open) => !open && setReportRunId(null)}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{ct.result.report}</DialogTitle>
           </DialogHeader>
-          <pre className="max-h-[60vh] overflow-auto rounded-md border bg-muted p-4 text-xs">
+          <pre className="bg-muted max-h-[60vh] overflow-auto rounded-md border p-4 text-xs">
             {reportQuery.data
               ? JSON.stringify(reportQuery.data, null, 2)
               : ct.result.noResult}

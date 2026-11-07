@@ -2,6 +2,18 @@
 
 > 2026-11-06；**目标契约，待实现**。本文件为数据质量、计数、状态和通过判定的唯一规范；不得由 Prompt 或前端自行改写。
 
+## 2026-11-07 材料校准补充（目标契约）
+
+- 计划必须显式选择 evaluation_mode=BASELINE（摸底）或 ACCEPTANCE（验收）。BASELINE 可记录缺参考源/阈值等限制，不给总体验收 PASS/FAIL；合法性、权限与负载预算门禁不豁免。ACCEPTANCE 必须冻结批准阈值，缺阈值为 BLOCKED，不静默套用固定阈值。下文“通过条件”均指 ACCEPTANCE；它不是执行状态。
+- 二值 case_pass_rate 与 rubric_score 分开。后者必须保存维度、权重、归一化和缺项规则；不能把半分/加权分称为“通过条数/总数”。二值通过率必须能与冻结分母及整数通过计数对账。
+- 结构正确不等于语义/数值正确。分别记录 contract_valid、value_verified 和相应指标；参考答案为空或预测真值不存在时，值准确性为 UNAVAILABLE，不因 JSON 完整或数值格式合格就 PASS。无金标仍可调试/采集/结构摸底，不得出效果验收通过结论。
+- 新增时序预测任务：锚定日、预测跨度、时间分区、数据批次、未来信息隔离、独立真实值与单位；MAE/RMSE/MAPE 等各自定义，零值/缺失策略冻结。与参考模型的一致性不能冒充真实预测精度。
+- 动态业务数据源绑定 as_of、时区、source_snapshot_id/业务批次和授权；“最近一次”不是固定金标。字段单位、容差、预期错误类型必须可审计。
+- 明确 metric_population=successful_requests / all_attempts / failed_attempts。平均响应时间分别统计并保存样本数；超时记录实际观察时长并标截尾，不猜未知完成时长。验收阈值绑定其中一种人群，报告不得把 success 均值写成全部请求均值。
+- 同一用例多轮/重试/重复运行使用 case_id、turn_id、attempt_id、run_id 分层；不增加冻结分母、不挑最好一轮。冻结数据版本变更须保留排除原因和审批；基于结果删除失败样本会破坏可比性。
+
+详见[脱敏材料分析](DevPilot_历史材料分析与设计校准.md)。以上尚未整体落地，旧组件工具不因文档更新自动获得这些保证。
+
 ## 1. 从材料到可验收数据
 
 1. 材料登记：保存来源、作者/提供方、授权范围、敏感级别、版本、内容 hash、用途与保留期限。
@@ -99,10 +111,10 @@ TTFT 不可观测记 NOT_APPLICABLE 或 UNAVAILABLE，不能记 0；前者为普
 **执行 status**：queued、running、cancelling、completed、failed、cancelled、interrupted。
 completed 仅表示执行流程完成，绝不等于验收通过；failed 是执行器错误，目标个别请求错误通常作为观测保留，执行可 completed。
 
-**验收 verdict**：NOT_EVALUATED、PASS、FAIL、NEEDS_REVIEW、BLOCKED。
+**总体 assessment verdict**：NOT_EVALUATED、INFO_ONLY、PASS、FAIL、NEEDS_REVIEW、BLOCKED。INFO_ONLY 只表示完成摸底而未作验收；不表示安全、数据完整或质量达标。
 **metric applicability**：APPLICABLE、NOT_APPLICABLE、UNAVAILABLE。
 
-确定性决策顺序：
+BASELINE 不执行验收通过判定，仅产生 INFO_ONLY 与限制/风险说明；运行异常照常保留执行状态。以下为 ACCEPTANCE 的确定性决策顺序：
 1. 已确认的硬安全违规/硬失败可判 FAIL，保留缺证据说明。
 2. 缺授权/必需指标/必要运行/最小样本、未执行项或中断 → BLOCKED。
 3. 仅剩标签/语义争议或必需人工抽检未完成 → NEEDS_REVIEW。

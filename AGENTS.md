@@ -12,6 +12,11 @@ guide rather than expecting full detail here:
 - **[frontend/AGENTS.md](frontend/AGENTS.md)** — frontend depth: Next.js App Router layout,
   thread/streaming data flow, code style, commands.
 
+## Material and CI calibration (2026-11-07)
+
+Read [the sanitized material analysis](docs/DevPilot_历史材料分析与设计校准.md) and [the isolated CI guide](docs/DevPilot_CI修复与隔离开发环境.md).
+Keep raw customer files, reference answers, credentials and internal endpoints out of Git and model context. BASELINE/ACCEPTANCE, metric populations and scoring fields in the new designs remain planned, not implemented API capabilities. Do not infer numerical accuracy from output shape or silently default acceptance thresholds.
+
 ## DevPilot Product Direction (2026-11-06)
 
 DevPilot is being specialized into an **AI component evaluation workbench and

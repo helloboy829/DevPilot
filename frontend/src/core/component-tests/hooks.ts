@@ -60,9 +60,8 @@ export function useUpdateComponent(componentId: string) {
   const queryClient = useQueryClient();
   const { t } = useI18n();
   return useMutation({
-    mutationFn: (
-      payload: Partial<ComponentPayload> & { enabled?: boolean },
-    ) => updateComponent(componentId, payload),
+    mutationFn: (payload: Partial<ComponentPayload> & { enabled?: boolean }) =>
+      updateComponent(componentId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["component-tests"] });
     },

@@ -2,6 +2,12 @@
 
 This file provides guidance to AI coding agents (Claude Code, Codex, and others) when working with code in this repository. It is the source of truth; the sibling `CLAUDE.md` imports it via `@AGENTS.md`.
 
+## Material and CI calibration (2026-11-07)
+
+Read [the sanitized material analysis](../docs/DevPilot_历史材料分析与设计校准.md) and [the isolated CI guide](../docs/DevPilot_CI修复与隔离开发环境.md).
+Keep raw customer files, reference answers, credentials and internal endpoints out of Git and model context. BASELINE/ACCEPTANCE, metric populations and scoring fields in the new designs remain planned, not implemented API capabilities. Do not infer numerical accuracy from output shape or silently default acceptance thresholds.
+Backend make test now includes both DevPilot unittest suites before Gateway pytest. Migration-specific tests keep their historical seed revisions, assert the actual current head, and retain the central explicit head pin in test_persistence_bootstrap.py. Mock external DNS in offline client tests without bypassing URL-safety validation.
+
 ## DevPilot Evaluation Baseline (2026-11-06)
 
 The component-tests router/service and devpilot.toolkit are an initial prototype,

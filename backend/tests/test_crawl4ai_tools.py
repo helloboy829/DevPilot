@@ -163,6 +163,26 @@ class TestCrawl4AiClient:
 class TestCrawl4AiTools:
     """Tests for the Crawl4AI tool functions."""
 
+    @pytest.fixture(autouse=True)
+    def _public_dns(self):
+        """Keep mocked-client tests offline without bypassing URL safety checks."""
+        with patch(
+            "deerflow.community.url_safety.resolve_host_addresses",
+            return_value=[ipaddress.ip_address("93.184.216.34")],
+        ):
+            yield
+
+    @patch("deerflow.community.crawl4ai.tools._build_client")
+    async def test_web_fetch_tool_rejects_unresolvable_host(self, mock_build):
+        from deerflow.community.crawl4ai import tools
+
+        with patch("deerflow.community.crawl4ai.tools._get_tool_config", return_value=None):
+            with patch("deerflow.community.url_safety.resolve_host_addresses", return_value=[]):
+                result = await tools.web_fetch_tool.ainvoke("https://unresolvable.example/")
+
+        assert "could not be resolved" in result
+        mock_build.assert_not_called()
+
     @patch("deerflow.community.crawl4ai.tools._build_client")
     async def test_web_fetch_tool_success(self, mock_build):
         from deerflow.community.crawl4ai import tools

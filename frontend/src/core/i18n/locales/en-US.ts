@@ -540,7 +540,8 @@ export const enUS: Translations = {
       title: "Edit component",
       submit: "Save",
     },
-    deleteConfirm: "Delete this component? Its run history will be removed too.",
+    deleteConfirm:
+      "Delete this component? Its run history will be removed too.",
     errors: {
       create: "Failed to create component",
       update: "Failed to update component",

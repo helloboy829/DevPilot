@@ -221,9 +221,9 @@ def test_smoke_test_docs_do_not_expect_standalone_langgraph_server():
 
 def test_gateway_runtime_docs_do_not_reference_transition_modes():
     docs = {
-        "backend/docs/AUTH_UPGRADE.md": _read("backend/docs/AUTH_UPGRADE.md"),
-        "backend/docs/AUTH_TEST_DOCKER_GAP.md": _read("backend/docs/AUTH_TEST_DOCKER_GAP.md"),
-        "docs/CODE_CHANGE_SUMMARY_BY_FILE.md": _read("docs/CODE_CHANGE_SUMMARY_BY_FILE.md"),
+        "README.md": _read("README.md"),
+        "docs/DevPilot_部署与运维设计.md": _read("docs/DevPilot_部署与运维设计.md"),
+        "docs/DevPilot_系统架构设计.md": _read("docs/DevPilot_系统架构设计.md"),
     }
 
     for path, content in docs.items():

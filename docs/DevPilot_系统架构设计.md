@@ -2,6 +2,12 @@
 
 > 2026-11-06；当前与目标分开说明。业务口径以[数据集与指标规范](DevPilot_数据集与指标规范.md)为准。
 
+## 2026-11-07 契约校准
+
+新版 Plan/RunSnapshot 保存 evaluation_mode、批准阈值、metric_population、scoring_method 与 source_snapshot_refs；assessment 分离 case_pass_rate、rubric_score、contract_valid 和 value_verified。BASELINE 总体验收结论为 INFO_ONLY，不复用 case outcome PASS/FAIL；ACCEPTANCE 按完整门禁判定。Report 使用同一不可变 assessment 生成，不另写统计公式。
+
+以上为待开发字段/服务契约，不是当前 component-tests API 的实际能力。部署仍须修复现有生产镜像打包问题，本次隔离 CI 容器验证不等于生产镜像可交付。[材料依据](DevPilot_历史材料分析与设计校准.md)。
+
 ## 1. 当前架构
 
 Nginx:2026 → Next.js:3000 / FastAPI Gateway:8001；Gateway 内嵌 DeerFlow LangGraph runtime。

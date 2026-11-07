@@ -2,6 +2,12 @@
 
 > 2026-11-06；第 1 节当前，其余为目标逻辑模型，**尚无对应完整迁移**。复用现有 SQLAlchemy/Alembic，不再假设所有场景已用 PostgreSQL/Milvus。
 
+## 2026-11-07 目标数据模型校准
+
+新版方案、运行快照与 assessment 增 evaluation_mode、scoring_method/权重版本、metric_population、source_snapshot_refs。金标状态与结构合法性分离；预测真实标签关联锚定日、跨度和独立实际值来源。source_snapshot 不保存到通用对话记忆。结果指标保存分子、分母、适用/缺失原因；BASELINE 为 INFO_ONLY，不伪造阈值或 accepted 状态。
+
+这是设计补充，尚无对应新增业务迁移；当前迁移测试仅校验已存在的 3fc2ac02a9d4 组件测试表迁移。[材料依据](DevPilot_历史材料分析与设计校准.md)。
+
 ## 1. 当前基线
 
 component_tests 与 component_test_runs 位于 backend/packages/harness/deerflow/persistence/component_tests/，迁移为 3fc2ac02a9d4_add_component_tests.py。当前存对象/参数/摘要，raw/report 为文件；无法表达数据版本、审批、知识权限与整改闭环。api_token 明文/序列化问题必须优先修复。

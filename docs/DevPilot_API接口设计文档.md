@@ -2,6 +2,12 @@
 
 > 2026-11-06。第 1 节为当前；其余均为**目标 API，待开发**，不能直接当成现有端点。状态/指标遵循[规范](DevPilot_数据集与指标规范.md)。
 
+## 2026-11-07 目标计划/结果契约补充
+
+新版 /api/evaluation 的计划和运行快照必须显式携带 evaluation_mode（BASELINE/ACCEPTANCE）、scoring_method、metric_population、source_snapshot_refs。ACCEPTANCE 的批准阈值缺失返回验证阻断；BASELINE 返回 INFO_ONLY 及限制，不返回总体 PASS/FAIL。case outcome 与总体 assessment verdict 分离；结果分别暴露 case_pass_rate、rubric_score、contract_valid、value_verified 及其分母/不可用原因。不得给旧 API 悄加默认阈值或将旧报告重新标成新标准通过。
+
+这些字段仍是目标设计，不表示当前 router 已接受它们。[业务依据](DevPilot_历史材料分析与设计校准.md)。
+
 ## 1. 当前实际接口
 
 router：backend/app/gateway/routers/component_tests.py。
