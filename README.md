@@ -72,3 +72,7 @@ New features ship with backend tests and frontend browser/API regressions. Backe
 ### Manual evaluation assistants
 
 Every signed-in user can use **Custom assistants → Configure manually** to save an assistant without a model call, with bilingual requirements, dataset-design and result-review presets. Conversations still need a configured model. These are advisory configurations, not sandboxed test executors or official acceptance. Private assistants remain account-scoped; the Reports module remains the report-generation entry.
+
+### Encrypted request-definition versions (backend slice)
+
+Project/component request versions can now be saved append-only through the authenticated API. Complete URL, header values and body are encrypted under a separate operator key; public reads return only structural metadata. App migration `eval_0003` preserves earlier tables and ledgers. This is not an execution plan, a successful-debugging attestation, a credential-reference vault or report evidence. There is no frontend save button yet, and saving requires explicit `DEVPILOT_REQUEST_ENCRYPTION_KEY` provisioning; existing local settings are not changed. See [scope and operations](docs/DevPilot_Request_Versions.md).

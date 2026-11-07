@@ -9,6 +9,9 @@ from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest,
 from app.evaluation.registry import ComponentLinkCreate, SubmissionCreate
 from app.evaluation.registry_repository import RegistryRepository
 from app.evaluation.repository import Conflict, NotFound
+from app.evaluation.request_protection import RequestProtectionError, RequestProtectionUnavailable
+from app.evaluation.request_version_repository import RequestVersionRepository
+from app.evaluation.request_versions import RequestVersionCreate
 from app.gateway.authz import _is_internal_caller, require_permission
 from app.gateway.deps import get_optional_user_from_request
 from app.gateway.private_route import PrivateValidationRoute
@@ -32,6 +35,8 @@ class BoundedDataRoute(PrivateValidationRoute):
                 request._body = b"".join(chunks)
             try:
                 return await handler(request)
+            except (RequestProtectionError, RequestProtectionUnavailable):
+                raise HTTPException(503, "Protected request storage is unavailable or failed integrity checks; contact the operator", headers={"Cache-Control": "private, no-store"}) from None
             except SQLAlchemyError:
                 # SQL exception text may contain statement parameters (including gold).
                 logger.warning("Evaluation database operation failed; details suppressed")
@@ -62,7 +67,7 @@ async def _result(operation):
     try:
         return await operation
     except NotFound:
-        raise HTTPException(404, "Project, component, dataset or submission not found") from None
+        raise HTTPException(404, "Project, component, dataset, submission or request version not found") from None
     except Conflict:
         raise HTTPException(409, "Resource changed, is not eligible or already exists; reload and review the current revision") from None
 
@@ -194,3 +199,33 @@ async def get_submission(project_id: str, submission_id: str, request: Request):
 async def registry_audit(project_id: str, request: Request):
     owner, repository = await _context(request)
     return {"events": await _result(RegistryRepository(repository.sf).registry_audit(owner, project_id))}
+
+
+@router.post("/{project_id}/components/{component_id}/request-versions")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def create_request_version(project_id: str, component_id: str, payload: RequestVersionCreate, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    return await _result(RequestVersionRepository(repository.sf).create_request_version(owner, project_id, component_id, payload))
+
+
+@router.get("/{project_id}/components/{component_id}/request-versions")
+@require_permission("evaluation_projects", "read")
+async def list_request_versions(project_id: str, component_id: str, request: Request):
+    owner, repository = await _context(request)
+    return {"request_versions": await _result(RequestVersionRepository(repository.sf).list_request_versions(owner, project_id, component_id))}
+
+
+@router.get("/{project_id}/request-versions/{version_id}")
+@require_permission("evaluation_projects", "read")
+async def get_request_version(project_id: str, version_id: str, request: Request):
+    owner, repository = await _context(request)
+    return await _result(RequestVersionRepository(repository.sf).get_request_version(owner, project_id, version_id))
+
+
+@router.get("/{project_id}/request-versions/{version_id}/audit")
+@require_permission("evaluation_projects", "review")
+async def request_version_audit(project_id: str, version_id: str, request: Request):
+    owner, repository = await _context(request)
+    return {"events": await _result(RequestVersionRepository(repository.sf).request_version_audit(owner, project_id, version_id))}

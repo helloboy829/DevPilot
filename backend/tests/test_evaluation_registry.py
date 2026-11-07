@@ -151,7 +151,7 @@ async def test_registry_upgrade_preserves_qa_and_harness_ledger(registry):
     await upgrade_evaluation_schema(engine)
     assert (await repository.get_dataset("owner", project["id"], dataset["id"]))["status"] == "frozen"
     async with engine.connect() as conn:
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0002"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0003"
         assert "alembic_version" not in await conn.run_sync(lambda c: inspect(c).get_table_names())
 
 
@@ -185,7 +185,7 @@ async def test_upgrade_from_deployed_eval_0001_retains_frozen_data(tmp_path, mon
         assert (await repository.read_samples("owner", project["id"], dataset["id"], references=True))[0]["expected"] == "Synthetic A"
         assert await repository.list_project_components("owner", project["id"]) == []
         async with engine.connect() as conn:
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0002"
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0003"
     finally:
         await engine.dispose()
 

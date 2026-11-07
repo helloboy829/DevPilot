@@ -107,3 +107,36 @@ registry_audit = Table(
     Column("action", String(40), nullable=False),
     Column("at", String(40), nullable=False),
 )
+
+
+# Append-only request definitions. Entire URL, body and header values are encrypted.
+request_versions = Table(
+    "evaluation_request_versions",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("component_id", String(64), nullable=False),
+    Column("version_label", String(80), nullable=False),
+    Column("label_key", String(240), nullable=False),
+    Column("scope", String(32), nullable=False),
+    Column("request_template", JSON, nullable=False),
+    Column("encrypted_payload", Text, nullable=False),
+    Column("protected_hash", String(64), nullable=False),
+    Column("created_by", String(64), nullable=False),
+    Column("created_at", String(40), nullable=False),
+    ForeignKeyConstraint(["project_id", "component_id"], ["evaluation_project_components.project_id", "evaluation_project_components.id"]),
+    UniqueConstraint("project_id", "id", name="uq_evaluation_request_project_id"),
+    UniqueConstraint("component_id", "label_key", name="uq_evaluation_request_label"),
+    CheckConstraint("scope = 'request_definition_only'", name="ck_evaluation_request_scope"),
+)
+request_version_audit = Table(
+    "evaluation_request_version_audit",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("request_version_id", String(64), nullable=False),
+    Column("actor", String(64), nullable=False),
+    Column("action", String(40), nullable=False),
+    Column("at", String(40), nullable=False),
+    ForeignKeyConstraint(["project_id", "request_version_id"], ["evaluation_request_versions.project_id", "evaluation_request_versions.id"]),
+)
