@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RequestDebugger } from "@/components/workspace/request-debugger";
 import {
   WorkspaceBody,
   WorkspaceContainer,
@@ -304,6 +305,7 @@ export default function ComponentTestsPage() {
     <WorkspaceContainer>
       <WorkspaceHeader />
       <WorkspaceBody>
+        <RequestDebugger />
         <div className="mx-auto flex w-full max-w-(--container-width-md) flex-col gap-4 p-6">
           <h1 className="text-2xl font-semibold">{t.sidebar.componentTests}</h1>
 

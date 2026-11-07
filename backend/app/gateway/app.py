@@ -313,21 +313,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.exception("No IM channels configured or channel service failed to start")
 
         try:
-            from app.gateway.services import launch_scheduled_thread_run
+            from app.evaluation.schedules import launch_scheduled_dispatch
             from app.scheduler import ScheduledTaskService
 
             if getattr(app.state, "scheduled_task_repo", None) is not None and getattr(app.state, "scheduled_task_run_repo", None) is not None:
                 scheduled_task_service = ScheduledTaskService(
                     task_repo=app.state.scheduled_task_repo,
                     task_run_repo=app.state.scheduled_task_run_repo,
-                    launch_run=lambda **kwargs: launch_scheduled_thread_run(app=app, **kwargs),
+                    launch_run=lambda **kwargs: launch_scheduled_dispatch(app=app, **kwargs),
                     poll_interval_seconds=startup_config.scheduler.poll_interval_seconds,
                     lease_seconds=startup_config.scheduler.lease_seconds,
                     max_concurrent_runs=startup_config.scheduler.max_concurrent_runs,
                 )
                 app.state.scheduled_task_service = scheduled_task_service
-                if startup_config.scheduler.enabled:
-                    await scheduled_task_service.start()
+                # Start after component services exist; evaluation schedules bypass chat.
         except Exception:
             logger.exception("Failed to initialize scheduled task service")
 
@@ -363,6 +362,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 app.state.component_test_service = component_test_service
         except Exception:
             logger.exception("Failed to initialize component test service")
+
+        if getattr(app.state, "scheduled_task_service", None) is not None and startup_config.scheduler.enabled:
+            await app.state.scheduled_task_service.start()
 
         yield
 
@@ -707,6 +709,11 @@ This gateway provides runtime endpoints for agent runs plus custom endpoints for
     app.include_router(scheduled_tasks.router)
     app.include_router(component_tests.router)
     app.include_router(reports.router)
+    from app.gateway.routers import evaluation_schedules, model_management, request_debugger
+
+    app.include_router(evaluation_schedules.router)
+    app.include_router(model_management.router)
+    app.include_router(request_debugger.router)
 
     # Agents API is mounted at /api/agents
     app.include_router(agents.router)

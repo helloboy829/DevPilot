@@ -36,6 +36,17 @@ function configuredLarkStatus() {
 }
 
 test.describe("Integrations settings", () => {
+  test.beforeEach(async ({ context }) => {
+    // Popup first navigations must be intercepted at context level, not page.
+    // No network access to the real authorization provider is needed in E2E.
+    await context.route("https://open.feishu.cn/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: "<!doctype html><title>Mock Lark authorization</title>",
+      }),
+    );
+  });
+
   test("opens integrations settings from a query-string deep link", async ({
     page,
   }) => {

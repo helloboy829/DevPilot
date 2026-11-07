@@ -46,8 +46,12 @@ The revised documents describe a target design, not completed runtime features.
   keep observations, automatic judgments, human decisions and assessments separate.
 - Maintain project documentation in Chinese and English only; do not delete
   runtime locales or licenses as part of documentation cleanup.
-- New evaluation API/UI/contracts remain planned. Existing component-tests has
-  known correctness/security/durability/packaging gaps listed in the audit.
+- The complete evaluation lifecycle remains planned. Implemented workspace slices
+  now cover cURL debugging, evaluation scheduling, project report drafts/intake
+  and administrator model management; see
+  [delivery and configuration](docs/DevPilot_Evaluation_Workspace.md) for actual
+  boundaries. Existing component-tests still has known durability, dataset,
+  unified-egress and export gaps; do not treat the new slices as final acceptance.
 
 ## What is DeerFlow
 

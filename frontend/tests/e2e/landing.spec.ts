@@ -7,14 +7,20 @@ test.describe("Landing page", () => {
     await page.goto("/");
 
     await expect(
-      page.locator("header").first().getByText("DeerFlow", { exact: true }),
+      page.locator("header").first().getByText("DevPilot", { exact: true }),
     ).toBeVisible();
     await expect(page.locator("h1")).toHaveCount(1);
-    await expect(page.locator("h1")).toContainText("DeerFlow");
-
-    // "Get Started" call-to-action button in hero
+    await expect(page.locator("h1")).toContainText("DevPilot");
     await expect(
-      page.getByRole("link", { name: /get started/i }),
+      page.getByRole("region", { name: "Evaluation workflow" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /02 \/ Schedule evaluations/ }),
+    ).toHaveAttribute("href", "/workspace/evaluation-schedules");
+
+    // "Open DevPilot" call-to-action button in hero
+    await expect(
+      page.getByRole("link", { name: /open devpilot/i }),
     ).toBeVisible();
   });
 
@@ -30,12 +36,12 @@ test.describe("Landing page", () => {
     });
   }
 
-  test("Get Started link navigates to workspace", async ({ page }) => {
+  test("Open DevPilot link navigates to workspace", async ({ page }) => {
     mockLangGraphAPI(page);
 
     await page.goto("/");
 
-    const getStarted = page.getByRole("link", { name: /get started/i });
+    const getStarted = page.getByRole("link", { name: /open devpilot/i });
     await getStarted.click();
 
     // Should redirect to /workspace/chats/new

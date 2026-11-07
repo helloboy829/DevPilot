@@ -10,9 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.gateway.authz import require_permission
 from app.gateway.deps import get_config, get_optional_user_from_request
+from app.gateway.private_route import PrivateValidationRoute
 from app.reporting import assistant
 
-router = APIRouter(prefix="/api/reports", tags=["reports"])
+router = APIRouter(route_class=PrivateValidationRoute, prefix="/api/reports", tags=["reports"])
 
 
 class ReportPreviewRequest(BaseModel):
@@ -82,3 +83,55 @@ async def report_preview(payload: PreviewWithAdvisory, request: Request):
     except ReportValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc), headers={"Cache-Control": "private, no-store"}) from exc
     return JSONResponse(result, headers={"Cache-Control": "private, no-store"})
+
+
+class ProjectPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    template_id: str = Field(min_length=1, max_length=100)
+    template_version: str = Field(min_length=1, max_length=40)
+    components: list[dict[str, Any]] = Field(min_length=1, max_length=30)
+
+
+class IntakeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    message: str = Field(min_length=1, max_length=4000)
+    language: str = Field(pattern="^(zh|en)$")
+    consent: bool
+
+
+@router.get("/project/templates")
+@require_permission("threads", "read")
+async def project_template_catalog(request: Request):
+    from devpilot.reporting.project import project_templates
+
+    return JSONResponse({"templates": project_templates()}, headers={"Cache-Control": "private, no-store"})
+
+
+@router.post("/project/preview")
+@require_permission("threads", "write")
+async def project_preview(payload: ProjectPreviewRequest, request: Request):
+    from devpilot.reporting.project import build_project_preview
+
+    user = await get_optional_user_from_request(request)
+    if user is None:
+        raise HTTPException(401, "Authentication required")
+    try:
+        result = build_project_preview(payload.components, payload.template_id, payload.template_version, generated_by=str(user.id), generated_at=datetime.now(UTC).isoformat())
+        return JSONResponse(result, headers={"Cache-Control": "private, no-store"})
+    except ReportValidationError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
+@router.post("/project/intake")
+@require_permission("threads", "write")
+@require_permission("runs", "create")
+async def report_intake(payload: IntakeRequest, request: Request, config=Depends(get_config)):
+    from app.reporting.intake import propose_fields
+
+    if payload.consent is not True:
+        raise HTTPException(422, "Consent is required to send the entered requirements to the configured model")
+    try:
+        return JSONResponse(await propose_fields(config, payload.message, payload.language), headers={"Cache-Control": "private, no-store"})
+    except assistant.AssistantUnavailable as exc:
+        code = {"busy": 429, "timeout": 504, "provider_error": 502, "invalid_response": 502}.get(str(exc), 503)
+        raise HTTPException(code, "Report requirements assistant unavailable: " + str(exc)) from None

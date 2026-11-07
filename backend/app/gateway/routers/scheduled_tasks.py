@@ -149,6 +149,8 @@ async def update_scheduled_task(task_id: str, request: Request, body: ScheduledT
     if existing is None:
         raise HTTPException(status_code=404, detail="Scheduled task not found")
     _ensure_task_mutable(existing)
+    if existing.get("assistant_id") == "devpilot_component_evaluation_v1":
+        raise HTTPException(409, "Evaluation plans are immutable; create a newly confirmed schedule")
 
     updates = body.model_dump(exclude_none=True)
     if "context_mode" in updates:
@@ -227,6 +229,8 @@ async def pause_scheduled_task(task_id: str, request: Request):
     if existing is None:
         raise HTTPException(status_code=404, detail="Scheduled task not found")
     _ensure_task_mutable(existing)
+    if existing.get("assistant_id") == "devpilot_component_evaluation_v1" and existing.get("status") not in {"enabled", "paused"}:
+        raise HTTPException(409, "Terminal evaluation schedules cannot be rearmed; confirm a new plan")
     updated = await repo.update(task_id, user_id=str(user.id), updates={"status": "paused"})
     if updated is None:
         raise HTTPException(status_code=404, detail="Scheduled task not found")
@@ -244,6 +248,8 @@ async def resume_scheduled_task(task_id: str, request: Request):
     if existing is None:
         raise HTTPException(status_code=404, detail="Scheduled task not found")
     _ensure_task_mutable(existing)
+    if existing.get("assistant_id") == "devpilot_component_evaluation_v1" and existing.get("status") != "paused":
+        raise HTTPException(409, "Only paused evaluation schedules may be resumed; confirm a new plan for terminal schedules")
     updated = await repo.update(task_id, user_id=str(user.id), updates={"status": "enabled"})
     if updated is None:
         raise HTTPException(status_code=404, detail="Scheduled task not found")
@@ -261,6 +267,8 @@ async def trigger_scheduled_task(task_id: str, request: Request):
     task = await repo.get(task_id, user_id=str(user.id))
     if task is None:
         raise HTTPException(status_code=404, detail="Scheduled task not found")
+    if task.get("assistant_id") == "devpilot_component_evaluation_v1":
+        raise HTTPException(409, "Manual replay of evaluation schedules is not supported; confirm a new schedule or use an explicitly authorized component run")
     result = await service.dispatch_task(task, now=datetime.now(UTC), trigger="manual")
     if result["outcome"] == "conflict":
         raise HTTPException(status_code=409, detail=result["error"] or "Scheduled task trigger conflicted with an active run")

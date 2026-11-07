@@ -41,10 +41,10 @@ class ComponentTestService:
         self._sem = asyncio.Semaphore(max_concurrent)
         self._tasks: set[asyncio.Task] = set()
 
-    def enqueue(self, *, run_id: str, user_id: str, component: dict[str, Any], test_type: str, params: dict[str, Any]) -> None:
+    def enqueue(self, *, run_id: str, user_id: str, component: dict[str, Any], test_type: str, params: dict[str, Any], http_client=None, on_complete=None) -> None:
         """把一次已建行（status=queued）的运行交给后台任务，立即返回。"""
         task = asyncio.create_task(
-            self._execute(run_id=run_id, user_id=user_id, component=component, test_type=test_type, params=params),
+            self._execute(run_id=run_id, user_id=user_id, component=component, test_type=test_type, params=params, http_client=http_client, on_complete=on_complete),
             name=f"component-test-{run_id}",
         )
         self._tasks.add(task)
@@ -66,20 +66,21 @@ class ComponentTestService:
             timeout_seconds=float(params.get("timeout_seconds") or 30.0),
         )
 
-    async def _execute(self, *, run_id: str, user_id: str, component: dict[str, Any], test_type: str, params: dict[str, Any]) -> None:
-        async with self._sem:
-            await self._run_repo.update(
-                run_id,
-                user_id=user_id,
-                updates={"status": "running", "started_at": datetime.now(UTC), "error": None},
-            )
-            config = self._build_config(component, params)
-            client = httpx.AsyncClient(
-                trust_env=False,
-                verify=False,
-                timeout=httpx.Timeout(config.timeout_seconds),
-            )
-            try:
+    async def _execute(self, *, run_id: str, user_id: str, component: dict[str, Any], test_type: str, params: dict[str, Any], http_client=None, on_complete=None) -> None:
+        # Own the supplied client even while queued. Cancellation must terminate
+        # both run records and release sockets, including semaphore waiters.
+        client = http_client
+        status = "failed"
+        try:
+            async with self._sem:
+                await self._run_repo.update(
+                    run_id,
+                    user_id=user_id,
+                    updates={"status": "running", "started_at": datetime.now(UTC), "error": None},
+                )
+                config = self._build_config(component, params)
+                if client is None:
+                    client = httpx.AsyncClient(trust_env=False, verify=True, timeout=httpx.Timeout(config.timeout_seconds))
                 criteria = component.get("acceptance_criteria") or {}
                 if test_type == "effect":
                     samples = list(params.get("samples") or [])
@@ -120,19 +121,38 @@ class ComponentTestService:
                         "completed_at": datetime.now(UTC),
                     },
                 )
-            except Exception as exc:
-                logger.exception("Component test failed (run_id=%s)", run_id)
-                await self._run_repo.update(
-                    run_id,
-                    user_id=user_id,
-                    updates={
-                        "status": "failed",
-                        "error": str(exc) or type(exc).__name__,
-                        "completed_at": datetime.now(UTC),
-                    },
-                )
+                status = "completed"
+        except asyncio.CancelledError:
+            await self._run_repo.update(
+                run_id,
+                user_id=user_id,
+                updates={
+                    "status": "failed",
+                    "error": "Evaluation interrupted",
+                    "completed_at": datetime.now(UTC),
+                },
+            )
+            raise
+        except Exception:
+            # Provider exceptions may contain credentials, prompts or endpoint
+            # query strings. Persist a generic error, not the provider payload.
+            logger.warning("Component test failed (run_id=%s)", run_id)
+            await self._run_repo.update(
+                run_id,
+                user_id=user_id,
+                updates={
+                    "status": "failed",
+                    "error": "Evaluation failed; inspect approved target configuration and evidence",
+                    "completed_at": datetime.now(UTC),
+                },
+            )
+        finally:
+            try:
+                if client is not None:
+                    await client.aclose()
             finally:
-                await client.aclose()
+                if on_complete is not None:
+                    await on_complete(status)
 
     async def _persist(self, user_id: str, run_id: str, raw_payload: dict[str, Any], full_report: dict[str, Any]) -> Path:
         run_dir = self._run_dir(user_id, run_id)

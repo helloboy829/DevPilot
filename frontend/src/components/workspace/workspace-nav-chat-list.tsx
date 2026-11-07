@@ -6,6 +6,7 @@ import {
   FileText,
   FlaskConical,
   MessagesSquare,
+  Settings2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,7 +26,7 @@ import { useAgentsApiEnabled } from "@/core/agents";
 import { useI18n } from "@/core/i18n/hooks";
 
 export function WorkspaceNavChatList() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const pathname = usePathname();
   const { enabled: agentsEnabled } = useAgentsApiEnabled();
   return (
@@ -83,15 +84,15 @@ export function WorkspaceNavChatList() {
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
-            isActive={pathname.startsWith("/workspace/scheduled-tasks")}
+            isActive={pathname.startsWith("/workspace/evaluation-schedules")}
             asChild
           >
             <Link
               className="text-muted-foreground"
-              href="/workspace/scheduled-tasks"
+              href="/workspace/evaluation-schedules"
             >
               <CalendarClock />
-              <span>{t.sidebar.scheduledTasks}</span>
+              <span>{t.sidebar.scheduledEvaluations}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -117,6 +118,19 @@ export function WorkspaceNavChatList() {
             <Link className="text-muted-foreground" href="/workspace/reports">
               <FileText />
               <span>{t.sidebar.reports}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            isActive={pathname.startsWith("/workspace/models")}
+            asChild
+          >
+            <Link className="text-muted-foreground" href="/workspace/models">
+              <Settings2 />
+              <span>
+                {locale === "zh-CN" ? "模型与分工" : "Models & roles"}
+              </span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

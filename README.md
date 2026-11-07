@@ -1,89 +1,44 @@
 # DevPilot
 
-## 报告工作台（2026-11-07）
+**AI component evaluation workspace and bounded evaluation agents**, built on ByteDance DeerFlow. Targets include AI/CV models, LLMs and agents. [中文](README_zh.md) · [Design index](docs/README.md) · [Delivery and configuration](docs/DevPilot_Evaluation_Workspace.md)
 
-新增**可选报告 Agent**：复用 DeerFlow 现有模型工厂与 LangGraph，分析汇总指标并提出未核验建议。默认关闭；未配模型仍可人工生成。启用时在根 `config.yaml` 配置 `reports_agent.enabled: true` 和已在 `models` 定义的 `model_name`，凭据用环境变量，不提交 Git。用户每次显式授权后才调用模型；不向模型发送名称、自由文本或原始证据，汇总指标本身也需获准外发。建议经人工确认后单独附入草稿，不改变事实、模板或验收状态。模型参数兼容性须配置后 smoke test，本轮未调用真实模型。
+> Development preview, not a complete unattended acceptance system. Measured evidence, model suggestions and human decisions remain separate.
 
-侧栏 **报告**（`/workspace/reports`）支持填写组件/版本、效果与性能结果、统计口径和证据说明，按内置中/英文**指定版本模板**生成草稿，下载 Markdown 或包含事实/模板快照的 JSON。修改输入或模板后，旧预览与下载会失效。效果通过率固定为通过数/总数；缺测不补零，非流式不能填 TTFT。
+## Available workspace slices
 
-本版是**人工填报、未经核验的 DRAFT**，不输出自动验收结论，**不会在服务端保存报告**；请离开页面前下载。已实现版本固定和快照，不代表已有模板编辑、历史修订库、正式审批或 Word/PDF 导出。后续模板更新应新建版本，不覆盖旧版报告。[模块设计与边界](docs/DevPilot_报告模块设计.md)。
-
-
-**AI 组件评测工作台 + 自动化评测 Agent**，基于 DeerFlow 二次开发，服务于 AI 模型、CV、LLM 和 Agent 的效果/性能评测。
-
-> 2026-11-06 状态：仓库已有 DeerFlow 底座与初版组件测试工具，**尚不是可无人值守正式验收的完整产品**。本轮更新产品/技术文档，未实现规划中的新 API、UI、数据治理和知识闭环。
-
-## 2026-11-07 材料与工程校准
-
-已本地只读分析授权的历史材料，结论见[脱敏材料分析](docs/DevPilot_历史材料分析与设计校准.md)。目标设计新增摸底 BASELINE/验收 ACCEPTANCE 区分；无金标、无批准标准不得自动给效果验收 PASS，二值通过率与加权评分分开。仓库/包名保留 DevPilot，面向用户使用“DevPilot · AI 组件评测工作台”；以上并非新业务 API 已完成。
-
-开发验证使用独立 Docker 环境（Python 3.12、Node 22），不改 Conda base；参见[CI 修复与环境说明](docs/DevPilot_CI修复与隔离开发环境.md)。生产 Docker 打包问题仍需单独验收。
-
-## 核心业务流程
-
-提测清单/cURL/样例与参考源 → 接口调试与接入确认 → 高质量数据构建与审核 → 冻结方案 → 平台直接执行效果 + 性能（可选导出独立测试工程） → 人工复核与判定 → 整改复测或报告审批 → 审核后知识沉淀。
-
-- **数据优先**：历史真实数据为基础，受控合成补覆盖；来源/授权、标签、切片、去重、防泄漏、盲测和质量卡。
-- **判定可信**：效果通过率以冻结总数为分母；错误/待审/未执行单列；缺必要指标不得 PASS。
-- **性能可比**：按任务测延迟/QPS/TPS；仅启用且可观测文本内容增量的流式调用测客户端 TTFT。固定负载、token 来源与时间窗口，缺失/不适用不记 0。
-- **调试到评测**：目标调试台支持人/Agent 共用请求规范，确认后平台直接跑；独立 Python 测试工程由同版本核心生成，尚未实现。
-- **人工复核**：目标为独立待办中心 + 结果页内嵌，对照输入/输出/预期/来源；决定可修订，原始证据不可改。
-- **有界自动化**：Agent 辅助规划/生成/解释，确定性 Worker 执行和计数，审批与预算由服务端强制。
-- **持续优化**：审核案例、规则和 Prompt 后版本化推广，不自动训练，也不让验收答案污染知识。
-
-## 实际开发状态
-
-| 能力 | 当前状态 |
+| Page | Implemented scope |
 | --- | --- |
-| Gateway、认证、LangGraph、模型/工具/沙箱/聊天 | 底座代码已存在，本机未完成全栈运行验证 |
-| 组件 CRUD、四类 transport、基础 effect/perf、JSON 报告 | 已有初版；首批核心判定回归已修复，安全/恢复、能力验证和部署仍有缺口 |
-| 提测/数据质量/审批/冻结/整改/正式模板报告/知识体系 | 新版目标方案，尚待分期实现 |
-| 接口调试台、独立脚本导出、人工复核中心 | 详细设计已更新，尚无对应完整实现，不是当前可用功能 |
-| 评测 UI / DeerFlow 非核心功能裁剪 | 新增报告草稿入口；评测中心整体改造与裁剪仍为设计，未删除底座模块 |
-| 自定义纯单元测试 | 73 项通过（15 legacy evaluation + 58 toolkit），非端到端验收 |
+| `/workspace/component-tests` | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses |
+| `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery |
+| `/workspace/reports` | Manual single-component and multi-component project snapshots, pinned Chinese/English templates, Markdown/JSON draft downloads |
+| `/workspace/models` | Administrator model catalog, write-only encrypted credentials, explicit connectivity probes, default/report role assignments |
+| Chat | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger |
 
-不再以旧“通用研发 SaaS、九 Agent、Milvus 必选、五个已交付研发 Skills”描述当前产品。
+The unified local entry point is `http://127.0.0.1:2026`. See [Install.md](Install.md), [AGENTS.md](AGENTS.md) and module guides for installation and full-stack `make dev`/Docker commands. Do not commit local configuration, credentials or customer materials.
 
-2026-11-07 首批修复：新增主通过率 `pass_rate = passed / total` 与 `not_run`；待审/未执行不能放行；无成功请求或必需性能指标缺失/覆盖不全不能 PASS。新报告带 `assessment_version=component-test.i0.v1`，保留历史报告，不把旧 PASS 自动升级为新版结论。当前仍用原型的 PASS/FAIL/REVIEW 状态，并未实现目标生命周期或正式人工复核模块。具体范围与未完成项见[审计清单](docs/DevPilot_现状审计与修复清单.md)。
+## Important boundaries
 
-## 文档入口
+- **Request debugger:** parses one complete cURL without running a shell or reading files. Review method/URL/headers/body and explicitly authorize sending. Operator host approval, DNS pinning, TLS verification, no redirects/environment proxies, bounded timeout/response. Not a full Postman replacement: no multipart uploads, cookie jar, collections/environments, scripts or runnable test export yet. Debug data is not persisted or automatically promoted into an approved evaluation specification.
+- **Off-peak evaluations:** require `scheduler.enabled: true` and approved destination hosts. Plans do not copy component credentials, reject changed target configuration, and recheck owner permissions at launch. Scheduled effect calls collect outputs for manual review, without implicit disclosure to an LLM judge. The existing scheduler provides leases/history/non-overlap, but component execution remains process-local rather than a durable worker queue. Pausing/deleting does not cancel an active run.
+- **Project reports:** stage each component from the form, then generate one project draft. Snapshots are independent; remove/restage after changes. Shared project/tester/period/mode must match. No cross-component averaging of unrelated accuracy or latency. Reports are manual/unverified drafts kept in page memory; download before leaving. No persistence, formal approval, DOCX/PDF export or full reference-DOCX layout reproduction.
+- **Reference templates:** only the generic structure of authorized local reports is reused. No private project names, historical measured metrics or source report text is committed. Template ID/version and facts/template hashes are pinned; future template updates must be new versions.
+- **Report agent:** reuses the harness model factory and a tool-free LangGraph agent. Explicit opt-in requirements → structured proposed fields/questions → human confirmation → real counters entered by the evaluator. Currently single-turn intake, not persistent multi-turn dialogue. A separate opt-in advisor sees allowlisted aggregate metrics only. Neither can invent measurements, alter counters or approve reports.
+- **Metrics:** effect pass rate uses the full denominator. Errors/pending/not-run remain visible. TTFT applies only to observable content-bearing streaming responses; missing/inapplicable metrics are not zero or automatic PASS.
 
-- [文档总索引](docs/README.md)
-- [可行性分析](docs/DevPilot_可行性分析.md)、[需求](docs/DevPilot_需求分析.md)、[现状审计/修复](docs/DevPilot_现状审计与修复清单.md)
-- [业务流程与迭代](docs/DevPilot_业务流程与迭代计划.md)、[数据集与指标](docs/DevPilot_数据集与指标规范.md)
-- [系统架构](docs/DevPilot_系统架构设计.md)、[DeerFlow 改造](docs/DevPilot_基于DeerFlow的改造方案.md)、[评测 UI](docs/DevPilot_前端交互设计.md)
-- [接口调试与脚本导出](docs/DevPilot_接口调试与脚本导出设计.md)、[人工复核工作台](docs/DevPilot_人工复核工作台设计.md)
-- [材料/模板](docs/DevPilot_材料与模板规范.md)、[技术依据/决策](docs/DevPilot_技术依据与决策记录.md)
+## Model management
 
-## 仓库边界
+Set `DEVPILOT_MODEL_CATALOG_DIR` to a private persistent Gateway directory. Administrators can add OpenAI-compatible or Anthropic models, update metadata, test a fixed non-business prompt with explicit consent, and assign roles. Keys are write-only; an omitted key retains the prior value. SQLite catalog payloads are Fernet-encrypted. Supply `DEVPILOT_MODEL_ENCRYPTION_KEY` through secret management, or protect the generated separate `catalog.key`. Back up the encrypted database and key securely; same-volume encryption is not a KMS, and Windows ACLs require operator care.
 
-~~~text
-backend/app/                      Gateway 与业务服务
-backend/packages/harness/         DeerFlow 通用 Agent 底座
-backend/packages/extension-api/   通用扩展契约
-frontend/                         Next.js UI（当前仍以聊天为主）
-devpilot/src/devpilot/toolkit/    初版效果/性能工具
-devpilot/src/devpilot/evaluation/ legacy 编码任务七字段评分
-docs/                            新版领域方案、审计与模板
-~~~
+`general_agent` controls the default platform model; chat may override it. `report_advisor` enables report intake/advice, still requiring per-call consent. Dataset generation, evaluation judge and review assistant are **reserved bindings only**, not completed pipelines. Platform working models are separate from evaluated targets. No real provider is configured by this change and no customer/provider call is required for mock tests.
 
-App → Harness / devpilot；不得让 Harness 反向依赖业务层。开发规则见 [AGENTS.md](AGENTS.md)、[backend/AGENTS.md](backend/AGENTS.md)、[frontend/AGENTS.md](frontend/AGENTS.md)。
+Operator models in `config.yaml` remain operator-owned. Preserve the `deerflow` package, compatibility keys/environment variables, upstream attribution and license; user-facing product branding is DevPilot.
 
-## 环境与启动说明
+## Next milestones
 
-依赖 Python 3.12+、uv、Node.js 22+、项目锁定 pnpm；安装见 [Install.md](Install.md)，底座使用说明见 [README_upstream.md](README_upstream.md)。保留[中文上游参考](README_zh.md)与英文上游参考，项目文档只维护中英文；它们介绍底座，不代表 DevPilot 领域功能已实现。
+1. Versioned datasets, reference provenance/authorization, gold-label review, coverage slices, deduplication and leakage controls.
+2. Confirmed RequestSpec integration with all evaluation adapters and reproducible runnable exports.
+3. Human-review workbench, evidence-linked persistent reports and template revision/approval history.
+4. Durable execution, quotas/cancellation, security policy across legacy execution paths and audit.
+5. Explicitly authorized judge-model integration and reviewed knowledge promotion, not automatic training.
 
-配置文件从根目录 example 复制，密钥不入 Git；完整环境下根 make dev 启全栈，make up 为 Docker。**当前 devpilot 本地依赖的 Docker 打包缺陷须先修复，不能把命令存在当成构建已验证。** 统一入口默认 loopback:2026。
-
-host 前端命令经 runner：
-
-~~~powershell
-python scripts/pnpm.py check
-python scripts/pnpm.py test
-~~~
-
-## 推荐实施顺序
-
-可信度/安全/部署修复 → 接口调试与历史问答平台闭环 → 已验证适配器脚本导出 → 数据构建/审核 → CV 与真实报告模板 → 知识推广/复测增强 → 深度 Agent 自动化。
-
-欢迎先提供脱敏提测模板、QA/CV 各一代表项目、历史标签/报告、合法参考源、负载与验收要求；用于校准数据和规则，不直接无差别喂给外部模型。
+New features ship with backend tests and frontend browser/API regressions. Backend: Ruff format/check and pytest/toolkit tests. Host pnpm commands go through `scripts/pnpm.py`; frontend: `check`, unit tests and Playwright. See [backend](backend/AGENTS.md), [frontend](frontend/AGENTS.md), [upstream](README_upstream.md) and [LICENSE](LICENSE).

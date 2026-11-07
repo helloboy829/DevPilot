@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ProjectReportPanel } from "@/components/workspace/project-report-panel";
 import {
   WorkspaceBody,
   WorkspaceContainer,
@@ -244,6 +245,25 @@ export default function ReportsPage() {
               </Button>
             </div>
           )}
+          <ProjectReportPanel
+            getFacts={() => toReportFacts(form)}
+            applyProposal={(proposal) => {
+              invalidate();
+              setForm((current) => ({
+                ...current,
+                ...(proposal.title ? { title: proposal.title } : {}),
+                ...(proposal.project_name
+                  ? { project_name: proposal.project_name }
+                  : {}),
+                ...(proposal.components[0]
+                  ? {
+                      component_name: proposal.components[0].name,
+                      component_version: proposal.components[0].version,
+                    }
+                  : {}),
+              }));
+            }}
+          />
           <form onSubmit={submit} autoComplete="off">
             <fieldset
               disabled={running || loading || !selected}

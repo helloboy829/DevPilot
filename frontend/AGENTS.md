@@ -16,8 +16,10 @@ The restored /[lang]/docs/[[...mdxPath]] route exposes only English/Chinese docu
 
 Read [the documentation index](../docs/README.md) and
 [the evaluation UI design](../docs/DevPilot_前端交互设计.md).
-The current component-tests page is a prototype inside the chat workbench;
-planned evaluation routes are not implemented yet. New work should organize
+The component-tests page remains a prototype inside the workbench. cURL debugging,
+evaluation scheduling, project drafts/intake and model management now have initial
+workspace slices; see the implementation note below for their limits. The full
+evaluation lifecycle is not implemented. New work should organize
 around projects, submissions, interface debugging, datasets, frozen plans, runs,
 a review center, optional script export, reports,
 remediation/retests, and reviewed knowledge. Keep the assistant contextual,
@@ -233,3 +235,7 @@ routes, writes the detailed result to `.next/performance-results.json`, and comp
 totals with `performance-budgets.json`. Fix route ownership or split points when a
 budget fails; do not raise a ceiling without documenting and reviewing the measured
 regression.
+
+## DevPilot evaluation workspace (2026-11-07)
+
+User-facing branding is DevPilot; preserve upstream attribution and compatibility/storage keys. Primary scheduled navigation now points to `/workspace/evaluation-schedules`; the generic scheduled-chat page remains only for compatibility. `/workspace/models` manages administrator model catalog and role assignments. `core/evaluation/api.ts` must use the existing authenticated/CSRF fetcher with no-store. `RequestDebugger` keeps credentials in page memory, clears imports, requires explicit sending consent, and renders response text rather than HTML. `ProjectReportPanel` stages independent multi-component snapshots and explicit model field confirmation; no model output may overwrite measured metrics. Snapshots survive form edits by design, not page navigation; remove/restage when correcting them. Templates are pinned by ID/version, and project generation invalidates on snapshot/template edits. `tests/e2e/evaluation-workspace.spec.ts` covers debugger, model roles, multi-component confirmation and schedules; API wrapper tests live in `tests/unit/core/evaluation/`. See the delivery document for limitations, including no full Postman, DOCX, persistent report store or durable evaluation queue.

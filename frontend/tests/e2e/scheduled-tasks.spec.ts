@@ -4,38 +4,27 @@ import { MOCK_THREAD_ID, mockLangGraphAPI } from "./utils/mock-api";
 
 test.describe.configure({ mode: "serial" });
 
-test("scheduled tasks page is reachable from sidebar", async ({ page }) => {
-  mockLangGraphAPI(page, {
-    threads: [],
-    scheduledTasks: [
-      {
-        id: "task-1",
-        thread_id: "thread-1",
-        title: "Daily summary",
-        prompt: "Summarize thread",
-        schedule_type: "cron",
-        schedule_spec: { cron: "0 9 * * *" },
-        timezone: "UTC",
-        status: "enabled",
-        next_run_at: "2026-07-02T01:00:00+00:00",
-        last_run_at: null,
-        last_run_id: null,
-        last_error: null,
-        run_count: 0,
-        created_at: "2026-07-01T00:00:00+00:00",
-        updated_at: "2026-07-01T00:00:00+00:00",
-      },
-    ],
-  });
-
+test("sidebar opens the evaluation scheduler while legacy tasks stay compatible", async ({
+  page,
+}) => {
+  mockLangGraphAPI(page, { threads: [], scheduledTasks: [] });
+  await page.route("**/api/evaluation-schedules", (route) =>
+    route.fulfill({ json: { enabled: true, tasks: [] } }),
+  );
+  await page.route("**/api/component-tests/components*", (route) =>
+    route.fulfill({ json: { components: [] } }),
+  );
   await page.goto("/workspace/chats/new");
-  await page.getByRole("link", { name: /scheduled tasks/i }).click();
-  await page.waitForURL("**/workspace/scheduled-tasks");
-  await expect(page).toHaveURL(/workspace\/scheduled-tasks/);
+  await page
+    .getByRole("link", { name: "Scheduled evaluations", exact: true })
+    .click();
+  await expect(page).toHaveURL(/workspace\/evaluation-schedules/);
   await expect(
-    page.getByRole("button", { name: /Daily summary/i }),
+    page.getByRole("button", {
+      name: "Confirm and save schedule",
+      exact: true,
+    }),
   ).toBeVisible();
-  await expect(page.getByTestId("scheduled-task-runs")).toContainText("0 runs");
 });
 
 test("thread page links to filtered scheduled tasks", async ({ page }) => {

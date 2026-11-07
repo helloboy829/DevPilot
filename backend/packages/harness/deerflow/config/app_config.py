@@ -428,6 +428,9 @@ class AppConfig(BaseModel):
             extensions_data.update(yaml_extensions_config.model_dump(by_alias=True, exclude_unset=True))
         config_data["extensions"] = extensions_data
 
+        from deerflow.config.managed_models import overlay_models
+
+        overlay_models(config_data)
         result = cls.model_validate(config_data)
         if not result.models:
             logger.warning(
@@ -633,6 +636,7 @@ _app_config_path: Path | None = None
 _app_config_mtime: float | None = None
 _app_config_signature: _ConfigSignature | None = None
 _app_config_is_custom = False
+_model_catalog_signature = None
 _current_app_config: ContextVar[AppConfig | None] = ContextVar("deerflow_current_app_config", default=None)
 _current_app_config_stack: ContextVar[tuple[AppConfig | None, ...]] = ContextVar("deerflow_current_app_config_stack", default=())
 
@@ -651,6 +655,10 @@ def _load_and_cache_app_config(config_path: str | None = None) -> AppConfig:
 
     resolved_path = AppConfig.resolve_config_path(config_path)
     _app_config = AppConfig.from_file(str(resolved_path))
+    from deerflow.config.managed_models import catalog_signature
+
+    global _model_catalog_signature
+    _model_catalog_signature = catalog_signature()
     _app_config_path = resolved_path
     _app_config_mtime = _get_config_mtime(resolved_path)
     _app_config_signature = _get_config_signature(resolved_path)
@@ -679,7 +687,9 @@ def get_app_config() -> AppConfig:
     current_mtime = _get_config_mtime(resolved_path)
     current_signature = _get_config_signature(resolved_path)
 
-    should_reload = _app_config is None or _app_config_path != resolved_path or _app_config_signature != current_signature
+    from deerflow.config.managed_models import catalog_signature
+
+    should_reload = _model_catalog_signature != catalog_signature() or _app_config is None or _app_config_path != resolved_path or _app_config_signature != current_signature
     if should_reload:
         if _app_config_path == resolved_path and _app_config_mtime is not None and current_mtime is not None and _app_config_mtime != current_mtime:
             logger.info(

@@ -55,3 +55,7 @@
 只维护中文、英文项目文档；保留中文 DevPilot 入口与中英上游参考，不保留日/法/俄项目 README。此约定不限制被测材料、数据或 UI 支持的语言，也不删除开源许可/版权。frontend/public/demo 的历史对话快照包含旧上游 README 文本/路径，保留原貌，不作为现行文档入口或当前能力依据。
 
 开发同时更新测试与相关文档；PR 标明完成/未完成、迁移影响、回退办法。里程碑仅随验收证据更新，不因日期到达自动完成。[templates/](templates/) 是目标格式示例，接口实现前不能直接上传执行。
+
+## Current implementation update
+
+See [DevPilot evaluation workspace delivery and configuration](DevPilot_Evaluation_Workspace.md) for the implemented cURL debugger, off-peak evaluation scheduling, multi-component drafts, opt-in field-intake agent and administrator model catalog. This update supersedes older “planned only” statements for those specific slices, not the remaining lifecycle roadmap.

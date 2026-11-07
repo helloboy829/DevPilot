@@ -2568,3 +2568,9 @@ reports_agent:
   model_name: null
   timeout_seconds: 30
   max_output_tokens: 1200
+
+# DevPilot request debugging and scheduled evaluation outbound policy.
+# Exact approved destination hosts only; default denies all new debug/scheduled calls.
+evaluation_http:
+  allowed_hosts: []
+  allow_private: false

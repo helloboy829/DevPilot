@@ -25,8 +25,9 @@ TLS/credential/egress policy, resource limits, durable jobs, and Docker packagin
 Business orchestration belongs in app; pure domain logic belongs in devpilot;
 harness must not import either business layer. Preserve legacy data without
 silently upgrading old PASS results to the new evidence standard.
-Debug checks/confirmations, script exports and human-review resources are also
-planned: see [debug/export](../docs/DevPilot_接口调试与脚本导出设计.md) and
+The initial cURL import/edit/send debugger is implemented (see the workspace
+implementation note below); promotion into approved evaluation plans, script
+exports and human-review resources remain planned. See [debug/export](../docs/DevPilot_接口调试与脚本导出设计.md) and
 [review workbench](../docs/DevPilot_人工复核工作台设计.md). UI and Agent share
 application services; exported runners share versioned pure-core semantics.
 The first core-gate slice (2026-11-07) adds primary effect pass_rate/not_run,
@@ -1618,3 +1619,7 @@ See `docs/` directory for detailed documentation:
 - [PATH_EXAMPLES.md](docs/PATH_EXAMPLES.md) - Path types and usage
 - [summarization.md](docs/summarization.md) - Context summarization
 - [plan_mode_usage.md](docs/plan_mode_usage.md) - Plan mode with TodoList
+
+## Evaluation workspace implementation (2026-11-07)
+
+Current UI/API slices are documented in [delivery and configuration](../docs/DevPilot_Evaluation_Workspace.md). `app.evaluation` owns DNS-pinned cURL debugging and deterministic evaluation schedule dispatch. Scheduled effect runs deliberately collect for manual review, not implicit model judging; plans freeze non-credential component configuration and bounded parameters. Model catalog mutations are administrator-only, revision-checked, encrypted, write-only for credentials; harness `config.managed_models` remains App-independent. `app.reporting.intake` uses the existing opt-in tool-free model boundary for single-turn field proposals; project report preview lives in pure `devpilot.reporting.project`. Preserve private validation responses, no-store, consent and permission checks. Tests include `test_component_execution`, `test_evaluation_http_boundaries`, `test_evaluation_schedules`, `test_managed_models`, `test_request_debugger`, `test_project_reports`, and `test_report_intake`. Legacy manual transports still need unified outbound policy. These slices do not implement durable evaluation workers, official report approval, persistent multi-turn intake, dataset governance or runnable exports.

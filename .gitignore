@@ -73,3 +73,5 @@ config.yaml.bak
 # Manual report downloads can contain private user-entered facts; never commit them.
 evaluation-report-draft.md
 evaluation-report-draft.json
+project-evaluation-draft.md
+project-evaluation-draft.json

@@ -2,6 +2,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { mockLangGraphAPI } from "./utils/mock-api";
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/reports/project/templates", (route) =>
+    route.fulfill({ json: { templates: [] } }),
+  );
+});
+
 const catalog = {
   templates: [
     {
