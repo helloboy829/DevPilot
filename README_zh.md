@@ -108,3 +108,7 @@ cURL 调试器新增“**导出参数化请求模板**”：生成 `request-temp
 本人项目/组件可通过 API 保存只追加请求版本，完整 URL、全部头值和 body 使用独立运维密钥认证加密，读接口仅返回结构元数据。新增 App 迁移 `eval_0003`，不修改已部署迁移。组件调试器已提供「保存请求版本」与无需导入即可使用的「查看请求版本」，支持项目/组件选择、独立的加密存储确认与元数据查看；保存不发送网络请求。它不是凭据引用仓库、执行批准、调通证明或报告证据。需要显式配置 `DEVPILOT_REQUEST_ENCRYPTION_KEY`，本轮不改既有本地配置；详见[范围和操作边界](docs/DevPilot_Request_Versions.md)。
 
 请求版本的操作、失败恢复与后续冻结计划/Worker 边界见 [UI 交付说明](docs/DevPilot_Request_Version_UI.md)。
+
+### QA JSON 映射前置内核
+
+已实现明确路径的 QA 输入正文映射与响应文本提取，不读取金标、不调用网络、保留原请求及非目标字段数值精度。目前尚未接入冻结计划 API、UI 或耐久 Worker，已有组件测试不变。[契约与下一步](docs/DevPilot_QA_JSON_Binding.md)。

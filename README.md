@@ -78,3 +78,7 @@ Every signed-in user can use **Custom assistants → Configure manually** to sav
 Project/component request versions can now be saved append-only through the authenticated API. Complete URL, header values and body are encrypted under a separate operator key; public reads return only structural metadata. App migration `eval_0003` preserves earlier tables and ledgers. This is not an execution plan, a successful-debugging attestation, a credential-reference vault or report evidence. The component debugger now offers **Save request version** (current edited snapshot) and **View request versions** (metadata only, no import needed), with project/component selection and separate storage confirmation. Saving does not send a request. Saving requires explicit `DEVPILOT_REQUEST_ENCRYPTION_KEY` provisioning; existing local settings are not changed. See [scope and operations](docs/DevPilot_Request_Versions.md).
 
 Request-version UI boundaries, failure recovery and the remaining frozen-plan/worker milestones are documented in [the workspace delivery](docs/DevPilot_Request_Version_UI.md).
+
+### QA JSON wiring prerequisite
+
+The pure QA JSON binding core now maps input into an existing request string field and extracts response text with explicit bounded pointers, without gold answers or network access. It is not yet connected to a frozen-plan API, UI or durable worker; current tests are unchanged. See [contract and remaining milestones](docs/DevPilot_QA_JSON_Binding.md).

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## QA JSON mapping prerequisite (2026-11-08)
+
+Pure devpilot.qa_json_binding maps only QA input to an existing JSON string leaf and extracts response strings, with strict versioned pointers, duplicate/nonfinite rejection and bounded UTF-8/depth/node budgets. Preserve Decimal precision and original requests. No expected answers, I/O, verdicts or approval. App plan/Worker integration is still pending; executor must check HTTP status/response mode/permissions separately. Tests: test_qa_json_binding.py. See [delivery](../docs/DevPilot_QA_JSON_Binding.md).
+
 ## Encrypted request definitions (2026-11-08)
 
 Current App ledger head: `eval_0003`; existing migrations remain unchanged. `request_version_repository` appends complete URL/header/body ciphertext and metadata-only audit atomically, context-bound to owner/project/component/version. Use separate operator `DEVPILOT_REQUEST_ENCRYPTION_KEY`; missing/invalid fails closed, never reuse model/JWT keys or auto-create one. Public list/get SELECT only metadata; `RequestTemplate` remains structural, not execution approval. `open_request_version` revalidates envelope/hash/template and audits, uses asyncio.to_thread for crypto, has no HTTP/Agent tool exposure and must not authorize execution by itself. Write revalidates full DTO and requires human write+review/confirmed; no update/delete/plaintext/execution API. The later frontend dialog explicitly saves snapshots or browses metadata through these same routes; it adds no decryption or execution authority. Tests: test_request_versions, test_request_version_repository, test_request_versions_router. See [scope](../docs/DevPilot_Request_Versions.md).

@@ -46,3 +46,5 @@
 - 本地仍未配置模型与独立请求加密密钥：未做真实模型对话、真实请求版本保存、外部组件评测或新 App PostgreSQL 验收。浏览器 mock 的保存测试不能替代上述验证。
 
 GitHub Actions 必须按本轮提交的完整 SHA 另行核对最终状态；以上数字仅为本地实际测试结果。客户材料、场景名称、历史业务指标、配置、凭据、数据库、备份和运行日志均不提交。
+
+同 SHA 的 GitHub Actions 已核对：提交 3e04630b410bb1b14f12faa22ffb60be28976fe8，Unit Tests、Frontend Unit Tests、E2E Tests、Lint Check、Replay E2E (front-back contract)、Backend Blocking IO 六项均 success。此记录对应请求版本 UI 提交，不自动涵盖之后的新代码。
