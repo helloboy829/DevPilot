@@ -1,8 +1,12 @@
 # AGENTS.md
 
+## Frozen QA JSON plans (2026-11-08)
+
+App head is `eval_0004`. `app.evaluation.plan_repository` freezes same-owner/project/component request versions, gold-bound QA revision/hash, strict JSON mappings and bounded limits after all-input preflight. Decryption audit and plan/audit commit atomically. `frozen_definition_only` is NOT execution authorization, evidence or a Worker; no plan UI yet. Metadata reads exclude gold/ciphertext. Never pass expected answers to rendering. See [scope](docs/DevPilot_Frozen_QA_Plans.md).
+
 ## QA JSON wiring core (2026-11-08)
 
-devpilot.qa_json_binding.QAJSONBinding prepares immutable request copies and extracts JSON text with strict bounded pointers, exact decimal preservation and no gold/network/model access. It is not yet wired into plan/API/Worker execution. See [scope](docs/DevPilot_QA_JSON_Binding.md).
+devpilot.qa_json_binding.QAJSONBinding prepares immutable request copies and extracts JSON text with strict bounded pointers, exact decimal preservation and no gold/network/model access. The plan API now consumes it for input-only preflight; UI and actual Worker execution remain pending. See [scope](docs/DevPilot_QA_JSON_Binding.md).
 
 ## Request-version workspace UI (2026-11-08)
 
@@ -10,7 +14,7 @@ The cURL debugger can explicitly save an encrypted request snapshot to an owner-
 
 ## Encrypted request definitions (2026-11-08)
 
-App migration head is `eval_0003`, after unchanged `eval_0001/eval_0002`. `devpilot.request_versions.FrozenRequest` is deep-immutable; protected serialization contains secrets and is never a public DTO. `app.evaluation.request_version_repository` appends owner-scoped complete-request ciphertext under explicit `DEVPILOT_REQUEST_ENCRYPTION_KEY`; no key fallback/generation. Public metadata queries exclude ciphertext; write requires write+review, human confirmation and rejects internal Agents. Crypto is thread-offloaded; open is internal/audited, not an executor. No plaintext/open/execute/update/delete HTTP routes. The later workspace UI adds explicit save and metadata browsing. `request_definition_only` is not approval, evidence or a credential-reference vault. See [scope](docs/DevPilot_Request_Versions.md).
+The request-version slice introduced `eval_0003`; current App migration head is `eval_0004`, after unchanged `eval_0001/eval_0002`. `devpilot.request_versions.FrozenRequest` is deep-immutable; protected serialization contains secrets and is never a public DTO. `app.evaluation.request_version_repository` appends owner-scoped complete-request ciphertext under explicit `DEVPILOT_REQUEST_ENCRYPTION_KEY`; no key fallback/generation. Public metadata queries exclude ciphertext; write requires write+review, human confirmation and rejects internal Agents. Crypto is thread-offloaded; open is internal/audited, not an executor. No plaintext/open/execute/update/delete HTTP routes. The later workspace UI adds explicit save and metadata browsing. `request_definition_only` is not approval, evidence or a credential-reference vault. See [scope](docs/DevPilot_Request_Versions.md).
 
 ## Stable navigation / workspace styles (2026-11-08)
 
@@ -30,7 +34,7 @@ Evaluation component calls share app.evaluation.http.PinnedEvaluationTransport a
 
 ## Project component/submission inventory (2026-11-07)
 
-`app.evaluation.registry` and `registry_repository` link owner-owned legacy components to projects and frozen QA versions. The inventory slice introduced `eval_0002`; do not edit deployed revisions (current head `eval_0003`). SQL selects only safe inventory columns, never legacy endpoints/tokens/criteria. Server-built immutable snapshots have `scope=inventory_only`: NOT RequestSpec locks, executable plans, acceptance or report evidence. Submission creation requires write+review and explicit confirmation; rejects internal Agent callers. See [inventory slice](docs/DevPilot_项目组件与提测清单.md).
+`app.evaluation.registry` and `registry_repository` link owner-owned legacy components to projects and frozen QA versions. The inventory slice introduced `eval_0002`; do not edit deployed revisions (current head `eval_0004`). SQL selects only safe inventory columns, never legacy endpoints/tokens/criteria. Server-built immutable snapshots have `scope=inventory_only`: NOT RequestSpec locks, executable plans, acceptance or report evidence. Submission creation requires write+review and explicit confirmation; rejects internal Agent callers. See [inventory slice](docs/DevPilot_项目组件与提测清单.md).
 
 ## Project / QA data slice (2026-11-07)
 

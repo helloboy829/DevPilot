@@ -6,6 +6,8 @@ from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest, ProjectCreate, parse_samples
+from app.evaluation.plan_repository import PlanRepository
+from app.evaluation.plans import PlanCreate, PlanPreflightError
 from app.evaluation.registry import ComponentLinkCreate, SubmissionCreate
 from app.evaluation.registry_repository import RegistryRepository
 from app.evaluation.repository import Conflict, NotFound
@@ -67,7 +69,9 @@ async def _result(operation):
     try:
         return await operation
     except NotFound:
-        raise HTTPException(404, "Project, component, dataset, submission or request version not found") from None
+        raise HTTPException(404, "Project, component, dataset, submission, request version or plan not found") from None
+    except PlanPreflightError:
+        raise HTTPException(422, "QA request preflight failed; check mapping, sample coverage and budgets") from None
     except Conflict:
         raise HTTPException(409, "Resource changed, is not eligible or already exists; reload and review the current revision") from None
 
@@ -229,3 +233,33 @@ async def get_request_version(project_id: str, version_id: str, request: Request
 async def request_version_audit(project_id: str, version_id: str, request: Request):
     owner, repository = await _context(request)
     return {"events": await _result(RequestVersionRepository(repository.sf).request_version_audit(owner, project_id, version_id))}
+
+
+@router.post("/{project_id}/components/{component_id}/plans")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def create_plan(project_id: str, component_id: str, payload: PlanCreate, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    return await _result(PlanRepository(repository.sf).create_plan(owner, project_id, component_id, payload))
+
+
+@router.get("/{project_id}/components/{component_id}/plans")
+@require_permission("evaluation_projects", "read")
+async def list_plans(project_id: str, component_id: str, request: Request):
+    owner, repository = await _context(request)
+    return {"plans": await _result(PlanRepository(repository.sf).list_plans(owner, project_id, component_id))}
+
+
+@router.get("/{project_id}/plans/{plan_id}")
+@require_permission("evaluation_projects", "read")
+async def get_plan(project_id: str, plan_id: str, request: Request):
+    owner, repository = await _context(request)
+    return await _result(PlanRepository(repository.sf).get_plan(owner, project_id, plan_id))
+
+
+@router.get("/{project_id}/plans/{plan_id}/audit")
+@require_permission("evaluation_projects", "review")
+async def plan_audit(project_id: str, plan_id: str, request: Request):
+    owner, repository = await _context(request)
+    return {"events": await _result(PlanRepository(repository.sf).plan_audit(owner, project_id, plan_id))}

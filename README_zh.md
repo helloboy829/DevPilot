@@ -1,5 +1,7 @@
 # DevPilot · AI 组件评测工作台
 
+**冻结 QA 计划后端切片：** 支持将加密请求版本、冻结数据 revision/hash、JSON 输入/输出映射及执行预算经人工确认后固定；逐条预检，不发送请求或金标。仅冻结定义，不是执行批准或证据，计划 UI 和耐久 Worker 仍待开发。详见[边界与迁移](docs/DevPilot_Frozen_QA_Plans.md)。
+
 [English](README.md) · [设计与开发文档](docs/README.md) · [本轮交付与配置](docs/DevPilot_Evaluation_Workspace.md)
 
 DevPilot 基于 ByteDance DeerFlow 的 Agent 底座二次开发，面向 AI 模型、CV、LLM 和 Agent 的效果与性能评测。产品界面使用 DevPilot；`deerflow` Python 包、兼容 API、既有环境变量与上游版权保留，避免破坏底层升级和存量数据。

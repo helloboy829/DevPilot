@@ -92,21 +92,25 @@ class RequestVersionRepository(RegistryRepository):
         async with self.sf() as session:
             return self._public(await self._request_version(session, owner, project_id, version_id))
 
+    async def _open_request_row(self, session, owner, row) -> FrozenRequest:
+        """Use an already owner-scoped row; audit in the caller's transaction."""
+        try:
+            actual = hashlib.sha256(row["encrypted_payload"].encode()).hexdigest()
+            if not hmac.compare_digest(actual, row["protected_hash"]):
+                raise RequestProtectionError("Protected request integrity check failed")
+            frozen = await asyncio.to_thread(self._protection().open, row["encrypted_payload"], self._binding(owner, row))
+            if row["scope"] != "request_definition_only" or row["request_template"] != frozen.template.to_dict():
+                raise RequestProtectionError("Protected request metadata changed")
+        except (ValueError, TypeError, AttributeError):
+            raise RequestProtectionError("Protected request integrity check failed") from None
+        await self._request_event(session, owner, row, "request_version_opened")
+        return frozen
+
     async def open_request_version(self, owner, project_id, version_id) -> FrozenRequest:
-        """Internal-only, audited value access. Not authorization to execute a request."""
+        """Internal-only audited access, not authorization to execute a request."""
         async with self.sf.begin() as session:
             row = await self._request_version(session, owner, project_id, version_id, protected=True)
-            try:
-                actual = hashlib.sha256(row["encrypted_payload"].encode()).hexdigest()
-                if not hmac.compare_digest(actual, row["protected_hash"]):
-                    raise RequestProtectionError("Protected request integrity check failed")
-                frozen = await asyncio.to_thread(self._protection().open, row["encrypted_payload"], self._binding(owner, row))
-                if row["scope"] != "request_definition_only" or row["request_template"] != frozen.template.to_dict():
-                    raise RequestProtectionError("Protected request metadata changed")
-            except (ValueError, TypeError, AttributeError):
-                raise RequestProtectionError("Protected request integrity check failed") from None
-            await self._request_event(session, owner, row, "request_version_opened")
-            return frozen
+            return await self._open_request_row(session, owner, row)
 
     async def request_version_audit(self, owner, project_id, version_id):
         async with self.sf() as session:

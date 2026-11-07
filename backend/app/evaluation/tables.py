@@ -140,3 +140,39 @@ request_version_audit = Table(
     Column("at", String(40), nullable=False),
     ForeignKeyConstraint(["project_id", "request_version_id"], ["evaluation_request_versions.project_id", "evaluation_request_versions.id"]),
 )
+
+# A plan must reference a request belonging to the SAME project component.
+Index("uq_evaluation_request_component_id", request_versions.c.project_id, request_versions.c.component_id, request_versions.c.id, unique=True)
+plans = Table(
+    "evaluation_plans",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("component_id", String(64), nullable=False),
+    Column("request_version_id", String(64), nullable=False),
+    Column("dataset_id", String(64), nullable=False),
+    Column("version_label", String(80), nullable=False),
+    Column("label_key", String(240), nullable=False),
+    Column("scope", String(32), nullable=False),
+    Column("definition", JSON, nullable=False),
+    Column("definition_hash", String(64), nullable=False),
+    Column("created_by", String(64), nullable=False),
+    Column("created_at", String(40), nullable=False),
+    ForeignKeyConstraint(["project_id", "component_id"], ["evaluation_project_components.project_id", "evaluation_project_components.id"]),
+    ForeignKeyConstraint(["project_id", "component_id", "request_version_id"], ["evaluation_request_versions.project_id", "evaluation_request_versions.component_id", "evaluation_request_versions.id"]),
+    ForeignKeyConstraint(["project_id", "dataset_id"], ["evaluation_datasets.project_id", "evaluation_datasets.id"]),
+    UniqueConstraint("project_id", "id", name="uq_evaluation_plan_project_id"),
+    UniqueConstraint("component_id", "label_key", name="uq_evaluation_plan_label"),
+    CheckConstraint("scope = 'frozen_definition_only'", name="ck_evaluation_plan_scope"),
+)
+plan_audit = Table(
+    "evaluation_plan_audit",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("plan_id", String(64), nullable=False),
+    Column("actor", String(64), nullable=False),
+    Column("action", String(40), nullable=False),
+    Column("at", String(40), nullable=False),
+    ForeignKeyConstraint(["project_id", "plan_id"], ["evaluation_plans.project_id", "evaluation_plans.id"]),
+)
