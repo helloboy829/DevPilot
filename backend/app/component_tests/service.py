@@ -19,12 +19,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import httpx
 from devpilot.toolkit.effect import effect_eval, effect_run
 from devpilot.toolkit.perf import perf_eval, perf_run
 from devpilot.toolkit.report import build_component_test_report, build_run_summary
 from devpilot.toolkit.transports import TransportConfig
 
+from app.evaluation.http import component_request_spec, evaluation_client
+from deerflow.config.app_config import get_app_config
 from deerflow.config.paths import get_paths, make_safe_user_id
 
 logger = logging.getLogger(__name__)
@@ -56,12 +57,13 @@ class ComponentTestService:
 
     @staticmethod
     def _build_config(component: dict[str, Any], params: dict[str, Any]) -> TransportConfig:
+        spec = component_request_spec(component, params)
         return TransportConfig(
             transport=component["transport"],
             api_url=component["api_url"],
             api_token=component.get("api_token"),
             response_mode=component.get("response_mode") or "blocking",
-            headers=dict(params.get("headers") or {}),
+            headers=dict(spec.headers),
             model=params.get("model"),
             timeout_seconds=float(params.get("timeout_seconds") or 30.0),
         )
@@ -80,7 +82,7 @@ class ComponentTestService:
                 )
                 config = self._build_config(component, params)
                 if client is None:
-                    client = httpx.AsyncClient(trust_env=False, verify=True, timeout=httpx.Timeout(config.timeout_seconds))
+                    client = evaluation_client(await asyncio.to_thread(get_app_config), config.api_url, timeout_seconds=config.timeout_seconds)
                 criteria = component.get("acceptance_criteria") or {}
                 if test_type == "effect":
                     samples = list(params.get("samples") or [])

@@ -4,7 +4,7 @@
 
 遵循 skill 的 code-conventions：
 
-- ``trust_env=False``（不走环境代理）、``verify=False``（内网自签证书）。
+- ``trust_env=False``（不走环境代理）、``verify=True``（管理员部署受信任 CA，不能跳过证书校验）。
 - **业务失败 ≠ HTTP 失败**：Dify 返回 200 但 ``data.status in (failed, stopped)``
   或 ``error`` 非空即失败；OpenAI 兼容端点返回 200 但 body 只有 ``error`` 也算失败。
 - **TTFT = 首个用户可见 answer 分片**，不是首个 HTTP 字节，也不是首个 SSE 事件。
@@ -24,9 +24,7 @@ from typing import Any
 import httpx
 
 #: 支持流式（SSE）的 transport。http_post 的泛化端点不假设 SSE，MVP 走阻塞。
-STREAMING_TRANSPORTS: frozenset[str] = frozenset(
-    {"openai_chat", "dify_chat", "dify_workflow"}
-)
+STREAMING_TRANSPORTS: frozenset[str] = frozenset({"openai_chat", "dify_chat", "dify_workflow"})
 
 #: Dify 的「业务失败」状态（HTTP 200 但业务没跑成）。
 _DIFY_FAILED_STATUSES: frozenset[str] = frozenset({"failed", "stopped"})
@@ -87,7 +85,7 @@ class TransportResult:
 def _build_client(timeout_seconds: float) -> httpx.AsyncClient:
     return httpx.AsyncClient(
         trust_env=False,
-        verify=False,
+        verify=True,
         timeout=httpx.Timeout(timeout_seconds),
     )
 

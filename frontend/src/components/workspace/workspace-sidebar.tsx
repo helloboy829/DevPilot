@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 import {
   Sidebar,
@@ -20,10 +21,12 @@ import { WorkspaceNavMenu } from "./workspace-nav-menu";
 export function WorkspaceSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
-  const { open: isSidebarOpen } = useSidebar();
-  const chatWorkspace = /^\/workspace\/(chats|agents)(\/|$)/.test(
-    usePathname(),
-  );
+  const { open: isSidebarOpen, setOpenMobile } = useSidebar();
+  const pathname = usePathname();
+  const chatWorkspace = /^\/workspace\/(chats|agents)(\/|$)/.test(pathname);
+  useEffect(() => {
+    setOpenMobile(false);
+  }, [pathname, setOpenMobile]);
   return (
     <>
       <Sidebar variant="sidebar" collapsible="icon" {...props}>

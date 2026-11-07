@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## Navigation / shared outbound slice (2026-11-07)
+
+Evaluation component calls share app.evaluation.http.PinnedEvaluationTransport across debugger/manual/scheduled paths. Manual admission requires runs:create and checks policy before creating a run. Custom-assistant navigation is hidden when disabled; do not bypass its operator gate to remove grey UI. Full RequestSpec execution/credential references remain pending. See [scope](docs/DevPilot_导航与统一出站基线.md).
+
+
 ## Project component/submission inventory (2026-11-07)
 
 `app.evaluation.registry` and `registry_repository` link owner-owned legacy components to projects and frozen QA versions. Current App migration head is `eval_0002`; do not edit deployed `eval_0001`. SQL selects only safe inventory columns, never legacy endpoints/tokens/criteria. Server-built immutable snapshots have `scope=inventory_only`: NOT RequestSpec locks, executable plans, acceptance or report evidence. Submission creation requires write+review and explicit confirmation; rejects internal Agent callers. See [inventory slice](docs/DevPilot_项目组件与提测清单.md).

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Navigation / shared outbound slice (2026-11-07)
+
+Evaluation pages render the component-tests entry only in WorkspaceNavChatList, not the header shortcut. Preserve new-chat on conversation pages. WorkspaceSidebar closes the mobile drawer on pathname changes; keep the route-change regression. Custom assistants appear only when the operator feature is enabled and discovery is no longer pending; do not bypass backend gates. The gallery explains advisory-only scope. The component page documents shared outbound admission. Desktop/mobile and direct-disabled-route regressions must stay covered. See [scope](../docs/DevPilot_导航与统一出站基线.md).
+
 ## Project component/submission registry (2026-11-07)
 
 `ProjectRegistryPanel` is embedded in `/workspace/datasets`, keyed by project; explicit refresh loads safe legacy component candidates, links and datasets. Uses the authenticated no-store evaluationApi and page memory only. Confirm version/data fingerprints before creating immutable inventory-only bindings. No RequestSpec locks, test execution or report evidence. Edits/switches/errors/writes revoke confirmation; busy fieldset/ref lock prevents duplicate mutations. Missing/stale source fails closed on server. E2E: tests/e2e/project-registry.spec.ts. See [inventory design](../docs/DevPilot_项目组件与提测清单.md).

@@ -10,7 +10,7 @@ import httpx
 from devpilot.http import RequestSpec
 from fastapi import HTTPException
 
-from app.evaluation.http import resolve_destination
+from app.evaluation.http import PinnedEvaluationTransport, resolve_destination
 
 ASSISTANT_ID = "devpilot_component_evaluation_v1"
 
@@ -65,24 +65,6 @@ def freeze_plan(component, test_type, params):
         params.setdefault("max_requests", 100)
         params.setdefault("concurrency_levels", [1, 5])
     return {"schema_version": "evaluation-plan.v1", "component_id": component["id"], "component_sha256": component_fingerprint(component), "test_type": test_type, "params": params}
-
-
-class PinnedEvaluationTransport(httpx.AsyncBaseTransport):
-    def __init__(self, config, url):
-        self.config, self.url = config, httpx.URL(url)
-        self.inner = httpx.AsyncHTTPTransport(verify=True, trust_env=False, retries=0)
-
-    async def handle_async_request(self, request):
-        if (request.url.scheme, request.url.host, request.url.port) != (self.url.scheme, self.url.host, self.url.port):
-            raise ValueError("Scheduled request changed destination")
-        ip = await resolve_destination(RequestSpec(url=str(request.url)), self.config)
-        request.headers["host"] = request.url.netloc.decode("ascii")
-        request.extensions["sni_hostname"] = request.url.host
-        request.url = request.url.copy_with(host=ip)
-        return await self.inner.handle_async_request(request)
-
-    async def aclose(self):
-        await self.inner.aclose()
 
 
 async def launch_scheduled_dispatch(*, app, assistant_id, **kwargs):

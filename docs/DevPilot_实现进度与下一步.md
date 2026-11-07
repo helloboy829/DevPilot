@@ -1,5 +1,10 @@
 # DevPilot 实现进度与下一步
 
+## 本次追加：导航修复与统一出站（2026-11-07）
+
+修复顶部/主菜单重复的组件测试入口；未启用的通用 Agent 管理从导航隐藏，启用时明确为“自定义助手”。调试、手动与定时组件调用复用同一固定 DNS/IP、保留 Host/SNI 的 TLS 传输；手动启动增加 runs:create 与准入前检查。独立 toolkit 不再关闭 TLS。详见[本轮边界](DevPilot_导航与统一出站基线.md)。这不是完整 RequestSpec 执行版本、耐久队列或评测验收闭环；旧 body 构造、凭据引用、人工结果复核及报告证据关联仍需继续。
+
+
 ## 本次追加：项目组件与不可变提测清单（2026-11-07）
 
 新增[项目组件与提测清单](DevPilot_项目组件与提测清单.md)。一个本人项目支持关联多个已登记组件，每个组件支持多个不可变版本；绑定同项目已冻结 QA revision/hash。服务端重算数据指纹、仅选择安全库存字段、事务审计及 eval_0002 增量迁移已实现。范围固定 inventory_only：尚无请求配置版本、执行批准、运行/复核/报告证据关联。下方较早“本次追加”和测试数字为历史交付记录；本轮验证见 CI 文档末节。
@@ -23,7 +28,7 @@
 | --- | --- | --- | --- |
 | 登录、用户隔离与底座 Agent | 已有基础 | Gateway 认证、原 LangGraph runtime；保留旧会话 | 新领域资源增加项目级授权与审计 |
 | 评测首页与导航 | 本轮已实现 | frontend/src/app/workspace/evaluations；库存数来自本人组件接口，不是验收统计 | 接入真实项目、运行和待办数据，不编造看板数字 |
-| 组件登记与原效果/性能执行 | 原型/部分 | backend/app 下 component-tests；devpilot.toolkit；固定分母、缺测阻断已补强 | 请求统一、全部出站安全、持久任务与证据验收 |
+| 组件登记与原效果/性能执行 | 原型/部分 | backend/app 下 component-tests；devpilot.toolkit；固定分母、缺测阻断已补强 | 完整 RequestSpec/凭据引用贯通；出站基线已统一，仍需配额、持久任务与证据验收 |
 | cURL 导入/编辑/发送/复制 | 已实现受控切片 | devpilot.http、app.evaluation、request_debugger 路由；页面内存保存 | 统一 RequestSpec 贯通执行/导出；文件、环境、集合另行设计 |
 | 模型连接与角色路由 | 本轮扩展 | managed_models.py；/workspace/models；四协议、加密密钥、revision | 批准环境真实服务商验收；不等于全 CC Switch / 任意 SDK 配置 |
 | 工作模型分工 | 部分 | 默认 Agent、报告助手已接通；数据构建/裁判/复核仅预留绑定 | 每条流水线具备授权、预算、证据与审计，再开放角色 |

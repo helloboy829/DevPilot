@@ -322,6 +322,11 @@ export default function ComponentTestsPage() {
           </section>
         </div>
         <div className="mx-auto w-full max-w-7xl px-4 pt-4 md:px-8">
+          <p role="note" className="text-muted-foreground mb-4 text-sm">
+            {locale === "zh-CN"
+              ? "调试、手动效果/性能测试及定时评测共用目标白名单与 DNS/TLS 校验。请先让管理员批准目标主机；私网目标需额外批准，内部证书需受信任 CA，不能跳过校验。"
+              : "Debugging, manual effect/performance tests and scheduled evaluations share host approval and DNS/TLS checks. Ask an administrator to approve the target; private hosts need additional approval and internal certificates need a trusted CA. Verification cannot be bypassed."}
+          </p>
           <RequestDebugger />
         </div>
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 md:p-8">

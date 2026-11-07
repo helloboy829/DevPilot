@@ -1,6 +1,6 @@
 "use client";
 
-import { FlaskConical, MessageSquarePlus } from "lucide-react";
+import { MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -55,34 +55,24 @@ export function WorkspaceHeader({ className }: { className?: string }) {
           </div>
         )}
       </div>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            isActive={pathname === "/workspace/chats/new"}
-            asChild
-          >
-            <Link
-              className="text-muted-foreground"
-              href={
-                evaluationWorkspace
-                  ? "/workspace/component-tests"
-                  : "/workspace/chats/new"
-              }
+      {!evaluationWorkspace && (
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={pathname === "/workspace/chats/new"}
+              asChild
             >
-              {evaluationWorkspace ? (
-                <FlaskConical size={16} />
-              ) : (
+              <Link
+                className="text-muted-foreground"
+                href="/workspace/chats/new"
+              >
                 <MessageSquarePlus size={16} />
-              )}
-              <span>
-                {evaluationWorkspace
-                  ? t.sidebar.componentTests
-                  : t.sidebar.newChat}
-              </span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+                <span>{t.sidebar.newChat}</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      )}
     </>
   );
 }

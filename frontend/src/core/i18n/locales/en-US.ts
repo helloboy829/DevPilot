@@ -299,7 +299,7 @@ export const enUS: Translations = {
     channels: "Channels",
     recentChats: "Recent chats",
     demoChats: "Demo chats",
-    agents: "Agents",
+    agents: "Custom assistants",
     scheduledTasks: "Scheduled tasks",
     scheduledEvaluations: "Scheduled evaluations",
     componentTests: "Component tests",

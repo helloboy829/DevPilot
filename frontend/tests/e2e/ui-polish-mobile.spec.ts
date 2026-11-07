@@ -14,7 +14,9 @@ test.describe("UI polish mobile regressions", () => {
     await page.getByRole("button", { name: /toggle sidebar/i }).click();
 
     await expect(page.getByRole("link", { name: /new chat/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /agents/i })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Custom assistants", exact: true }),
+    ).toBeVisible();
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
       .toBeLessThanOrEqual(375);
@@ -59,14 +61,20 @@ test.describe("UI polish mobile regressions", () => {
           .trim(),
       );
 
-    await page.evaluate(() =>
-      document.documentElement.classList.remove("dark"),
-    );
+    // Exercise the hydrated theme controller rather than racing its initial
+    // effect by mutating <html> directly.
+    const sidebar = page.locator("[data-sidebar='sidebar']");
+    await sidebar.getByRole("button", { name: /Settings and more/ }).click();
+    await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
+    await dialog.getByRole("button", { name: /^Light\b/ }).click();
+    await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
     const lightRing = await readRing();
     expect(lightRing).not.toBe("transparent");
     expect(lightRing).not.toBe("");
 
-    await page.evaluate(() => document.documentElement.classList.add("dark"));
+    await dialog.getByRole("button", { name: /^Dark\b/ }).click();
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/);
     const darkRing = await readRing();
     expect(darkRing).not.toBe("transparent");
     expect(darkRing).not.toBe("");

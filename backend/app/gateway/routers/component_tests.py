@@ -7,18 +7,21 @@ from pathlib import Path
 from typing import Any
 
 from devpilot.toolkit.report import build_component_test_report
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.evaluation.http import component_request_spec, resolve_destination
 from app.gateway.authz import require_permission
 from app.gateway.deps import (
     get_component_repo,
     get_component_test_run_repo,
     get_component_test_service,
+    get_config,
     get_optional_user_from_request,
 )
+from app.gateway.private_route import PrivateValidationRoute
 
-router = APIRouter(prefix="/api", tags=["component-tests"])
+router = APIRouter(prefix="/api", tags=["component-tests"], route_class=PrivateValidationRoute)
 
 ALLOWED_TRANSPORTS = frozenset({"openai_chat", "dify_chat", "dify_workflow", "http_post"})
 ALLOWED_RESPONSE_MODES = frozenset({"blocking", "streaming"})
@@ -144,12 +147,13 @@ async def delete_component(component_id: str, request: Request):
 
 @router.post("/component-tests/components/{component_id}/runs")
 @require_permission("threads", "write")
-async def trigger_run(component_id: str, payload: ComponentTestRunCreateRequest, request: Request):
+@require_permission("runs", "create")
+async def trigger_run(component_id: str, payload: ComponentTestRunCreateRequest, request: Request, config=Depends(get_config)):
     user = await get_optional_user_from_request(request)
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication required")
     if payload.test_type not in ALLOWED_TEST_TYPES:
-        raise HTTPException(status_code=422, detail=f"Unsupported test_type: {payload.test_type}")
+        raise HTTPException(status_code=422, detail="Unsupported test type")
 
     user_id = str(user.id)
     component = await get_component_repo(request).get(component_id, user_id=user_id)
@@ -157,6 +161,12 @@ async def trigger_run(component_id: str, payload: ComponentTestRunCreateRequest,
         raise HTTPException(status_code=404, detail="Component not found")
     if component.get("enabled") is False:
         raise HTTPException(status_code=409, detail="Component is disabled")
+
+    try:
+        spec = component_request_spec(component, payload.params)
+        await resolve_destination(spec, config)
+    except Exception:
+        raise HTTPException(422, "Request configuration or destination is blocked; check the operator outbound policy and request headers") from None
 
     run_repo = get_component_test_run_repo(request)
     run = await run_repo.create(

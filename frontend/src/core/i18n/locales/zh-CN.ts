@@ -283,7 +283,7 @@ export const zhCN: Translations = {
     channels: "渠道",
     recentChats: "最近的对话",
     demoChats: "演示对话",
-    agents: "智能体",
+    agents: "自定义助手",
     scheduledTasks: "定时任务",
     scheduledEvaluations: "定时评测",
     componentTests: "组件测试",

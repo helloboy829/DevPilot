@@ -67,3 +67,7 @@
 ## Current implementation update
 
 See [DevPilot evaluation workspace delivery and configuration](DevPilot_Evaluation_Workspace.md) for the implemented cURL debugger, off-peak evaluation scheduling, multi-component drafts, opt-in field-intake agent and administrator model catalog. This update supersedes older “planned only” statements for those specific slices, not the remaining lifecycle roadmap.
+
+## 导航与执行安全补充
+
+- [导航与统一出站基线](DevPilot_导航与统一出站基线.md)：单一组件入口、可选自定义助手及调试/手动/定时统一出站策略；不代表完整评测流水线。

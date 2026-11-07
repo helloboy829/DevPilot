@@ -18,6 +18,10 @@
 
 The unified local entry point is `http://127.0.0.1:2026`. See [Install.md](Install.md), [AGENTS.md](AGENTS.md) and module guides for installation and full-stack `make dev`/Docker commands. Do not commit local configuration, credentials or customer materials.
 
+## Navigation and outbound baseline
+
+Evaluation pages have one component-test navigation entry. Custom assistant management is optional: its link appears only when enabled, rather than a disabled placeholder; it is not the report assistant or evaluation executor. Debug, manual and scheduled component calls now share host/DNS/TLS enforcement. An empty operator allowlist also blocks manual runs. See [scope and remaining work](docs/DevPilot_导航与统一出站基线.md).
+
 ## Important boundaries
 
 - **Project inventories:** link existing owner-owned components to frozen QA revision/hash and create multiple immutable inventory-only submission versions. Server snapshots exclude endpoints, credentials and gold. This is not a locked request/executable plan, test verdict or report evidence. See [inventory delivery](docs/DevPilot_项目组件与提测清单.md).

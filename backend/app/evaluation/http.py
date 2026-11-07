@@ -29,15 +29,46 @@ async def resolve_destination(spec: RequestSpec, config) -> str:
     return ips[0]
 
 
+def component_request_spec(component: dict, params: dict) -> RequestSpec:
+    """Validate caller-controlled URL/headers with the same contract as cURL import."""
+    headers = params.get("headers", {})
+    if not isinstance(headers, dict):
+        raise ValueError("Request headers must be an object")
+    return RequestSpec(url=component["api_url"], method="POST", headers=[[name, value] for name, value in headers.items()])
+
+
+class PinnedEvaluationTransport(httpx.AsyncBaseTransport):
+    """One origin per client; re-resolve and pin every outbound request, including queued runs."""
+
+    def __init__(self, config, url: str):
+        RequestSpec(url=url)
+        self.config, self.url = config, httpx.URL(url)
+        self.inner = httpx.AsyncHTTPTransport(verify=True, trust_env=False, retries=0)
+
+    async def handle_async_request(self, request):
+        spec = RequestSpec(url=str(request.url))
+        if (request.url.scheme, request.url.host, request.url.port) != (self.url.scheme, self.url.host, self.url.port):
+            raise ValueError("Evaluation request changed destination")
+        ip = await resolve_destination(spec, self.config)
+        request.headers["host"] = request.url.netloc.decode("ascii")
+        request.extensions["sni_hostname"] = request.url.host
+        request.url = request.url.copy_with(host=ip)
+        return await self.inner.handle_async_request(request)
+
+    async def aclose(self):
+        await self.inner.aclose()
+
+
+def evaluation_client(config, url: str, *, timeout_seconds: float = 30) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=PinnedEvaluationTransport(config, url), trust_env=False, follow_redirects=False, timeout=timeout_seconds)
+
+
 async def send_request(spec: RequestSpec, config) -> dict:
-    ip = await resolve_destination(spec, config)
-    original = httpx.URL(spec.url)
-    pinned = original.copy_with(host=ip)
-    headers = list(map(tuple, spec.headers)) + [("Host", original.netloc.decode("ascii"))]
+    headers = list(map(tuple, spec.headers))
     started = time.perf_counter()
     async with asyncio.timeout(35):
-        async with httpx.AsyncClient(verify=True, trust_env=False, follow_redirects=False, timeout=30) as client:
-            async with client.stream(spec.method, pinned, headers=headers, content=spec.body.encode("utf-8"), extensions={"sni_hostname": original.host}) as response:
+        async with evaluation_client(config, spec.url, timeout_seconds=30) as client:
+            async with client.stream(spec.method, spec.url, headers=headers, content=spec.body.encode("utf-8")) as response:
                 chunks = bytearray()
                 truncated = False
                 async for chunk in response.aiter_bytes():
