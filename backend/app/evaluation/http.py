@@ -12,20 +12,24 @@ import httpx
 from devpilot.http import RequestSpec
 
 
+class EvaluationPolicyError(ValueError):
+    """Request denied by outbound policy before transport dispatch."""
+
+
 async def resolve_destination(spec: RequestSpec, config) -> str:
     policy = getattr(config, "evaluation_http", {})
     parts = urlsplit(spec.url)
     host = parts.hostname.lower()
     if host not in policy.get("allowed_hosts", []):
-        raise ValueError("Destination host is not approved by the operator (evaluation_http.allowed_hosts)")
+        raise EvaluationPolicyError("Destination host is not approved by the operator (evaluation_http.allowed_hosts)")
     addresses = await asyncio.wait_for(asyncio.get_running_loop().getaddrinfo(host, parts.port or (443 if parts.scheme == "https" else 80), type=socket.SOCK_STREAM), timeout=5)
     ips = list(dict.fromkeys(row[4][0] for row in addresses))
     if not ips:
-        raise ValueError("Destination DNS resolution failed")
+        raise EvaluationPolicyError("Destination DNS resolution failed")
     for value in ips:
         ip = ipaddress.ip_address(value)
         if ip.is_link_local or ip.is_multicast or ip.is_unspecified or ip.is_reserved or (not ip.is_global and not policy.get("allow_private", False)):
-            raise ValueError("Destination address is not permitted by outbound policy")
+            raise EvaluationPolicyError("Destination address is not permitted by outbound policy")
     return ips[0]
 
 
@@ -48,7 +52,7 @@ class PinnedEvaluationTransport(httpx.AsyncBaseTransport):
     async def handle_async_request(self, request):
         spec = RequestSpec(url=str(request.url))
         if (request.url.scheme, request.url.host, request.url.port) != (self.url.scheme, self.url.host, self.url.port):
-            raise ValueError("Evaluation request changed destination")
+            raise EvaluationPolicyError("Evaluation request changed destination")
         ip = await resolve_destination(spec, self.config)
         request.headers["host"] = request.url.netloc.decode("ascii")
         request.extensions["sni_hostname"] = request.url.host

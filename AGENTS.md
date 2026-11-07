@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Internal bounded QA attempt collection (2026-11-08)
+
+`app.evaluation.qa_attempts` performs one application-level send via the shared DNS-pinned transport, bounded raw response retention and total attempt timeout. No gold, verdict, retry, execution route or persistence. `output_collected` is not PASS; timeout/transport error is uncertain delivery. Cancellation propagates. The future durable caller must authorize and journal dispatch before calling, enforce run-wide budgets, and never resend uncertain attempts. Output is sensitive internal data with repr suppression, not a public/evidence DTO. Existing execution paths are not switched. See [scope](docs/DevPilot_Bounded_QA_Attempts.md).
+
 ## Frozen QA plan workspace (2026-11-08)
 
 `EvaluationPlanPanel` on `/workspace/datasets` is keyed by project. Explicit source reads load only request/QA/plan metadata. Strict `plan-form` builds the existing frozen-definition DTO; edits, refresh and submission revoke confirmation. Keep page-memory-only state, write ref locking, stale-response tokens, and an explicit metadata refresh after any failed/unknown write. No target calls, gold reads, auto-retry, execution authority or model requirement. Root-string output is opt-in; pointer whitespace is literal. See [UI scope](docs/DevPilot_Frozen_QA_Plan_UI.md).

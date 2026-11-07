@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：有界单次采集内核（2026-11-08）
+
+[内部单次 QA 响应采集](DevPilot_Bounded_QA_Attempts.md)实现单次发送、响应/超时边界、取消清理和未知派发不重试。无运行 API、Worker、判分或持久证据，不把采集成功当作效果 PASS。
+
 ## 当前追加：请求版本与冻结 QA 计划（2026-11-08）
 
 [加密请求版本界面](DevPilot_Request_Version_UI.md)支持从 cURL 调试器明确保存及浏览元数据；[QA 计划后端](DevPilot_Frozen_QA_Plans.md)与[确认界面](DevPilot_Frozen_QA_Plan_UI.md)固定请求/数据版本、JSON 映射和有限参数。当前仅冻结定义与逐输入预检，不是执行授权、运行结果或报告证据。

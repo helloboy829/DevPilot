@@ -8,6 +8,8 @@
 
 Plan confirmation: open **Projects & datasets → select project → Frozen QA plans**. Select encrypted request metadata and a frozen QA revision, enter literal JSON pointers and bounded limits, then explicitly confirm a definition-only freeze. No target request is sent. [Workflow and limits](docs/DevPilot_Frozen_QA_Plan_UI.md).
 
+Internal development: a [bounded single-attempt JSON collector](docs/DevPilot_Bounded_QA_Attempts.md) now shares the outbound policy, rejects oversized/unsupported responses and never retries uncertain delivery. It is not wired to an execution API, durable Worker or grading; plan freeze still does not send requests.
+
 ## Workspace appearance and navigation
 
 The evaluation-first sidebar keeps stable Evaluation center and AI collaboration groups. Opening Chats or Custom assistants no longer inserts a new-chat row above the menu; create conversations inside Chats (or use the command palette). Assistant management does not open a conversation.

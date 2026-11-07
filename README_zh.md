@@ -1,5 +1,7 @@
 # DevPilot · AI 组件评测工作台
 
+内部开发已增加[有界单次 JSON 采集核心](docs/DevPilot_Bounded_QA_Attempts.md)，复用出站策略、限制响应、未知派发不自动重试；尚未接入执行 API/耐久 Worker，不构成可运行的完整评测或判分。
+
 **冻结 QA 计划界面**：项目与数据 → 选择项目 → 冻结 QA 评测计划。选择组件请求版本与冻结数据集，填写 JSON 映射和效果/性能边界，明确确认后冻结定义；不调用目标接口、不代表执行批准。支持版本浏览、失败后显式刷新及多组件隔离。[操作与边界](docs/DevPilot_Frozen_QA_Plan_UI.md)。
 
 **冻结 QA 计划后端切片：** 支持将加密请求版本、冻结数据 revision/hash、JSON 输入/输出映射及执行预算经人工确认后固定；逐条预检，不发送请求或金标。仅冻结定义，不是执行批准或证据，计划确认 UI 已接入，耐久 Worker 仍待开发。详见[边界与迁移](docs/DevPilot_Frozen_QA_Plans.md)。
