@@ -1,6 +1,17 @@
 import type { ReportForm } from "./form";
 
 type Messages = {
+  assistant: {
+    title: string;
+    notice: string;
+    unavailable: string;
+    consent: string;
+    request: string;
+    confirm: string;
+    summary: string;
+    findings: string;
+    recommendations: string;
+  };
   title: string;
   notice: string;
   template: string;
@@ -28,6 +39,21 @@ type Messages = {
 };
 
 export const enReports: Messages = {
+  assistant: {
+    title: "Optional report agent",
+    notice:
+      "AI suggestions are unverified, not an acceptance decision. Only aggregate metrics, evaluation mode and template language are sent; names, user prose and evidence are excluded. Provider retention is controlled by your operator. Review suggestions before including them in a draft.",
+    unavailable:
+      "Agent unavailable (disabled, no model, no permission or status failed). Manual drafts still work. Ask your administrator to configure reports_agent and an approved model.",
+    consent:
+      "I authorize sending these aggregate metrics to the configured model for this request.",
+    request: "Request AI suggestions",
+    confirm:
+      "I reviewed these unverified suggestions and want to include them in the next draft. This is not formal approval.",
+    summary: "AI summary (unverified)",
+    findings: "Observations",
+    recommendations: "Suggested next steps",
+  },
   title: "Report workspace",
   notice:
     "DRAFT: manually entered, unverified results. This is not an acceptance decision. Do not enter secrets or unnecessary personal data. This preview is not saved on the server; download it before leaving. Template editing, formal approval and historical revisions are not available yet.",
@@ -89,6 +115,20 @@ export const enReports: Messages = {
 };
 
 export const zhReports: Messages = {
+  assistant: {
+    title: "可选报告 Agent",
+    notice:
+      "AI 建议未经核验，不是验收结论。只发送汇总指标、评测模式和模板语言，不发送名称、用户文本或证据。模型服务的数据留存策略由部署方管理。请审阅后再选择附入草稿。",
+    unavailable:
+      "Agent 不可用（未启用、未配模型、无权限或状态查询失败）；人工报告仍可使用。请管理员配置 reports_agent 和获准使用的模型。",
+    consent: "我授权本次将这些汇总指标发送给已配置的模型。",
+    request: "请求 AI 报告建议",
+    confirm:
+      "我已审阅这些未经核验的建议，并同意将其附入下一份草稿；这不是正式审批。",
+    summary: "AI 摘要（未核验）",
+    findings: "观察与风险",
+    recommendations: "建议下一步",
+  },
   title: "评测报告工作台",
   notice:
     "草稿：人工填报、结果未经核验，不构成验收结论。请勿填写凭据或不必要的个人信息。本页不会在服务端保存报告，离开前请下载。模板编辑、正式审批与历史修订尚未开放。",

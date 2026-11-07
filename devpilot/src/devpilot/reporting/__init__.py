@@ -244,7 +244,59 @@ def _cell(value: Any) -> str:
     return text
 
 
-def build_preview(facts: ReportFacts, *, template: ReportTemplate, generated_by: str, generated_at: str) -> dict[str, Any]:
+def facts_digest(facts: ReportFacts) -> str:
+    """Binding hash, not a signature or verification of submitted facts."""
+    return _digest(asdict(facts))
+
+
+def validate_advice(data: Any) -> dict[str, Any]:
+    """Strict, bounded prose only; neither metric updates nor verdict fields."""
+    if not isinstance(data, dict) or set(data) != {"summary", "findings", "recommendations"}:
+        raise ReportValidationError("invalid advice fields")
+    _text(data["summary"], "advice summary", 2000)
+    for name in ("findings", "recommendations"):
+        items = data[name]
+        if not isinstance(items, list) or len(items) > 8:
+            raise ReportValidationError("advice lists must contain at most eight text items")
+        for item in items:
+            _text(item, "advice item", 600)
+    return {"summary": data["summary"], "findings": list(data["findings"]), "recommendations": list(data["recommendations"])}
+
+
+@dataclass(frozen=True)
+class ReportAdvisory:
+    summary: str
+    findings: tuple[str, ...]
+    recommendations: tuple[str, ...]
+    model_name: str
+    facts_sha256: str
+    template_id: str
+    template_version: str
+    human_confirmed: bool
+
+    def __post_init__(self):
+        validate_advice({"summary": self.summary, "findings": list(self.findings), "recommendations": list(self.recommendations)})
+        for name in ("model_name", "template_id", "template_version", "facts_sha256"):
+            _text(getattr(self, name), name, 100)
+        if self.human_confirmed is not True:
+            raise ReportValidationError("explicit human confirmation is required to attach advice")
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ReportAdvisory:
+        if not isinstance(data, dict):
+            raise ReportValidationError("advisory must be an object")
+        fields = dict(data)
+        try:
+            for name in ("findings", "recommendations"):
+                if not isinstance(fields.get(name), list):
+                    raise ReportValidationError("advisory lists must be arrays")
+                fields[name] = tuple(fields[name])
+            return cls(**fields)
+        except TypeError as exc:
+            raise ReportValidationError("advisory contains missing or unsupported fields") from exc
+
+
+def build_preview(facts: ReportFacts, *, template: ReportTemplate, generated_by: str, generated_at: str, advisory: ReportAdvisory | None = None) -> dict[str, Any]:
     snapshot = asdict(facts)
     derived = {
         "case_pass_rate": facts.effect.passed / facts.effect.total if facts.effect else None,
@@ -277,18 +329,38 @@ def build_preview(facts: ReportFacts, *, template: ReportTemplate, generated_by:
     lines.extend(["", f"## {template.sections[3]}", "", header, "| --- | --- |"])
     for key in ("environment", "scope", "methodology", "evidence_notes", "limitations"):
         row(key, snapshot[key])
+    advisory_snapshot = None
+    if advisory is not None:
+        if (advisory.facts_sha256, advisory.template_id, advisory.template_version) != (facts_digest(facts), template.id, template.version):
+            raise ReportValidationError("advice does not match current facts and template")
+        advisory_snapshot = asdict(advisory) | {"source": "client_supplied_ai_advice_unverified"}
+        if template.language == "zh":
+            heading = "AI 建议附录（未核验）"
+            notice = "用户仅确认附入草稿，不是事实核验或正式审批。建议及模型名称由客户端回传，来源未经认证；可能包含错误，不代表验收结论。"
+        else:
+            heading = "AI advisory appendix (unverified)"
+            notice = "Human confirmation only permits draft inclusion, not verification or approval. Advice and model identity are client-supplied and unauthenticated; they may be wrong and are not an acceptance decision."
+        lines.extend(["", f"## {heading}", "", f"> {notice}", "", header, "| --- | --- |"])
+        for key in ("model_name", "summary", "findings", "recommendations"):
+            value = advisory_snapshot[key]
+            if isinstance(value, tuple):
+                value = "; ".join(value) or template.missing
+            row(key, value)
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "template_id": template.id,
         "template_version": template.version,
-        "renderer_version": RENDERER_VERSION,
+        "renderer_version": "advisory-preview.v1" if advisory else RENDERER_VERSION,
         "facts_sha256": _digest(snapshot),
         "template_sha256": _digest(asdict(template)),
         "generated_by": generated_by,
         "generated_at": generated_at,
     }
+    if advisory_snapshot is not None:
+        manifest["advisory_sha256"] = _digest(advisory_snapshot)
     markdown = "\n".join(lines) + "\n\n## Manifest\n\n```json\n" + json.dumps(manifest, ensure_ascii=False, indent=2) + "\n```\n"
     return {
+        **({"advisory": advisory_snapshot} if advisory_snapshot is not None else {}),
         "status": "DRAFT",
         "source": "manual_unverified",
         "template": asdict(template),

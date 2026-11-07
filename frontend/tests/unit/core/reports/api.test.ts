@@ -6,9 +6,11 @@ rs.mock("@/core/config", () => ({ getBackendBaseURL: () => "/backend" }));
 import { fetch as fetcher } from "@/core/api/fetcher";
 import {
   fetchReportTemplates,
+  fetchReportAssistantStatus,
+  requestReportAdvice,
   generateReportPreview,
 } from "@/core/reports/api";
-import type { ReportFacts } from "@/core/reports/types";
+import type { ReportFacts, ReportAdvisory } from "@/core/reports/types";
 
 const mockedFetch = rs.mocked(fetcher);
 const template = {
@@ -57,4 +59,35 @@ describe("reports API", () => {
       generateReportPreview(template, {} as ReportFacts),
     ).rejects.toThrow("Invalid outcome counts");
   });
+});
+
+it("assistant status does not trigger a run and requests are explicit about consent", async () => {
+  mockedFetch.mockResolvedValueOnce(
+    response({ available: false, reason: "disabled" }),
+  );
+  await expect(fetchReportAssistantStatus()).resolves.toEqual({
+    available: false,
+    reason: "disabled",
+  });
+  expect(mockedFetch.mock.calls[0]![1]?.method).toBeUndefined();
+  mockedFetch.mockResolvedValueOnce(response({ advice: {} }));
+  await requestReportAdvice(template, {} as ReportFacts);
+  expect(JSON.parse(mockedFetch.mock.calls[1]![1]!.body as string)).toEqual({
+    template_id: template.id,
+    template_version: template.version,
+    facts: {},
+    consent: true,
+  });
+});
+
+it("only explicit caller-supplied attachments are sent to the preview", async () => {
+  mockedFetch.mockResolvedValueOnce(response({ status: "DRAFT" }));
+  const advisory = {
+    summary: "Synthetic",
+    human_confirmed: true,
+  } as ReportAdvisory;
+  await generateReportPreview(template, {} as ReportFacts, advisory);
+  expect(
+    JSON.parse(mockedFetch.mock.calls[0]![1]!.body as string).advisory,
+  ).toEqual(advisory);
 });

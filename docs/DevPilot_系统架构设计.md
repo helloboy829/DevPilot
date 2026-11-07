@@ -1,5 +1,9 @@
 # DevPilot 系统架构设计 v3.0
 
+## 报告 Agent 增补（2026-11-07）
+
+报告助手已作为 App 层业务模块接入：`reports router → app.reporting.assistant → harness model factory + 无工具 LangChain/LangGraph agent`。纯 devpilot.reporting 继续负责计数、模板和转义，不依赖模型库。默认关闭；外发仅获准汇总指标，不启动通用 lead agent，无知识/文件/目标接口写入；人工确认后作为未核验附录，不参与验收判定。[当前能力及限制](DevPilot_报告模块设计.md#9-已实现可选报告-agent2026-11-07)。
+
 > 2026-11-06；当前与目标分开说明。业务口径以[数据集与指标规范](DevPilot_数据集与指标规范.md)为准。
 
 ## 2026-11-07 契约校准
@@ -42,6 +46,10 @@ FastAPI 业务层：权限/版本/审批/任务/证据/凭据引用
 
 **App → Harness / App → devpilot**；App 把模型调用以 callable/协议注入纯核心。既有 runner 的懒导入兼容暂留，逐步迁移，不扩大反向耦合。
 现有 component_tests ORM 位于 harness 属历史落点；新领域表优先业务层，迁移复用现有 engine/session/Alembic，不在一次重构中移动全部旧表。
+
+### 平台工作模型与被测组件
+
+平台工作模型复用 DeerFlow 模型工厂，服务于材料理解、候选生成、辅助评审和报告；被测组件由评测执行层使用独立 RequestSpec 与目标凭据调用。模型配置、目标配置及数据外发授权不混用。当前仅新增报告助手的显式模型选择；其他阶段的角色级模型路由仍属目标设计，不能把配置了一个模型等同于业务闭环完成。
 
 ## 4. 关键边界
 

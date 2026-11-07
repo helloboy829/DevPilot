@@ -1,5 +1,9 @@
 # DevPilot 基于 DeerFlow 的改造方案 v3.0
 
+## 报告 Agent 增补（2026-11-07）
+
+报告业务复用现有 create_chat_model 和 LangChain create_agent，新增 App 层受限单轮助手，不删除底座也不让通用 lead agent访问报告原文。默认关闭、显式 named model；no tools/store/checkpointer/memory，仅获准汇总 DTO，AI 建议经人工选择附录。纯领域包不依赖 DeerFlow，未来全项目模型接入仍走同一工厂。[实现边界](DevPilot_报告模块设计.md#9-已实现可选报告-agent2026-11-07)。
+
 > 2026-11-06。旧研发专用 Skills / 七字段评分 / M1–M5 完成叙述不再作为当前产品验收依据。
 
 ## 1. 改造原则

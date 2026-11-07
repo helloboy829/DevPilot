@@ -240,8 +240,15 @@ ingress:
 # -- DeerFlow config.yaml content. Secrets MUST stay as $VAR references — never
 #    inline literal secret values here. The default enables provisioner sandbox.
 config: |
-  config_version: 33
+  config_version: 34
   log_level: info
+
+  # Optional report advisor; use an explicit name declared in models.
+  reports_agent:
+    enabled: false
+    model_name: null
+    timeout_seconds: 30
+    max_output_tokens: 1200
 
   models: []
   # Example (uncomment & set the matching secret in `secrets`):

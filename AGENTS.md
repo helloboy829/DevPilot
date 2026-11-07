@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Report assistant slice (2026-11-07)
+
+`app.reporting.assistant` reuses the existing model factory and a single tool-free LangGraph agent. `reports_agent` is operator config, off by default and explicitly names a model. Only validated aggregate metrics enter the model; no free text/identity/evidence. POST assistant requires threads:write, runs:create and per-request consent; no memory, tool execution, report approval or knowledge writes. User-confirmed advice is a separate, unverified appendix bound to facts hash and template version, never metric updates. Client-returned advice and claimed model are unauthenticated. See module guides and report design; provider telemetry policies still require review.
+
 ## Reports slice (2026-11-07)
 
 `devpilot.reporting` is a pure, version-pinned manual draft renderer. Gateway `/api/reports/templates` and `/api/reports/preview` enforce existing thread read/write permissions; `/workspace/reports` offers entry and Markdown/JSON downloads. Facts and template snapshots are included, but hashes are not signatures. This is stateless, unverified input: no report publication, persistent revision history, template uploads or acceptance decisions. See [report design](docs/DevPilot_报告模块设计.md). Keep published template versions immutable and old downloads invalidated after any input/version change. Never commit customer scenario names, historical aggregate metrics or original materials.

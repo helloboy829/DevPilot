@@ -96,6 +96,39 @@ export interface ReportPreview {
     template_sha256: string;
     generated_by: string;
     generated_at: string;
+    advisory_sha256?: string;
+  };
+  advisory?: ReportAdvisory & {
+    source: "client_supplied_ai_advice_unverified";
   };
   markdown: string;
 }
+
+export interface ReportAdvice {
+  summary: string;
+  findings: string[];
+  recommendations: string[];
+}
+
+export interface ReportAssistantStatus {
+  available: boolean;
+  reason: string;
+  model_name?: string;
+}
+
+export interface ReportAssistantResult {
+  source: "ai_unverified_advisory";
+  model_name: string;
+  facts_sha256: string;
+  template_id: string;
+  template_version: string;
+  advice: ReportAdvice;
+}
+
+export type ReportAdvisory = ReportAdvice & {
+  model_name: string;
+  facts_sha256: string;
+  template_id: string;
+  template_version: string;
+  human_confirmed: true;
+};

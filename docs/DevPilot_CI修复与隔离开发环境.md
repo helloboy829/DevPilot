@@ -111,3 +111,20 @@ docker exec devpilot-ci-node sh -lc 'cd /workspace/frontend && CI=1 SKIP_ENV_VAL
 过程中的失败与修复也予保留：第一轮完整后端 1 failed、11,334 passed、29 skipped，第二轮 1 failed、11,335 passed、29 skipped，分别暴露 browser router 和 browser tool 单测依赖真实公网 DNS。仅在模拟浏览器的测试中 stub 解析器，保留生产 URL 安全校验，并增加私网 DNS/解析失败拒绝回归；最终完整回归通过。第一轮完整浏览器 2 failed、141 passed、1 flaky，两个报告断言误匹配 Next route-announcer，已收紧到具体错误文本。
 
 本节记录本地隔离验证，不复用第 6 节旧提交的远端成功结论；新提交的 Actions 必须按其实际 SHA 另行核对。报告目前仍是无状态人工草稿，没有服务端报告历史、正式审批、模板上传编辑或 DOCX/PDF 导出。
+
+## 8. 报告 Agent 切片回归（2026-11-07）
+
+开发前完整基线：DevPilot 73 项通过，Gateway 11,336 passed、29 skipped。本次模型测试仅使用合成输入与假模型运行真实的无工具 LangChain/LangGraph graph，不读取客户原始材料、不调用真实模型或客户接口，不代表生产 provider 的连通性、参数兼容或生成质量已经验收。
+
+最终工作区隔离验证：
+
+- 后端 `make test`：DevPilot evaluation **15** + toolkit **58** = **73 项通过**；Gateway **11,360 passed、29 skipped**（39 warnings）。跳过不算通过。报告、配置、Browserless、fastCRW、Crawl4AI 合并专项 **146 passed**。
+- 后端 `make format`、`make lint` 全通过（**1,134** 文件）；纯领域 reporting 的 Ruff/格式与 `uv lock --check` 通过。示例/Helm 配置 YAML 校验及配置门禁通过：同为版本 **34**，报告 Agent 默认关闭，未声明模型时不回退到首个模型。
+- 前端全量 Prettier、ESLint/TypeScript 通过；**127 个单测文件、986 项测试通过**。最终完整 Playwright **151 passed、无 flaky**；独立认证回归 **2 passed**。两套 E2E 分开执行，均先完成生产构建；E2E 使用 mock 后端，日志中未被 mock 的后台轮询仍可出现本地不存在 Gateway 的连接拒绝，不将它当作真实全栈验收。
+- 已逐文件对比本地和隔离容器源码 SHA256，确认运行时、测试及配置文件与完成验证的版本一致；没有从容器整目录反拷依赖或构建产物。
+
+保留过程失败事实：首次全量后端 **1 failed、11,355 passed、29 skipped**，fastCRW 模拟客户端仍依赖真实 DNS；修复后一轮 **11,359 passed、29 skipped**。最终同步后的再次回归 **1 failed、11,358 passed、29 skipped**，发现 Browserless 相同的 DNS 依赖。仅测试中固定合成公共 DNS，保留私网/metadata 拒绝并新增解析失败不得创建客户端回归；Browserless 错误场景也收紧到准确错误及客户端确实被调用，避免 DNS 错误误充目标错误的通过。未改变生产 SSRF 校验。修复后最终完整回归结果见上。
+
+前端中间一轮全量格式检查曾因 AGENTS.md 多余空行失败，已修正并完整重跑；较早 E2E 为 **149 passed、1 flaky**，抖动来自既有 Lark 弹窗用例重试，最终 **151 项首过**，没有删除或放宽旧断言。
+
+本地回归成功不替代新提交的 GitHub Actions。当前仍为无状态未核验 DRAFT 和可选建议附录：尚无持久报告/可信建议来源、正式审批、模板上传或 DOCX/PDF；模型供应商数据策略及参数兼容还需接入后按授权做 smoke test。项目完整自动化评测闭环也仍需按审计清单推进。

@@ -4,6 +4,14 @@ import ipaddress
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def synthetic_public_dns(monkeypatch):
+    """Mock outbound transport must not depend on live public DNS."""
+    monkeypatch.setattr("deerflow.community.url_safety.resolve_host_addresses", lambda host: [ipaddress.ip_address("8.8.8.8")])
+
 
 class TestWebSearchTool:
     @patch.dict("os.environ", {}, clear=True)
@@ -175,3 +183,14 @@ class TestWebFetchTool:
             "http://10.0.0.5/dashboard",
             formats=["markdown"],
         )
+
+    @patch("deerflow.community.fastcrw.tools.FirecrawlApp")
+    @patch("deerflow.community.fastcrw.tools.get_app_config")
+    def test_fetch_rejects_unresolved_dns(self, mock_get_app_config, mock_fastcrw_cls):
+        mock_get_app_config.return_value.get_tool_config.return_value = None
+        from deerflow.community.fastcrw.tools import web_fetch_tool
+
+        with patch("deerflow.community.url_safety.resolve_host_addresses", return_value=[]):
+            result = web_fetch_tool.invoke({"url": "https://unresolved.example.test/"})
+        assert "could not be resolved" in result
+        mock_fastcrw_cls.assert_not_called()

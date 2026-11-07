@@ -15,7 +15,7 @@
 # ============================================================================
 # Bump this number when the config schema changes.
 # Run `make config-upgrade` to merge new fields into your local config.yaml.
-config_version: 33
+config_version: 34
 
 # ============================================================================
 # Logging
@@ -2557,3 +2557,14 @@ authorization:
 #   # packages whose absence changes behaviour rather than just observability.
 #   - use: acme_required_middleware:install
 #     required: true
+
+# Optional DevPilot report advisor. Off by default; manual drafts need no model.
+# Use an explicit name already declared in models. Enable only after provider/data
+# policy review. Each request also needs user consent to send aggregate metrics.
+# No project/component names, raw evidence or user prose are sent by this module.
+# Provider telemetry/retention is operator-controlled; no general agent tools.
+reports_agent:
+  enabled: false
+  model_name: null
+  timeout_seconds: 30
+  max_output_tokens: 1200

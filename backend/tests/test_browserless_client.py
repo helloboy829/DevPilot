@@ -310,6 +310,11 @@ class TestBrowserlessClient:
 class TestBrowserlessTools:
     """Tests for the Browserless tool functions."""
 
+    @pytest.fixture(autouse=True)
+    def synthetic_public_dns(self, monkeypatch):
+        """Mocked Browserless transports must not depend on public DNS."""
+        monkeypatch.setattr(tools, "_resolve_host_addresses", lambda host: [ipaddress.ip_address("8.8.8.8")])
+
     async def test_get_browserless_client_uses_env_token_fallback(self):
         """Browserless tools use BROWSERLESS_TOKEN when config omits token."""
         with patch("deerflow.community.browserless.tools._get_tool_config") as mock_cfg:
@@ -378,7 +383,8 @@ class TestBrowserlessTools:
         with patch("deerflow.community.browserless.tools._get_tool_config", return_value=None):
             result = await tools.web_fetch_tool.ainvoke("https://example.com")
 
-        assert result.startswith("Error:")
+        assert result == "Error: Browserless returned empty response"
+        mock_client.fetch_html_with_status.assert_called_once()
 
     @patch("deerflow.community.browserless.tools._get_browserless_client")
     async def test_web_fetch_tool_exception(self, mock_get_client):
@@ -390,7 +396,18 @@ class TestBrowserlessTools:
         with patch("deerflow.community.browserless.tools._get_tool_config", return_value=None):
             result = await tools.web_fetch_tool.ainvoke("https://example.com")
 
-        assert result.startswith("Error:")
+        assert result == "Error: Unexpected error"
+        mock_client.fetch_html_with_status.assert_called_once()
+
+    @patch("deerflow.community.browserless.tools._get_browserless_client")
+    async def test_web_fetch_tool_rejects_unresolved_dns(self, mock_get_client):
+        """DNS failure must be rejected before any Browserless request."""
+        with patch("deerflow.community.browserless.tools._get_tool_config", return_value=None):
+            with patch("deerflow.community.browserless.tools._resolve_host_addresses", return_value=[]):
+                result = await tools.web_fetch_tool.ainvoke("https://unresolved.example.test/")
+
+        assert "could not be resolved" in result
+        mock_get_client.assert_not_called()
 
     @patch("deerflow.community.browserless.tools._get_browserless_client")
     async def test_web_fetch_tool_rejects_metadata_ip(self, mock_get_client):

@@ -14,6 +14,8 @@ import { useI18n } from "@/core/i18n/hooks";
 import {
   downloadReport,
   fetchReportTemplates,
+  fetchReportAssistantStatus,
+  requestReportAdvice,
   generateReportPreview,
 } from "@/core/reports/api";
 import {
@@ -31,6 +33,8 @@ import {
   sampleFields,
   type NumericField,
   type ReportPreview,
+  type ReportAssistantResult,
+  type ReportAssistantStatus,
   type ReportTemplateSummary,
 } from "@/core/reports/types";
 
@@ -51,6 +55,12 @@ export default function ReportsPage() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<ReportPreview | null>(null);
+  const [agentStatus, setAgentStatus] = useState<ReportAssistantStatus | null>(
+    null,
+  );
+  const [advice, setAdvice] = useState<ReportAssistantResult | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const selected = templates.find(
     (template) => templateKey(template) === selection,
   );
@@ -63,6 +73,18 @@ export default function ReportsPage() {
     setPreview(null);
     setError(null);
     setTemplates([]);
+    setAgentStatus(null);
+    setAdvice(null);
+    setConsent(false);
+    setConfirmed(false);
+    void fetchReportAssistantStatus()
+      .then((status) => {
+        if (active) setAgentStatus(status);
+      })
+      .catch(() => {
+        if (active)
+          setAgentStatus({ available: false, reason: "status_failed" });
+      });
     void fetchReportTemplates()
       .then((items) => {
         if (!active) return;
@@ -89,10 +111,45 @@ export default function ReportsPage() {
     };
   }, [locale, reload]);
 
+  function invalidate() {
+    requestRevision.current += 1;
+    setPreview(null);
+    setAdvice(null);
+    setConsent(false);
+    setConfirmed(false);
+    setError(null);
+  }
+
+  async function askAgent() {
+    if (!selected || running || !consent || !agentStatus?.available) return;
+    let facts;
+    try {
+      facts = toReportFacts(form);
+    } catch {
+      setError(m.invalid);
+      return;
+    }
+    const revision = ++requestRevision.current;
+    setRunning(true);
+    setConsent(false);
+    setPreview(null);
+    setAdvice(null);
+    setConfirmed(false);
+    setError(null);
+    try {
+      const result = await requestReportAdvice(selected, facts);
+      if (requestRevision.current === revision) setAdvice(result);
+    } catch (cause) {
+      if (requestRevision.current === revision)
+        setError(cause instanceof Error ? cause.message : m.invalid);
+    } finally {
+      if (requestRevision.current === revision) setRunning(false);
+    }
+  }
+
   function update<K extends keyof ReportForm>(key: K, value: ReportForm[K]) {
     setForm((previous) => ({ ...previous, [key]: value }));
-    setPreview(null);
-    setError(null);
+    invalidate();
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -110,7 +167,18 @@ export default function ReportsPage() {
     const revision = ++requestRevision.current;
     setRunning(true);
     try {
-      const result = await generateReportPreview(selected, facts);
+      const attachment =
+        advice && confirmed
+          ? {
+              ...advice.advice,
+              model_name: advice.model_name,
+              facts_sha256: advice.facts_sha256,
+              template_id: advice.template_id,
+              template_version: advice.template_version,
+              human_confirmed: true as const,
+            }
+          : undefined;
+      const result = await generateReportPreview(selected, facts, attachment);
       if (requestRevision.current === revision) setPreview(result);
     } catch (cause) {
       if (requestRevision.current === revision)
@@ -189,8 +257,7 @@ export default function ReportsPage() {
                   value={selection}
                   onChange={(event) => {
                     setSelection(event.target.value);
-                    setPreview(null);
-                    setError(null);
+                    invalidate();
                   }}
                 >
                   {templates.map((template) => (
@@ -371,6 +438,74 @@ export default function ReportsPage() {
                     />
                   </label>
                 ))}
+              </section>
+              <section
+                className="space-y-3 rounded-lg border p-4"
+                aria-label={m.assistant.title}
+              >
+                <h2 className="font-semibold">{m.assistant.title}</h2>
+                <p className="text-sm">{m.assistant.notice}</p>
+                {!agentStatus?.available ? (
+                  <p role="status" className="text-muted-foreground text-sm">
+                    {m.assistant.unavailable}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-sm">{agentStatus.model_name}</p>
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        data-testid="report-agent-consent"
+                        type="checkbox"
+                        checked={consent}
+                        onChange={(event) => setConsent(event.target.checked)}
+                      />
+                      {m.assistant.consent}
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!consent}
+                      onClick={() => void askAgent()}
+                    >
+                      {m.assistant.request}
+                    </Button>
+                  </>
+                )}
+                {advice && (
+                  <div
+                    data-testid="report-agent-advice"
+                    className="space-y-3 text-sm"
+                  >
+                    <h3 className="font-semibold">{m.assistant.summary}</h3>
+                    <p className="whitespace-pre-wrap">
+                      {advice.advice.summary}
+                    </p>
+                    {(["findings", "recommendations"] as const).map((key) => (
+                      <div key={key}>
+                        <h3 className="font-semibold">{m.assistant[key]}</h3>
+                        <ul className="list-disc pl-5">
+                          {advice.advice[key].map((item, index) => (
+                            <li key={index} className="whitespace-pre-wrap">
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                    <label className="flex items-start gap-2">
+                      <input
+                        data-testid="report-agent-confirm"
+                        type="checkbox"
+                        checked={confirmed}
+                        onChange={(event) => {
+                          setConfirmed(event.target.checked);
+                          setPreview(null);
+                        }}
+                      />
+                      {m.assistant.confirm}
+                    </label>
+                  </div>
+                )}
               </section>
               <Button type="submit">
                 {running ? m.generating : m.generate}

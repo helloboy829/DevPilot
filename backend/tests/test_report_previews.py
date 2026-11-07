@@ -174,3 +174,32 @@ def test_all_failed_run_and_partial_ttft_coverage_remain_explicit():
     partial = preview(facts(performance=performance(content_streaming=True, ttft_mean_ms=1, ttft_sample_count=2)))
     assert partial["facts"]["performance"]["successful_requests"] == 6
     assert partial["facts"]["performance"]["ttft_sample_count"] == 2
+
+
+def test_advisory_is_escaped_separate_and_bound_to_exact_facts_and_template():
+    from devpilot.reporting import ReportAdvisory, facts_digest
+
+    data = facts()
+    attachment = ReportAdvisory(
+        summary="<script>unsafe</script> | # note",
+        findings=("Pending synthetic cases",),
+        recommendations=(),
+        model_name="synthetic",
+        facts_sha256=facts_digest(data),
+        template_id="component-evaluation-zh",
+        template_version="1.0.0",
+        human_confirmed=True,
+    )
+    result = build_preview(data, template=get_template("component-evaluation-zh", "1.0.0"), generated_by="synthetic-user", generated_at="synthetic-clock", advisory=attachment)
+    assert result["facts"] == preview()["facts"]
+    assert result["derived"] == preview()["derived"]
+    assert result["template"] == preview()["template"]
+    assert "<script>" not in result["markdown"]
+    assert "&lt;script&gt;" in result["markdown"]
+    assert "来源未经认证" in result["markdown"]
+    assert result["manifest"]["renderer_version"] == "advisory-preview.v1"
+    assert result["manifest"]["advisory_sha256"]
+    with pytest.raises(ReportValidationError, match="does not match"):
+        build_preview(replace(data, title="Revised"), template=get_template("component-evaluation-zh", "1.0.0"), generated_by="x", generated_at="x", advisory=attachment)
+    with pytest.raises(ReportValidationError, match="does not match"):
+        build_preview(data, template=get_template("component-evaluation-en", "1.0.0"), generated_by="x", generated_at="x", advisory=attachment)

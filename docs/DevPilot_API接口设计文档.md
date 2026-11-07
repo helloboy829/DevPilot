@@ -1,5 +1,9 @@
 # DevPilot API 接口设计 v3.0
 
+## 报告 Agent 增补（2026-11-07）
+
+已实现可选报告助手：GET `/api/reports/assistant` 需要 threads:read，只查询配置；POST 同路径需要 threads:write + runs:create 和 `consent:true`。返回未核验建议及事实 hash/模板绑定，422 输入/授权确认，503 未启用/模型未配置，429 并发槽满，504 超时，502 供应商/输出错误。preview 可选 advisory（结构化建议、模型名、事实 hash、模板 ID/版本、human_confirmed:true）；不匹配拒绝，附录 source 为 client_supplied_ai_advice_unverified，不构成审批或来源认证。全部成功及业务错误 no-store，详细边界见 [报告设计](DevPilot_报告模块设计.md#9-已实现可选报告-agent2026-11-07)。
+
 ## 已实现：无状态报告草稿（2026-11-07）
 
 独立于本文其余目标 API：`GET /api/reports/templates`（登录 + threads:read）；`POST /api/reports/preview`（登录 + threads:write）。请求显式 `template_id`、`template_version`、`facts`，响应 `DRAFT/manual_unverified`、事实/模板快照、derived、manifest 和 markdown；业务校验失败 422，未知模板不回退 latest。生成者/UTC 时间取服务端，不接受客户端伪造核验/审批状态。不持久化，无报告 ID/发布/审批/模板上传接口，无数据库迁移；版本/hash 不是审批证明。完整字段与限制见 [报告模块设计](DevPilot_报告模块设计.md)。

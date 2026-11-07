@@ -11,7 +11,7 @@ from app.gateway.authz import AuthContext, Permissions
 from app.gateway.routers import reports
 
 
-def client(*, authenticated=True, writable=True):
+def client(*, authenticated=True, writable=True, runnable=False):
     app = FastAPI()
     user = User(email="synthetic@example.com", password_hash="x", system_role="user", id=uuid4())
 
@@ -23,6 +23,8 @@ def client(*, authenticated=True, writable=True):
             permissions = [Permissions.THREADS_READ]
             if writable:
                 permissions.append(Permissions.THREADS_WRITE)
+            if runnable:
+                permissions.append(Permissions.RUNS_CREATE)
             request.state.auth = AuthContext(user=user, permissions=permissions)
         return await call_next(request)
 
