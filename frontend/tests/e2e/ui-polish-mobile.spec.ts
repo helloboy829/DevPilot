@@ -13,7 +13,13 @@ test.describe("UI polish mobile regressions", () => {
 
     await page.getByRole("button", { name: /toggle sidebar/i }).click();
 
-    await expect(page.getByRole("link", { name: /new chat/i })).toBeVisible();
+    // Creation lives in the conversation page, not a route-dependent global row.
+    await expect(
+      page.getByRole("link", { name: "Chats", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.locator("[data-sidebar='sidebar'] a[href='/workspace/chats/new']"),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("link", { name: "Custom assistants", exact: true }),
     ).toBeVisible();

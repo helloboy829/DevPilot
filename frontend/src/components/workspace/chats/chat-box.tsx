@@ -1,7 +1,14 @@
 import { FilesIcon, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   type Layout,
   type PanelSize,
@@ -68,7 +75,6 @@ const SidecarPanel = dynamic(
   { loading: RightPanelLoading },
 );
 
-const RIGHT_PANEL_ANIMATION_MS = 280;
 const RIGHT_PANEL_DEFAULT_SIZE = "40%";
 
 type RightPanelKind = "sidecar" | "artifacts" | "browser";
@@ -168,6 +174,7 @@ const ChatBox: React.FC<{
   }, [pathname]);
 
   const sidePanelRef = usePanelRef();
+  const sidePanelElementRef = useRef<HTMLDivElement | null>(null);
   // Width the panel reopens at: the last size the user dragged it to.
   const openSizeRef = useRef(RIGHT_PANEL_DEFAULT_SIZE);
   // While the panel width animates, the content is held at its final width and
@@ -219,13 +226,16 @@ const ChatBox: React.FC<{
     [activeRightPanel, browserView, resizableIdBase, setArtifactsOpen, sidecar],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (rightPanelOpenRef.current === rightPanelOpen) {
       return;
     }
     rightPanelOpenRef.current = rightPanelOpen;
 
-    setAnimatingRightPanel(true);
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    setAnimatingRightPanel(!reducedMotion);
     if (!rightPanelOpen) {
       // Remember the width now: the closing animation reports shrinking sizes,
       // so sampling those would reopen the panel a few pixels wide.
@@ -237,7 +247,9 @@ const ChatBox: React.FC<{
 
     const openPercentage = Number.parseFloat(openSizeRef.current);
     setPinnedContentWidth(
-      Number.isFinite(openPercentage) ? `${openPercentage}cqw` : null,
+      !reducedMotion && Number.isFinite(openPercentage)
+        ? `${openPercentage}cqw`
+        : null,
     );
 
     // resize() rather than expand(): the library expands to `minSize` until it
@@ -248,29 +260,39 @@ const ChatBox: React.FC<{
       sidePanelRef.current?.collapse();
     }
 
-    const timeout = window.setTimeout(() => {
-      setAnimatingRightPanel(false);
-      setPinnedContentWidth(null);
-    }, RIGHT_PANEL_ANIMATION_MS);
-
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [rightPanelOpen, sidePanelRef]);
-
-  useEffect(() => {
-    if (activeRightPanel) {
-      setRenderedRightPanel(activeRightPanel);
+    if (reducedMotion) {
+      // There is no width transition to protect. Avoid a temporary approximate
+      // cqw width (which includes the separator) and a second history reflow.
+      if (!rightPanelOpen) setRenderedRightPanel(null);
       return;
     }
 
-    const timeout = window.setTimeout(() => {
-      setRenderedRightPanel(null);
-    }, RIGHT_PANEL_ANIMATION_MS);
+    // Timers measure wall time, not painted animation progress. Under load the
+    // transition may start late; unpinning after 280ms reflows restored history
+    // while the panel is still narrow. Capture the actual root animations after
+    // React's layout commit, then release only when they settle. Unchanged
+    // sizes have no animations and finish on the next frame.
+    let cancelled = false;
+    const frame = window.requestAnimationFrame(() => {
+      const animations = sidePanelElementRef.current?.getAnimations() ?? [];
+      void Promise.allSettled(
+        animations.map((animation) => animation.finished),
+      ).then(() => {
+        if (cancelled) return;
+        setAnimatingRightPanel(false);
+        setPinnedContentWidth(null);
+        if (!rightPanelOpen) setRenderedRightPanel(null);
+      });
+    });
 
     return () => {
-      window.clearTimeout(timeout);
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
     };
+  }, [rightPanelOpen, sidePanelRef]);
+
+  useLayoutEffect(() => {
+    if (activeRightPanel) setRenderedRightPanel(activeRightPanel);
   }, [activeRightPanel]);
 
   useEffect(() => {
@@ -426,6 +448,7 @@ const ChatBox: React.FC<{
       <ResizablePanel
         id={`${resizableIdBase}-side`}
         panelRef={sidePanelRef}
+        elementRef={sidePanelElementRef}
         collapsible
         collapsedSize="0%"
         defaultSize={initialRightPanelSize}

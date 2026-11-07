@@ -1,10 +1,13 @@
 "use client";
 
+import { MessageSquarePlus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { type PromptInputMessage } from "@/components/ai-elements/prompt-input";
+import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ArtifactTrigger } from "@/components/workspace/artifacts";
 import { BrowserTrigger } from "@/components/workspace/browser-view";
@@ -28,6 +31,7 @@ import { ThreadScheduledTasksLink } from "@/components/workspace/thread-schedule
 import { ThreadTitle } from "@/components/workspace/thread-title";
 import { TodoList } from "@/components/workspace/todo-list";
 import { TokenUsageIndicator } from "@/components/workspace/token-usage-indicator";
+import { Tooltip } from "@/components/workspace/tooltip";
 import { useActiveGoal } from "@/components/workspace/use-active-goal";
 import { Welcome } from "@/components/workspace/welcome";
 import { useBrowserControlEnabled } from "@/core/features";
@@ -289,6 +293,18 @@ export default function ChatPage() {
                 <ThreadTitle threadId={threadId} thread={thread} />
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                {!isMock && env.NEXT_PUBLIC_STATIC_WEBSITE_ONLY !== "true" && (
+                  <Tooltip content={t.sidebar.newChat}>
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link
+                        href="/workspace/chats/new"
+                        aria-label={t.sidebar.newChat}
+                      >
+                        <MessageSquarePlus />
+                      </Link>
+                    </Button>
+                  </Tooltip>
+                )}
                 {!isNewThread && !isMock && (
                   <ThreadScheduledTasksLink threadId={threadId} />
                 )}

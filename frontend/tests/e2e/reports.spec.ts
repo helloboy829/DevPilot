@@ -272,12 +272,11 @@ test("performance entry only enables TTFT for content streaming and keeps missin
 
 test("the report workspace has a Chinese form and manual draft warning", async ({
   page,
+  baseURL,
 }) => {
   await page
     .context()
-    .addCookies([
-      { name: "locale", value: "zh-CN", url: "http://localhost:3000" },
-    ]);
+    .addCookies([{ name: "locale", value: "zh-CN", url: baseURL! }]);
   mockLangGraphAPI(page, { threads: [] });
   await page.route("**/api/reports/templates", (route) =>
     route.fulfill({

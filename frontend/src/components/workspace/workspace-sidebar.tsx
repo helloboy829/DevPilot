@@ -23,7 +23,9 @@ export function WorkspaceSidebar({
 }: React.ComponentProps<typeof Sidebar>) {
   const { open: isSidebarOpen, setOpenMobile } = useSidebar();
   const pathname = usePathname();
-  const chatWorkspace = /^\/workspace\/(chats|agents)(\/|$)/.test(pathname);
+  const chatWorkspace =
+    /^\/workspace\/chats(\/|$)/.test(pathname) ||
+    /^\/workspace\/agents\/[^/]+\/chats(\/|$)/.test(pathname);
   useEffect(() => {
     setOpenMobile(false);
   }, [pathname, setOpenMobile]);

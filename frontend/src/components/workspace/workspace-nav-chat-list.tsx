@@ -2,11 +2,11 @@
 
 import {
   BotIcon,
-  Database,
-  LayoutDashboard,
   CalendarClock,
+  Database,
   FileText,
   FlaskConical,
+  LayoutDashboard,
   MessagesSquare,
   Settings2,
 } from "lucide-react";
@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 
 import {
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -27,109 +28,76 @@ export function WorkspaceNavChatList() {
   const pathname = usePathname();
   const { enabled: agentsEnabled, isLoading: agentsLoading } =
     useAgentsApiEnabled();
+  const zh = locale === "zh-CN";
+  const groups = [
+    {
+      label: zh ? "评测中心" : "Evaluation center",
+      entries: [
+        {
+          path: "evaluations",
+          label: zh ? "评测工作台" : "Evaluation workbench",
+          icon: LayoutDashboard,
+        },
+        {
+          path: "datasets",
+          label: zh ? "项目与数据" : "Projects & datasets",
+          icon: Database,
+        },
+        {
+          path: "component-tests",
+          label: t.sidebar.componentTests,
+          icon: FlaskConical,
+        },
+        {
+          path: "evaluation-schedules",
+          label: t.sidebar.scheduledEvaluations,
+          icon: CalendarClock,
+        },
+        { path: "reports", label: t.sidebar.reports, icon: FileText },
+        {
+          path: "models",
+          label: zh ? "模型与分工" : "Models & roles",
+          icon: Settings2,
+        },
+      ],
+    },
+    {
+      label: zh ? "智能协作" : "AI collaboration",
+      entries: [
+        { path: "chats", label: t.sidebar.chats, icon: MessagesSquare },
+        ...(!agentsLoading && agentsEnabled
+          ? [{ path: "agents", label: t.sidebar.agents, icon: BotIcon }]
+          : []),
+      ],
+    },
+  ];
   return (
-    <SidebarGroup className="pt-1">
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            isActive={pathname === "/workspace/evaluations"}
-            asChild
-          >
-            <Link href="/workspace/evaluations">
-              <LayoutDashboard />
-              <span>
-                {locale === "zh-CN" ? "评测工作台" : "Evaluation workbench"}
-              </span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            isActive={pathname.startsWith("/workspace/datasets")}
-            asChild
-          >
-            <Link className="text-muted-foreground" href="/workspace/datasets">
-              <Database />
-              <span>
-                {locale === "zh-CN" ? "项目与数据" : "Projects & datasets"}
-              </span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            isActive={pathname.startsWith("/workspace/component-tests")}
-            asChild
-          >
-            <Link
-              className="text-muted-foreground"
-              href="/workspace/component-tests"
-            >
-              <FlaskConical />
-              <span>{t.sidebar.componentTests}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            isActive={pathname.startsWith("/workspace/evaluation-schedules")}
-            asChild
-          >
-            <Link
-              className="text-muted-foreground"
-              href="/workspace/evaluation-schedules"
-            >
-              <CalendarClock />
-              <span>{t.sidebar.scheduledEvaluations}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            isActive={pathname.startsWith("/workspace/reports")}
-            asChild
-          >
-            <Link className="text-muted-foreground" href="/workspace/reports">
-              <FileText />
-              <span>{t.sidebar.reports}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            isActive={pathname.startsWith("/workspace/models")}
-            asChild
-          >
-            <Link className="text-muted-foreground" href="/workspace/models">
-              <Settings2 />
-              <span>
-                {locale === "zh-CN" ? "模型与分工" : "Models & roles"}
-              </span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton isActive={pathname === "/workspace/chats"} asChild>
-            <Link className="text-muted-foreground" href="/workspace/chats">
-              <MessagesSquare />
-              <span>{t.sidebar.chats}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        {!agentsLoading && agentsEnabled && (
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={pathname.startsWith("/workspace/agents")}
-              asChild
-            >
-              <Link className="text-muted-foreground" href="/workspace/agents">
-                <BotIcon />
-                <span>{t.sidebar.agents}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )}
-      </SidebarMenu>
-    </SidebarGroup>
+    <nav aria-label={zh ? "工作台导航" : "Workspace navigation"}>
+      {groups.map((group) => (
+        <SidebarGroup key={group.label} className="pt-1">
+          <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          <SidebarMenu>
+            {group.entries.map(({ path, label, icon: Icon }) => {
+              const href = `/workspace/${path}`;
+              const active =
+                pathname === href || pathname.startsWith(href + "/");
+              return (
+                <SidebarMenuItem key={path}>
+                  <SidebarMenuButton asChild isActive={active} tooltip={label}>
+                    <Link
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <Icon />
+                      <span>{label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
+      ))}
+    </nav>
   );
 }

@@ -298,6 +298,18 @@ test.describe("Thread history", () => {
     await expect
       .poll(() => latestPageRequestCount, { timeout: 15_000 })
       .toBeGreaterThan(latestPageRequestsBeforeSubmit);
+    // The advanced page adds 50 measured virtual rows. It may preserve the
+    // previous viewport while those rows settle; this test checks retained
+    // ordering, not auto-follow. Reach the new tail before checking its text.
+    await expect
+      .poll(async () => {
+        await scroller.evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+          element.dispatchEvent(new Event("scroll"));
+        });
+        return page.getByText(followUpPrompt).isVisible();
+      })
+      .toBe(true);
     await expect(page.getByText(followUpPrompt)).toBeVisible();
 
     let preservedDurationFound = false;
@@ -503,9 +515,7 @@ test.describe("Thread history", () => {
       timeout: 15_000,
     });
 
-    await page
-      .locator("[data-sidebar='sidebar'] a[href='/workspace/chats/new']")
-      .click();
+    await page.locator("header a[href='/workspace/chats/new']").click();
     await page.waitForURL("**/workspace/chats/new");
 
     await expect(page.getByText(SVG_PROMPT_MARKER)).toBeHidden();
@@ -566,9 +576,7 @@ test.describe("Thread history", () => {
     await page.waitForURL(`**/workspace/chats/${MOCK_THREAD_ID_2}`);
     await expect(page.getByText(OPTIMISTIC_PROMPT_MARKER)).toHaveCount(0);
 
-    await page
-      .locator("[data-sidebar='sidebar'] a[href='/workspace/chats/new']")
-      .click();
+    await page.locator("header a[href='/workspace/chats/new']").click();
     await page.waitForURL("**/workspace/chats/new");
 
     await expect(page.getByText(OPTIMISTIC_PROMPT_MARKER)).toHaveCount(0);
@@ -596,13 +604,11 @@ test.describe("Thread history", () => {
       history.replaceState(null, "", `/workspace/chats/${threadId}`);
     }, MOCK_THREAD_ID);
 
-    const newChatLink = page.locator(
-      "[data-sidebar='sidebar'] a[href='/workspace/chats/new']",
-    );
+    const newChatLink = page.locator("header a[href='/workspace/chats/new']");
     await expect(page).toHaveURL(
       new RegExp(`/workspace/chats/${MOCK_THREAD_ID}$`),
     );
-    await expect(newChatLink).toHaveAttribute("data-active", "false");
+    await expect(newChatLink).toBeVisible();
 
     // One click must reset the chat without a second click or unrelated UI
     // interaction forcing another render.

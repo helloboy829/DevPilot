@@ -2,17 +2,20 @@
 
 import { BotIcon, PlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAgents } from "@/core/agents";
 import { useI18n } from "@/core/i18n/hooks";
 
 import { AgentCard } from "./agent-card";
+import { ManualAssistantDialog } from "./manual-assistant-dialog";
 
 export function AgentGallery() {
   const { t, locale } = useI18n();
   const { agents, isLoading } = useAgents();
   const router = useRouter();
+  const [manualOpen, setManualOpen] = useState(false);
 
   const handleNewAgent = () => {
     router.push("/workspace/agents/new");
@@ -21,7 +24,7 @@ export function AgentGallery() {
   return (
     <div className="flex size-full flex-col">
       {/* Page header */}
-      <div className="flex items-center justify-between border-b px-6 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
         <div>
           <h1 className="text-xl font-semibold">{t.sidebar.agents}</h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
@@ -30,11 +33,20 @@ export function AgentGallery() {
               : "Every signed-in user can create private assistants; personal assistants and profiles are isolated by account. Reusable conversation assistants for evaluation requirements, methodology and draft explanations. They are not approved test executors or substitutes for reference review and acceptance. Use Reports for the report assistant."}
           </p>
         </div>
-        <Button onClick={handleNewAgent}>
-          <PlusIcon className="mr-1.5 h-4 w-4" />
-          {t.agents.newAgent}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setManualOpen(true)}>
+            {locale === "zh-CN" ? "手动配置助手" : "Configure manually"}
+          </Button>
+          <Button onClick={handleNewAgent}>
+            <PlusIcon className="mr-1.5 h-4 w-4" />
+            {t.agents.newAgent}
+          </Button>
+        </div>
       </div>
+
+      {manualOpen && (
+        <ManualAssistantDialog onClose={() => setManualOpen(false)} />
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">

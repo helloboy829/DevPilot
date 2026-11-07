@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Stable navigation / workspace styles (2026-11-08)
+
+The sidebar brand/product groups never insert route-dependent creation rows. New-chat creation belongs to conversation content; assistant management is not a new conversation. WorkspaceStyleProvider applies an allowlisted browser-only preference on workspace routes, independently of next-themes light/dark. Presets must keep semantic statuses unchanged and pass contrast/keyboard/mobile regressions. Before pushing, run the **entire** frontend Prettier check, including Markdown guides; lint/typecheck alone does not cover CI formatting. See [delivery](docs/DevPilot_Workspace_Styles_CI.md).
+
 ## Authenticated assistants / request-template slice (2026-11-07)
 
 `AgentsApiConfig.enabled` now defaults true. All authenticated accounts may manage their own assistants; keep auth middleware, owner scoping and explicit operator opt-out. Private profile routes use `users/{user_id}/USER.md`, with threaded/atomic I/O and no legacy global fallback. Operator-provisioned legacy shared agents remain a compatibility read fallback, not other users' personal agents.

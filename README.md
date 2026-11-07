@@ -4,6 +4,12 @@
 
 > Development preview, not a complete unattended acceptance system. Measured evidence, model suggestions and human decisions remain separate.
 
+## Workspace appearance and navigation
+
+The evaluation-first sidebar keeps stable Evaluation center and AI collaboration groups. Opening Chats or Custom assistants no longer inserts a new-chat row above the menu; create conversations inside Chats (or use the command palette). Assistant management does not open a conversation.
+
+**Settings → Appearance → Workspace style** offers Precision console, Graphite minimal, Forest lab, Paper studio and Violet atelier. Each works with light, dark or system mode. Preferences are browser-local, not account settings or evaluation facts. Keyboard selection and mobile layouts are supported. [Scope and CI verification](docs/DevPilot_Workspace_Styles_CI.md).
+
 ## Available workspace slices
 
 | Page | Implemented scope |
@@ -62,3 +68,7 @@ See the [implementation matrix](docs/DevPilot_实现进度与下一步.md) for d
 5. Explicitly authorized judge-model integration and reviewed knowledge promotion, not automatic training.
 
 New features ship with backend tests and frontend browser/API regressions. Backend: Ruff format/check and pytest/toolkit tests. Host pnpm commands go through `scripts/pnpm.py`; frontend: `check`, unit tests and Playwright. See [backend](backend/AGENTS.md), [frontend](frontend/AGENTS.md), [upstream](README_upstream.md) and [LICENSE](LICENSE).
+
+### Manual evaluation assistants
+
+Every signed-in user can use **Custom assistants → Configure manually** to save an assistant without a model call, with bilingual requirements, dataset-design and result-review presets. Conversations still need a configured model. These are advisory configurations, not sandboxed test executors or official acceptance. Private assistants remain account-scoped; the Reports module remains the report-generation entry.

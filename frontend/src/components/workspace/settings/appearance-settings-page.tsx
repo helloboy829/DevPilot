@@ -17,6 +17,7 @@ import { useI18n } from "@/core/i18n/hooks";
 import { cn } from "@/lib/utils";
 
 import { SettingsSection } from "./settings-section";
+import { WorkspaceStyleGallery } from "./workspace-style-gallery";
 
 const languageOptions: { value: Locale; label: string }[] = [
   { value: "en-US", label: enUS.locale.localName },
@@ -81,6 +82,17 @@ export function AppearanceSettingsPage() {
         </div>
       </SettingsSection>
 
+      <Separator />
+      <SettingsSection
+        title={locale === "zh-CN" ? "工作台风格" : "Workspace style"}
+        description={
+          locale === "zh-CN"
+            ? "五套工作台视觉风格，可分别搭配浅色、深色或跟随系统。偏好仅保存在当前浏览器，不改变评测数据或结论。"
+            : "Five visual styles, each with light, dark or system mode. Preferences stay in this browser and never change evaluation data or verdicts."
+        }
+      >
+        <WorkspaceStyleGallery />
+      </SettingsSection>
       <Separator />
 
       <SettingsSection

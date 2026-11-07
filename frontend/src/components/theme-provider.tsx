@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 
+import { WorkspaceStyleProvider } from "@/core/appearance/provider";
+
 export function ThemeProvider({
   children,
   ...props
@@ -13,7 +15,7 @@ export function ThemeProvider({
       {...props}
       forcedTheme={pathname === "/" ? "dark" : undefined}
     >
-      {children}
+      <WorkspaceStyleProvider>{children}</WorkspaceStyleProvider>
     </NextThemesProvider>
   );
 }

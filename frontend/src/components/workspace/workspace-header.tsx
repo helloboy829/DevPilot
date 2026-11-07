@@ -1,27 +1,13 @@
 "use client";
 
-import { MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import { useI18n } from "@/core/i18n/hooks";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { env } from "@/env";
 import { cn } from "@/lib/utils";
 
 export function WorkspaceHeader({ className }: { className?: string }) {
-  const { t } = useI18n();
   const { state } = useSidebar();
-  const pathname = usePathname();
-  const evaluationWorkspace = !/^\/workspace\/(chats|agents)(\/|$)/.test(
-    pathname,
-  );
   return (
     <>
       <div
@@ -55,24 +41,6 @@ export function WorkspaceHeader({ className }: { className?: string }) {
           </div>
         )}
       </div>
-      {!evaluationWorkspace && (
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={pathname === "/workspace/chats/new"}
-              asChild
-            >
-              <Link
-                className="text-muted-foreground"
-                href="/workspace/chats/new"
-              >
-                <MessageSquarePlus size={16} />
-                <span>{t.sidebar.newChat}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      )}
     </>
   );
 }

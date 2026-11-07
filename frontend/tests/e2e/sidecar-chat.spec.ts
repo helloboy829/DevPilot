@@ -1129,81 +1129,143 @@ test.describe("Side chat", () => {
     );
   });
 
-  test("opens restored side chat history without animated scroll", async ({
-    page,
-  }) => {
-    const tallSidecarMessages = Array.from({ length: 12 }).flatMap(
-      (_, index) => [
-        {
-          type: "human",
-          id: `side-human-${index}`,
-          content: [{ type: "text", text: `Follow-up ${index + 1}` }],
-        },
-        {
-          type: "ai",
-          id: `side-ai-${index}`,
-          content: [
-            `Restored side answer ${index + 1}.`,
-            "This paragraph gives the side chat enough height to require scrolling.",
-            "Opening the panel should reveal the existing history without a visible scroll animation.",
-          ].join(" "),
-        },
-      ],
-    );
-
-    mockLangGraphAPI(page, {
-      threads: [
-        {
-          thread_id: MOCK_THREAD_ID,
-          title: "Main conversation",
-          messages: [
-            {
-              type: "human",
-              id: "parent-human-1",
-              content: [{ type: "text", text: "Plan the feature." }],
-            },
-            {
-              type: "ai",
-              id: "parent-ai-1",
-              content: "Build it as a side conversation.",
-            },
-          ],
-        },
-        {
-          thread_id: MOCK_SIDECAR_THREAD_ID,
-          title: "Restored side chat",
-          updated_at: "2025-01-01T00:00:01Z",
-          metadata: {
-            deerflow_sidecar: true,
-            parent_thread_id: MOCK_THREAD_ID,
-            sidecar_context_type: "referenced_message",
-            sidecar_context_label: "Selected assistant text #2",
-            sidecar_context_count: 1,
-            referenced_message_id: "parent-ai-1",
-            referenced_message_ids: ["parent-ai-1"],
-            referenced_message_role: "assistant",
-            referenced_message_roles: ["assistant"],
+  for (const motion of ["normal", "slow", "reduced"] as const) {
+    test(`opens restored side chat history without animated scroll (${motion})`, async ({
+      page,
+    }) => {
+      if (motion === "reduced")
+        await page.emulateMedia({ reducedMotion: "reduce" });
+      const tallSidecarMessages = Array.from({ length: 12 }).flatMap(
+        (_, index) => [
+          {
+            type: "human",
+            id: `side-human-${index}`,
+            content: [{ type: "text", text: `Follow-up ${index + 1}` }],
           },
-          messages: tallSidecarMessages,
-        },
-      ],
-    });
+          {
+            type: "ai",
+            id: `side-ai-${index}`,
+            content: [
+              `Restored side answer ${index + 1}.`,
+              "This paragraph gives the side chat enough height to require scrolling.",
+              "Opening the panel should reveal the existing history without a visible scroll animation.",
+            ].join(" "),
+          },
+        ],
+      );
 
-    await page.goto(`/workspace/chats/${MOCK_THREAD_ID}`);
-    await expect(
-      page.getByText("Build it as a side conversation."),
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId("sidecar-header-trigger")).toBeVisible({
-      timeout: 10_000,
-    });
+      mockLangGraphAPI(page, {
+        threads: [
+          {
+            thread_id: MOCK_THREAD_ID,
+            title: "Main conversation",
+            messages: [
+              {
+                type: "human",
+                id: "parent-human-1",
+                content: [{ type: "text", text: "Plan the feature." }],
+              },
+              {
+                type: "ai",
+                id: "parent-ai-1",
+                content: "Build it as a side conversation.",
+              },
+            ],
+          },
+          {
+            thread_id: MOCK_SIDECAR_THREAD_ID,
+            title: "Restored side chat",
+            updated_at: "2025-01-01T00:00:01Z",
+            metadata: {
+              deerflow_sidecar: true,
+              parent_thread_id: MOCK_THREAD_ID,
+              sidecar_context_type: "referenced_message",
+              sidecar_context_label: "Selected assistant text #2",
+              sidecar_context_count: 1,
+              referenced_message_id: "parent-ai-1",
+              referenced_message_ids: ["parent-ai-1"],
+              referenced_message_role: "assistant",
+              referenced_message_roles: ["assistant"],
+            },
+            messages: tallSidecarMessages,
+          },
+        ],
+      });
 
-    await openSidecarAndExpectNoAnimatedScroll(page);
-    await expectSidecarScrollDoesNotAnimateAfterOpen(page);
-    await page.getByTestId("sidecar-header-trigger").click();
-    await expect(page.getByTestId("sidecar-panel")).toBeHidden();
-    await page.waitForTimeout(350);
-    await openSidecarAndExpectNoAnimatedScroll(page);
-  });
+      await page.goto(`/workspace/chats/${MOCK_THREAD_ID}`);
+      await expect(
+        page.getByText("Build it as a side conversation."),
+      ).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId("sidecar-header-trigger")).toBeVisible({
+        timeout: 10_000,
+      });
+
+      if (motion === "slow") {
+        await page.addStyleTag({
+          content: "[data-panel] { transition-duration: 900ms !important; }",
+        });
+      }
+      if (motion === "reduced") {
+        // A no-animation layout must not temporarily pin an approximate cqw
+        // width and then trigger another layout when that lock is released.
+        await page.locator("#artifacts > div").evaluate((content) => {
+          new MutationObserver((records) => {
+            if (
+              (content as HTMLElement).style.width ||
+              records.some((record) => record.oldValue?.includes("width:"))
+            ) {
+              content.setAttribute("data-width-lock-observed", "true");
+            }
+          }).observe(content, {
+            attributes: true,
+            attributeFilter: ["style"],
+            attributeOldValue: true,
+          });
+        });
+      }
+      await openSidecarAndExpectNoAnimatedScroll(page);
+      await expectSidecarScrollDoesNotAnimateAfterOpen(page);
+      await expect
+        .poll(() =>
+          page
+            .locator('[data-panel][id$="-side"]')
+            .evaluate((panel) => panel.getAnimations().length),
+        )
+        .toBe(0);
+      await expect(page.locator("#artifacts > div")).not.toHaveAttribute(
+        "style",
+        /width/,
+      );
+      await page.getByTestId("sidecar-header-trigger").click();
+      await expect(page.getByTestId("sidecar-panel")).toBeHidden();
+      await expect
+        .poll(() =>
+          page
+            .locator('[data-panel][id$="-side"]')
+            .evaluate((panel) => panel.getAnimations().length),
+        )
+        .toBe(0);
+      await page.waitForTimeout(350);
+      await openSidecarAndExpectNoAnimatedScroll(page);
+      await expect
+        .poll(() =>
+          page
+            .locator('[data-panel][id$="-side"]')
+            .evaluate((panel) => panel.getAnimations().length),
+        )
+        .toBe(0);
+      await expect(page.locator("#artifacts > div")).not.toHaveAttribute(
+        "style",
+        /width/,
+      );
+      if (motion === "reduced") {
+        await expect(page.locator("#artifacts > div")).not.toHaveAttribute(
+          "data-width-lock-observed",
+          "true",
+        );
+      }
+    });
+  }
 
   test("self-heals the trigger when the sidecar thread is deleted elsewhere", async ({
     page,

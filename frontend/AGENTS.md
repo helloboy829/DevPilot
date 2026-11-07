@@ -1,11 +1,22 @@
 # AGENTS.md
 
+## Stable navigation / workspace styles (2026-11-08)
+
+Keep brand and product navigation stable across evaluation/chat/assistant routes. Creation lives in the relevant page, not a conditional row above the product menu. Group labels, collapsed tooltips, aria-current and mobile route-close remain accessible. Only actual chat routes show history/channels. `core/appearance` owns five allowlisted visual presets, a browser-only preference and a workspace-only root attribute; `next-themes` still exclusively owns light/dark/system. Never store evaluation facts here or change verdict semantics through a theme. Radio cards support roving focus, arrows, Home/End and Space; palettes must pass contrast regressions in both modes. Run `python scripts/pnpm.py format` for the whole frontend (including this guide), not only modified TS files. See [delivery](../docs/DevPilot_Workspace_Styles_CI.md).
+
+## Right-panel animation lifecycle (2026-11-08)
+
+ChatBox pins content before paint and releases it after the root panel's actual animations finish, not a wall-clock timer. Cancel stale completions on toggle/unmount; close content is retained through completion. Reduced motion skips temporary width pinning entirely, avoiding a second layout at release. Preserve ordinary, deliberately slow and reduced-motion scroll regressions without relaxing their assertions.
+
+## Manual evaluation assistant configuration (2026-11-08)
+
+AgentGallery offers both existing conversation-based creation and a manual dialog using the existing owner-scoped create API. Three bilingual advisory presets live in core/agents/evaluation-presets. Saving does not call a model; model=null uses existing default resolution. Empty configured tool groups/skills do NOT disable built-ins, MCP or memory. Never describe these presets as a tool-free sandbox or approved executors. Page-memory-only fields, bounded validation, request lock/disabled edits, generic errors and no automatic retry preserve user review. Tests cover member access, conflict retry, no stream call and double-submit locking.
+
 ## Authenticated assistants / request-template slice (2026-11-07)
 
 Custom assistants default on for all signed-in users, with private-account copy. Keep feature discovery and sticky-disabled outage behavior; a live enabled response must override an old cached disabled value. Operator opt-out still hides the link and gates direct navigation. Enabling management is not model readiness.
 
 `RequestDebugger` exports a parameterized template from the current edited spec/headers through the authenticated no-store API. Download only structural configuration; never include raw values in filenames, browser persistence or generated templates. Explicitly label origin/header names as retained metadata and the artifact as non-executable, non-evidence, non-persisted configuration. Export must not call `/send`, consume send consent or claim success. Tests: `agents-feature-enabled.spec.ts`, `evaluation-workspace.spec.ts`. See [delivery](../docs/DevPilot_Assistants_Request_Templates.md).
-
 
 Browser E2E locale cookies must use the Playwright `baseURL` fixture, never a hard-coded host, so isolated alternate-origin builds exercise the same UI.
 

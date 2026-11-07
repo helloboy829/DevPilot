@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -80,7 +81,16 @@ export default function ChatsPage() {
       <WorkspaceHeader></WorkspaceHeader>
       <WorkspaceBody>
         <div className="flex size-full flex-col">
-          <header className="flex shrink-0 items-center justify-center pt-8">
+          <header className="mx-auto flex w-full max-w-(--container-width-md) shrink-0 flex-wrap items-center justify-between gap-3 px-4 pt-6">
+            <h1 className="text-xl font-semibold">{t.sidebar.chats}</h1>
+            <Button asChild>
+              <Link href="/workspace/chats/new">
+                <MessageSquarePlus className="size-4" />
+                {t.sidebar.newChat}
+              </Link>
+            </Button>
+          </header>
+          <div className="flex shrink-0 items-center justify-center px-4 pt-4">
             <Input
               type="search"
               className="h-12 w-full max-w-(--container-width-md) text-xl"
@@ -89,7 +99,7 @@ export default function ChatsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </header>
+          </div>
           <main className="min-h-0 flex-1">
             <ScrollArea className="size-full py-4">
               <div className="mx-auto flex size-full max-w-(--container-width-md) flex-col">
