@@ -316,8 +316,8 @@ export default function ComponentTestsPage() {
             </h2>
             <p className="text-muted-foreground mt-3 text-sm leading-6">
               {locale === "zh-CN"
-                ? "① 粘贴 cURL 并验证响应 → ② 登记组件与能力 → ③ 使用受限参数运行效果 / 性能测试。调试结果不会自动注册为组件，数据冻结与审批仍待实现。"
-                : "1. Import cURL and verify the response → 2. Register the component and its capabilities → 3. Run bounded effect / performance tests. Debug requests are not automatically registered; dataset freezing and plan approval are not implemented yet."}
+                ? "粘贴 cURL 调试后，登记组件并在「项目与数据集」中关联项目，即可明确确认后加密保存当前请求版本。QA 数据已支持人工确认冻结，但尚未与请求版本组成可执行计划；下方效果 / 性能测试仍使用已有组件配置，不会自动使用这里保存的请求。"
+                : "Import cURL and debug, then register and link a component on Projects & datasets to save an explicitly confirmed encrypted request version. QA data supports self-reviewed freezing, but executable plans linking data and requests are not built yet. Runs below still use existing component configuration, not these saved requests."}
             </p>
           </section>
         </div>

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Request-version save / metadata UI (2026-11-08)
+
+RequestDebugger opens RequestVersionDialog with a snapshot of the current edited request, or null for metadata-only browsing. Explicit project loading and owner-scoped component selection use evaluationApi with no-store; never persist complete values in browser storage or chat. Writes require separate explicit storage confirmation, with locked fields/dismissal, generic errors and no retries. Scope/label changes, failures and refresh revoke confirmation; scope switches clear old metadata. Metadata reads never request plaintext/ciphertext. Key provisioning remains operator-owned; missing-key save failures are not successful tests. Tests: request-version-dialog.dom.test.tsx and request-versions.spec.ts. See [delivery](../docs/DevPilot_Request_Version_UI.md).
+
 ## Stable navigation / workspace styles (2026-11-08)
 
 Keep brand and product navigation stable across evaluation/chat/assistant routes. Creation lives in the relevant page, not a conditional row above the product menu. Group labels, collapsed tooltips, aria-current and mobile route-close remain accessible. Only actual chat routes show history/channels. `core/appearance` owns five allowlisted visual presets, a browser-only preference and a workspace-only root attribute; `next-themes` still exclusively owns light/dark/system. Never store evaluation facts here or change verdict semantics through a theme. Radio cards support roving focus, arrows, Home/End and Space; palettes must pass contrast regressions in both modes. Run `python scripts/pnpm.py format` for the whole frontend (including this guide), not only modified TS files. See [delivery](../docs/DevPilot_Workspace_Styles_CI.md).

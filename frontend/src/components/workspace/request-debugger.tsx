@@ -4,7 +4,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RequestVersionDialog } from "@/components/workspace/request-version-dialog";
 import { evaluationApi } from "@/core/evaluation/api";
+import type { RequestDefinition } from "@/core/evaluation/request-version-types";
 import { useI18n } from "@/core/i18n/hooks";
 
 interface RequestSpec {
@@ -26,6 +28,9 @@ interface ResponseView {
 export function RequestDebugger() {
   const { locale } = useI18n();
   const zh = locale === "zh-CN";
+  const [versionDialog, setVersionDialog] = useState<{
+    request: RequestDefinition | null;
+  } | null>(null);
   const [curl, setCurl] = useState("");
   const [spec, setSpec] = useState<RequestSpec | null>(null);
   const [headers, setHeaders] = useState("[]");
@@ -40,6 +45,37 @@ export function RequestDebugger() {
     setConsent(false);
     setCopied(false);
   };
+  function openSave() {
+    if (!spec) return;
+    try {
+      const editedHeaders: unknown = JSON.parse(headers);
+      if (
+        !Array.isArray(editedHeaders) ||
+        editedHeaders.some(
+          (pair: unknown) =>
+            !Array.isArray(pair) ||
+            pair.length !== 2 ||
+            pair.some((value: unknown) => typeof value !== "string"),
+        )
+      )
+        throw new Error("Invalid headers");
+      setError("");
+      setVersionDialog({
+        request: {
+          method: spec.method,
+          url: spec.url,
+          headers: editedHeaders as string[][],
+          body: spec.body,
+        },
+      });
+    } catch {
+      setError(
+        zh
+          ? "无法保存；请求头须为名称与值组成的二维字符串数组。"
+          : "Cannot save: headers must be an array of string name/value pairs.",
+      );
+    }
+  }
   async function parse() {
     setBusy(true);
     setError("");
@@ -119,8 +155,8 @@ export function RequestDebugger() {
       </h2>
       <p className="text-muted-foreground text-sm">
         {zh
-          ? "粘贴命令后解析，不执行 Shell。凭据仅在当前页面内存中使用，不保存调试历史。暂不支持文件上传、代理、脚本和重定向。"
-          : "Parse without a shell. Credentials stay in page memory; no debug history. File upload, proxies, scripts and redirects are not supported yet."}
+          ? "粘贴命令后解析，不执行 Shell。调试内容默认仅在当前页面内存中；仅明确确认后可加密保存请求版本，不自动保存调试历史。暂不支持文件上传、代理、脚本和重定向。"
+          : "Parse without a shell. Debug values stay in page memory unless you explicitly confirm encrypted request-version storage; no automatic debug history. File upload, proxies, scripts and redirects are not supported yet."}
       </p>
       <label className="block text-sm">
         cURL
@@ -136,6 +172,14 @@ export function RequestDebugger() {
       </label>
       <Button disabled={busy || !curl.trim()} onClick={() => void parse()}>
         {zh ? "解析 cURL" : "Import cURL"}
+      </Button>
+      <Button
+        className="ml-2"
+        variant="outline"
+        disabled={busy}
+        onClick={() => setVersionDialog({ request: null })}
+      >
+        {zh ? "查看请求版本" : "View request versions"}
       </Button>
       {spec && (
         <fieldset disabled={busy} className="space-y-3">
@@ -208,6 +252,9 @@ export function RequestDebugger() {
                 : "Versioned JSON with a structural fingerprint. Keeps only method, target origin (scheme/host/port) and header names; URL, all header values and body become runtime references. Do not put secrets in host or header names. This is not measurement evidence or an executable evaluation plan; binding data and credentials still requires fresh confirmation."}
             </p>
           </div>
+          <Button variant="outline" onClick={openSave}>
+            {zh ? "保存请求版本" : "Save request version"}
+          </Button>
           <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -240,6 +287,13 @@ export function RequestDebugger() {
             {zh ? "清除凭据与内容" : "Clear request and credentials"}
           </Button>
         </fieldset>
+      )}
+      {versionDialog && (
+        <RequestVersionDialog
+          request={versionDialog.request}
+          zh={zh}
+          onClose={() => setVersionDialog(null)}
+        />
       )}
       {error && (
         <p role="alert" className="text-destructive text-sm">
