@@ -2,6 +2,7 @@
 
 import {
   BotIcon,
+  Database,
   LayoutDashboard,
   CalendarClock,
   FileText,
@@ -42,6 +43,19 @@ export function WorkspaceNavChatList() {
               <LayoutDashboard />
               <span>
                 {locale === "zh-CN" ? "评测工作台" : "Evaluation workbench"}
+              </span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            isActive={pathname.startsWith("/workspace/datasets")}
+            asChild
+          >
+            <Link className="text-muted-foreground" href="/workspace/datasets">
+              <Database />
+              <span>
+                {locale === "zh-CN" ? "项目与数据" : "Projects & datasets"}
               </span>
             </Link>
           </SidebarMenuButton>

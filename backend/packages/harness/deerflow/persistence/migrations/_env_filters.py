@@ -28,9 +28,9 @@ def include_object(object_, name, type_, reflected, compare_to):  # noqa: ARG001
     Signature matches alembic's ``include_object`` callable contract:
     ``(object, name, type_, reflected, compare_to)``.
     """
-    if type_ == "table" and name in LANGGRAPH_OWNED_TABLES:
+    if type_ == "table" and (name in LANGGRAPH_OWNED_TABLES or name.startswith("evaluation_") or name == "devpilot_alembic_version"):
         return False
     parent_table = getattr(object_, "table", None)
-    if parent_table is not None and getattr(parent_table, "name", None) in LANGGRAPH_OWNED_TABLES:
+    if parent_table is not None and (getattr(parent_table, "name", "") in LANGGRAPH_OWNED_TABLES or getattr(parent_table, "name", "").startswith("evaluation_") or getattr(parent_table, "name", "") == "devpilot_alembic_version"):
         return False
     return True

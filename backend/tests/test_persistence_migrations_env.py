@@ -89,3 +89,11 @@ def test_env_module_wires_busy_timeout_for_sqlite() -> None:
         "env.py must set busy_timeout on its alembic-spawned engine; without it, cross-process bootstrap on SQLite fails fast instead of waiting for the file lock"
     )
     assert 'listens_for(connectable.sync_engine, "connect")' in src, "busy_timeout must be wired via an event listener so EVERY connection alembic opens gets the PRAGMA, not just one initial probe"
+
+
+def test_filter_excludes_app_evaluation_metadata_and_indexes():
+    for name in ("evaluation_projects", "evaluation_samples", "devpilot_alembic_version"):
+        parent = sa.Table(name, sa.MetaData(), sa.Column("id", sa.Integer))
+        index = sa.Index("ix_fixture", parent.c.id)
+        assert include_object(parent, name, "table", True, None) is False
+        assert include_object(index, index.name, "index", True, None) is False

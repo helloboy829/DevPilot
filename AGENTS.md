@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Project / QA data slice (2026-11-07)
+
+`devpilot.datasets` owns pure import/fingerprint primitives. `app.evaluation` owns project/QA DTOs, tables, repository and independent Alembic migrations (`devpilot_alembic_version`, `eval_0001`); never add App imports to Harness. `/workspace/datasets` and `/api/evaluation/projects` enforce owner scope and separate read/write/review permissions. Gold answers use a separate table/read route and never normal chat or persistent browser cache. Freeze is explicit self-review with revision/hash checks, not independent approval or acceptance. No Agent generation or component/run/report linkage yet. See [QA slice](docs/DevPilot_QA数据最小闭环.md).
+
 ## Report assistant slice (2026-11-07)
 
 `app.reporting.assistant` reuses the existing model factory and a single tool-free LangGraph agent. `reports_agent` is operator config, off by default and explicitly names a model. Only validated aggregate metrics enter the model; no free text/identity/evidence. POST assistant requires threads:write, runs:create and per-request consent; no memory, tool execution, report approval or knowledge writes. User-confirmed advice is a separate, unverified appendix bound to facts hash and template version, never metric updates. Client-returned advice and claimed model are unauthenticated. See module guides and report design; provider telemetry policies still require review.

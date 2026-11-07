@@ -9,6 +9,7 @@
 | Page | Implemented scope |
 | --- | --- |
 | `/workspace/evaluations` | Default evaluation-first landing page with real component inventory and explicit remaining capabilities |
+| `/workspace/datasets` | Owner-scoped projects, source/authorization declarations, bounded QA import, explicit reference review and snapshot freeze |
 | `/workspace/component-tests` | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses |
 | `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery |
 | `/workspace/reports` | Manual single-component and multi-component project snapshots, pinned Chinese/English templates, Markdown/JSON draft downloads |
@@ -23,12 +24,12 @@ The unified local entry point is `http://127.0.0.1:2026`. See [Install.md](Insta
 - **Off-peak evaluations:** require `scheduler.enabled: true` and approved destination hosts. Plans do not copy component credentials, reject changed target configuration, and recheck owner permissions at launch. Scheduled effect calls collect outputs for manual review, without implicit disclosure to an LLM judge. The existing scheduler provides leases/history/non-overlap, but component execution remains process-local rather than a durable worker queue. Pausing/deleting does not cancel an active run.
 - **Project reports:** stage each component from the form, then generate one project draft. Snapshots are independent; remove/restage after changes. Shared project/tester/period/mode must match. No cross-component averaging of unrelated accuracy or latency. Reports are manual/unverified drafts kept in page memory; download before leaving. No persistence, formal approval, DOCX/PDF export or full reference-DOCX layout reproduction.
 - **Reference templates:** only the generic structure of authorized local reports is reused. No private project names, historical measured metrics or source report text is committed. Template ID/version and facts/template hashes are pinned; future template updates must be new versions.
-- **Report agent:** reuses the harness model factory and a tool-free LangGraph agent. Explicit opt-in requirements → structured proposed fields/questions → human confirmation → real counters entered by the evaluator. Currently single-turn intake, not persistent multi-turn dialogue. A separate opt-in advisor sees allowlisted aggregate metrics only. Neither can invent measurements, alter counters or approve reports.
+- **Report agent:** reuses the harness model factory and a tool-free LangGraph agent. Explicit opt-in requirements → structured proposed fields/questions → human confirmation → real counters entered by the evaluator. Bounded multi-turn intake (at most 10 rounds) is held in page memory, not persistent dialogue. A separate opt-in advisor sees allowlisted aggregate metrics only. Neither can invent measurements, alter counters or approve reports.
 - **Metrics:** effect pass rate uses the full denominator. Errors/pending/not-run remain visible. TTFT applies only to observable content-bearing streaming responses; missing/inapplicable metrics are not zero or automatic PASS.
 
 ## Model management
 
-Set `DEVPILOT_MODEL_CATALOG_DIR` to a private persistent Gateway directory. Administrators can add OpenAI-compatible or Anthropic models, update metadata, test a fixed non-business prompt with explicit consent, and assign roles. Keys are write-only; an omitted key retains the prior value. SQLite catalog payloads are Fernet-encrypted. Supply `DEVPILOT_MODEL_ENCRYPTION_KEY` through secret management, or protect the generated separate `catalog.key`. Back up the encrypted database and key securely; same-volume encryption is not a KMS, and Windows ACLs require operator care.
+Set `DEVPILOT_MODEL_CATALOG_DIR` to a private persistent Gateway directory. Administrators can add OpenAI Chat, OpenAI Responses, Anthropic Messages or Gemini Developer API model profiles, update metadata, test a fixed non-business prompt with explicit consent, and assign roles. Keys are write-only; an omitted key retains the prior value. SQLite catalog payloads are Fernet-encrypted. Supply `DEVPILOT_MODEL_ENCRYPTION_KEY` through secret management, or protect the generated separate `catalog.key`. Back up the encrypted database and key securely; same-volume encryption is not a KMS, and Windows ACLs require operator care.
 
 `general_agent` controls the default platform model; chat may override it. `report_advisor` enables report intake/advice, still requiring per-call consent. Dataset generation, evaluation judge and review assistant are **reserved bindings only**, not completed pipelines. Platform working models are separate from evaluated targets. No real provider is configured by this change and no customer/provider call is required for mock tests.
 
@@ -38,11 +39,11 @@ Operator models in `config.yaml` remain operator-owned. Preserve the `deerflow` 
 
 The report requirements assistant now supports a bounded, visible multi-turn conversation (10 rounds, 24000-character serialized context, page memory only). Every turn requires consent; confirming fields never alters measured metrics. Model profiles support custom provider labels/endpoints/model IDs, duplication without credentials, and explicit credential decisions when changing endpoints or protocols. This borrows connection-management patterns, not full CC Switch compatibility.
 
-See the [implementation matrix](docs/DevPilot_实现进度与下一步.md) for delivered, partial and unimplemented capabilities. Dataset governance/freeze, a human review center, durable execution, standalone exports and formal report/template lifecycle remain unfinished.
+See the [implementation matrix](docs/DevPilot_实现进度与下一步.md) for delivered, partial and unimplemented capabilities. The QA foundation now supports strict JSON/JSONL import, owner isolation, separately authorized reference access, optimistic revisions and explicit self-reviewed freezing. This is not independently approved data or acceptance: source authorization is user-attested, the data has not been linked to components/runs/reports, and no Agent builds data yet. Full governance, a result-review center, durable execution, standalone exports and formal report/template lifecycle remain unfinished. See the [QA slice boundaries](docs/DevPilot_QA数据最小闭环.md).
 
 ## Next milestones
 
-1. Versioned datasets, reference provenance/authorization, gold-label review, coverage slices, deduplication and leakage controls.
+1. Link project/component submission versions and frozen QA data to execution; add independent review, quality cards and cross-set leakage controls.
 2. Confirmed RequestSpec integration with all evaluation adapters and reproducible runnable exports.
 3. Human-review workbench, evidence-linked persistent reports and template revision/approval history.
 4. Durable execution, quotas/cancellation, security policy across legacy execution paths and audit.

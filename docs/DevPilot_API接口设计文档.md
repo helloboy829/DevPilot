@@ -1,5 +1,9 @@
 # DevPilot API 接口设计 v3.0
 
+## 已实现：项目与 QA 数据 API（2026-11-07）
+
+前缀 /api/evaluation/projects：GET/POST本人项目，GET/POST /{project_id}/datasets，GET单版本，GET/PUT .../samples，GET .../references，POST .../freeze，GET .../audit。分别使用 evaluation_projects:read/write/review，金标读取和人工冻结禁止受信任内部Agent。所有操作校验owner，响应no-store，校验错误不回显。持久库不可用503；非法格式422；大请求413；revision/hash/冻结冲突409。不实现下文完整 /dataset-versions 审批资源。精确载荷、权限、大小和状态边界见[QA切片API](DevPilot_QA数据最小闭环.md#3-实际-api-与授权)。
+
 ## 报告 Agent 增补（2026-11-07）
 
 已实现可选报告助手：GET `/api/reports/assistant` 需要 threads:read，只查询配置；POST 同路径需要 threads:write + runs:create 和 `consent:true`。返回未核验建议及事实 hash/模板绑定，422 输入/授权确认，503 未启用/模型未配置，429 并发槽满，504 超时，502 供应商/输出错误。preview 可选 advisory（结构化建议、模型名、事实 hash、模板 ID/版本、human_confirmed:true）；不匹配拒绝，附录 source 为 client_supplied_ai_advice_unverified，不构成审批或来源认证。全部成功及业务错误 no-store，详细边界见 [报告设计](DevPilot_报告模块设计.md#9-已实现可选报告-agent2026-11-07)。

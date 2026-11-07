@@ -709,8 +709,9 @@ This gateway provides runtime endpoints for agent runs plus custom endpoints for
     app.include_router(scheduled_tasks.router)
     app.include_router(component_tests.router)
     app.include_router(reports.router)
-    from app.gateway.routers import evaluation_schedules, model_management, request_debugger
+    from app.gateway.routers import evaluation_projects, evaluation_schedules, model_management, request_debugger
 
+    app.include_router(evaluation_projects.router)
     app.include_router(evaluation_schedules.router)
     app.include_router(model_management.router)
     app.include_router(request_debugger.router)

@@ -2,6 +2,7 @@
 
 import {
   ArrowRight,
+  Database,
   CalendarClock,
   CheckCircle2,
   FileText,
@@ -35,8 +36,17 @@ export default function EvaluationHome() {
       action: zh ? "从 cURL 开始" : "Start with cURL",
     },
     {
+      icon: Database,
+      title: zh ? "02 项目与数据" : "02 Projects & datasets",
+      description: zh
+        ? "登记来源、导入 QA、检查预期答案后冻结数据版本。"
+        : "Declare sources, import QA, review reference answers and freeze dataset versions.",
+      href: "/workspace/datasets",
+      action: zh ? "管理评测数据" : "Manage evaluation data",
+    },
+    {
       icon: CalendarClock,
-      title: zh ? "02 执行评测" : "02 Run evaluations",
+      title: zh ? "03 执行评测" : "03 Run evaluations",
       description: zh
         ? "区分效果与性能，使用受限参数或安排低峰时段。"
         : "Separate effect and performance testing, with bounded load and off-peak schedules.",
@@ -45,7 +55,7 @@ export default function EvaluationHome() {
     },
     {
       icon: FileText,
-      title: zh ? "03 汇总报告" : "03 Assemble reports",
+      title: zh ? "04 汇总报告" : "04 Assemble reports",
       description: zh
         ? "与助手逐轮明确需求，确认多组件事实，再生成版本固定的草稿。"
         : "Clarify requirements over multiple turns, confirm component facts, then render a version-pinned draft.",
@@ -94,7 +104,7 @@ export default function EvaluationHome() {
             </div>
           </section>
           <section
-            className="grid gap-4 md:grid-cols-3"
+            className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
             aria-label={zh ? "评测流程" : "Evaluation workflow"}
           >
             {steps.map((step) => (
@@ -201,8 +211,8 @@ export default function EvaluationHome() {
               </p>
               {[
                 zh
-                  ? "数据集审核、质量卡与版本冻结"
-                  : "Dataset review, quality cards and freezing",
+                  ? "双人独立数据审核、质量卡与执行关联"
+                  : "Independent data review, quality cards and execution links",
                 zh
                   ? "逐条复核、分配与仲裁中心"
                   : "Case review, assignment and arbitration",

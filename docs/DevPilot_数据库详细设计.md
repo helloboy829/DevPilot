@@ -1,5 +1,9 @@
 # DevPilot 数据库详细设计 v3.0
 
+## 已实现：独立项目 / QA 账本（2026-11-07）
+
+新增 App 自有表 evaluation_projects、evaluation_datasets、evaluation_samples、evaluation_references、evaluation_data_audit；金标独立于普通样本。实际逻辑由 app.evaluation 管理，不导入 Harness。共用持久库，但使用独立 devpilot_alembic_version / eval_0001，启动时线程执行迁移；Harness Alembic排除本领域表。不改其 alembic_version / LangGraph表。memory模式503，SQL echo开启拒绝初始化。本轮已验证SQLite文件库/并发迁移/重启/事务；PostgreSQL仍待真实集成验收。回退保留新增表，不执行删表降级。下文目标关系模型尚未完整实施，项目与组件/运行/报告尚未关联。详见[切片设计](DevPilot_QA数据最小闭环.md)。
+
 ## 报告草稿切片说明（2026-11-07）
 
 本轮 `/api/reports/preview` 无状态，未新增数据库表/迁移，下载快照不等于持久化修订历史。后续模板版本、报告修订、审阅和产物实体及事务边界见 [报告模块设计第 6 节](DevPilot_报告模块设计.md)。归档上线前必须补独立权限、owner/project 隔离及不可覆盖的审批快照。

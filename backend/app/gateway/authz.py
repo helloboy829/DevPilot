@@ -56,6 +56,11 @@ logger = logging.getLogger(__name__)
 class Permissions:
     """Permission constants for resource:action format."""
 
+    # Evaluation data (separate from chat access)
+    EVALUATION_PROJECTS_READ = "evaluation_projects:read"
+    EVALUATION_PROJECTS_WRITE = "evaluation_projects:write"
+    EVALUATION_PROJECTS_REVIEW = "evaluation_projects:review"
+
     # Threads
     THREADS_READ = "threads:read"
     THREADS_WRITE = "threads:write"
@@ -124,6 +129,9 @@ _ALL_PERMISSIONS: list[str] = [
     Permissions.RUNS_CREATE,
     Permissions.RUNS_READ,
     Permissions.RUNS_CANCEL,
+    Permissions.EVALUATION_PROJECTS_READ,
+    Permissions.EVALUATION_PROJECTS_WRITE,
+    Permissions.EVALUATION_PROJECTS_REVIEW,
 ]
 
 
