@@ -493,3 +493,64 @@ test("connection presets offer four wire protocols and duplication never reuses 
     page.getByText("Model profile saved", { exact: true }),
   ).toBeVisible();
 });
+
+test("request template export downloads references without sending the target request", async ({
+  page,
+}) => {
+  mockLangGraphAPI(page, { threads: [] });
+  const spec = {
+    version: "request.v1",
+    method: "POST",
+    url: "https://example.test/private?token=SYNTHETIC_QUERY",
+    headers: [["Authorization", "Bearer SYNTHETIC_HEADER"]],
+    body: "SYNTHETIC_BODY",
+  };
+  await page.route("**/api/component-tests/debug/parse", (route) =>
+    route.fulfill({ json: { spec } }),
+  );
+  let exports = 0;
+  let sends = 0;
+  await page.route("**/api/component-tests/debug/send", (route) => {
+    sends += 1;
+    return route.fulfill({ status: 500 });
+  });
+  await page.route("**/api/component-tests/debug/template", (route) => {
+    exports += 1;
+    expect(route.request().postDataJSON().spec).toEqual(spec);
+    return route.fulfill({
+      json: {
+        template: {
+          schema: "request-template.v1",
+          scope: "configuration_only",
+          request_version: "request.v1",
+          method: "POST",
+          origin: "https://example.test:443",
+          url_ref: "DEVPILOT_REQUEST_URL",
+          body_ref: "DEVPILOT_REQUEST_BODY",
+          headers: [["Authorization", "DEVPILOT_REQUEST_HEADER_1"]],
+          fingerprint: "a".repeat(64),
+        },
+      },
+    });
+  });
+  await page.goto("/workspace/component-tests");
+  await page
+    .getByLabel("cURL", { exact: true })
+    .fill("curl https://example.test --json '{}'");
+  await page.getByRole("button", { name: "Import cURL", exact: true }).click();
+  const download = page.waitForEvent("download");
+  await page
+    .getByRole("button", {
+      name: "Export parameterized request template",
+      exact: true,
+    })
+    .click();
+  expect((await download).suggestedFilename()).toBe(
+    "request-template-aaaaaaaaaaaa.json",
+  );
+  expect(exports).toBe(1);
+  expect(sends).toBe(0);
+  await expect(
+    page.getByRole("button", { name: "Send request", exact: true }),
+  ).toBeDisabled();
+});

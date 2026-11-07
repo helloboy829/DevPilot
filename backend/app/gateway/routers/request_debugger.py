@@ -4,6 +4,7 @@ import asyncio
 from typing import Any
 
 from devpilot.http import RequestSpec, parse_curl
+from devpilot.request_templates import RequestTemplate
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -54,3 +55,19 @@ async def debug_send(payload: SendRequest, request: Request, config=Depends(get_
             raise HTTPException(422, str(exc)) from None
         except Exception:
             raise HTTPException(502, "Request failed or timed out; provider details are not logged") from None
+
+
+class TemplateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    spec: dict[str, Any]
+
+
+@router.post("/template")
+@require_permission("threads", "write")
+async def request_template(payload: TemplateRequest, request: Request):
+    """Export configuration wiring only; no values, target calls or approval."""
+    try:
+        template = RequestTemplate.from_request(RequestSpec.from_dict(payload.spec))
+        return JSONResponse({"template": template.to_dict()}, headers={"Cache-Control": "private, no-store"})
+    except ValueError:
+        raise HTTPException(422, "Invalid request specification for template export") from None

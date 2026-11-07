@@ -1817,9 +1817,10 @@ memory:
 # Custom Agent Management API
 # ============================================================================
 # Controls whether the HTTP gateway exposes custom-agent SOUL/USER.md management.
-# Keep this disabled unless the gateway is behind a trusted authenticated admin boundary.
+# Available to all authenticated users; definitions and profiles are owner-scoped.
+# Operators may explicitly disable this capability; never bypass authentication.
 agents_api:
-  enabled: false
+  enabled: true
 
 # ============================================================================
 # Skill Self-Evolution Configuration

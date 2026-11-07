@@ -23,11 +23,14 @@ import pytest
 
 from app.gateway.routers.agents import (
     AgentCreateRequest,
+    UserProfileUpdateRequest,
     check_agent_name,
     create_agent_endpoint,
     delete_agent,
     get_agent,
+    get_user_profile,
     list_agents,
+    update_user_profile,
 )
 from deerflow.config.agents_api_config import load_agents_api_config_from_dict
 from deerflow.config.paths import get_paths
@@ -90,5 +93,17 @@ async def test_read_endpoints_do_not_block_event_loop(tmp_path: Path, monkeypatc
         check = await check_agent_name("loop-read-agent")
         assert check["available"] is False
         assert (await check_agent_name("never-created-agent"))["available"] is True
+    finally:
+        load_agents_api_config_from_dict({})
+
+
+async def test_private_profile_io_does_not_block_event_loop(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("DEER_FLOW_HOME", str(tmp_path))
+    monkeypatch.setattr("deerflow.config.paths._paths", None)
+    load_agents_api_config_from_dict({"enabled": True})
+    try:
+        assert (await get_user_profile()).content is None
+        assert (await update_user_profile(UserProfileUpdateRequest(content="Synthetic profile"))).content == "Synthetic profile"
+        assert (await get_user_profile()).content == "Synthetic profile"
     finally:
         load_agents_api_config_from_dict({})

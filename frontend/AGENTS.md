@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Authenticated assistants / request-template slice (2026-11-07)
+
+Custom assistants default on for all signed-in users, with private-account copy. Keep feature discovery and sticky-disabled outage behavior; a live enabled response must override an old cached disabled value. Operator opt-out still hides the link and gates direct navigation. Enabling management is not model readiness.
+
+`RequestDebugger` exports a parameterized template from the current edited spec/headers through the authenticated no-store API. Download only structural configuration; never include raw values in filenames, browser persistence or generated templates. Explicitly label origin/header names as retained metadata and the artifact as non-executable, non-evidence, non-persisted configuration. Export must not call `/send`, consume send consent or claim success. Tests: `agents-feature-enabled.spec.ts`, `evaluation-workspace.spec.ts`. See [delivery](../docs/DevPilot_Assistants_Request_Templates.md).
+
+
+Browser E2E locale cookies must use the Playwright `baseURL` fixture, never a hard-coded host, so isolated alternate-origin builds exercise the same UI.
+
 ## Navigation / shared outbound slice (2026-11-07)
 
 Evaluation pages render the component-tests entry only in WorkspaceNavChatList, not the header shortcut. Preserve new-chat on conversation pages. WorkspaceSidebar closes the mobile drawer on pathname changes; keep the route-change regression. Custom assistants appear only when the operator feature is enabled and discovery is no longer pending; do not bypass backend gates. The gallery explains advisory-only scope. The component page documents shared outbound admission. Desktop/mobile and direct-disabled-route regressions must stay covered. See [scope](../docs/DevPilot_导航与统一出站基线.md).

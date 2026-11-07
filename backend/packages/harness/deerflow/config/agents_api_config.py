@@ -7,8 +7,8 @@ class AgentsApiConfig(BaseModel):
     """Configuration for custom-agent and user-profile management routes."""
 
     enabled: bool = Field(
-        default=False,
-        description=("Whether to expose the custom-agent management API over HTTP. When disabled, the gateway rejects read/write access to custom agent SOUL.md, config, and USER.md prompt-management routes."),
+        default=True,
+        description=("Whether authenticated users may manage their own custom agents over HTTP (enabled by default). When disabled, the gateway rejects custom-agent and private USER.md management routes."),
     )
 
 

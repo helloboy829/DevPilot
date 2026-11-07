@@ -60,6 +60,35 @@ export function RequestDebugger() {
       setBusy(false);
     }
   }
+  async function exportTemplate() {
+    if (!spec) return;
+    setBusy(true);
+    setError("");
+    try {
+      const data = await evaluationApi<{ template: { fingerprint: string } }>(
+        "component-tests/debug/template",
+        { spec: { ...spec, headers: JSON.parse(headers) as string[][] } },
+      );
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(data.template, null, 2)], {
+          type: "application/json",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `request-template-${data.template.fingerprint.slice(0, 12)}.json`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setError(
+        zh
+          ? "无法导出；请检查请求和请求头格式。"
+          : "Cannot export; check request and header format.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   async function send() {
     if (!spec || !consent) return;
     setBusy(true);
@@ -167,6 +196,18 @@ export function RequestDebugger() {
               onChange={(e) => change({ body: e.target.value })}
             />
           </label>
+          <div className="space-y-2 rounded border p-3">
+            <Button variant="outline" onClick={() => void exportTemplate()}>
+              {zh
+                ? "导出参数化请求模板"
+                : "Export parameterized request template"}
+            </Button>
+            <p className="text-muted-foreground text-sm">
+              {zh
+                ? "生成带结构指纹的版本化 JSON。仅保留方法、来源（协议/主机/端口）及请求头名称；完整 URL、头值和请求体均为运行时引用。请勿在主机或头名称中放置秘密。本模板不是可执行评测方案或实测证据，绑定数据与凭据后仍须重新确认。"
+                : "Versioned JSON with a structural fingerprint. Keeps only method, target origin (scheme/host/port) and header names; URL, all header values and body become runtime references. Do not put secrets in host or header names. This is not measurement evidence or an executable evaluation plan; binding data and credentials still requires fresh confirmation."}
+            </p>
+          </div>
           <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -180,8 +221,8 @@ export function RequestDebugger() {
           <Button disabled={busy || !consent} onClick={() => void send()}>
             {busy
               ? zh
-                ? "请求中…"
-                : "Sending…"
+                ? "处理中…"
+                : "Working…"
               : zh
                 ? "发送请求"
                 : "Send request"}

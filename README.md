@@ -18,9 +18,15 @@
 
 The unified local entry point is `http://127.0.0.1:2026`. See [Install.md](Install.md), [AGENTS.md](AGENTS.md) and module guides for installation and full-stack `make dev`/Docker commands. Do not commit local configuration, credentials or customer materials.
 
+## Assistants and request templates
+
+Custom assistants are enabled by default for **all authenticated users**, not only administrators. Each account manages its own assistants and private profile; operators can still opt out with `agents_api.enabled: false`. The legacy global `USER.md` is retained but is not exposed through the private profile API. Model-backed conversations still require a configured model; enabling assistant management does not configure one.
+
+The cURL debugger can export a **parameterized request template** (`request-template.v1`) with a structural SHA-256 fingerprint. Full URL/path/query, every header value and the body are replaced with explicit runtime references. Only method, origin and header names remain: review those as potentially sensitive metadata. This configuration-only download is not a persisted request version, executable test script, target authorization, debug-success certificate or evaluation evidence. See [delivery details](docs/DevPilot_Assistants_Request_Templates.md).
+
 ## Navigation and outbound baseline
 
-Evaluation pages have one component-test navigation entry. Custom assistant management is optional: its link appears only when enabled, rather than a disabled placeholder; it is not the report assistant or evaluation executor. Debug, manual and scheduled component calls now share host/DNS/TLS enforcement. An empty operator allowlist also blocks manual runs. See [scope and remaining work](docs/DevPilot_导航与统一出站基线.md).
+Evaluation pages have one component-test navigation entry. Custom assistant management defaults to enabled for signed-in users; an operator opt-out hides its link rather than leaving a disabled placeholder; it is not the report assistant or evaluation executor. Debug, manual and scheduled component calls now share host/DNS/TLS enforcement. An empty operator allowlist also blocks manual runs. See [scope and remaining work](docs/DevPilot_导航与统一出站基线.md).
 
 ## Important boundaries
 

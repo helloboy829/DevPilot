@@ -3,6 +3,8 @@
 import asyncio
 import logging
 import re
+import tempfile
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
@@ -104,7 +106,7 @@ def _normalize_agent_name(name: str) -> str:
 
 
 def _require_agents_api_enabled() -> None:
-    """Reject access unless the custom-agent management API is explicitly enabled."""
+    """Respect the operator opt-out; authentication is enforced by middleware."""
     if not get_agents_api_config().enabled:
         raise HTTPException(
             status_code=403,
@@ -465,13 +467,13 @@ async def update_agent(name: str, request: AgentUpdateRequest) -> AgentResponse:
 
 
 class UserProfileResponse(BaseModel):
-    """Response model for the global user profile (USER.md)."""
+    """Response model for the current user's private profile (USER.md)."""
 
     content: str | None = Field(default=None, description="USER.md content, or null if not yet created")
 
 
 class UserProfileUpdateRequest(BaseModel):
-    """Request body for setting the global user profile."""
+    """Request body for setting the current user's private profile."""
 
     content: str = Field(default="", description="USER.md content — describes the user's background and preferences")
 
@@ -480,7 +482,7 @@ class UserProfileUpdateRequest(BaseModel):
     "/user-profile",
     response_model=UserProfileResponse,
     summary="Get User Profile",
-    description="Read the global USER.md file that is injected into all custom agents.",
+    description="Read the current authenticated user's private USER.md profile.",
 )
 async def get_user_profile() -> UserProfileResponse:
     """Return the current USER.md content.
@@ -490,25 +492,29 @@ async def get_user_profile() -> UserProfileResponse:
     """
     _require_agents_api_enabled()
 
-    try:
-        user_md_path = get_paths().user_md_file
-        if not user_md_path.exists():
-            return UserProfileResponse(content=None)
-        raw = user_md_path.read_text(encoding="utf-8").strip()
+    user_id = get_effective_user_id()
+
+    def _read_profile() -> UserProfileResponse:
+        # Never expose the legacy operator-wide USER.md to every account.
+        path = get_paths().user_dir(user_id) / "USER.md"
+        raw = path.read_text(encoding="utf-8").strip() if path.is_file() else ""
         return UserProfileResponse(content=raw or None)
-    except Exception as e:
-        logger.error(f"Failed to read user profile: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to read user profile: {str(e)}")
+
+    try:
+        return await asyncio.to_thread(_read_profile)
+    except Exception:
+        logger.exception("Failed to read private user profile")
+        raise HTTPException(status_code=500, detail="Failed to read user profile") from None
 
 
 @router.put(
     "/user-profile",
     response_model=UserProfileResponse,
     summary="Update User Profile",
-    description="Write the global USER.md file that is injected into all custom agents.",
+    description="Write only the current authenticated user's private USER.md profile.",
 )
 async def update_user_profile(request: UserProfileUpdateRequest) -> UserProfileResponse:
-    """Create or overwrite the global USER.md.
+    """Create or overwrite the current user's private USER.md.
 
     Args:
         request: The update request with the new USER.md content.
@@ -518,15 +524,28 @@ async def update_user_profile(request: UserProfileUpdateRequest) -> UserProfileR
     """
     _require_agents_api_enabled()
 
-    try:
-        paths = get_paths()
-        paths.base_dir.mkdir(parents=True, exist_ok=True)
-        paths.user_md_file.write_text(request.content, encoding="utf-8")
-        logger.info(f"Updated USER.md at {paths.user_md_file}")
+    user_id = get_effective_user_id()
+
+    def _write_profile() -> UserProfileResponse:
+        folder = get_paths().user_dir(user_id)
+        folder.mkdir(parents=True, exist_ok=True)
+        pending: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=folder, suffix=".tmp", delete=False) as handle:
+                pending = Path(handle.name)
+                handle.write(request.content)
+            pending.replace(folder / "USER.md")
+            pending = None
+        finally:
+            if pending is not None:
+                pending.unlink(missing_ok=True)
         return UserProfileResponse(content=request.content or None)
-    except Exception as e:
-        logger.error(f"Failed to update user profile: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to update user profile: {str(e)}")
+
+    try:
+        return await asyncio.to_thread(_write_profile)
+    except Exception:
+        logger.exception("Failed to update private user profile")
+        raise HTTPException(status_code=500, detail="Failed to update user profile") from None
 
 
 @router.delete(

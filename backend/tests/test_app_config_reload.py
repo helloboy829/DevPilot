@@ -500,7 +500,7 @@ def test_get_app_config_resets_agents_api_config_when_section_removed(tmp_path, 
         config_path,
         model_name="first-model",
         supports_thinking=False,
-        agents_api={"enabled": True},
+        agents_api={"enabled": False},
     )
 
     monkeypatch.setenv("DEER_FLOW_CONFIG_PATH", str(config_path))
@@ -510,7 +510,7 @@ def test_get_app_config_resets_agents_api_config_when_section_removed(tmp_path, 
     try:
         initial = get_app_config()
         assert initial.models[0].name == "first-model"
-        assert get_agents_api_config().enabled is True
+        assert get_agents_api_config().enabled is False
 
         _write_config_with_agents_api(
             config_path,
@@ -522,7 +522,7 @@ def test_get_app_config_resets_agents_api_config_when_section_removed(tmp_path, 
 
         reloaded = get_app_config()
         assert reloaded is not initial
-        assert get_agents_api_config().enabled is False
+        assert get_agents_api_config().enabled is True
     finally:
         reset_app_config()
 

@@ -26,8 +26,8 @@ export function AgentGallery() {
           <h1 className="text-xl font-semibold">{t.sidebar.agents}</h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
             {locale === "zh-CN"
-              ? "配置可复用的对话助手，辅助梳理评测需求、解释方法或起草说明；不等于已批准的评测执行器，不能替代金标复核或验收。报告助手仍从报告模块进入。"
-              : "Reusable conversation assistants for evaluation requirements, methodology and draft explanations. They are not approved test executors or substitutes for reference review and acceptance. Use Reports for the report assistant."}
+              ? "每位已登录用户均可创建自己的助手，个人助手与资料按账号隔离。配置可复用的对话助手，辅助梳理评测需求、解释方法或起草说明；不等于已批准的评测执行器，不能替代金标复核或验收。报告助手仍从报告模块进入。"
+              : "Every signed-in user can create private assistants; personal assistants and profiles are isolated by account. Reusable conversation assistants for evaluation requirements, methodology and draft explanations. They are not approved test executors or substitutes for reference review and acceptance. Use Reports for the report assistant."}
           </p>
         </div>
         <Button onClick={handleNewAgent}>

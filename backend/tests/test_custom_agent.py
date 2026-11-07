@@ -580,6 +580,62 @@ def disabled_agent_client(tmp_path):
             set_agents_api_config(previous_config)
 
 
+class TestAgentsEnabledForUsers:
+    def test_enabled_by_default(self):
+        assert AgentsApiConfig().enabled is True
+
+    def test_default_feature_discovery(self):
+        from fastapi import FastAPI
+
+        from app.gateway.deps import get_config
+        from app.gateway.routers.features import router
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_config] = lambda: SimpleNamespace(agents_api=AgentsApiConfig(), tools=[])
+        with TestClient(app) as client:
+            assert client.get("/api/features").json()["agents_api"]["enabled"] is True
+
+    def test_management_routes_are_not_public(self):
+        from app.gateway.auth_middleware import _is_public
+
+        for path in ("/api/agents", "/api/agents/check", "/api/agents/private-assistant", "/api/user-profile", "/api/features"):
+            assert not _is_public(path)
+
+    def test_agents_are_owner_isolated(self, agent_client):
+        import app.gateway.routers.agents as routes
+
+        with patch.object(routes, "get_effective_user_id", return_value="synthetic-owner-a"):
+            assert agent_client.post("/api/agents", json={"name": "private-helper", "soul": "Owner A only"}).status_code == 201
+        with patch.object(routes, "get_effective_user_id", return_value="synthetic-owner-b"):
+            assert agent_client.get("/api/agents").json() == {"agents": []}
+            assert agent_client.get("/api/agents/private-helper").status_code == 404
+            assert agent_client.get("/api/agents/check", params={"name": "private-helper"}).json()["available"] is True
+            assert agent_client.put("/api/agents/private-helper", json={"soul": "not allowed"}).status_code == 404
+            assert agent_client.delete("/api/agents/private-helper").status_code == 404
+            assert agent_client.post("/api/agents", json={"name": "private-helper", "soul": "Owner B only"}).status_code == 201
+        with patch.object(routes, "get_effective_user_id", return_value="synthetic-owner-a"):
+            assert agent_client.get("/api/agents/private-helper").json()["soul"] == "Owner A only"
+            assert agent_client.delete("/api/agents/private-helper").status_code == 204
+        with patch.object(routes, "get_effective_user_id", return_value="synthetic-owner-b"):
+            assert agent_client.get("/api/agents/private-helper").json()["soul"] == "Owner B only"
+
+    def test_profiles_are_private_and_do_not_read_or_overwrite_legacy(self, agent_client, tmp_path):
+        import app.gateway.routers.agents as routes
+
+        legacy = tmp_path / "USER.md"
+        legacy.write_text("Operator legacy profile", encoding="utf-8")
+        with patch.object(routes, "get_effective_user_id", return_value="synthetic-owner-a"):
+            assert agent_client.get("/api/user-profile").json() == {"content": None}
+            assert agent_client.put("/api/user-profile", json={"content": "Owner A"}).status_code == 200
+        with patch.object(routes, "get_effective_user_id", return_value="synthetic-owner-b"):
+            assert agent_client.get("/api/user-profile").json() == {"content": None}
+            assert agent_client.put("/api/user-profile", json={"content": "Owner B"}).status_code == 200
+        with patch.object(routes, "get_effective_user_id", return_value="synthetic-owner-a"):
+            assert agent_client.get("/api/user-profile").json() == {"content": "Owner A"}
+        assert legacy.read_text(encoding="utf-8") == "Operator legacy profile"
+
+
 class TestAgentsAPI:
     def test_list_agents_empty(self, agent_client):
         response = agent_client.get("/api/agents")
@@ -836,7 +892,7 @@ class TestUserProfileAPI:
         assert response.json()["content"] == content
 
         # File should be written to disk
-        user_md = tmp_path / "USER.md"
+        user_md = tmp_path / "users" / "test-user-autouse" / "USER.md"
         assert user_md.exists()
         assert user_md.read_text(encoding="utf-8") == content
 

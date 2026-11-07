@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## Authenticated assistants / request-template slice (2026-11-07)
+
+Agent management defaults on for authenticated users; retain the global auth gate, user-scoped AgentStore operations and operator `agents_api.enabled=false` opt-out. `/api/user-profile` no longer reads/writes global `Paths.user_md_file`: it uses `Paths.user_dir(get_effective_user_id()) / "USER.md"`, offloads I/O and atomically replaces within that directory. Do not copy legacy profiles to all users. Legacy operator-shared agent reads remain unchanged for compatibility.
+
+`devpilot.request_templates.RequestTemplate` uses frozen tuple wiring, strict schema round-trip, canonical origin and SHA-256 structural fingerprint. URL/body/all header values become explicit runtime references. `resolve()` only validates supplied values, with no env reads, credential lookup or network; it is not an authorized executor. `/api/component-tests/debug/template` requires threads:write, no-store and private validation; does not send or persist. Tests: `test_custom_agent`, `blocking_io/test_agents_router`, `test_request_templates`, `test_request_templates_router`. No new migration; App head remains eval_0002. See [delivery](../docs/DevPilot_Assistants_Request_Templates.md).
+
+
 ## Navigation / shared outbound slice (2026-11-07)
 
 app.evaluation.http owns PinnedEvaluationTransport/evaluation_client and component_request_spec. Debug/manual/scheduled component calls share DNS pinning, origin guard, Host/SNI and verified TLS; manual admission checks owner+threads:write+runs:create+policy before creating a row. The service default client also enforces the boundary. Never reinstate an unguarded fallback or verify=False; standalone toolkit TLS is verified but does not supply platform host approval by itself. Tests: test_evaluation_outbound.py. Full body/credential-reference unification is still pending. See [scope](../docs/DevPilot_导航与统一出站基线.md).

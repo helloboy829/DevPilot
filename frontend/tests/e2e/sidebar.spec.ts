@@ -98,10 +98,12 @@ test.describe("Sidebar navigation", () => {
   test("Chinese evaluation navigation uses one component-test label", async ({
     page,
     context,
+    baseURL,
   }) => {
     mockLangGraphAPI(page);
+    if (!baseURL) throw new Error("Playwright baseURL is required");
     await context.addCookies([
-      { name: "locale", value: "zh-CN", url: "http://localhost:3000" },
+      { name: "locale", value: "zh-CN", url: baseURL },
     ]);
     await page.goto("/workspace/evaluations");
     const sidebar = page.locator("[data-sidebar='sidebar']");

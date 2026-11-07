@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## Authenticated assistants / request-template slice (2026-11-07)
+
+`AgentsApiConfig.enabled` now defaults true. All authenticated accounts may manage their own assistants; keep auth middleware, owner scoping and explicit operator opt-out. Private profile routes use `users/{user_id}/USER.md`, with threaded/atomic I/O and no legacy global fallback. Operator-provisioned legacy shared agents remain a compatibility read fallback, not other users' personal agents.
+
+`devpilot.request_templates` is pure configuration-only wiring: all request values become explicit references; method/origin/header names remain. `/api/component-tests/debug/template` and the debugger download do not send, persist, certify debugging, resolve secrets, or create execution plans/evidence. Fingerprint is structural integrity, not a signature or secret/value binding. Never send `resolve()` output without fresh policy/consent. See [delivery](docs/DevPilot_Assistants_Request_Templates.md).
+
+
 ## Navigation / shared outbound slice (2026-11-07)
 
 Evaluation component calls share app.evaluation.http.PinnedEvaluationTransport across debugger/manual/scheduled paths. Manual admission requires runs:create and checks policy before creating a run. Custom-assistant navigation is hidden when disabled; do not bypass its operator gate to remove grey UI. Full RequestSpec execution/credential references remain pending. See [scope](docs/DevPilot_导航与统一出站基线.md).
