@@ -170,3 +170,28 @@ docker exec devpilot-ci-node sh -lc 'cd /workspace/frontend && CI=1 SKIP_ENV_VAL
 真实 PostgreSQL 集成验收、数据生成 Agent、组件/提测版本关联、冻结数据驱动效果/性能执行、独立人工复核中心、CV 标注治理、跨集防泄漏、耐久任务队列、可运行脚本导出和证据报告仍未在本轮实现。下一优先级是把冻结数据集作为正式执行输入，并建立组件/提测版本、运行证据、结果复核和报告的持久关联。
 
 本节数字仅代表本地隔离验证；新提交的 GitHub Actions 必须按新的 commit SHA 单独核对，不能用历史提交的绿灯替代。
+
+## 2026-11-07：项目组件与不可变提测清单最终验证
+
+本轮为 owner 项目的非可执行库存关联：已有组件 → 项目组件 → 同项目 frozen QA revision/hash → 多个不可变提测版本。新增 App 迁移 eval_0002，不改写已部署 eval_0001 或 Harness 账本；没有 RequestSpec 锁定、执行批准、真实接口调用、结果裁判或报告证据关联。所有测试仅用合成数据和 mock。详见[提测清单实现](DevPilot_项目组件与提测清单.md)。
+
+### 本地回归
+
+- 后端完整离线 pytest：**11,424 passed、73 skipped、39 warnings**，481.37 秒；跳过不计通过。
+- 项目/QA/提测路由、仓储、迁移及权限专项：**71 passed**；纯领域 unittest：evaluation 15 + toolkit 58，共 **73 passed**。
+- Ruff check 与 format --check 均通过，后端 **1,166 个文件**格式检查通过。
+- 前端全仓库 format、ESLint/TypeScript、生产 build 通过；单测 **128 文件 / 988 项通过**。
+- Playwright 普通完整回归 **163 passed**；独立认证恢复 **2 passed**；数据与提测专项 **5 passed**。新增测试覆盖关联、服务端 binding 入参、显式确认与撤销、不可变版本显示、503、页面无持久缓存、390px 无横向溢出。
+- 宿主与隔离验证副本的 **8 个后端 Python、4 个前端 TS/TSX 文件** SHA-256 逐一一致。
+
+过程问题不隐去：TDD 初始缺失 registry 模块出现预期红灯；新增 Unicode 版本名规范化后超长回归先失败，随后加 240 字符键界限，最终专项与全量通过。前端初次 lint 发现内部导航使用 a，改为 Next Link；新增 E2E 初次错误使用不存在的 Current project 标签，改为实际 Select project 精确 combobox 后通过。未加长超时、跳过用例或降低权限/秘密断言。
+
+### 本地运行升级
+
+已构建并运行 devpilot-local/gateway:submission-inventory-20261107 与 devpilot-local/frontend:submission-inventory-20261107。统一入口仍为 `http://127.0.0.1:2026`；先在私有数据卷中完成 SQLite online backup 并验证完整性，然后仅更新本项目 gateway/frontend，刷新 nginx。核对原账号保留、旧 QA 五张表逐行未改变、Harness 账本不变、新 App head 为 eval_0002、新增表就绪，外键检查通过。未删卷、重置账号或操作其他项目容器。
+
+HTTP 冒烟：health/login 200；项目、候选组件、项目组件、提测快照、审计以及模型/报告/定时接口未登录均 401；工作区数据页跳转登录。没有代用户登录、创建账号或真实模型/客户请求；真实用户登录后的视觉验收仍需使用者确认。备份、运行配置、截图、辅助脚本和输出均留在忽略目录，不进入 Git。
+
+### 未完成与远端边界
+
+真实 PostgreSQL 集成、RequestSpec/凭据引用与调试确认的持久版本、清单导入模板、CV 样本、数据生成 Agent、耐久执行、结果复核和报告证据仍待开发。本轮测试通过不代表这些能力已完成，也不代表 GitHub Actions 通过。远端推送与新 commit 对应 Actions 状态以实际命令结果另行核对。

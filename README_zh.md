@@ -6,6 +6,10 @@ DevPilot 基于 ByteDance DeerFlow 的 Agent 底座二次开发，面向 AI 模�
 
 > 当前是可体验的开发版本，不是完整的无人值守验收系统。平台事实、模型建议和人工决定必须分开；不能因为接口返回成功就判定组件效果通过。
 
+## 项目组件与提测清单
+
+“项目与数据”支持一个项目关联多个本人已登记组件，每个组件保存多个不可变清单版本，绑定同项目冻结 QA 的 revision/hash。服务端只取必要库存字段，不复制接口密钥或金标。它不是可执行计划、验收通过或报告证据；详见[实现边界](docs/DevPilot_项目组件与提测清单.md)。
+
 ## 本地使用
 
 完整服务的统一入口为 `http://127.0.0.1:2026`。新环境按 [Install.md](Install.md)、根目录 `AGENTS.md` 和模块指南安装；可使用 `make dev` 或 Docker。凭据、运行配置和业务材料不要提交 Git。
@@ -14,7 +18,7 @@ DevPilot 基于 ByteDance DeerFlow 的 Agent 底座二次开发，面向 AI 模�
 | --- | --- |
 | 评测工作台 `/workspace/evaluations` | 默认首页，展示真实组件库存、评测步骤和未实现能力；不虚构验收统计 |
 | 组件测试 `/workspace/component-tests` | 注册组件、初版效果/性能执行；新增完整 cURL 粘贴、解析、编辑、单次发送、查看/复制响应 |
-| 项目与数据 `/workspace/datasets` | 本人项目、来源/授权声明、JSON/JSONL导入校验、Q/预期/来源并排检查和确认冻结 |
+| 项目与数据 `/workspace/datasets` | 本人项目、多组件关联与不可变提测清单、来源/授权声明、JSON/JSONL导入校验、Q/预期/来源并排检查和确认冻结 |
 | 定时评测 `/workspace/evaluation-schedules` | 单次/cron/时区、冻结参数、暂停/恢复、执行历史；直接进入确定性评测器，不生成聊天或推送任务 |
 | 报告 `/workspace/reports` | 人工填写指标、单组件及项目多组件快照、固定版本中英文模板、Markdown/JSON 草稿下载 |
 | 模型与分工 `/workspace/models` | 管理员添加/编辑/删除模型、显式连接测试、加密且只写的 API Key、角色分配 |

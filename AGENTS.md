@@ -1,8 +1,12 @@
 # AGENTS.md
 
+## Project component/submission inventory (2026-11-07)
+
+`app.evaluation.registry` and `registry_repository` link owner-owned legacy components to projects and frozen QA versions. Current App migration head is `eval_0002`; do not edit deployed `eval_0001`. SQL selects only safe inventory columns, never legacy endpoints/tokens/criteria. Server-built immutable snapshots have `scope=inventory_only`: NOT RequestSpec locks, executable plans, acceptance or report evidence. Submission creation requires write+review and explicit confirmation; rejects internal Agent callers. See [inventory slice](docs/DevPilot_项目组件与提测清单.md).
+
 ## Project / QA data slice (2026-11-07)
 
-`devpilot.datasets` owns pure import/fingerprint primitives. `app.evaluation` owns project/QA DTOs, tables, repository and independent Alembic migrations (`devpilot_alembic_version`, `eval_0001`); never add App imports to Harness. `/workspace/datasets` and `/api/evaluation/projects` enforce owner scope and separate read/write/review permissions. Gold answers use a separate table/read route and never normal chat or persistent browser cache. Freeze is explicit self-review with revision/hash checks, not independent approval or acceptance. No Agent generation or component/run/report linkage yet. See [QA slice](docs/DevPilot_QA数据最小闭环.md).
+`devpilot.datasets` owns pure import/fingerprint primitives. `app.evaluation` owns project/QA DTOs, tables, repository and independent Alembic migrations (`devpilot_alembic_version`, `eval_0001`); never add App imports to Harness. `/workspace/datasets` and `/api/evaluation/projects` enforce owner scope and separate read/write/review permissions. Gold answers use a separate table/read route and never normal chat or persistent browser cache. Freeze is explicit self-review with revision/hash checks, not independent approval or acceptance. No Agent generation or execution/run/report linkage yet; the later inventory slice adds non-executable component/submission bindings. See [QA slice](docs/DevPilot_QA数据最小闭环.md).
 
 ## Report assistant slice (2026-11-07)
 

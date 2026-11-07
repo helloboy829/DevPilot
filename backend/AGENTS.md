@@ -1,10 +1,14 @@
 # AGENTS.md
 
+## App-owned component/submission inventory (2026-11-07)
+
+Current App ledger head is `eval_0002`, chained after unchanged `eval_0001`. `registry_repository` selects an allowlist from Harness ComponentRow without endpoint/token/criteria, owner-checks links and builds server snapshots bound to revalidated frozen QA revision/hash. Composite FKs prohibit cross-project component/data bindings; normalized labels are unique; audit metadata commits atomically. `scope=inventory_only` is not executable approval. No update/delete API or Agent invocation; creation requires write+review, rejects internal Agent callers, and never returns gold. Tests: test_evaluation_registry.py / test_evaluation_registry_router.py. See [inventory design](../docs/DevPilot_项目组件与提测清单.md); real PostgreSQL acceptance remains outstanding.
+
 ## App-owned project / QA persistence (2026-11-07)
 
 `app.evaluation.datasets/repository/tables/schema` and `migrations/` own the QA ledger; `devpilot.datasets` stays stdlib-only. New routes `/api/evaluation/projects` require evaluation_projects:read/write/review and owner-check every child. references/freeze reject authenticated internal Agent callers, not all external automation with user credentials. Plain samples omit expected; references reads audit metadata in the same transaction. Imports are atomic, bounded (500 rows / 500000 UTF-8 bytes), strict, duplicate-rejecting; mutable drafts use revision CAS, freeze recomputes persisted content hash. No independent review/acceptance or execution linkage yet.
 
-Persistent startup offloads App Alembic to a thread with an isolated temporary engine. Ledger devpilot_alembic_version / eval_0001 is separate from Harness; autogenerate excludes evaluation_* and this version table, including child schema objects. Preserve postgres_schema/search_path; SQLite BEGIN IMMEDIATE and PostgreSQL transaction advisory lock serialize startup. Memory returns503; echo_sql=true refuses initialization. SQLite migration/coexistence/restart/concurrency have tests; real PostgreSQL integration is not yet accepted. Rollback code without dropping data. No business imports in Harness. Tests: test_evaluation_datasets.py and test_evaluation_projects_router.py. See [QA design](../docs/DevPilot_QA数据最小闭环.md).
+Persistent startup offloads App Alembic to a thread with an isolated temporary engine. Ledger devpilot_alembic_version (initial eval_0001, now eval_0002) is separate from Harness; autogenerate excludes evaluation_* and this version table, including child schema objects. Preserve postgres_schema/search_path; SQLite BEGIN IMMEDIATE and PostgreSQL transaction advisory lock serialize startup. Memory returns503; echo_sql=true refuses initialization. SQLite migration/coexistence/restart/concurrency have tests; real PostgreSQL integration is not yet accepted. Rollback code without dropping data. No business imports in Harness. Tests: test_evaluation_datasets.py and test_evaluation_projects_router.py. See [QA design](../docs/DevPilot_QA数据最小闭环.md).
 
 ## Reports slice (2026-11-07)
 

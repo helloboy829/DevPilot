@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ProjectRegistryPanel } from "@/components/workspace/project-registry-panel";
 import {
   WorkspaceBody,
   WorkspaceContainer,
@@ -649,6 +650,13 @@ export default function DatasetsPage() {
               )}
             </main>
           </fieldset>
+          {projectId && (
+            <ProjectRegistryPanel
+              key={projectId}
+              projectId={projectId}
+              zh={zh}
+            />
+          )}
         </div>
       </WorkspaceBody>
     </WorkspaceContainer>

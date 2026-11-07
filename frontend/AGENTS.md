@@ -1,8 +1,12 @@
 # AGENTS.md
 
+## Project component/submission registry (2026-11-07)
+
+`ProjectRegistryPanel` is embedded in `/workspace/datasets`, keyed by project; explicit refresh loads safe legacy component candidates, links and datasets. Uses the authenticated no-store evaluationApi and page memory only. Confirm version/data fingerprints before creating immutable inventory-only bindings. No RequestSpec locks, test execution or report evidence. Edits/switches/errors/writes revoke confirmation; busy fieldset/ref lock prevents duplicate mutations. Missing/stale source fails closed on server. E2E: tests/e2e/project-registry.spec.ts. See [inventory design](../docs/DevPilot_项目组件与提测清单.md).
+
 ## Project / QA data page (2026-11-07)
 
-`/workspace/datasets` manages owner-only projects and QA versions using core/datasets/types and the existing authenticated/CSRF/no-store evaluationApi. No localStorage, chat or persistent query cache. Source edits revoke attestation; sample edits, version/project switches and failures revoke review consent. Loading Q/reference/source is explicit and separately authorized. Freeze requires persisted revision/hash and self-review, not independent approval or a test verdict. Busy fieldset plus a request lock prevents duplicate mutations; stale lifecycle requests do not repopulate initial state. Errors remain visible; 409 requires reload/review rather than automatic retry. Content is text, never HTML/source retrieval. tests/e2e/datasets.spec.ts covers import/freeze, unavailable service, revoked consent/version conflict and mobile layout. No file upload, data-generation Agent, component/run linkage or actual result-review tasks yet.
+`/workspace/datasets` manages owner-only projects and QA versions using core/datasets/types and the existing authenticated/CSRF/no-store evaluationApi. No localStorage, chat or persistent query cache. Source edits revoke attestation; sample edits, version/project switches and failures revoke review consent. Loading Q/reference/source is explicit and separately authorized. Freeze requires persisted revision/hash and self-review, not independent approval or a test verdict. Busy fieldset plus a request lock prevents duplicate mutations; stale lifecycle requests do not repopulate initial state. Errors remain visible; 409 requires reload/review rather than automatic retry. Content is text, never HTML/source retrieval. tests/e2e/datasets.spec.ts covers import/freeze, unavailable service, revoked consent/version conflict and mobile layout. No file upload, data-generation Agent, execution/run linkage or actual result-review tasks yet; non-executable component/submission bindings are documented above.
 
 ## Reports slice (2026-11-07)
 

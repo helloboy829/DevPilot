@@ -1,5 +1,9 @@
 # DevPilot API 接口设计 v3.0
 
+## 已实现追加：项目组件与提测清单（2026-11-07）
+
+`/api/evaluation/projects/{project_id}` 新增 GET component-candidates、GET/POST components、GET/POST components/{component_id}/submissions、GET submissions/{submission_id} 和 GET registry-audit。owner 隔离，创建提测需 write+review、明确确认及服务端 frozen QA 校验。只保存安全库存清单，不是 RequestSpec/执行批准；详细字段、权限与错误见[提测清单实现](DevPilot_项目组件与提测清单.md)。
+
 ## 已实现：项目与 QA 数据 API（2026-11-07）
 
 前缀 /api/evaluation/projects：GET/POST本人项目，GET/POST /{project_id}/datasets，GET单版本，GET/PUT .../samples，GET .../references，POST .../freeze，GET .../audit。分别使用 evaluation_projects:read/write/review，金标读取和人工冻结禁止受信任内部Agent。所有操作校验owner，响应no-store，校验错误不回显。持久库不可用503；非法格式422；大请求413；revision/hash/冻结冲突409。不实现下文完整 /dataset-versions 审批资源。精确载荷、权限、大小和状态边界见[QA切片API](DevPilot_QA数据最小闭环.md#3-实际-api-与授权)。

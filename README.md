@@ -9,7 +9,7 @@
 | Page | Implemented scope |
 | --- | --- |
 | `/workspace/evaluations` | Default evaluation-first landing page with real component inventory and explicit remaining capabilities |
-| `/workspace/datasets` | Owner-scoped projects, source/authorization declarations, bounded QA import, explicit reference review and snapshot freeze |
+| `/workspace/datasets` | Owner-scoped projects, QA import/review/freeze, existing-component links and immutable inventory-only submission versions |
 | `/workspace/component-tests` | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses |
 | `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery |
 | `/workspace/reports` | Manual single-component and multi-component project snapshots, pinned Chinese/English templates, Markdown/JSON draft downloads |
@@ -19,6 +19,8 @@
 The unified local entry point is `http://127.0.0.1:2026`. See [Install.md](Install.md), [AGENTS.md](AGENTS.md) and module guides for installation and full-stack `make dev`/Docker commands. Do not commit local configuration, credentials or customer materials.
 
 ## Important boundaries
+
+- **Project inventories:** link existing owner-owned components to frozen QA revision/hash and create multiple immutable inventory-only submission versions. Server snapshots exclude endpoints, credentials and gold. This is not a locked request/executable plan, test verdict or report evidence. See [inventory delivery](docs/DevPilot_项目组件与提测清单.md).
 
 - **Request debugger:** parses one complete cURL without running a shell or reading files. Review method/URL/headers/body and explicitly authorize sending. Operator host approval, DNS pinning, TLS verification, no redirects/environment proxies, bounded timeout/response. Not a full Postman replacement: no multipart uploads, cookie jar, collections/environments, scripts or runnable test export yet. Debug data is not persisted or automatically promoted into an approved evaluation specification.
 - **Off-peak evaluations:** require `scheduler.enabled: true` and approved destination hosts. Plans do not copy component credentials, reject changed target configuration, and recheck owner permissions at launch. Scheduled effect calls collect outputs for manual review, without implicit disclosure to an LLM judge. The existing scheduler provides leases/history/non-overlap, but component execution remains process-local rather than a durable worker queue. Pausing/deleting does not cancel an active run.
