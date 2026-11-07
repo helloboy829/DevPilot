@@ -88,3 +88,9 @@ python -B -X utf8 -m unittest discover -s devpilot/src/devpilot/toolkit/tests -v
 已建立独立 Python 3.12 / Node 22 / 锁定 pnpm 的 Docker 验证环境，完成本地后端完整回归（含隔离 PostgreSQL/Redis）。修复失效文档/迁移 head 测试、恢复中英文文档路由、清理前端格式问题、隔离单测 DNS；make test 已纳入 73 项 DevPilot 核心回归（F11 测试入口部分已修复）。完整结果与跳过/抖动见[CI 验证记录](DevPilot_CI修复与隔离开发环境.md)，不代表生产 Docker 打包已验收。
 
 已本地分析授权历史材料，新增[脱敏材料分析](DevPilot_历史材料分析与设计校准.md)，同步摸底/验收、金标/结构验证、加权评分、动态快照和耗时人群目标契约。业务新字段/新 UI 未实现，既有安全/耐久任务/生产打包问题仍未全部修复。
+
+## 8. 报告草稿最小切片（2026-11-07）
+
+新增 `devpilot.reporting`、Gateway `/api/reports/templates`/`preview`、`/workspace/reports` 页面及独立合成回归。支持人工填写对象/版本/效果/性能/证据，固定模板版本生成 DRAFT 并下载 Markdown/JSON；保留待审/未跑分母、指标缺失/统计人群/流式适用性和模板/事实快照。无模型/目标调用、无自动验收结论、无服务端存档、无审批或模板上传。既有 P0 安全/耐久/生产打包门禁仍须后续完成，不把本切片当作 I0 退出。详见 [报告设计](DevPilot_报告模块设计.md)。
+
+完整回归中另外复现 browser URL 安全单测依赖真实 GitHub DNS，已只 stub 解析结果，保留生产 SSRF 逻辑与私网/非 HTTP 拒绝，新增无法解析/私网 DNS 回归。报告浏览器首轮两个失败来自通用 alert 选择器命中 Next 路由 announcer，改为按实际错误文本定位，未跳过错误断言；其余抖动及最终结果见 [验证记录](DevPilot_CI修复与隔离开发环境.md)。

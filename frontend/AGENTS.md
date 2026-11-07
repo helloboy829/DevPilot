@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## Reports slice (2026-11-07)
+
+`/workspace/reports` and `src/core/reports/` provide bilingual manual, unverified report drafts using the authenticated/CSRF-aware fetch wrapper. Template selection pins id+version. Clear previews/downloads after field, locale or template changes; lock edits during generation and discard stale responses. Keep facts out of localStorage, query persistence, URLs and chat; Markdown preview is text, not injected HTML. Downloads use fixed filenames and temporary Blob URLs. There is no server persistence, approval UI, DOCX/PDF or template editor. Tests live in `tests/unit/core/reports/` and `tests/e2e/reports.spec.ts`; see [report design](../docs/DevPilot_报告模块设计.md).
+
+
 This file provides guidance to AI coding agents (Claude Code, Codex, and others) when working with the DeerFlow frontend. It is the source of truth; the sibling `CLAUDE.md` imports it via `@AGENTS.md`.
 
 ## Material and CI calibration (2026-11-07)

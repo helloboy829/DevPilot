@@ -302,6 +302,7 @@ export const enUS: Translations = {
     agents: "Agents",
     scheduledTasks: "Scheduled tasks",
     componentTests: "Component tests",
+    reports: "Reports",
     agentsDisabledTooltip: "Feature not enabled",
   },
 

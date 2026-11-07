@@ -226,6 +226,7 @@ export interface Translations {
     agents: string;
     scheduledTasks: string;
     componentTests: string;
+    reports: string;
     agentsDisabledTooltip: string;
     channels: string;
   };

@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## Reports slice (2026-11-07)
+
+`devpilot.reporting` is a pure, version-pinned manual draft renderer. Gateway `/api/reports/templates` and `/api/reports/preview` enforce existing thread read/write permissions; `/workspace/reports` offers entry and Markdown/JSON downloads. Facts and template snapshots are included, but hashes are not signatures. This is stateless, unverified input: no report publication, persistent revision history, template uploads or acceptance decisions. See [report design](docs/DevPilot_报告模块设计.md). Keep published template versions immutable and old downloads invalidated after any input/version change. Never commit customer scenario names, historical aggregate metrics or original materials.
+
+
 This file provides guidance to AI coding agents (Claude Code, Codex, and others) when working with code in this repository. It is the source of truth; the sibling `CLAUDE.md` imports it via `@AGENTS.md`.
 
 It is the **monorepo orientation layer**: it maps the whole repo and points to the
@@ -15,7 +20,7 @@ guide rather than expecting full detail here:
 ## Material and CI calibration (2026-11-07)
 
 Read [the sanitized material analysis](docs/DevPilot_历史材料分析与设计校准.md) and [the isolated CI guide](docs/DevPilot_CI修复与隔离开发环境.md).
-Keep raw customer files, reference answers, credentials and internal endpoints out of Git and model context. BASELINE/ACCEPTANCE, metric populations and scoring fields in the new designs remain planned, not implemented API capabilities. Do not infer numerical accuracy from output shape or silently default acceptance thresholds.
+Keep raw customer files, reference answers, credentials and internal endpoints out of Git and model context. BASELINE/ACCEPTANCE and metric populations are accepted only as unverified manual report facts in the new preview slice, not as implemented execution/acceptance capabilities in component-tests; weighted scoring remains planned. Do not infer numerical accuracy from output shape or silently default acceptance thresholds.
 
 ## DevPilot Product Direction (2026-11-06)
 

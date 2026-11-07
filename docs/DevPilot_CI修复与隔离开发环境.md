@@ -89,3 +89,25 @@ docker exec devpilot-ci-node sh -lc 'cd /workspace/frontend && CI=1 SKIP_ENV_VAL
 ## 5. 尚未完成的业务与工程门禁
 
 生产 Docker 打包 devpilot 依赖、TLS/凭据/出站策略、耐久任务/取消/资源上限、逐请求性能证据、真实报告导出和完整评测 UI 均需继续按审计清单开发。不能因为 CI 修绿就宣布产品已可正式无人值守验收。
+
+## 6. 脱敏提交远端验证（2026-11-07）
+
+已替换未推送的含敏感分析内容提交，再正常推送 `15adab94215c3ca788d47bbc3f36c3b74c415405`；没有 force push 远端。分析文档公开版删除项目场景名称及原始汇总测试指标，只保留通用设计结论。此处是从待上传分支祖先链移除，不代表本地 Git 对象/reflog 已物理销毁。
+
+通过 GitHub Actions REST API 核对该提交：Unit Tests、E2E Tests、Frontend Unit Tests、Lint Check、Replay E2E (front-back contract)、Backend Blocking IO **全部 completed/success**。该记录仅指这个提交，不替代后续新提交的 CI 状态。
+
+## 7. 报告切片回归说明（2026-11-07）
+
+开发前完整基线：DevPilot 73 项 + Gateway 11,294 passed/29 skipped。报告核心与路由专项 **41 项通过**；报告、浏览器路由及浏览器工具合并专项 **114 passed、1 skipped**。
+
+最终工作区代码的隔离验证：
+
+- 后端 `make test`：DevPilot **73 项通过**，Gateway **11,336 passed、29 skipped**。跳过不计入通过；不是真实客户目标验收。
+- Python：全后端 Ruff check、format --check（1,130 文件），新增纯领域 reporting 的 Ruff/格式检查及 `uv lock --check` 全通过。
+- 前端：ESLint/TypeScript 通过；**127 个单测文件、984 项测试通过**；本轮报告文件 Prettier 检查通过。
+- 完整 Playwright：**147 passed、1 flaky**，共 148 项；新增报告页 **7 项均首轮通过**。Lark 集成旧用例等待弹窗从 `about:blank` 跳转时超时，重试后通过，不记为稳定首过，也没有删除或放宽该断言。
+- 独立认证 Playwright：**2 passed**。完整与认证浏览器回归均在启动前完成生产构建，使用 mock 后端，不代表真实平台全栈/客户接口已验收。日志中的 mock 未覆盖轮询访问本地不存在的 Gateway 会出现代理连接拒绝，不将其当作已验证真实后端。
+
+过程中的失败与修复也予保留：第一轮完整后端 1 failed、11,334 passed、29 skipped，第二轮 1 failed、11,335 passed、29 skipped，分别暴露 browser router 和 browser tool 单测依赖真实公网 DNS。仅在模拟浏览器的测试中 stub 解析器，保留生产 URL 安全校验，并增加私网 DNS/解析失败拒绝回归；最终完整回归通过。第一轮完整浏览器 2 failed、141 passed、1 flaky，两个报告断言误匹配 Next route-announcer，已收紧到具体错误文本。
+
+本节记录本地隔离验证，不复用第 6 节旧提交的远端成功结论；新提交的 Actions 必须按其实际 SHA 另行核对。报告目前仍是无状态人工草稿，没有服务端报告历史、正式审批、模板上传编辑或 DOCX/PDF 导出。

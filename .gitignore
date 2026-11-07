@@ -69,3 +69,7 @@ config.yaml.bak
 
 # Monocle agent-observability trace output (local file exporter)
 .monocle/
+
+# Manual report downloads can contain private user-entered facts; never commit them.
+evaluation-report-draft.md
+evaluation-report-draft.json

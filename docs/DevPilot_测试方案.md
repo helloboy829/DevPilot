@@ -89,3 +89,7 @@ Runner 会在 frontend 执行；E2E 依赖按 Playwright 配置安装，并测�
 10. 新 assessment 的计数/verdict/事件原子一致，报告锁定旧 assessment；复核变化需新报告修订/审签，不能覆写已发布件。项目 SSE 重连/双流重复事件不重复计数。
 
 这些是新增目标用例，尚未实现/运行；不能把本节列出用例当成测试已通过。
+
+## 报告草稿回归（2026-11-07）
+
+核心/路由：`backend/tests/test_report_previews.py`、`test_reports_router.py`；表单/API：`frontend/tests/unit/core/reports/`；浏览器：`frontend/tests/e2e/reports.spec.ts`。覆盖严格计数/固定分母、未测量非零、流式 TTFT 与覆盖、token 来源、模板精确版本/快照与 hash、极端值校验、结构转义、认证/权限/生成身份、字段/模板变化清除旧下载、生成时锁定、错误及空目录。fixture 均为合成，禁止加入客户名称或历史指标作为回归常量。此处浏览器 mock 后端，API 使用 TestClient，不冒充真实网关/目标全栈验收；审批和持久修订尚未实现，不存在对应完成的验收。

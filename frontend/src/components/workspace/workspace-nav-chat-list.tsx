@@ -3,6 +3,7 @@
 import {
   BotIcon,
   CalendarClock,
+  FileText,
   FlaskConical,
   MessagesSquare,
 } from "lucide-react";
@@ -105,6 +106,17 @@ export function WorkspaceNavChatList() {
             >
               <FlaskConical />
               <span>{t.sidebar.componentTests}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            isActive={pathname.startsWith("/workspace/reports")}
+            asChild
+          >
+            <Link className="text-muted-foreground" href="/workspace/reports">
+              <FileText />
+              <span>{t.sidebar.reports}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

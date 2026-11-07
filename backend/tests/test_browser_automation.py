@@ -64,6 +64,18 @@ class TestSnapshotRendering:
 
 @pytest.mark.asyncio
 class TestBrowserTools:
+    @pytest.fixture(autouse=True)
+    def offline_public_dns(self, monkeypatch):
+        # Browser sessions are mocked here; their URL preflight must not use
+        # live example.com DNS. Keep the actual private/non-http validator.
+        import ipaddress
+
+        def resolve(host):
+            assert host == "example.com", "unexpected DNS dependency in an offline tool test"
+            return [ipaddress.ip_address("93.184.216.34")]
+
+        monkeypatch.setattr(tools, "_resolve_host_addresses", resolve)
+
     async def _patch_session(self, session):
         manager = MagicMock()
         manager.get_session.return_value = session

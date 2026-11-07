@@ -1,5 +1,10 @@
 > **Upstream reference / 上游底座参考**：This document describes DeerFlow, not the completion status of DevPilot's evaluation product. See [DevPilot README](README.md) and [the current design baseline](docs/README.md). / 本文介绍上游能力，不代表 DevPilot 评测闭环已经实现。
 
+## 报告草稿模块（2026-11-07）
+
+`/workspace/reports` 支持人工填写效果/性能结果，按固定版本的中英文内置模板生成 DRAFT，下载 Markdown/JSON。缺测不补零，计数不一致或非流式填写 TTFT 会拒绝。输入/版本变化清除旧下载。当前不保存服务端报告、无正式审批/模板编辑/Word/PDF；手工输入始终标记未核验，不构成验收。详见 [报告模块设计](docs/DevPilot_报告模块设计.md)。
+
+
 # 🦌 DeerFlow - 2.0
 
 [English](./README_upstream.md) | 中文 | [DevPilot](./README.md)

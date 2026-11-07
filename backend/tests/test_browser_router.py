@@ -331,5 +331,23 @@ def test_validate_browser_url_rejects_private_and_non_http(monkeypatch):
     assert validate_browser_url("http://127.0.0.1:8001/") is not None
     assert validate_browser_url("file:///etc/passwd") is not None
     assert validate_browser_url("ftp://example.com") is not None
+    # The offline suite must not depend on live GitHub DNS. Keep the actual
+    # validator and its private/non-http checks above; only stub public DNS.
+    import ipaddress
+
+    monkeypatch.setattr(browser_tools, "_resolve_host_addresses", lambda _host: [ipaddress.ip_address("93.184.216.34")])
     # A normal public URL passes (returns None = allowed).
     assert validate_browser_url("https://github.com/bytedance/deer-flow") is None
+
+
+def test_validate_browser_url_rejects_unresolvable_and_private_dns(monkeypatch):
+    import ipaddress
+
+    from deerflow.community.browser_automation import tools as browser_tools
+    from deerflow.community.browser_automation import validate_browser_url
+
+    monkeypatch.setattr(browser_tools, "_get_tool_config", lambda _name: {})
+    monkeypatch.setattr(browser_tools, "_resolve_host_addresses", lambda _host: [])
+    assert "could not be resolved" in validate_browser_url("https://unresolvable.invalid")
+    monkeypatch.setattr(browser_tools, "_resolve_host_addresses", lambda _host: [ipaddress.ip_address("10.0.0.1")])
+    assert "Refusing" in validate_browser_url("https://internal.invalid")

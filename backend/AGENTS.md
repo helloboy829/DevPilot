@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## Reports slice (2026-11-07)
+
+`app/gateway/routers/reports.py` adds authenticated, no-store template catalog and manual draft preview routes. Pure `devpilot.reporting` owns strict counters, metric applicability, fixed template versions, escaped Markdown and snapshot hashes. No model calls, target calls, file I/O, database changes, template upload, approval or verified verdict. Server owns generated_by/time; client facts cannot claim platform verification. Permissions currently reuse threads read/write, not project-level authorization. Tests: `tests/test_report_previews.py`, `tests/test_reports_router.py`. See [report design](../docs/DevPilot_报告模块设计.md); persistent reports must add dedicated authorization and audit first.
+
+
 This file provides guidance to AI coding agents (Claude Code, Codex, and others) when working with code in this repository. It is the source of truth; the sibling `CLAUDE.md` imports it via `@AGENTS.md`.
 
 ## Material and CI calibration (2026-11-07)

@@ -286,6 +286,7 @@ export const zhCN: Translations = {
     agents: "智能体",
     scheduledTasks: "定时任务",
     componentTests: "组件测试",
+    reports: "报告",
     agentsDisabledTooltip: "功能未启用",
   },
 
