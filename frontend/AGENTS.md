@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Frozen QA plan workspace (2026-11-08)
+
+`EvaluationPlanPanel` on `/workspace/datasets` is keyed by project. Use distinct sibling key namespaces (`registry:` / `plan:`); duplicate keys can duplicate old controls during project transitions. Explicit source reads load only request/QA/plan metadata. Strict `plan-form` builds the existing frozen-definition DTO; edits, refresh and submission revoke confirmation. Keep page-memory-only state, write ref locking, stale-response tokens, and an explicit metadata refresh after any failed/unknown write. No target calls, gold reads, auto-retry, execution authority or model requirement. Root-string output is opt-in; pointer whitespace is literal. See [UI scope](../docs/DevPilot_Frozen_QA_Plan_UI.md).
+
 ## Request-version save / metadata UI (2026-11-08)
 
 RequestDebugger opens RequestVersionDialog with a snapshot of the current edited request, or null for metadata-only browsing. Explicit project loading and owner-scoped component selection use evaluationApi with no-store; never persist complete values in browser storage or chat. Writes require separate explicit storage confirmation, with locked fields/dismissal, generic errors and no retries. Scope/label changes, failures and refresh revoke confirmation; scope switches clear old metadata. Metadata reads never request plaintext/ciphertext. Key provisioning remains operator-owned; missing-key save failures are not successful tests. Tests: request-version-dialog.dom.test.tsx and request-versions.spec.ts. See [delivery](../docs/DevPilot_Request_Version_UI.md).

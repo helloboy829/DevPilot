@@ -2,7 +2,7 @@
 
 ## Frozen QA JSON plans (2026-11-08)
 
-`eval_0004` adds plan/audit tables and a same-project/component request FK index without editing deployed migrations. `PlanRepository` revalidates DTOs, scopes all sources, recomputes frozen gold-bound hashes and preflights all input-only mappings off-loop. `_open_request_row` is a protected internal helper for one atomic plan+decryption audit transaction, not execution authority. Public metadata reads do not select gold/ciphertext. Freeze requires human write+review confirmation; no execute/update/delete/UI/Worker. `frozen_definition_only` and `human_review_required.v1` must not become automatic PASS. Tests: test_evaluation_plans / test_evaluation_plans_router. See [delivery](../docs/DevPilot_Frozen_QA_Plans.md).
+`eval_0004` adds plan/audit tables and a same-project/component request FK index without editing deployed migrations. `PlanRepository` revalidates DTOs, scopes all sources, recomputes frozen gold-bound hashes and preflights all input-only mappings off-loop. `_open_request_row` is a protected internal helper for one atomic plan+decryption audit transaction, not execution authority. Public metadata reads do not select gold/ciphertext. Freeze requires human write+review confirmation; no execute/update/delete/Worker; the separate workspace UI consumes only freeze/metadata routes. `frozen_definition_only` and `human_review_required.v1` must not become automatic PASS. Tests: test_evaluation_plans / test_evaluation_plans_router. See [delivery](../docs/DevPilot_Frozen_QA_Plans.md).
 
 ## QA JSON mapping prerequisite (2026-11-08)
 

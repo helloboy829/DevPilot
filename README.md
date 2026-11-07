@@ -1,10 +1,12 @@
 # DevPilot
 
-**Frozen QA plan API:** lock an encrypted request version, frozen QA revision/hash, JSON input/output mapping and bounded execution settings with explicit human confirmation. Every input is preflighted without sending requests or gold. This is a frozen definition, not execution approval or evidence; plan UI and durable Worker remain pending. See [scope and migration](docs/DevPilot_Frozen_QA_Plans.md).
+**Frozen QA plan API:** lock an encrypted request version, frozen QA revision/hash, JSON input/output mapping and bounded execution settings with explicit human confirmation. Every input is preflighted without sending requests or gold. This is a frozen definition, not execution approval or evidence; the project workspace now provides explicit plan confirmation and metadata browsing; durable execution remains pending. See [scope and migration](docs/DevPilot_Frozen_QA_Plans.md).
 
 **AI component evaluation workspace and bounded evaluation agents**, built on ByteDance DeerFlow. Targets include AI/CV models, LLMs and agents. [中文](README_zh.md) · [Design index](docs/README.md) · [Delivery and configuration](docs/DevPilot_Evaluation_Workspace.md)
 
 > Development preview, not a complete unattended acceptance system. Measured evidence, model suggestions and human decisions remain separate.
+
+Plan confirmation: open **Projects & datasets → select project → Frozen QA plans**. Select encrypted request metadata and a frozen QA revision, enter literal JSON pointers and bounded limits, then explicitly confirm a definition-only freeze. No target request is sent. [Workflow and limits](docs/DevPilot_Frozen_QA_Plan_UI.md).
 
 ## Workspace appearance and navigation
 
@@ -17,7 +19,7 @@ The evaluation-first sidebar keeps stable Evaluation center and AI collaboration
 | Page | Implemented scope |
 | --- | --- |
 | `/workspace/evaluations` | Default evaluation-first landing page with real component inventory and explicit remaining capabilities |
-| `/workspace/datasets` | Owner-scoped projects, QA import/review/freeze, existing-component links and immutable inventory-only submission versions |
+| `/workspace/datasets` | Owner-scoped projects, QA import/review/freeze, existing-component links, immutable inventory-only submissions and frozen QA plan confirmation |
 | `/workspace/component-tests` | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses |
 | `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery |
 | `/workspace/reports` | Manual single-component and multi-component project snapshots, pinned Chinese/English templates, Markdown/JSON draft downloads |

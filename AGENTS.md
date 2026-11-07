@@ -1,12 +1,16 @@
 # AGENTS.md
 
+## Frozen QA plan workspace (2026-11-08)
+
+`EvaluationPlanPanel` on `/workspace/datasets` is keyed by project. Explicit source reads load only request/QA/plan metadata. Strict `plan-form` builds the existing frozen-definition DTO; edits, refresh and submission revoke confirmation. Keep page-memory-only state, write ref locking, stale-response tokens, and an explicit metadata refresh after any failed/unknown write. No target calls, gold reads, auto-retry, execution authority or model requirement. Root-string output is opt-in; pointer whitespace is literal. See [UI scope](docs/DevPilot_Frozen_QA_Plan_UI.md).
+
 ## Frozen QA JSON plans (2026-11-08)
 
-App head is `eval_0004`. `app.evaluation.plan_repository` freezes same-owner/project/component request versions, gold-bound QA revision/hash, strict JSON mappings and bounded limits after all-input preflight. Decryption audit and plan/audit commit atomically. `frozen_definition_only` is NOT execution authorization, evidence or a Worker; no plan UI yet. Metadata reads exclude gold/ciphertext. Never pass expected answers to rendering. See [scope](docs/DevPilot_Frozen_QA_Plans.md).
+App head is `eval_0004`. `app.evaluation.plan_repository` freezes same-owner/project/component request versions, gold-bound QA revision/hash, strict JSON mappings and bounded limits after all-input preflight. Decryption audit and plan/audit commit atomically. `frozen_definition_only` is NOT execution authorization, evidence or a Worker; the workspace plan UI consumes these routes without adding execution authority. Metadata reads exclude gold/ciphertext. Never pass expected answers to rendering. See [scope](docs/DevPilot_Frozen_QA_Plans.md).
 
 ## QA JSON wiring core (2026-11-08)
 
-devpilot.qa_json_binding.QAJSONBinding prepares immutable request copies and extracts JSON text with strict bounded pointers, exact decimal preservation and no gold/network/model access. The plan API now consumes it for input-only preflight; UI and actual Worker execution remain pending. See [scope](docs/DevPilot_QA_JSON_Binding.md).
+devpilot.qa_json_binding.QAJSONBinding prepares immutable request copies and extracts JSON text with strict bounded pointers, exact decimal preservation and no gold/network/model access. The plan API now consumes it for input-only preflight; the confirmation UI consumes plan routes; actual Worker execution remains pending. See [scope](docs/DevPilot_QA_JSON_Binding.md).
 
 ## Request-version workspace UI (2026-11-08)
 
