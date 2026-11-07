@@ -1,5 +1,10 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：耐久派发日志（2026-11-08）
+
+[技术派发日志](DevPilot_Durable_Dispatch_Journal.md)实现不可重派序号、同事务预算预留、票据防篡改、未知写入和过期整次中断；App head 为 eval_0005。没有新增执行 API、Worker、输出证据或质量判决，后续先补独立准入再接采集器。
+
+
 ## 当前追加：有界单次采集内核（2026-11-08）
 
 [内部单次 QA 响应采集](DevPilot_Bounded_QA_Attempts.md)实现单次发送、响应/超时边界、取消清理和未知派发不重试。无运行 API、Worker、判分或持久证据，不把采集成功当作效果 PASS。

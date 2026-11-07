@@ -22,7 +22,7 @@
 
 按 TDD 先运行测试，实际观察到缺模块 ImportError，然后实现。45 项新增离线测试与既有调试/出站边界组合共 **61 通过**。覆盖单次发送、不跟随重定向、HTTP 技术错误、压缩/SSE、UTF-8/JSON/空输出、响应上限、超时、取消资源释放、不确定派发、部分字节、默认拒绝和显式编码头保留。
 
-实现后后端全量 **11,685 passed / 73 skipped / 39 warnings**；领域 unittest **15 + 58 通过**，backend 范围 Ruff lint/format 通过。均使用合成数据和 mock，不代表真实付费模型或组件连通。额外扩扫旧 toolkit 仍存在历史格式债务，不把 backend 检查称为全仓 Ruff 零问题。同 SHA CI 结果待推送后逐项核对。
+实现后后端全量 **11,685 passed / 73 skipped / 39 warnings**；领域 unittest **15 + 58 通过**，backend 范围 Ruff lint/format 通过。均使用合成数据和 mock，不代表真实付费模型或组件连通。额外扩扫旧 toolkit 仍存在历史格式债务，不把 backend 检查称为全仓 Ruff 零问题。完整提交 `b458a9d35ede2e179ad52c4095a47b859bb3f571` 实际触发 Unit Tests、Frontend Unit Tests、Lint Check、Backend Blocking IO 四项，均为 completed/success；普通 E2E 与 Replay 因路径过滤未触发，不计通过。
 
 ## 本地更新
 

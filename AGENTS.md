@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## Internal durable dispatch journal (2026-11-08)
+
+`app.evaluation.dispatch_journal` persists owner-scoped technical metadata only (`dispatch_journal_only`). App head is `eval_0005`; deployed migrations and Harness ledger are unchanged. Per-run DB row writes serialize one-way ordinal dispatch, concurrency and non-recycled response reservations (`max_response_bytes + 1`). A future independently admitted caller must confirm dispatch commit before sending; uncertain writes never return permission to send/retry. Expired leases interrupt the whole run, never reclaim slots for continuing. No network, input/gold/ciphertext reads, output evidence, API, reaper or verdict. `recording_finished` is not PASS. See [scope](docs/DevPilot_Durable_Dispatch_Journal.md).
+
+
 ## Internal bounded QA attempt collection (2026-11-08)
 
 `app.evaluation.qa_attempts` performs one application-level send via the shared DNS-pinned transport, bounded raw response retention and total attempt timeout. No gold, verdict, retry, execution route or persistence. `output_collected` is not PASS; timeout/transport error is uncertain delivery. Cancellation propagates. The future durable caller must authorize and journal dispatch before calling, enforce run-wide budgets, and never resend uncertain attempts. Output is sensitive internal data with repr suppression, not a public/evidence DTO. Existing execution paths are not switched. See [scope](docs/DevPilot_Bounded_QA_Attempts.md).
@@ -10,7 +15,7 @@
 
 ## Frozen QA JSON plans (2026-11-08)
 
-App head is `eval_0004`. `app.evaluation.plan_repository` freezes same-owner/project/component request versions, gold-bound QA revision/hash, strict JSON mappings and bounded limits after all-input preflight. Decryption audit and plan/audit commit atomically. `frozen_definition_only` is NOT execution authorization, evidence or a Worker; the workspace plan UI consumes these routes without adding execution authority. Metadata reads exclude gold/ciphertext. Never pass expected answers to rendering. See [scope](docs/DevPilot_Frozen_QA_Plans.md).
+The frozen-plan slice introduced `eval_0004`; current App head is `eval_0005`. `app.evaluation.plan_repository` freezes same-owner/project/component request versions, gold-bound QA revision/hash, strict JSON mappings and bounded limits after all-input preflight. Decryption audit and plan/audit commit atomically. `frozen_definition_only` is NOT execution authorization, evidence or a Worker; the workspace plan UI consumes these routes without adding execution authority. Metadata reads exclude gold/ciphertext. Never pass expected answers to rendering. See [scope](docs/DevPilot_Frozen_QA_Plans.md).
 
 ## QA JSON wiring core (2026-11-08)
 
@@ -22,7 +27,7 @@ The cURL debugger can explicitly save an encrypted request snapshot to an owner-
 
 ## Encrypted request definitions (2026-11-08)
 
-The request-version slice introduced `eval_0003`; current App migration head is `eval_0004`, after unchanged `eval_0001/eval_0002`. `devpilot.request_versions.FrozenRequest` is deep-immutable; protected serialization contains secrets and is never a public DTO. `app.evaluation.request_version_repository` appends owner-scoped complete-request ciphertext under explicit `DEVPILOT_REQUEST_ENCRYPTION_KEY`; no key fallback/generation. Public metadata queries exclude ciphertext; write requires write+review, human confirmation and rejects internal Agents. Crypto is thread-offloaded; open is internal/audited, not an executor. No plaintext/open/execute/update/delete HTTP routes. The later workspace UI adds explicit save and metadata browsing. `request_definition_only` is not approval, evidence or a credential-reference vault. See [scope](docs/DevPilot_Request_Versions.md).
+The request-version slice introduced `eval_0003`; current App migration head is `eval_0005`, after unchanged `eval_0001/eval_0002`. `devpilot.request_versions.FrozenRequest` is deep-immutable; protected serialization contains secrets and is never a public DTO. `app.evaluation.request_version_repository` appends owner-scoped complete-request ciphertext under explicit `DEVPILOT_REQUEST_ENCRYPTION_KEY`; no key fallback/generation. Public metadata queries exclude ciphertext; write requires write+review, human confirmation and rejects internal Agents. Crypto is thread-offloaded; open is internal/audited, not an executor. No plaintext/open/execute/update/delete HTTP routes. The later workspace UI adds explicit save and metadata browsing. `request_definition_only` is not approval, evidence or a credential-reference vault. See [scope](docs/DevPilot_Request_Versions.md).
 
 ## Stable navigation / workspace styles (2026-11-08)
 
@@ -42,7 +47,7 @@ Evaluation component calls share app.evaluation.http.PinnedEvaluationTransport a
 
 ## Project component/submission inventory (2026-11-07)
 
-`app.evaluation.registry` and `registry_repository` link owner-owned legacy components to projects and frozen QA versions. The inventory slice introduced `eval_0002`; do not edit deployed revisions (current head `eval_0004`). SQL selects only safe inventory columns, never legacy endpoints/tokens/criteria. Server-built immutable snapshots have `scope=inventory_only`: NOT RequestSpec locks, executable plans, acceptance or report evidence. Submission creation requires write+review and explicit confirmation; rejects internal Agent callers. See [inventory slice](docs/DevPilot_项目组件与提测清单.md).
+`app.evaluation.registry` and `registry_repository` link owner-owned legacy components to projects and frozen QA versions. The inventory slice introduced `eval_0002`; do not edit deployed revisions (current head `eval_0005`). SQL selects only safe inventory columns, never legacy endpoints/tokens/criteria. Server-built immutable snapshots have `scope=inventory_only`: NOT RequestSpec locks, executable plans, acceptance or report evidence. Submission creation requires write+review and explicit confirmation; rejects internal Agent callers. See [inventory slice](docs/DevPilot_项目组件与提测清单.md).
 
 ## Project / QA data slice (2026-11-07)
 

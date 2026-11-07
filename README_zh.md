@@ -1,5 +1,8 @@
 # DevPilot · AI 组件评测工作台
 
+内部开发新增[耐久派发日志](docs/DevPilot_Durable_Dispatch_Journal.md)：持久记录不可重复派发标记、运行级保守预算、带租约票据的技术观测及过期整次中断。不授权或发送请求、不重发未知派发、不保存完整输出或判分；App 增量迁移至 `eval_0005`，Harness ledger 不变。
+
+
 内部开发已增加[有界单次 JSON 采集核心](docs/DevPilot_Bounded_QA_Attempts.md)，复用出站策略、限制响应、未知派发不自动重试；尚未接入执行 API/耐久 Worker，不构成可运行的完整评测或判分。
 
 **冻结 QA 计划界面**：项目与数据 → 选择项目 → 冻结 QA 评测计划。选择组件请求版本与冻结数据集，填写 JSON 映射和效果/性能边界，明确确认后冻结定义；不调用目标接口、不代表执行批准。支持版本浏览、失败后显式刷新及多组件隔离。[操作与边界](docs/DevPilot_Frozen_QA_Plan_UI.md)。

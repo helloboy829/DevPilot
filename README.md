@@ -1,5 +1,8 @@
 # DevPilot
 
+Internal development: a [durable dispatch journal](docs/DevPilot_Durable_Dispatch_Journal.md) now persists one-way dispatch markers, conservative run-level reservations, fenced technical observations and whole-run interruption on expired leases. It does not authorize or send requests, retry uncertain delivery, store output evidence or grade results. App migrations advance additively to `eval_0005`; the harness ledger is unchanged.
+
+
 **Frozen QA plan API:** lock an encrypted request version, frozen QA revision/hash, JSON input/output mapping and bounded execution settings with explicit human confirmation. Every input is preflighted without sending requests or gold. This is a frozen definition, not execution approval or evidence; the project workspace now provides explicit plan confirmation and metadata browsing; durable execution remains pending. See [scope and migration](docs/DevPilot_Frozen_QA_Plans.md).
 
 **AI component evaluation workspace and bounded evaluation agents**, built on ByteDance DeerFlow. Targets include AI/CV models, LLMs and agents. [中文](README_zh.md) · [Design index](docs/README.md) · [Delivery and configuration](docs/DevPilot_Evaluation_Workspace.md)
