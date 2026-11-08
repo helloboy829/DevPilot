@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+[只读 Docker 诊断](DevPilot_Docker_Diagnostics.md)：有界元数据检查，区分 Docker 无响应、应用状态与磁盘风险；不自动重启、不读取日志/凭据或修改数据。
+
 - [同基准整改复测 / Same-benchmark retesting](DevPilot_Same_Benchmark_Retesting.md)：不可变逐条变化档案、固定分母与按需前后 Q/A；不是正式验收。
 
 ## 当前本地状态：已备份更新（2026-11-08）

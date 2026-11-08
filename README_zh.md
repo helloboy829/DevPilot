@@ -16,6 +16,8 @@
 
 **冻结 QA 计划**固定请求版本、数据 revision/hash、JSON 映射与边界；[确认界面](docs/DevPilot_Frozen_QA_Plan_UI.md)不会发送请求。[采集器](docs/DevPilot_Bounded_QA_Attempts.md)和[派发日志](docs/DevPilot_Durable_Dispatch_Journal.md)已被独立授权的 Worker 连接，早期文档中的“尚无执行入口”只描述原切片。旧评测/调度通路不会被静默切换。
 
+**先诊断，再恢复 Docker：**`python scripts/docker_health.py --project devpilot-local` 有超时地只读检查 Docker 响应、选定 Compose 服务状态和主机磁盘，不读取凭据/日志，不重启/清理，不调用模型或测试目标。请使用实际 Compose 项目名；磁盘偏低、历史 OOM/重启和缺失健康检查只表示风险，不证明根因或应用已就绪。[使用、字段与边界](docs/DevPilot_Docker_Diagnostics.md)。
+
 [English](README.md) · [设计与开发文档](docs/README.md) · [本轮交付与配置](docs/DevPilot_Evaluation_Workspace.md)
 
 DevPilot 基于 ByteDance DeerFlow 的 Agent 底座二次开发，面向 AI 模型、CV、LLM 和 Agent 的效果与性能评测。产品界面使用 DevPilot；`deerflow` Python 包、兼容 API、既有环境变量与上游版权保留，避免破坏底层升级和存量数据。

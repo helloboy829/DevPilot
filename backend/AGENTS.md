@@ -1597,6 +1597,8 @@ CI.
 
 `tests/test_frontend_docker_runtime.py` pins the cross-stack production Docker contract: prebuilt output, direct Node startup, no runtime package-manager setup, and an unchanged explicit development/hot-reload path. These are offline configuration tests, not proof that every image has been rebuilt or that Docker Desktop hangs are solved.
 
+`scripts/docker_health.py` is a standalone standard-library incident probe, not a Gateway endpoint or scheduler. `tests/test_docker_health.py` uses synthetic metadata and mocked CLI/disk access to verify fixed error codes, scope, bounds/deadlines and no raw private output. It never restarts Docker or retries evaluation work; `make docker-health` must not require the backend venv.
+
 ### Test-Driven Development (TDD) — MANDATORY
 
 **Every new feature or bug fix MUST be accompanied by unit tests. No exceptions.**

@@ -24,6 +24,8 @@ The [single-attempt collector](docs/DevPilot_Bounded_QA_Attempts.md) and [durabl
 
 **Restart-stable production frontend:** compile when building the image, then run the prebuilt Next.js server directly as Node. Production startup does not compile or download a package manager. Keep `dev`/hot reload for development; do not override production startup with `build && start`. [Operations and limits](docs/DevPilot_Local_Recovery_and_Upgrade.md#前端构建与运行分离)。
 
+**Docker diagnosis before recovery:** `python scripts/docker_health.py --project devpilot-local` checks daemon responsiveness, selected Compose service state and host disk capacity without restarting, deleting, reading credentials/logs or calling targets/models. Each Docker command times out; unknowns remain unknown. Use the actual Compose project name. Low disk, historical OOM/restarts and missing healthchecks are signals, not a proven cause or an application-readiness guarantee. [Procedure, JSON fields and limits](docs/DevPilot_Docker_Diagnostics.md).
+
 ## Workspace appearance and navigation
 
 The evaluation-first sidebar keeps stable Evaluation center and AI collaboration groups. Opening Chats or Custom assistants no longer inserts a new-chat row above the menu; create conversations inside Chats (or use the command palette). Assistant management does not open a conversation.

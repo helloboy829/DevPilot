@@ -258,6 +258,8 @@ Rule of thumb: **root `make` = the full application**; **`backend/Makefile` and 
 
 Host-side pnpm consumers, including the root/frontend Makefiles and local diagnostic scripts, must run through `scripts/pnpm.py`. Diagnostic scripts resolve the runner and frontend directory to absolute paths before changing the child process working directory, so they remain independent of the caller's current directory. The runner preserves direct `pnpm`/`pnpm.cmd` priority, falls back to `corepack pnpm`, and is invoked from `frontend/` so Corepack honors the package-manager version pinned by that project.
 
+Docker incident diagnosis: `python scripts/docker_health.py --project devpilot-local` (or `make docker-health DOCKER_HEALTH_PROJECT=<actual-compose-project>`) runs without backend dependencies. It reads only bounded, allowlisted Docker metadata for the selected project and host disk capacity; never logs/env/mounts/configuration, target/model requests or recovery actions. A maximum of three CLI commands have per-command timeouts and a shared deadline. Unknown disk readings stay unknown; absent healthchecks and historical restart/OOM flags are warnings, not root-cause/readiness proof. Keep accounts/configuration/volumes intact; never add automatic Desktop restarts, prune or execution retry. Synthetic tests: `backend/tests/test_docker_health.py`.
+
 ## Where to Go Next
 
 - Backend work → **[backend/AGENTS.md](backend/AGENTS.md)**
