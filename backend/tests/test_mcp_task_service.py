@@ -365,7 +365,8 @@ async def test_run_once_stops_polling_terminal_and_input_required_snapshots():
 
 
 @pytest.mark.asyncio
-async def test_run_once_releases_claim_when_driver_is_missing_or_fails():
+@pytest.mark.parametrize("completion_delay_seconds", [0, 7])
+async def test_run_once_releases_claim_when_driver_is_missing_or_fails(monkeypatch, completion_delay_seconds):
     rows = [_claimed_row(driver_name="missing"), {**_claimed_row(), "id": "task-2", "remote_task_id": "remote-2", "driver_name": "broken"}]
     repo = FakeRepository(rows)
     registry = McpTaskDriverRegistry()
@@ -377,15 +378,24 @@ async def test_run_once_releases_claim_when_driver_is_missing_or_fails():
         lease_seconds=120,
         max_concurrent_polls=3,
     )
-    now = datetime.now(UTC)
+    scan_start = datetime(2026, 1, 1, tzinfo=UTC)
+    completed_at = scan_start + timedelta(seconds=completion_delay_seconds)
 
-    await service.run_once(now=now)
+    class CompletionClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            assert tz is UTC
+            return completed_at
+
+    monkeypatch.setattr("app.mcp_tasks.service.datetime", CompletionClock)
+
+    await service.run_once(now=scan_start)
 
     released = {task_id: update for task_id, update in repo.released}
     assert "No MCP task driver registered" in released["task-1"]["error"]
     assert released["task-2"]["error"] == "network down"
-    assert released["task-1"]["next_poll_at"] == now + timedelta(seconds=5)
-    assert released["task-2"]["next_poll_at"] > now + timedelta(seconds=5)
+    assert released["task-1"]["next_poll_at"] == scan_start + timedelta(seconds=5)
+    assert released["task-2"]["next_poll_at"] == completed_at + timedelta(seconds=5)
 
 
 @pytest.mark.asyncio
