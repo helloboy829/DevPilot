@@ -6,7 +6,6 @@
 
 Frontend note: `EvaluationReviewSummary` is nested in the review panel and keyed by project/run/operation generation. Every parent case operation invalidates its preview. Explicit load only, ref-locked reads, unmount fencing, memory-only data; errors clear old numbers.
 
-
 ## Authorized QA execution UI (2026-11-08)
 
 `EvaluationExecutionPanel` is mounted with the project key between plan confirmation and human review. It loads only metadata on explicit clicks, requires two fresh human confirmations, generates one execution ID before PUT, and reconciles unknown results by GET of that same ID. No automatic run creation, write retries, polling, browser persistence or plaintext request/Q/A/gold access. Keep the synchronous lock and unmount epoch guard. Operator policy is read-only; disabled execution cannot be enabled by the UI. Technical collection is not quality acceptance or TTFT. Execution/review DOM tests and full fixture-backed browser suite pass; local deployment remains pending. Empty review state directs users to separate execution authorization, not automatic runs. See [scope/status](../docs/DevPilot_Admitted_QA_Execution.md).
@@ -279,7 +278,7 @@ When adding features:
 1. Follow the established `src/` structure
 2. Add TypeScript types and proper error handling
 3. Write unit tests under `tests/unit/` (`pnpm test`) and E2E tests under `tests/e2e/` (`pnpm test:e2e`)
-4. Run `pnpm check` before committing
+4. Run `pnpm check` and `pnpm format` before committing. The check command covers lint/types, not the separate CI formatting gate (which also checks Markdown).
 5. Update this `AGENTS.md` when architecture, commands, or conventions change
 
 Route asset budgets are enforced with `pnpm perf:check`. The command measures
