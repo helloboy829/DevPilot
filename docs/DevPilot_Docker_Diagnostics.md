@@ -100,6 +100,8 @@ make docker-health DOCKER_HEALTH_PROJECT=devpilot-local
 7. 镜像可能共享层，显示体积不能简单相加当作实际释放空间；Docker Desktop 虚拟磁盘未必立即把空间归还宿主。压缩/迁移 VHDX 是单独运维步骤，本轮未执行。
 8. 该步骤是**每次成功升级的收尾项**，不是等磁盘再次告警才做。记录本次保留的当前版本、已精确删除的旧引用、因停止容器引用或未知归属而保留的项目镜像，以及清理后的服务检查结果。清理失败不能隐瞒，也不能因此强制删除或放大范围；未构建/未升级时不得声称完成了一次新的镜像清理。
 
-2026-11-08 本地核对：用户清理后系统盘已超过低空间阈值，服务健康且无容器重启/OOM；删除了三个无容器引用的旧 DevPilot 镜像，保留当前镜像、旧验证容器仍引用的镜像和其他项目。没有 prune、卷操作或 Docker 重启。该记录不代表低空间就是历史卡顿根因。
+此前一次本地核对（2026-11-08，历史记录）：用户清理后系统盘已超过低空间阈值，服务健康且无容器重启/OOM；删除了三个无容器引用的旧 DevPilot 镜像，保留当前镜像、旧验证容器仍引用的镜像和其他项目。没有 prune、卷操作或 Docker 重启。该记录不代表低空间就是历史卡顿根因。
+
+本次已核验维护（2026-11-08，运行 SHA `0fd689da83a4ac7646250447fb6d044599a823c5`）：升级和账号/数据/页面验收通过后，精确删除被替代的 `qa-retests-3a5cd38fc99d` gateway/frontend 两个旧镜像标签；仍被停止验证容器引用的 `f4588c3` 镜像保留。再次检查四个服务均 healthy，无新增容器重启/OOM。不删除容器、数据卷、其他项目或全局构建缓存；未检查未知 dangling 的归属，也未压缩 VHDX。[完整记录](DevPilot_Local_Recovery_and_Upgrade.md)。不要将本次两项与前次历史清理混为一次操作。
 
 English: remove only positively identified, unreferenced DevPilot images after a verified upgrade. Include stopped-container references, never force/prune globally, and preserve volumes/unrelated projects. Layer sharing and Docker Desktop virtual disks mean tag sizes are not reclaimed-host-space evidence.
