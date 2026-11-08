@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Same-benchmark QA retest archives (2026-11-08)
+
+`app.evaluation.qa_retests` and `/workspace/retests` add immutable, owner/human-only comparisons of fully reviewed effectiveness runs. Strict frozen benchmark/budget equality, distinct version declarations and non-overlapping chronology are required. Off-loop verification precedes final ordered locks and atomic append/two-run audit. Unknown writes only reconcile the same ID by GET, never auto-resend. UI retains pending IDs across project switches, fences late responses and opens paired Q/A separately; current review revisions do not rewrite frozen decisions. Code head `eval_0009` is additive; local verified deployment remains `eval_0008` until separately backed up and upgraded. No execution/model calls, approval or automatic notification. [Scope, privacy, tests and exclusions](../docs/DevPilot_Same_Benchmark_Retesting.md).
+
 ## Verified local recovery and deployment (2026-11-08)
 
 Docker Desktop recovered after normal restart timed out and an explicitly authorized official force-stop/start succeeded. The backed-up gateway/frontend-only update deployed feature SHA `59ab6304cd842af3e5222a17dfb41a10d7d52894`, App head `eval_0008`. Accounts, existing evaluation rows, Harness ledger, four config hashes and persistent mounts were preserved; unrelated services were not recreated. All 630 tracked runtime Python sources and 524 frontend source files matched. Existing-account assistant UI smoke passed without saves or model calls. Assistants are enabled for all authenticated users with private ownership; no model or request-encryption key is configured, and execution remains disabled. [Recovery procedure and evidence limits](../docs/DevPilot_Local_Recovery_and_Upgrade.md). This current status supersedes earlier deployment-blocked notes below, not their feature-scope exclusions.

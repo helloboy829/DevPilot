@@ -1,5 +1,9 @@
 # DevPilot · AI 组件评测工作台
 
+## Same-benchmark retesting / 同基准整改复测
+
+`/workspace/retests` 对比使用同一冻结数据与预算、且已完成人工复核的两轮 QA 效果运行，保存逐条修复/退化、固定分母的人工通过率变化与不可变历史。可按需并排打开前后 Q/A；未知写入仅以同一 ID 核对，不自动重发。本功能不执行目标/模型调用，不代替正式验收；迁移前须保留账号、配置、旧数据和数据卷。[范围与安全约束](docs/DevPilot_Same_Benchmark_Retesting.md)。
+
 **冻结报告 Word 草稿：** 打开历史存档后可显式下载 `.docx`，保留多组件表格、草稿标识和版本收据；不读取当前模板重算、不调用模型、不自动批准。[使用与边界](docs/DevPilot_QA_Word_Draft_Export.md)。
 
 **不可变平台 QA 项目报告草稿：**报告页明确加载本人项目，每组件选择一个完整复核的效果运行，服务器重新验证已看过的汇总标识并冻结指标、模板版本与 Markdown。历史不随后续复核或模板更新改变，修订追加新记录；未知写入只核对同一 ID，不自动重试。人工填报 / Agent 建议仍是分开的未验证草稿，不等于正式批准。[流程与限制](docs/DevPilot_Immutable_QA_Report_Archives.md)。

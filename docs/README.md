@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+- [同基准整改复测 / Same-benchmark retesting](DevPilot_Same_Benchmark_Retesting.md)：不可变逐条变化档案、固定分母与按需前后 Q/A；不是正式验收。
+
 ## 当前本地状态：已备份更新（2026-11-08）
 
 [Docker 恢复与保留数据升级](DevPilot_Local_Recovery_and_Upgrade.md)：普通重启超时后，经授权官方 force-stop/start 恢复；在线一致性备份后仅更新 gateway/frontend 至功能提交 `59ab6304cd842af3e5222a17dfb41a10d7d52894`，App head `eval_0008`。账号、旧记录、配置和挂载已核验保留；所有既有账号的助手界面只读冒烟通过。没有配置模型、密钥或启用真实评测外呼。下面早期“待恢复/未部署”的段落属于历史切片，不是当前状态。

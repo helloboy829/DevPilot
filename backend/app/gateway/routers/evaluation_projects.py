@@ -15,6 +15,7 @@ from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import PlanCreate, PlanPreflightError
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
 from app.evaluation.qa_reports import ArchiveCreate, ReportArchiveRepository, archive_templates
+from app.evaluation.qa_retests import RetestCreate, RetestRepository
 from app.evaluation.qa_summary import SummaryRepository
 from app.evaluation.registry import ComponentLinkCreate, SubmissionCreate
 from app.evaluation.registry_repository import RegistryRepository
@@ -447,3 +448,41 @@ async def export_report_docx(project_id: str, archive_id: str, request: Request,
             "X-DevPilot-Renderer": RENDERER_ID,
         },
     )
+
+
+async def _retest_context(request):
+    _require_human(request)
+    owner, repository = await _context(request)
+    return owner, RetestRepository(repository.sf)
+
+
+def _retest_identifier(retest_id):
+    if len(retest_id) != 32 or any(char not in "0123456789abcdef" for char in retest_id):
+        raise HTTPException(422, "Invalid retest identifier")
+
+
+@router.get("/{project_id}/retest-archives")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def list_retest_archives(project_id: str, request: Request):
+    owner, repository = await _retest_context(request)
+    return {"comparisons": await _result(repository.list_retests(owner, project_id))}
+
+
+@router.get("/{project_id}/retest-archives/{retest_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_retest_archive(project_id: str, retest_id: str, request: Request):
+    owner, repository = await _retest_context(request)
+    _retest_identifier(retest_id)
+    return await _result(repository.get_retest(owner, project_id, retest_id))
+
+
+@router.put("/{project_id}/retest-archives/{retest_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def create_retest_archive(project_id: str, retest_id: str, payload: RetestCreate, request: Request):
+    owner, repository = await _retest_context(request)
+    _retest_identifier(retest_id)
+    return await _result(repository.create_retest(owner, project_id, retest_id, payload))

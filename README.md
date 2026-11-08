@@ -1,5 +1,9 @@
 # DevPilot
 
+## Same-benchmark retesting / 同基准整改复测
+
+`/workspace/retests` compares fully human-reviewed QA effectiveness runs using the same frozen data and budgets. It archives per-sample fixes/regressions and fixed-denominator rate changes, never automatic acceptance. Explicit paired Q/A opens, immutable history and same-ID unknown-write reconciliation are included. 本功能不执行目标/模型调用，不代替正式验收；迁移前须保留账号、配置、旧数据和数据卷。[Scope and safeguards / 范围与约束](docs/DevPilot_Same_Benchmark_Retesting.md).
+
 **Frozen QA Word drafts:** explicitly download `.docx` from an opened historical archive, including real component tables, draft labels and receipt metadata. No current-template recomputation, model calls or automatic approval. [Workflow and limits](docs/DevPilot_QA_Word_Draft_Export.md).
 
 **Verified local deployment (2026-11-08):** Docker Desktop recovered after an authorized restart, and an online-backup-protected gateway/frontend update deployed feature SHA `59ab6304cd842af3e5222a17dfb41a10d7d52894` at App head `eval_0008`. Existing accounts, evaluation rows, configuration hashes and mounts were verified unchanged. All authenticated users can manage their own assistants; no model is configured yet, and QA execution remains explicitly disabled. [Recovery procedure and verification limits](docs/DevPilot_Local_Recovery_and_Upgrade.md). All six triggered GitHub Actions passed for that exact feature SHA. This is not real-model/target acceptance; documentation-only follow-ups have their own CI results.

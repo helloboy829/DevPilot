@@ -340,3 +340,27 @@ report_archives = Table(
     CheckConstraint("revision BETWEEN 1 AND 1000 AND created_at_ms > 0", name="ck_evaluation_archive_bounds"),
 )
 Index("ix_evaluation_archive_project_time", report_archives.c.project_id, report_archives.c.created_at_ms)
+
+# Immutable human retest comparisons, no raw Q/A or automatic acceptance.
+retest_archives = Table(
+    "evaluation_retest_archives",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", String(64), nullable=False),
+    Column("component_id", String(64), nullable=False),
+    Column("baseline_run_id", String(64), nullable=False),
+    Column("retest_run_id", String(64), nullable=False),
+    Column("baseline_label", String(80), nullable=False),
+    Column("retest_label", String(80), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("request_hash", String(64), nullable=False),
+    Column("archive_hash", String(64), nullable=False),
+    Column("document", JSON, nullable=False),
+    ForeignKeyConstraint(["project_id", "component_id"], ["evaluation_project_components.project_id", "evaluation_project_components.id"]),
+    ForeignKeyConstraint(["project_id", "baseline_run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    ForeignKeyConstraint(["project_id", "retest_run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    UniqueConstraint("project_id", "baseline_run_id", "retest_run_id", name="uq_evaluation_retest_pair"),
+    CheckConstraint("baseline_run_id <> retest_run_id AND created_at_ms > 0", name="ck_evaluation_retest_bounds"),
+)
+Index("ix_evaluation_retest_project_time", retest_archives.c.project_id, retest_archives.c.created_at_ms)

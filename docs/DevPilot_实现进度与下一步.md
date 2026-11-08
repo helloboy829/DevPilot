@@ -1,5 +1,10 @@
 # DevPilot 实现进度与下一步
 
+
+## 2026-11-08：同基准整改复测候选切片
+
+新增 `/workspace/retests`，在同一冻结数据、映射、预算与口径下存档两次人工复核效果运行的逐条修复/退化及通过率差值；按需对照 Q/A，历史不改写。`eval_0009` 为追加迁移，本地实际部署仍 `eval_0008`。不自动执行、通知或批准验收。[范围与测试边界](DevPilot_Same_Benchmark_Retesting.md)。
+
 ## 最新本地交付：Docker 恢复与保留数据更新（2026-11-08）
 
 Docker Desktop 普通重启 120 秒超时，用户授权后使用官方 force-stop/start 恢复。在线一致性 SQLite 备份完整性通过后，仅重建 gateway/frontend 并重载现有 nginx，部署功能 SHA `59ab6304cd842af3e5222a17dfb41a10d7d52894`，App 从 eval_0006 升至 eval_0008；未删卷、重置设置或全局关闭 WSL。

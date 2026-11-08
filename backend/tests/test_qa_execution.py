@@ -297,7 +297,7 @@ async def test_migration_from_evidence_head_preserves_output_review_and_harness_
         await conn.execute(text("INSERT INTO alembic_version VALUES ('SYNTHETIC_HARNESS_LEDGER')"))
     await upgrade_evaluation_schema(prepared[1])
     async with prepared[1].connect() as conn:
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0008"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0009"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS_LEDGER"
         assert not (await conn.execute(select(t.executions))).all()
     reopened = await repo.open_case("owner", project, run["id"], 1)

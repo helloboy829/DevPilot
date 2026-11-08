@@ -1,0 +1,77 @@
+import type { ReviewSummary } from "@/core/evaluation/review-types";
+
+export const baseline: ReviewSummary = {
+  schema: "qa-human-summary.v1",
+  scope: "verified_human_summary_preview",
+  run_id: "a".repeat(32),
+  run_status: "recording_finished",
+  project_id: "p1",
+  component_id: "c1",
+  component_name: "Synthetic component",
+  plan_id: "plan1",
+  plan_label: "Synthetic v1",
+  plan_hash: "a".repeat(64),
+  summary_hash: "b".repeat(64),
+  counts: { pass: 1, fail: 1, uncertain: 0, unreviewed: 0 },
+  technical_counts: { collected: 2, other: 0 },
+  human_pass_rate: { numerator: 1, denominator: 2, value: 0.5 },
+  readiness: "review_complete",
+  blockers: [],
+  acceptance: "not_approved",
+};
+export const retest: ReviewSummary = {
+  ...baseline,
+  run_id: "c".repeat(32),
+  plan_id: "plan2",
+  plan_label: "Synthetic v2",
+  plan_hash: "c".repeat(64),
+  summary_hash: "d".repeat(64),
+  counts: { ...baseline.counts, pass: 2, fail: 0 },
+  human_pass_rate: { numerator: 2, denominator: 2, value: 1 },
+};
+export const runs = [baseline, retest].map((s) => ({
+  id: s.run_id,
+  component_name: s.component_name,
+  plan_label: s.plan_label,
+  status: s.run_status,
+  request_count: 2,
+}));
+export function archive(id: string) {
+  return {
+    schema: "qa-retest-archive.v1",
+    scope: "same_benchmark_human_comparison",
+    id,
+    project_id: "p1",
+    project_name: "Synthetic project",
+    component_id: "c1",
+    component_name: baseline.component_name,
+    created_at_ms: 1800000000000,
+    baseline,
+    retest,
+    benchmark: {},
+    benchmark_hash: "e".repeat(64),
+    request_definition_changed: false,
+    transitions: {
+      fail_to_pass: 1,
+      pass_to_fail: 0,
+      pass_to_pass: 1,
+      fail_to_fail: 0,
+    },
+    pass_rate_delta: { numerator: 1, denominator: 2, value: 0.5 },
+    cases: ["a", "z"].map((sample_id, i) => ({
+      ordinal: i + 1,
+      sample_id,
+      transition: i ? "fail_to_pass" : "pass_to_pass",
+      baseline_decision: i ? "fail" : "pass",
+      retest_decision: "pass",
+      baseline_case_hash: "1".repeat(64),
+      retest_case_hash: "2".repeat(64),
+      baseline_revision: 1,
+      retest_revision: 1,
+      baseline_review_hash: "3".repeat(64),
+      retest_review_hash: "4".repeat(64),
+    })),
+    acceptance: "not_approved",
+    archive_hash: "f".repeat(64),
+  };
+}
