@@ -226,31 +226,35 @@ class DispatchJournalRepository(PlanRepository):
         observation = TechnicalObservation.model_validate(observation.model_dump())
         async with self._transaction() as session:
             run = await self._journal(session, owner, project_id, run_id, lock=True)
-            at = self._time()
-            attempt = (await session.execute(select(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ticket.ordinal))).mappings().first()
-            if (
-                run["status"] != "recording"
-                or at >= run["deadline_ms"]
-                or attempt is None
-                or attempt["state"] != "dispatched"
-                or at >= attempt["lease_expires_at_ms"]
-                or ticket.expires_at_ms != attempt["lease_expires_at_ms"]
-                or ticket.sample_id != attempt["sample_id"]
-                or not hmac.compare_digest(hashlib.sha256(ticket.token.encode()).hexdigest(), attempt["ticket_hash"])
-                or observation.body_bytes > run["max_response_bytes"] + (observation.kind in {"response_limit", "delivery_unknown"})
-            ):
-                raise Conflict
-            unknown = observation.kind == "delivery_unknown"
-            await session.execute(update(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ticket.ordinal).values(state="delivery_unknown" if unknown else "observed", **observation.model_dump()))
-            await session.execute(update(t.dispatch_runs).where(t.dispatch_runs.c.id == run_id).values(revision=run["revision"] + 1))
-            await self._journal_event(session, run, "observation_recorded", at, ordinal=ticket.ordinal)
-            if unknown:
-                await self._interrupt(session, run, at, "delivery_unknown")
-            else:
-                remaining = (await session.execute(select(func.count()).select_from(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.state.in_(["pending", "dispatched"])))).scalar_one()
-                if not remaining:
-                    await session.execute(update(t.dispatch_runs).where(t.dispatch_runs.c.id == run_id).values(status="recording_finished", finished_at_ms=at))
-                    await self._journal_event(session, run, "run_recording_finished", at)
+            await self._record_observation(session, run, self._time(), ticket, observation)
+
+    async def _record_observation(self, session, run, at, ticket, observation):
+        """Caller holds the run row; allows atomic evidence+metadata append."""
+        run_id = run["id"]
+        attempt = (await session.execute(select(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ticket.ordinal))).mappings().first()
+        if (
+            run["status"] != "recording"
+            or at >= run["deadline_ms"]
+            or attempt is None
+            or attempt["state"] != "dispatched"
+            or at >= attempt["lease_expires_at_ms"]
+            or ticket.expires_at_ms != attempt["lease_expires_at_ms"]
+            or ticket.sample_id != attempt["sample_id"]
+            or not hmac.compare_digest(hashlib.sha256(ticket.token.encode()).hexdigest(), attempt["ticket_hash"])
+            or observation.body_bytes > run["max_response_bytes"] + (observation.kind in {"response_limit", "delivery_unknown"})
+        ):
+            raise Conflict
+        unknown = observation.kind == "delivery_unknown"
+        await session.execute(update(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ticket.ordinal).values(state="delivery_unknown" if unknown else "observed", **observation.model_dump()))
+        await session.execute(update(t.dispatch_runs).where(t.dispatch_runs.c.id == run_id).values(revision=run["revision"] + 1))
+        await self._journal_event(session, run, "observation_recorded", at, ordinal=ticket.ordinal)
+        if unknown:
+            await self._interrupt(session, run, at, "delivery_unknown")
+        else:
+            remaining = (await session.execute(select(func.count()).select_from(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.state.in_(["pending", "dispatched"])))).scalar_one()
+            if not remaining:
+                await session.execute(update(t.dispatch_runs).where(t.dispatch_runs.c.id == run_id).values(status="recording_finished", finished_at_ms=at))
+                await self._journal_event(session, run, "run_recording_finished", at)
 
     async def interrupt_expired(self, owner, project_id, run_id):
         async with self._transaction() as session:

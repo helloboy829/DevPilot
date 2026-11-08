@@ -1,5 +1,9 @@
 # DevPilot 数据库详细设计 v3.0
 
+## 2026-11-08 实现校准
+
+已交付的当前范围见[加密输出证据与人工复核](DevPilot_QA_Evidence_Review.md)：App 增量迁移 eval_0006，输出与技术观测原子落库、owner 自复核、敏感详情审计和追加修订。项目 API 的 review-runs 元数据、cases 分页、单条详情与 reviews 追加已实现；没有执行/上传输出路由。下文的团队分配、领取、仲裁、自动裁判、报告正式证据引用等仍是目标设计，不应据此认为已经贯通。独立执行准入与 Worker 仍待接入。
+
 ## 已实现追加：App 迁移 eval_0002（2026-11-07）
 
 沿用独立 `devpilot_alembic_version`，新增 `evaluation_project_components`、`evaluation_submissions`、`evaluation_registry_audit`；数据集增加 project/id 唯一索引，提测用复合外键限制组件/数据同项目，规范化版本名唯一、scope 限 inventory_only。已部署 eval_0001 不改写，Harness 账本不变。SQLite 升级与约束有测试；真实 PostgreSQL 验收仍待做。[实际字段和边界](DevPilot_项目组件与提测清单.md)优先于下方目标表名，不代表 eval_runs/reports 等已落地。

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EvaluationPlanPanel } from "@/components/workspace/evaluation-plan-panel";
+import { EvaluationReviewPanel } from "@/components/workspace/evaluation-review-panel";
 import { ProjectRegistryPanel } from "@/components/workspace/project-registry-panel";
 import {
   WorkspaceBody,
@@ -661,6 +662,13 @@ export default function DatasetsPage() {
           {projectId && (
             <EvaluationPlanPanel
               key={`plan:${projectId}`}
+              projectId={projectId}
+              zh={zh}
+            />
+          )}
+          {projectId && (
+            <EvaluationReviewPanel
+              key={"review:" + projectId}
               projectId={projectId}
               zh={zh}
             />

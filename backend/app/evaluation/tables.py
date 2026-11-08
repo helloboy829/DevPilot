@@ -247,3 +247,37 @@ dispatch_audit = Table(
     ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
     UniqueConstraint("run_id", "sequence", name="uq_evaluation_dispatch_audit_sequence"),
 )
+
+# Append-only extracted text evidence and human-review revisions; no execution admission.
+output_evidence = Table(
+    "evaluation_output_evidence",
+    metadata,
+    Column("run_id", String(64), primary_key=True),
+    Column("ordinal", Integer, primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("encrypted_payload", Text, nullable=False),
+    Column("protected_hash", String(64), nullable=False),
+    Column("observation_hash", String(64), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    ForeignKeyConstraint(["run_id", "ordinal"], ["evaluation_dispatches.run_id", "evaluation_dispatches.ordinal"]),
+    CheckConstraint("ordinal BETWEEN 1 AND 10000 AND created_at_ms > 0", name="ck_evaluation_output_bounds"),
+)
+case_reviews = Table(
+    "evaluation_case_reviews",
+    metadata,
+    Column("run_id", String(64), primary_key=True),
+    Column("ordinal", Integer, primary_key=True),
+    Column("revision", Integer, primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("case_hash", String(64), nullable=False),
+    Column("decision", String(16), nullable=False),
+    Column("reviewer_id", String(64), nullable=False),
+    Column("encrypted_payload", Text, nullable=False),
+    Column("protected_hash", String(64), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    ForeignKeyConstraint(["run_id", "ordinal"], ["evaluation_dispatches.run_id", "evaluation_dispatches.ordinal"]),
+    CheckConstraint("ordinal BETWEEN 1 AND 10000 AND revision BETWEEN 1 AND 100 AND created_at_ms > 0", name="ck_evaluation_review_bounds"),
+    CheckConstraint("decision IN ('pass','fail','uncertain')", name="ck_evaluation_review_decision"),
+)

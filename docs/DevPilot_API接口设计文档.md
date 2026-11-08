@@ -1,5 +1,9 @@
 # DevPilot API 接口设计 v3.0
 
+## 2026-11-08 实现校准
+
+已交付的当前范围见[加密输出证据与人工复核](DevPilot_QA_Evidence_Review.md)：App 增量迁移 eval_0006，输出与技术观测原子落库、owner 自复核、敏感详情审计和追加修订。项目 API 的 review-runs 元数据、cases 分页、单条详情与 reviews 追加已实现；没有执行/上传输出路由。下文的团队分配、领取、仲裁、自动裁判、报告正式证据引用等仍是目标设计，不应据此认为已经贯通。独立执行准入与 Worker 仍待接入。
+
 ## 已实现追加：项目组件与提测清单（2026-11-07）
 
 `/api/evaluation/projects/{project_id}` 新增 GET component-candidates、GET/POST components、GET/POST components/{component_id}/submissions、GET submissions/{submission_id} 和 GET registry-audit。owner 隔离，创建提测需 write+review、明确确认及服务端 frozen QA 校验。只保存安全库存清单，不是 RequestSpec/执行批准；详细字段、权限与错误见[提测清单实现](DevPilot_项目组件与提测清单.md)。

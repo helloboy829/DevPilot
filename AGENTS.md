@@ -1,8 +1,12 @@
 # AGENTS.md
 
+## Encrypted QA evidence and human review (2026-11-08)
+
+`app.evaluation.qa_evidence` adds internal atomic extracted-output capture and owner-only revisioned human review. Current App head is `eval_0006`; preserve deployed revisions and Harness ledger. `EvidenceProtection` requires the explicit request-encryption key, binds output/review envelopes to owner/project/run/ordinal/sample/plan/observation, and exposes no plaintext output hashes. Metadata reads exclude Q/A/gold/ciphertext; sensitive opens and reviews verify snapshots off-loop, recheck under the run lock and audit atomically. Human decisions append; absent evidence cannot PASS. `/workspace/datasets` adds the explicit review panel; no new execution or output-upload route, automatic target/model calls, Worker, independent-team arbitration or acceptance verdict. See [scope](docs/DevPilot_QA_Evidence_Review.md).
+
 ## Internal durable dispatch journal (2026-11-08)
 
-`app.evaluation.dispatch_journal` persists owner-scoped technical metadata only (`dispatch_journal_only`). App head is `eval_0005`; deployed migrations and Harness ledger are unchanged. Per-run DB row writes serialize one-way ordinal dispatch, concurrency and non-recycled response reservations (`max_response_bytes + 1`). A future independently admitted caller must confirm dispatch commit before sending; uncertain writes never return permission to send/retry. Expired leases interrupt the whole run, never reclaim slots for continuing. No network, input/gold/ciphertext reads, output evidence, API, reaper or verdict. `recording_finished` is not PASS. See [scope](docs/DevPilot_Durable_Dispatch_Journal.md).
+`app.evaluation.dispatch_journal` persists owner-scoped technical metadata only (`dispatch_journal_only`). App head is `eval_0006`; deployed migrations and Harness ledger are unchanged. Per-run DB row writes serialize one-way ordinal dispatch, concurrency and non-recycled response reservations (`max_response_bytes + 1`). A future independently admitted caller must confirm dispatch commit before sending; uncertain writes never return permission to send/retry. Expired leases interrupt the whole run, never reclaim slots for continuing. No network, input/gold/ciphertext reads, output evidence, API, reaper or verdict. `recording_finished` is not PASS. See [scope](docs/DevPilot_Durable_Dispatch_Journal.md).
 
 
 ## Internal bounded QA attempt collection (2026-11-08)
@@ -15,7 +19,7 @@
 
 ## Frozen QA JSON plans (2026-11-08)
 
-The frozen-plan slice introduced `eval_0004`; current App head is `eval_0005`. `app.evaluation.plan_repository` freezes same-owner/project/component request versions, gold-bound QA revision/hash, strict JSON mappings and bounded limits after all-input preflight. Decryption audit and plan/audit commit atomically. `frozen_definition_only` is NOT execution authorization, evidence or a Worker; the workspace plan UI consumes these routes without adding execution authority. Metadata reads exclude gold/ciphertext. Never pass expected answers to rendering. See [scope](docs/DevPilot_Frozen_QA_Plans.md).
+The frozen-plan slice introduced `eval_0004`; current App head is `eval_0006`. `app.evaluation.plan_repository` freezes same-owner/project/component request versions, gold-bound QA revision/hash, strict JSON mappings and bounded limits after all-input preflight. Decryption audit and plan/audit commit atomically. `frozen_definition_only` is NOT execution authorization, evidence or a Worker; the workspace plan UI consumes these routes without adding execution authority. Metadata reads exclude gold/ciphertext. Never pass expected answers to rendering. See [scope](docs/DevPilot_Frozen_QA_Plans.md).
 
 ## QA JSON wiring core (2026-11-08)
 
@@ -27,7 +31,7 @@ The cURL debugger can explicitly save an encrypted request snapshot to an owner-
 
 ## Encrypted request definitions (2026-11-08)
 
-The request-version slice introduced `eval_0003`; current App migration head is `eval_0005`, after unchanged `eval_0001/eval_0002`. `devpilot.request_versions.FrozenRequest` is deep-immutable; protected serialization contains secrets and is never a public DTO. `app.evaluation.request_version_repository` appends owner-scoped complete-request ciphertext under explicit `DEVPILOT_REQUEST_ENCRYPTION_KEY`; no key fallback/generation. Public metadata queries exclude ciphertext; write requires write+review, human confirmation and rejects internal Agents. Crypto is thread-offloaded; open is internal/audited, not an executor. No plaintext/open/execute/update/delete HTTP routes. The later workspace UI adds explicit save and metadata browsing. `request_definition_only` is not approval, evidence or a credential-reference vault. See [scope](docs/DevPilot_Request_Versions.md).
+The request-version slice introduced `eval_0003`; current App migration head is `eval_0006`, after unchanged `eval_0001/eval_0002`. `devpilot.request_versions.FrozenRequest` is deep-immutable; protected serialization contains secrets and is never a public DTO. `app.evaluation.request_version_repository` appends owner-scoped complete-request ciphertext under explicit `DEVPILOT_REQUEST_ENCRYPTION_KEY`; no key fallback/generation. Public metadata queries exclude ciphertext; write requires write+review, human confirmation and rejects internal Agents. Crypto is thread-offloaded; open is internal/audited, not an executor. No plaintext/open/execute/update/delete HTTP routes. The later workspace UI adds explicit save and metadata browsing. `request_definition_only` is not approval, evidence or a credential-reference vault. See [scope](docs/DevPilot_Request_Versions.md).
 
 ## Stable navigation / workspace styles (2026-11-08)
 

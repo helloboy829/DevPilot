@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Human result review workspace (2026-11-08)
+
+`EvaluationReviewPanel` is embedded in `/workspace/datasets` with a project-specific review key, not a duplicate sidebar entry. Explicit run/case metadata reads precede a separately authorized sensitive case open; display component/plan/sample, Q, actual A, reference, source, technical status and review history as plain text. Source references must not auto-fetch. Human decisions append with case hash, expected revision, reason and separate consent; missing evidence disables PASS. Editing/reloading/submitting revokes consent; ref locking prevents double submissions, and unknown writes require explicit case reload, not retry. Page-memory-only sensitive state, unmount epochs and project keys prevent stale cross-project display. No target/model calls, run creation, browser storage or chat persistence. Counts are not accuracy; empty state explains the Worker gap. Tests: `evaluation-review-panel.dom.test.tsx`, `evaluation-review.spec.ts`. See [scope](../docs/DevPilot_QA_Evidence_Review.md).
+
 ## Frozen QA plan workspace (2026-11-08)
 
 `EvaluationPlanPanel` on `/workspace/datasets` is keyed by project. Use distinct sibling key namespaces (`registry:` / `plan:`); duplicate keys can duplicate old controls during project transitions. Explicit source reads load only request/QA/plan metadata. Strict `plan-form` builds the existing frozen-definition DTO; edits, refresh and submission revoke confirmation. Keep page-memory-only state, write ref locking, stale-response tokens, and an explicit metadata refresh after any failed/unknown write. No target calls, gold reads, auto-retry, execution authority or model requirement. Root-string output is opt-in; pointer whitespace is literal. See [UI scope](../docs/DevPilot_Frozen_QA_Plan_UI.md).

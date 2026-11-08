@@ -1,6 +1,8 @@
 # DevPilot · AI 组件评测工作台
 
-内部开发新增[耐久派发日志](docs/DevPilot_Durable_Dispatch_Journal.md)：持久记录不可重复派发标记、运行级保守预算、带租约票据的技术观测及过期整次中断。不授权或发送请求、不重发未知派发、不保存完整输出或判分；App 增量迁移至 `eval_0005`，Harness ledger 不变。
+**人工结果复核**：项目与数据 → 选择项目 → 人工结果复核。显式加载运行/样本后，同屏查看 Q、实际 A、参考答案、来源和技术状态；人工结论附理由，追加修订且保留历史，缺少加密输出不能判通过。内部采集接线点把加密提取文本与技术观测原子落库。本轮没有执行 API、自动目标/模型调用或 Worker；尚无独立准入调用者落库时显示空状态是正常情况。计数不是准确率或最终验收；App head 增量升级至 `eval_0006`，保留旧数据与 Harness ledger。[范围与限制](docs/DevPilot_QA_Evidence_Review.md)。
+
+内部开发新增[耐久派发日志](docs/DevPilot_Durable_Dispatch_Journal.md)：持久记录不可重复派发标记、运行级保守预算、带租约票据的技术观测及过期整次中断。不授权或发送请求、不重发未知派发、不保存完整输出或判分；派发切片引入 `eval_0005`（当前 head 为 `eval_0006`），Harness ledger 不变。
 
 
 内部开发已增加[有界单次 JSON 采集核心](docs/DevPilot_Bounded_QA_Attempts.md)，复用出站策略、限制响应、未知派发不自动重试；尚未接入执行 API/耐久 Worker，不构成可运行的完整评测或判分。

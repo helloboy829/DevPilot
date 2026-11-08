@@ -1,6 +1,8 @@
 # DevPilot
 
-Internal development: a [durable dispatch journal](docs/DevPilot_Durable_Dispatch_Journal.md) now persists one-way dispatch markers, conservative run-level reservations, fenced technical observations and whole-run interruption on expired leases. It does not authorize or send requests, retry uncertain delivery, store output evidence or grade results. App migrations advance additively to `eval_0005`; the harness ledger is unchanged.
+**Human result review:** open **Projects & datasets → select project → Human result review** to explicitly load run/case metadata and inspect Q, actual A, reference, source and technical status. Append a human decision and reason with revision history; missing output evidence cannot PASS. The internal evidence writer stores encrypted extracted output atomically with its technical observation. This adds no execution API, target/model calls or Worker; an empty review list is expected until an independently admitted caller records results. Counts are not accuracy or final acceptance. App head is now `eval_0006`, with existing data and the Harness ledger preserved. [Scope and limits](docs/DevPilot_QA_Evidence_Review.md).
+
+Internal development: a [durable dispatch journal](docs/DevPilot_Durable_Dispatch_Journal.md) now persists one-way dispatch markers, conservative run-level reservations, fenced technical observations and whole-run interruption on expired leases. It does not authorize or send requests, retry uncertain delivery, store output evidence or grade results. The journal slice introduced `eval_0005` (current head: `eval_0006`); the harness ledger is unchanged.
 
 
 **Frozen QA plan API:** lock an encrypted request version, frozen QA revision/hash, JSON input/output mapping and bounded execution settings with explicit human confirmation. Every input is preflighted without sending requests or gold. This is a frozen definition, not execution approval or evidence; the project workspace now provides explicit plan confirmation and metadata browsing; durable execution remains pending. See [scope and migration](docs/DevPilot_Frozen_QA_Plans.md).
@@ -24,7 +26,7 @@ The evaluation-first sidebar keeps stable Evaluation center and AI collaboration
 | Page | Implemented scope |
 | --- | --- |
 | `/workspace/evaluations` | Default evaluation-first landing page with real component inventory and explicit remaining capabilities |
-| `/workspace/datasets` | Owner-scoped projects, QA import/review/freeze, existing-component links, immutable inventory-only submissions and frozen QA plan confirmation |
+| `/workspace/datasets` | Owner-scoped projects, QA import/review/freeze, existing-component links, immutable inventory-only submissions, frozen QA plans and revisioned human result review |
 | `/workspace/component-tests` | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses |
 | `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery |
 | `/workspace/reports` | Manual single-component and multi-component project snapshots, pinned Chinese/English templates, Markdown/JSON draft downloads |
@@ -90,4 +92,4 @@ Request-version UI boundaries, failure recovery and the remaining frozen-plan/wo
 
 ### QA JSON wiring prerequisite
 
-The pure QA JSON binding core now maps input into an existing request string field and extracts response text with explicit bounded pointers, without gold answers or network access. It is not yet connected to a frozen-plan API, UI or durable worker; current tests are unchanged. See [contract and remaining milestones](docs/DevPilot_QA_JSON_Binding.md).
+The pure QA JSON binding core now maps input into an existing request string field and extracts response text with explicit bounded pointers, without gold answers or network access. It now underpins the frozen-plan API/UI; durable Worker execution is still pending. See [contract and remaining milestones](docs/DevPilot_QA_JSON_Binding.md).

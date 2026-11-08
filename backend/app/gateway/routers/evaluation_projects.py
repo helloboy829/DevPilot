@@ -2,12 +2,14 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest, ProjectCreate, parse_samples
+from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import PlanCreate, PlanPreflightError
+from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
 from app.evaluation.registry import ComponentLinkCreate, SubmissionCreate
 from app.evaluation.registry_repository import RegistryRepository
 from app.evaluation.repository import Conflict, NotFound
@@ -39,6 +41,8 @@ class BoundedDataRoute(PrivateValidationRoute):
                 return await handler(request)
             except (RequestProtectionError, RequestProtectionUnavailable):
                 raise HTTPException(503, "Protected request storage is unavailable or failed integrity checks; contact the operator", headers={"Cache-Control": "private, no-store"}) from None
+            except JournalWriteUnconfirmed:
+                raise HTTPException(503, "Evaluation write could not be confirmed; reload and inspect existing state, do not automatically retry", headers={"Cache-Control": "private, no-store"}) from None
             except SQLAlchemyError:
                 # SQL exception text may contain statement parameters (including gold).
                 logger.warning("Evaluation database operation failed; details suppressed")
@@ -263,3 +267,40 @@ async def get_plan(project_id: str, plan_id: str, request: Request):
 async def plan_audit(project_id: str, plan_id: str, request: Request):
     owner, repository = await _context(request)
     return {"events": await _result(PlanRepository(repository.sf).plan_audit(owner, project_id, plan_id))}
+
+
+@router.get("/{project_id}/review-runs")
+@require_permission("evaluation_projects", "read")
+async def list_review_runs(project_id: str, request: Request):
+    owner, repository = await _context(request)
+    return {"runs": await _result(EvidenceRepository(repository.sf).list_runs(owner, project_id))}
+
+
+@router.get("/{project_id}/review-runs/{run_id}/cases")
+@require_permission("evaluation_projects", "read")
+async def list_review_cases(project_id: str, run_id: str, request: Request, offset: int = Query(default=0, ge=0, le=10_000), limit: int = Query(default=100, ge=1, le=200)):
+    owner, repository = await _context(request)
+    return await _result(EvidenceRepository(repository.sf).list_cases(owner, project_id, run_id, offset=offset, limit=limit))
+
+
+@router.get("/{project_id}/review-runs/{run_id}/cases/{ordinal}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def open_review_case(project_id: str, run_id: str, ordinal: int, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    if not 1 <= ordinal <= 10_000:
+        raise HTTPException(422, "Invalid case ordinal")
+    return await _result(EvidenceRepository(repository.sf).open_case(owner, project_id, run_id, ordinal))
+
+
+@router.post("/{project_id}/review-runs/{run_id}/cases/{ordinal}/reviews")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def review_case(project_id: str, run_id: str, ordinal: int, payload: ReviewCreate, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    if not 1 <= ordinal <= 10_000:
+        raise HTTPException(422, "Invalid case ordinal")
+    return await _result(EvidenceRepository(repository.sf).review_case(owner, project_id, run_id, ordinal, payload))
