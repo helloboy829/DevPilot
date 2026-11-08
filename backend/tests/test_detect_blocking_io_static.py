@@ -4,6 +4,7 @@ import json
 import textwrap
 from pathlib import Path
 
+import pytest
 from support.detectors import blocking_io_static as detector
 
 
@@ -242,11 +243,17 @@ def test_json_output_uses_concise_review_record_schema(tmp_path: Path, capsys) -
 
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
+    # CLI paths are repository-relative when possible and always POSIX in JSON,
+    # independent of the host separator or pytest basetemp's location.
+    if source_file.is_relative_to(detector.REPO_ROOT):
+        expected_path = source_file.relative_to(detector.REPO_ROOT).as_posix()
+    else:
+        expected_path = source_file.as_posix()
     assert payload == [
         {
             "priority": "HIGH",
             "location": {
-                "path": str(source_file),
+                "path": expected_path,
                 "line": 4,
                 "column": 5,
                 "function": "handler",
@@ -264,6 +271,31 @@ def test_json_output_uses_concise_review_record_schema(tmp_path: Path, capsys) -
     assert "confidence" not in payload[0]
     assert "severity" not in payload[0]
     assert "event_loop_risk" not in payload[0]
+
+
+@pytest.mark.parametrize("inside_repo", [True, False], ids=["repository-relative", "external-absolute"])
+def test_json_report_paths_are_posix_for_inside_and_outside_sources(tmp_path: Path, inside_repo: bool) -> None:
+    repo_root = tmp_path / "synthetic repo"
+    repo_root.mkdir()
+    source_dir = (repo_root if inside_repo else tmp_path / "external files") / "nested folder"
+    source_dir.mkdir(parents=True)
+    source_file = _write_python(
+        source_dir / "sample input.py",
+        """
+        import subprocess
+
+        async def handler():
+            subprocess.run(["echo", "ok"])
+        """,
+    )
+
+    findings = detector.scan_file(source_file, repo_root=repo_root)
+    payload = json.loads(detector.findings_to_json(findings))
+
+    assert len(payload) == 1
+    expected_path = "nested folder/sample input.py" if inside_repo else source_file.as_posix()
+    assert payload[0]["location"]["path"] == expected_path
+    assert "\\" not in payload[0]["location"]["path"]
 
 
 def test_summary_output_writes_json_report(tmp_path: Path, capsys) -> None:

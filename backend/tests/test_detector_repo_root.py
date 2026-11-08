@@ -29,10 +29,40 @@ def test_all_detectors_share_the_resolved_root():
     assert thread_boundaries.REPO_ROOT == REPO_ROOT
 
 
-def test_unmarked_location_raises_instead_of_scanning_nothing(tmp_path: Path):
-    start = tmp_path / "moved" / "detectors" / "blocking_io_static.py"
-    with pytest.raises(RuntimeError, match=r"\.git"):
-        resolve_repo_root(start)
+def test_unmarked_location_raises_instead_of_scanning_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    start = (tmp_path / "moved" / "detectors" / "blocking_io_static.py").resolve()
+    checked_markers: list[Path] = []
+
+    def no_marker_exists(path: Path) -> bool:
+        assert path.name == ".git"
+        checked_markers.append(path)
+        return False
+
+    # A caller may put pytest's basetemp inside this checkout. Simulate the
+    # missing-marker filesystem, never remove or rely on real ancestor markers.
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "exists", no_marker_exists)
+        with pytest.raises(RuntimeError, match=r"\.git"):
+            resolve_repo_root(start)
+
+    assert checked_markers == [candidate / ".git" for candidate in (start, *start.parents)]
+
+
+@pytest.mark.parametrize("marker_kind", ["directory", "file"])
+def test_resolve_repo_root_finds_nearest_directory_or_worktree_marker(tmp_path: Path, marker_kind: str):
+    outer = tmp_path / "outer-repo"
+    outer.mkdir()
+    (outer / ".git").mkdir()
+    nested = outer / "nested" / "worktree"
+    nested.mkdir(parents=True)
+    marker = nested / ".git"
+    if marker_kind == "directory":
+        marker.mkdir()
+    else:
+        marker.write_text("gitdir: ../private-worktree-metadata\n", encoding="utf-8")
+
+    start = nested / "arbitrary" / "relocated" / "depth" / "detector.py"
+    assert resolve_repo_root(start) == nested.resolve()
 
 
 def test_cli_shims_delegate_to_their_detectors(capsys: pytest.CaptureFixture[str]):

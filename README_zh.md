@@ -122,6 +122,8 @@ cURL 调试器新增“**导出参数化请求模板**”：生成 `request-temp
 
 ## 开发与验证
 
+检测器回归测试不依赖 pytest 临时目录在仓库内还是仓库外：缺失根标识的测试隔离模拟所有祖先，不改动真实 `.git`；JSON 路径在 Windows 上仍使用 POSIX 分隔符，仓库内路径保持相对格式。这类离线工具测试改动不需要重新构建应用镜像。
+
 后端先测试再修改，并运行 Ruff 格式化/检查；前端通过 `scripts/pnpm.py` 调用 pnpm，运行 `check`、单测与浏览器测试。默认后端 `make test` 排除真实模型用例；直接运行 pytest 也需要在启动前显式设置 `DEER_FLOW_RUN_LIVE_TESTS=1`，已有密钥或测试模块后来读取的 `.env` 不能代替授权，CI 始终阻止真实外呼用例。Docker 生命周期集成测试另需 `DEVPILOT_RUN_DOCKER_TESTS=1` 显式授权，收集测试不探测 Docker，也不隐式拉取镜像。真实目标和模型配置后的兼容性仍须另行授权验证，运行前确认外发内容、费用和文件副作用。详见[测试规则](CONTRIBUTING.md#testing)。
 
 [架构边界](AGENTS.md) · [后端指南](backend/AGENTS.md) · [前端指南](frontend/AGENTS.md) · [上游说明](README_upstream.md) · [许可证](LICENSE)

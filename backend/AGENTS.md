@@ -1637,6 +1637,8 @@ PYTHONPATH=. uv run pytest tests/test_<feature>.py -v
 
 Windows backend startup deliberately selects the Selector event-loop policy for psycopg compatibility. Tests that need real OS subprocesses must use bounded `subprocess.Popen` work off-loop (for example `asyncio.to_thread`), use an explicit absolute backend working directory so imports do not depend on the pytest caller, launch all competing children before waiting, and always reap them; do not switch the global policy or weaken cross-process assertions just to make a test pass.
 
+Detector regression fixtures must not assume pytest basetemp is outside the checkout. `test_detector_repo_root.py` isolates the no-marker filesystem and asserts every ancestor is visited; separate real-file tests cover nearest-marker precedence and both `.git` directories and worktree files. `test_detect_blocking_io_static.py` pins JSON POSIX paths for repository-relative and external-absolute sources, including spaced paths. Do not change production path normalization, remove real repository markers or skip Windows assertions to fix these tests. Test/documentation-only changes do not require a Docker image build.
+
 `tests/conftest.py` snapshots process live-test opt-in and CI status before
 collecting test modules, then skips every `live` item unless explicitly opted
 in outside CI. The 11 real-model cases in `tests/test_client_e2e.py` carry that
