@@ -1,13 +1,10 @@
 # DevPilot
 
-**Regression-tested candidate, not yet locally deployed:** separately authorized QA JSON execution connects frozen plans to a bounded Worker and encrypted review evidence. Execution remains operator-disabled by default; this is not a complete acceptance or performance system. [Scope, cancellation and validation status](docs/DevPilot_Admitted_QA_Execution.md). The earlier notes below describe the deployed evidence-only slice until the next upgrade.
+**Current code versus local deployment:** App code head is `eval_0007`; the last verified local deployment is `eval_0006` while Docker's management API is unresponsive. Do not assume the new UI/Worker is locally live. The execution commit `0e56c3b60216350c3f598414b8b4eb02d842494a` passed all six triggered Actions; newer summary changes require their own verification.
 
-**Human result review:** open **Projects & datasets → select project → Human result review** to explicitly load run/case metadata and inspect Q, actual A, reference, source and technical status. Append a human decision and reason with revision history; missing output evidence cannot PASS. The internal evidence writer stores encrypted extracted output atomically with its technical observation. This adds no execution API, target/model calls or Worker; an empty review list is expected until an independently admitted caller records results. Counts are not accuracy or final acceptance. App head is now `eval_0006`, with existing data and the Harness ledger preserved. [Scope and limits](docs/DevPilot_QA_Evidence_Review.md).
+**QA execution and human review:** freeze a request/data/mapping plan, separately authorize bounded execution, collect encrypted output, then inspect Q, actual A, reference and source in **Projects & datasets**. Worker enablement is operator-owned/default-off and requires the explicit key and destination policy. Unknown sends are never retried; collection is not quality PASS. [Execution and cancellation scope](docs/DevPilot_Admitted_QA_Execution.md) · [Encrypted evidence/review](docs/DevPilot_QA_Evidence_Review.md).
 
-Internal development: a [durable dispatch journal](docs/DevPilot_Durable_Dispatch_Journal.md) now persists one-way dispatch markers, conservative run-level reservations, fenced technical observations and whole-run interruption on expired leases. It does not authorize or send requests, retry uncertain delivery, store output evidence or grade results. The journal slice introduced `eval_0005` (current head: `eval_0006`); the harness ledger is unchanged.
-
-
-**Frozen QA plan API:** lock an encrypted request version, frozen QA revision/hash, JSON input/output mapping and bounded execution settings with explicit human confirmation. Every input is preflighted without sending requests or gold. This is a frozen definition, not execution approval or evidence; the project workspace now provides explicit plan confirmation and metadata browsing; durable execution remains pending. See [scope and migration](docs/DevPilot_Frozen_QA_Plans.md).
+**Verified human summary preview:** explicitly load a selected effectiveness run's summary. Latest human PASS / all frozen-plan samples is shown alongside unreviewed/uncertain/technical blockers. Changing cases or scope invalidates the preview. Complete review is not project approval or an archived report. [Formula, integrity and permissions](docs/DevPilot_Verified_QA_Summaries.md).
 
 **AI component evaluation workspace and bounded evaluation agents**, built on ByteDance DeerFlow. Targets include AI/CV models, LLMs and agents. [中文](README_zh.md) · [Design index](docs/README.md) · [Delivery and configuration](docs/DevPilot_Evaluation_Workspace.md)
 
@@ -15,7 +12,7 @@ Internal development: a [durable dispatch journal](docs/DevPilot_Durable_Dispatc
 
 Plan confirmation: open **Projects & datasets → select project → Frozen QA plans**. Select encrypted request metadata and a frozen QA revision, enter literal JSON pointers and bounded limits, then explicitly confirm a definition-only freeze. No target request is sent. [Workflow and limits](docs/DevPilot_Frozen_QA_Plan_UI.md).
 
-Internal development: a [bounded single-attempt JSON collector](docs/DevPilot_Bounded_QA_Attempts.md) now shares the outbound policy, rejects oversized/unsupported responses and never retries uncertain delivery. It is not wired to an execution API, durable Worker or grading; plan freeze still does not send requests.
+The [single-attempt collector](docs/DevPilot_Bounded_QA_Attempts.md) and [durable dispatch journal](docs/DevPilot_Durable_Dispatch_Journal.md) now serve the separately admitted QA Worker. Their original scope notes describe earlier internal slices. Plan freeze itself still sends no requests, and legacy evaluation paths are not silently redirected.
 
 ## Workspace appearance and navigation
 

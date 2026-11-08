@@ -196,8 +196,8 @@ class EvidenceRepository(DispatchJournalRepository):
         }
 
     @staticmethod
-    def _verify_snapshot(owner, snapshot, protection):
-        run, plan, dataset, dispatch = (snapshot[key] for key in ("run", "plan", "dataset", "dispatch"))
+    def _verify_source(snapshot):
+        run, plan, dataset = (snapshot[key] for key in ("run", "plan", "dataset"))
         definition = plan["definition"]
         if (
             run["plan_hash"] != plan["definition_hash"]
@@ -208,7 +208,18 @@ class EvidenceRepository(DispatchJournalRepository):
         ):
             raise Conflict
         _verified_inputs(dataset, snapshot["samples"])
-        ordered = sorted(snapshot["samples"], key=lambda row: row["sample_id"])
+        return sorted(snapshot["samples"], key=lambda row: row["sample_id"])
+
+    @staticmethod
+    def _verify_snapshot(owner, snapshot, protection):
+        ordered = EvidenceRepository._verify_source(snapshot)
+        return EvidenceRepository._verify_case(owner, snapshot, protection, ordered)
+
+    @staticmethod
+    def _verify_case(owner, snapshot, protection, ordered):
+        """Internal helper; caller MUST first verify the shared frozen source."""
+        run, plan, dataset, dispatch = (snapshot[key] for key in ("run", "plan", "dataset", "dispatch"))
+        definition = plan["definition"]
         sample = ordered[(dispatch["ordinal"] - 1) % len(ordered)]
         if sample["sample_id"] != dispatch["sample_id"] or len(ordered) != definition["preflight"]["sample_count"]:
             raise Conflict

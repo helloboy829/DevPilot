@@ -1,15 +1,12 @@
 # DevPilot · AI 组件评测工作台
 
-**人工结果复核**：项目与数据 → 选择项目 → 人工结果复核。显式加载运行/样本后，同屏查看 Q、实际 A、参考答案、来源和技术状态；人工结论附理由，追加修订且保留历史，缺少加密输出不能判通过。内部采集接线点把加密提取文本与技术观测原子落库。本轮没有执行 API、自动目标/模型调用或 Worker；尚无独立准入调用者落库时显示空状态是正常情况。计数不是准确率或最终验收；App head 增量升级至 `eval_0006`，保留旧数据与 Harness ledger。[范围与限制](docs/DevPilot_QA_Evidence_Review.md)。
+**代码与本地部署分开标记**：代码 App head 为 `eval_0007`；Docker 管理接口超时，本地最后核验版本仍为 `eval_0006`，不要将新功能误认为已经上线。执行提交 `0e56c3b60216350c3f598414b8b4eb02d842494a` 的六项 Actions 已成功；之后的汇总改动需要核对自己的提交。
 
-内部开发新增[耐久派发日志](docs/DevPilot_Durable_Dispatch_Journal.md)：持久记录不可重复派发标记、运行级保守预算、带租约票据的技术观测及过期整次中断。不授权或发送请求、不重发未知派发、不保存完整输出或判分；派发切片引入 `eval_0005`（当前 head 为 `eval_0006`），Harness ledger 不变。
+**QA 执行与人工复核**：项目与数据 → 冻结请求/数据/映射计划 → 独立授权执行 → 有界采集 → 加密输出 → 人工复核。计划冻结本身不外呼；执行默认关闭，需要运营方显式配置密钥和目标策略，未知送达不重试。复核同屏展示 Q、实际 A、参考答案和来源，追加人工三态决策及理由，保留修订。[执行范围](docs/DevPilot_Admitted_QA_Execution.md) · [证据与复核](docs/DevPilot_QA_Evidence_Review.md)。
 
+**已验证人工汇总预览**：选择效果运行，明确点击加载汇总。人工通过率 = 最新通过决策数 / 冻结计划全部样本数；未复核、待确认和技术失败不剔除，旧修订不重复计票。切换项目/运行或执行样本操作后清除快照。复核完成不代表项目验收通过，也不是已存档报告。[公式、校验与权限](docs/DevPilot_Verified_QA_Summaries.md)。
 
-内部开发已增加[有界单次 JSON 采集核心](docs/DevPilot_Bounded_QA_Attempts.md)，复用出站策略、限制响应、未知派发不自动重试；尚未接入执行 API/耐久 Worker，不构成可运行的完整评测或判分。
-
-**冻结 QA 计划界面**：项目与数据 → 选择项目 → 冻结 QA 评测计划。选择组件请求版本与冻结数据集，填写 JSON 映射和效果/性能边界，明确确认后冻结定义；不调用目标接口、不代表执行批准。支持版本浏览、失败后显式刷新及多组件隔离。[操作与边界](docs/DevPilot_Frozen_QA_Plan_UI.md)。
-
-**冻结 QA 计划后端切片：** 支持将加密请求版本、冻结数据 revision/hash、JSON 输入/输出映射及执行预算经人工确认后固定；逐条预检，不发送请求或金标。仅冻结定义，不是执行批准或证据，计划确认 UI 已接入，耐久 Worker 仍待开发。详见[边界与迁移](docs/DevPilot_Frozen_QA_Plans.md)。
+**冻结 QA 计划**固定请求版本、数据 revision/hash、JSON 映射与边界；[确认界面](docs/DevPilot_Frozen_QA_Plan_UI.md)不会发送请求。[采集器](docs/DevPilot_Bounded_QA_Attempts.md)和[派发日志](docs/DevPilot_Durable_Dispatch_Journal.md)已被独立授权的 Worker 连接，早期文档中的“尚无执行入口”只描述原切片。旧评测/调度通路不会被静默切换。
 
 [English](README.md) · [设计与开发文档](docs/README.md) · [本轮交付与配置](docs/DevPilot_Evaluation_Workspace.md)
 

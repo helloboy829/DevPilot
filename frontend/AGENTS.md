@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## Verified human summary preview (2026-11-08)
+
+`app.evaluation.qa_summary` authenticates shared frozen sources, each output and only the latest encrypted human decision off-loop, then rechecks the whole snapshot under the run lock before audit/return. Denominator is ALL frozen effectiveness samples, never the reviewed/successful subset. Performance repetitions are rejected. Complete review is not acceptance; no report snapshot is persisted. No migration; code head remains `eval_0007`, local confirmed head `eval_0006`. [Scope and gates](../docs/DevPilot_Verified_QA_Summaries.md).
+
+Frontend note: `EvaluationReviewSummary` is nested in the review panel and keyed by project/run/operation generation. Every parent case operation invalidates its preview. Explicit load only, ref-locked reads, unmount fencing, memory-only data; errors clear old numbers.
+
+
 ## Authorized QA execution UI (2026-11-08)
 
 `EvaluationExecutionPanel` is mounted with the project key between plan confirmation and human review. It loads only metadata on explicit clicks, requires two fresh human confirmations, generates one execution ID before PUT, and reconciles unknown results by GET of that same ID. No automatic run creation, write retries, polling, browser persistence or plaintext request/Q/A/gold access. Keep the synchronous lock and unmount epoch guard. Operator policy is read-only; disabled execution cannot be enabled by the UI. Technical collection is not quality acceptance or TTFT. Execution/review DOM tests and full fixture-backed browser suite pass; local deployment remains pending. Empty review state directs users to separate execution authorization, not automatic runs. See [scope/status](../docs/DevPilot_Admitted_QA_Execution.md).

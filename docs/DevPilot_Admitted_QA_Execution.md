@@ -111,7 +111,8 @@ Local isolated Windows Python 3.12 validation:
   test budget and repeatedly timed out before assertions. Static suite import fixes
   that harness timing; it still loads the real highlighting helper, rejects the
   Shiki dependency and verifies raw fallback. No timeouts/retries were increased.
-  Exact-SHA Linux Actions must still be confirmed after pushing.
+  Execution commit `0e56c3b60216350c3f598414b8b4eb02d842494a` subsequently
+  passed all six triggered Actions. Later summary changes require their own SHA.
 - Full browser suite: **189 passed**, plus **2 authentication-recovery tests**,
   one worker, zero retries. Requests are fixture-stubbed, not real business calls.
   An initial browser failure was an exact implicit-label locator; using the

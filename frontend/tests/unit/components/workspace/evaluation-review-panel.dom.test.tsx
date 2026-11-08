@@ -251,3 +251,41 @@ it("empty review directs users to separate execution authorization, never starts
   expect(state.api.mock.calls[0]?.[0]).toMatch(/review-runs$/);
   expect(state.api.mock.calls[0]?.[1]).toBeUndefined();
 });
+it("invalidates the verified number on case operations without implicitly reloading it", async () => {
+  render(<EvaluationReviewPanel projectId="p1" zh={false} />);
+  await ready();
+  const original = state.api.getMockImplementation()!;
+  state.api.mockImplementation((route: string, body?: unknown) =>
+    route.endsWith("/summary")
+      ? Promise.resolve({
+          schema: "qa-human-summary.v1",
+          scope: "verified_human_summary_preview",
+          project_id: "p1",
+          run_id: "r1",
+          component_name: run.component_name,
+          plan_label: run.plan_label,
+          plan_hash: "a".repeat(64),
+          summary_hash: "b".repeat(64),
+          counts: { pass: 1, fail: 0, uncertain: 0, unreviewed: 1 },
+          technical_counts: { collected: 2, other: 0 },
+          human_pass_rate: { numerator: 1, denominator: 2, value: 0.5 },
+          readiness: "provisional",
+          blockers: ["unreviewed"],
+          acceptance: "not_approved",
+        })
+      : original(route, body),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load / refresh verified summary" }),
+  );
+  await screen.findByText("50.00%");
+  await confirm();
+  fireEvent.click(screen.getByRole("button", { name: "Save review revision" }));
+  await screen.findByText(/Human review revision appended/);
+  expect(screen.queryByText("50.00%")).toBeNull();
+  expect(
+    state.api.mock.calls.filter(([route]) =>
+      String(route).endsWith("/summary"),
+    ),
+  ).toHaveLength(1);
+});

@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## Verified human summary preview (2026-11-08)
+
+`app.evaluation.qa_summary` authenticates shared frozen sources, each output and only the latest encrypted human decision off-loop, then rechecks the whole snapshot under the run lock before audit/return. Denominator is ALL frozen effectiveness samples, never the reviewed/successful subset. Performance repetitions are rejected. Complete review is not acceptance; no report snapshot is persisted. No migration; code head remains `eval_0007`, local confirmed head `eval_0006`. [Scope and gates](docs/DevPilot_Verified_QA_Summaries.md).
+
+
 ## Independently authorized QA execution (2026-11-08)
 
 The candidate App head is `eval_0007`; local deployed head remains `eval_0006` until a backed-up upgrade succeeds. Separate human-only authorization connects frozen QA JSON plans to global DB reservations, one-time claims, a bounded Worker and encrypted review evidence. Operator policy is restart-required/default-disabled; never generate keys or enable target/model calls implicitly. Unknown writes/delivery never retry; DB operations and local tasks drain before reservation release. Lost Workers retain quota, never reclaim. See [scope and verification gates](docs/DevPilot_Admitted_QA_Execution.md) and the module guides. Earlier slice notes below describe their original boundaries.

@@ -11,6 +11,7 @@ from app.evaluation.execution import ExecutionCreate
 from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import PlanCreate, PlanPreflightError
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
+from app.evaluation.qa_summary import SummaryRepository
 from app.evaluation.registry import ComponentLinkCreate, SubmissionCreate
 from app.evaluation.registry_repository import RegistryRepository
 from app.evaluation.repository import Conflict, NotFound
@@ -275,6 +276,15 @@ async def plan_audit(project_id: str, plan_id: str, request: Request):
 async def list_review_runs(project_id: str, request: Request):
     owner, repository = await _context(request)
     return {"runs": await _result(EvidenceRepository(repository.sf).list_runs(owner, project_id))}
+
+
+@router.get("/{project_id}/review-runs/{run_id}/summary")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_review_summary(project_id: str, run_id: str, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    return await _result(SummaryRepository(repository.sf).get_summary(owner, project_id, run_id))
 
 
 @router.get("/{project_id}/review-runs/{run_id}/cases")

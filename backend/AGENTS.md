@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## Verified human summary preview (2026-11-08)
+
+`app.evaluation.qa_summary` authenticates shared frozen sources, each output and only the latest encrypted human decision off-loop, then rechecks the whole snapshot under the run lock before audit/return. Denominator is ALL frozen effectiveness samples, never the reviewed/successful subset. Performance repetitions are rejected. Complete review is not acceptance; no report snapshot is persisted. No migration; code head remains `eval_0007`, local confirmed head `eval_0006`. [Scope and gates](../docs/DevPilot_Verified_QA_Summaries.md).
+
+Backend note: evidence source verification is factored into `_verify_source` and `_verify_case`; callers of the latter MUST verify the common source first. Summary batching does not read full historical notes; case history retains its original verification. Preserve owner/human permission and no-store boundaries.
+
+
 ## Admitted QA JSON execution (2026-11-08)
 
 `app.evaluation.execution` connects separate human authorization to the immutable QA plan, global DB guard/quotas, one-time claim, bounded Worker and encrypted evidence. `eval_0007` appends guard/admission tables; preserve all earlier migrations and the Harness ledger. `evaluation_execution` is operator-owned, restart-required and disabled by default; independent key and destination allowlist are required. Never treat frozen-plan consent as execution consent. PUT uses a client-generated identifier, GET reconciles the same receipt, and internal agents cannot attest. No automatic retry/reclaim of unknown sends/commits or expired claims. Running cancellation holds quota until the original Worker drains; lost Workers retain quota, with administrator reconciliation still pending. Crypto/preflight run outside global/run locks. DB operations drain before cancellation propagates; unknown delivery fences new sends before evidence persistence. Shutdown remembers a committed claim and only its original Worker may release its drained reservation. Execution/router/lifecycle tests: 30 passed; broader regression and Linux/deployment gates are in [scope/status](../docs/DevPilot_Admitted_QA_Execution.md). Prior slice notes below describe their original scope and are superseded only where this new execution path explicitly connects them.

@@ -53,3 +53,28 @@ export interface ReviewCase {
     created_at_ms: number;
   }[];
 }
+
+export interface ReviewSummary {
+  schema: "qa-human-summary.v1";
+  scope: "verified_human_summary_preview";
+  run_id: string;
+  run_status: string;
+  project_id: string;
+  component_id: string;
+  component_name: string;
+  plan_id: string;
+  plan_label: string;
+  plan_hash: string;
+  summary_hash: string;
+  counts: Record<ReviewDecision | "unreviewed", number>;
+  technical_counts: { collected: number; other: number };
+  human_pass_rate: { numerator: number; denominator: number; value: number };
+  readiness: "provisional" | "review_complete";
+  blockers: (
+    | "collection_not_finished"
+    | "technical_incomplete"
+    | "unreviewed"
+    | "uncertain"
+  )[];
+  acceptance: "not_approved";
+}

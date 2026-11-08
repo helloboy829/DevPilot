@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { EvaluationReviewSummary } from "@/components/workspace/evaluation-review-summary";
 import { evaluationApi } from "@/core/evaluation/api";
 import type {
   ReviewCase,
@@ -27,6 +28,7 @@ export function EvaluationReviewPanel({
   const [note, setNote] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [summaryVersion, setSummaryVersion] = useState(0);
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -66,6 +68,7 @@ export function EvaluationReviewPanel({
     lock.current = true;
     const token = epoch.current;
     setBusy(true);
+    setSummaryVersion((value) => value + 1);
     setError("");
     revoke();
     try {
@@ -209,6 +212,14 @@ export function EvaluationReviewPanel({
             {zh ? "加载样本列表" : "Load cases"}
           </Button>
         </div>
+        {runId && (
+          <EvaluationReviewSummary
+            key={projectId + ":" + runId + ":" + summaryVersion}
+            projectId={projectId}
+            runId={runId}
+            zh={zh}
+          />
+        )}
         {page && (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-3 text-sm">
