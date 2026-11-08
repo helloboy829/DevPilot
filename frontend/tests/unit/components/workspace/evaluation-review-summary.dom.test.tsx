@@ -121,3 +121,28 @@ it("ignores late responses after switching run or project", async () => {
   expect(screen.queryByText("50.00%")).toBeNull();
   expect(state.api).toHaveBeenCalledTimes(1);
 });
+
+it("shows frozen threshold satisfaction separately from review completion and approval", async () => {
+  state.api.mockResolvedValue({
+    ...summary,
+    criteria_evaluation: {
+      scope: "effectiveness_threshold_only",
+      criteria: {
+        schema: "qa-effectiveness-criteria.v1",
+        version_label: "Criteria v1",
+        min_pass_rate_bps: 8500,
+      },
+      status: "not_met",
+      blockers: [],
+      approval: "not_approved",
+    },
+  });
+  render(<EvaluationReviewSummary projectId="p1" runId="r1" zh={false} />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load / refresh verified summary" }),
+  );
+  expect(await screen.findByText(/Criteria v1.*85.00%/)).toBeTruthy();
+  expect(
+    screen.getByText("Effectiveness threshold not met (not approved)"),
+  ).toBeTruthy();
+});

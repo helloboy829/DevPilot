@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EvaluationCriteriaView } from "@/components/workspace/evaluation-criteria-view";
 import type { EvaluationProject } from "@/core/datasets/types";
 import { evaluationApi, evaluationReportDocx } from "@/core/evaluation/api";
 import type {
@@ -151,6 +152,9 @@ function ProjectArchiveWorkspace({
   const selected = templates.find(
     (t) => t.id + "@" + t.version === templateKey,
   );
+  const criteriaRequired = staged.some((s) => s.criteria_evaluation);
+  const templateCompatible =
+    !criteriaRequired || !!selected?.layout.criteria_heading;
   const locked = busy || !!pending;
   useEffect(() => {
     const lifecycle = epoch;
@@ -277,6 +281,7 @@ function ProjectArchiveWorkspace({
     if (
       !confirmed ||
       !selected ||
+      !templateCompatible ||
       !title.trim() ||
       !staged.length ||
       pending ||
@@ -428,6 +433,10 @@ function ProjectArchiveWorkspace({
                   ? "复核不完整：请返回人工复核处理，不能存档。"
                   : "Review incomplete: return to human review before archiving."}
             </p>
+            <EvaluationCriteriaView
+              assessment={summary.criteria_evaluation}
+              zh={zh}
+            />
             <code className="block break-all">{summary.summary_hash}</code>
             <Button
               type="button"
@@ -500,6 +509,7 @@ function ProjectArchiveWorkspace({
                 <option
                   key={t.id + "@" + t.version}
                   value={t.id + "@" + t.version}
+                  disabled={criteriaRequired && !t.layout.criteria_heading}
                 >
                   {t.language} · {t.id}@{t.version}
                 </option>
@@ -507,6 +517,13 @@ function ProjectArchiveWorkspace({
             </select>
           </label>
         </div>
+        {!templateCompatible && (
+          <p role="status" className="text-sm">
+            {zh
+              ? "请选择包含冻结效果标准的模板（1.1.0）；旧模板仍可用于旧计划和历史存档。"
+              : "Choose a template that includes frozen effectiveness criteria (1.1.0); older templates remain available for legacy plans and archives."}
+          </p>
+        )}
         {parent && (
           <p className="text-sm break-all">
             {zh ? "新修订源于：" : "New revision of: "}
@@ -538,7 +555,13 @@ function ProjectArchiveWorkspace({
         </label>
         <Button
           type="button"
-          disabled={!confirmed || !selected || !title.trim() || !staged.length}
+          disabled={
+            !confirmed ||
+            !selected ||
+            !templateCompatible ||
+            !title.trim() ||
+            !staged.length
+          }
           onClick={archive}
         >
           {zh ? "存档已验证草稿" : "Archive verified draft"}

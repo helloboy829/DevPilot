@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EvaluationCriteriaView } from "@/components/workspace/evaluation-criteria-view";
 import type { EvaluationProject } from "@/core/datasets/types";
 import { evaluationApi } from "@/core/evaluation/api";
 import type {
@@ -466,6 +467,23 @@ function RetestWorkspace({
             {summaries[1].human_pass_rate.numerator} /{" "}
             {summaries[1].human_pass_rate.denominator}
           </p>
+          {summaries.map((item, index) => (
+            <div key={item.run_id} className="min-w-0">
+              <p>
+                {index === 0
+                  ? zh
+                    ? "基准标准"
+                    : "Baseline criteria"
+                  : zh
+                    ? "复测标准"
+                    : "Retest criteria"}
+              </p>
+              <EvaluationCriteriaView
+                assessment={item.criteria_evaluation}
+                zh={zh}
+              />
+            </div>
+          ))}
           <p className="text-xs">
             {zh
               ? "仅已验证人工汇总。保存时服务器再次检查基准和版本，未批准验收。"

@@ -1,5 +1,9 @@
 # DevPilot
 
+**Pre-run effectiveness criteria:** the plan form can freeze a versioned, exact human pass-rate threshold. Verified summaries distinguish complete review, threshold met/not met and **not approved**. Template 1.1.0 carries criteria into immutable multi-component drafts; old plans and archives are unchanged. No formal approval, performance criteria or new target/model calls. [Workflow and boundaries](docs/DevPilot_Frozen_Effectiveness_Criteria.md).
+
+**Image hygiene:** after a verified local upgrade, remove unused DevPilot-only images by exact reference; never force-remove referenced images, globally prune or delete volumes. [Safe maintenance](docs/DevPilot_Docker_Diagnostics.md#镜像清理与空间维护)。
+
 ## Same-benchmark retesting / 同基准整改复测
 
 `/workspace/retests` compares fully human-reviewed QA effectiveness runs using the same frozen data and budgets. It archives per-sample fixes/regressions and fixed-denominator rate changes, never automatic acceptance. Explicit paired Q/A opens, immutable history and same-ID unknown-write reconciliation are included. 本功能不执行目标/模型调用，不代替正式验收；迁移前须保留账号、配置、旧数据和数据卷。[Scope and safeguards / 范围与约束](docs/DevPilot_Same_Benchmark_Retesting.md).

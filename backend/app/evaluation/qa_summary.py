@@ -11,6 +11,7 @@ import asyncio
 from sqlalchemy import func, select
 
 from app.evaluation import tables as t
+from app.evaluation.criteria import assess_criteria
 from app.evaluation.qa_evidence import EvidenceRepository, _binding, _open_verified
 from app.evaluation.registry import fingerprint
 from app.evaluation.repository import Conflict
@@ -116,6 +117,8 @@ class SummaryRepository(EvidenceRepository):
             "blockers": blockers,
             "acceptance": "not_approved",
         }
+        if "acceptance_criteria" in plan["definition"]:
+            result["criteria_evaluation"] = assess_criteria(plan["definition"]["acceptance_criteria"], counts["pass"], total, blockers)
         return {**result, "summary_hash": fingerprint({"summary": result, "cases": commitments})}
 
     async def get_summary(self, owner, project_id, run_id):

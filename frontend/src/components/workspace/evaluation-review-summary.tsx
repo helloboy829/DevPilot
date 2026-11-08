@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { EvaluationCriteriaView } from "@/components/workspace/evaluation-criteria-view";
 import { evaluationApi } from "@/core/evaluation/api";
 import type { ReviewSummary } from "@/core/evaluation/review-types";
 
@@ -145,6 +146,10 @@ export function EvaluationReviewSummary({
               ))}
             </ul>
           )}
+          <EvaluationCriteriaView
+            assessment={summary.criteria_evaluation}
+            zh={zh}
+          />
           <details className="text-muted-foreground text-xs">
             <summary>
               {zh

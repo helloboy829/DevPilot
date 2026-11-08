@@ -84,3 +84,21 @@ make docker-health DOCKER_HEALTH_PROJECT=devpilot-local
 除配置单测外，使用现有 gateway/frontend/nginx 镜像创建无网络、无挂载的临时容器，执行真实探测命令：Gateway 6 种、frontend 7 种合成 HTTP 场景（200、非 200/重定向、拒绝连接，以及前端不响应的总时限），均符合预期且不输出原始内容；nginx 完成实际语法检查和本地固定端点探测。两个独立合成服务器也观察到 Docker healthy → unhealthy → healthy，期间进程重启数为 0。状态转换测试缩短了周期，不能冒充生产 30 秒配置的持续运行证明。
 
 这些测试不挂业务卷、不修改现有服务；验证收据只留本机。每个新提交仍需独立核对 CI，本地实际应用也需另有收据，不能把合成容器结果当成业务部署或根因修复。
+
+## 生产 Gateway 启动不做依赖同步
+
+生产 Compose 覆盖命令同镜像保持 `uv run --no-sync uvicorn ...`，使用构建时安装的依赖；开发入口保留其同步/热重载设计。本轮只修正生产覆盖遗漏，不证明它导致了此前本地卡顿；本地私有服务原本直接运行虚拟环境 Python，不需为此重复重建。
+
+## 镜像清理与空间维护
+
+1. 构建前先看系统盘与 Docker 状态，禁止反复堆积同一功能镜像作为“排障”。镜像占用的是磁盘，不能据此认定运行内存不足。
+2. 新镜像只在升级完成、健康/入口/既有账号和配置数据核验后替换旧镜像；验证前保留回退能力。
+3. 用 `docker image ls`、`docker ps -a` 与必要的定向 inspect 确认本项目镜像和**所有**容器引用，含已停止容器。不要输出环境、凭据或私有挂载原文。
+4. 只对确认属于本项目且无引用的旧镜像执行 `docker image rm <exact-reference>`，不使用 `--force`。清理后再次核对服务健康。当前镜像必须保留。
+5. 构建产生的悬空镜像仅在可证明属于本次 DevPilot 构建且无引用时清理，不使用全局 dangling prune。未知归属保留并提示。
+6. 已停止验证容器引用的镜像暂不删；清理容器本身须另核实其用途和数据，不能顺手 `container prune`。不得删除卷、账号配置、其他项目或全局 build cache。
+7. 镜像可能共享层，显示体积不能简单相加当作实际释放空间；Docker Desktop 虚拟磁盘未必立即把空间归还宿主。压缩/迁移 VHDX 是单独运维步骤，本轮未执行。
+
+2026-11-08 本地核对：用户清理后系统盘已超过低空间阈值，服务健康且无容器重启/OOM；删除了三个无容器引用的旧 DevPilot 镜像，保留当前镜像、旧验证容器仍引用的镜像和其他项目。没有 prune、卷操作或 Docker 重启。该记录不代表低空间就是历史卡顿根因。
+
+English: remove only positively identified, unreferenced DevPilot images after a verified upgrade. Include stopped-container references, never force/prune globally, and preserve volumes/unrelated projects. Layer sharing and Docker Desktop virtual disks mean tag sizes are not reclaimed-host-space evidence.

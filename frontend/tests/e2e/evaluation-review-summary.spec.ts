@@ -61,6 +61,17 @@ for (const width of [1440, 390]) {
             readiness: "provisional",
             blockers: ["unreviewed"],
             acceptance: "not_approved",
+            criteria_evaluation: {
+              scope: "effectiveness_threshold_only",
+              criteria: {
+                schema: "qa-effectiveness-criteria.v1",
+                version_label: "Synthetic criteria v1",
+                min_pass_rate_bps: 8500,
+              },
+              status: "incomplete",
+              blockers: ["unreviewed"],
+              approval: "not_approved",
+            },
           },
         });
       },
@@ -98,6 +109,15 @@ for (const width of [1440, 390]) {
       })
       .click();
     await expect(summary.getByText("50.00%", { exact: true })).toBeVisible();
+    await expect(
+      summary.getByText(/Synthetic criteria v1.*85.00%/),
+    ).toBeVisible();
+    await expect(
+      summary.getByText(
+        "Incomplete evidence; no threshold verdict (not approved)",
+        { exact: true },
+      ),
+    ).toBeVisible();
     await expect(summary.getByText("1 / 2", { exact: true })).toBeVisible();
     await expect(
       summary.getByText("Unreviewed: 1", { exact: true }),

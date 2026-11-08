@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 本轮新增：执行前冻结效果标准（2026-11-08）
+
+[标准与判定边界](DevPilot_Frozen_Effectiveness_Criteria.md)：新 v2 计划冻结版本化阈值，完整人工证据下按全样本精确判定，不是正式批准；报告新模板和同基准复测保留标准。无迁移或自动外呼。当前服务部署与新提交验证分别记录，历史 CI 不代表本轮成功。
+
 [只读 Docker 诊断](DevPilot_Docker_Diagnostics.md)：有界元数据检查，区分 Docker 无响应、应用状态与磁盘风险；不自动重启、不读取日志/凭据或修改数据。
 
 生产/开发 Compose 增加核心服务 HTTP 健康检查与 nginx 初始就绪依赖；这不是自动恢复，也不代表现有容器已应用。[探测范围与部署边界](DevPilot_Docker_Diagnostics.md#服务健康与启动顺序)。

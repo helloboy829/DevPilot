@@ -53,9 +53,12 @@ _RUN_BUDGET_KEYS = ("max_response_bytes", "max_total_response_bytes", "lease_gra
 
 
 def _same_benchmark(baseline, retest):
-    if any(baseline[key] != retest[key] for key in _BENCHMARK_KEYS):
+    if any(baseline.get(key) != retest.get(key) for key in ("schema", "acceptance_criteria")) or any(baseline[key] != retest[key] for key in _BENCHMARK_KEYS):
         raise Conflict
-    return {key: baseline[key] for key in _BENCHMARK_KEYS}
+    benchmark = {key: baseline[key] for key in _BENCHMARK_KEYS}
+    if "acceptance_criteria" in baseline:
+        benchmark.update(schema=baseline["schema"], acceptance_criteria=baseline["acceptance_criteria"])
+    return benchmark
 
 
 class RetestRepository(SummaryRepository):

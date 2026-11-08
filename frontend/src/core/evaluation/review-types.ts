@@ -1,3 +1,5 @@
+import type { EffectivenessCriteria } from "./plan-types";
+
 export type ReviewDecision = "pass" | "fail" | "uncertain";
 export interface ReviewRun {
   id: string;
@@ -54,7 +56,16 @@ export interface ReviewCase {
   }[];
 }
 
+export interface CriteriaEvaluation {
+  scope: "effectiveness_threshold_only";
+  criteria: EffectivenessCriteria;
+  status: "met" | "not_met" | "incomplete";
+  blockers: string[];
+  approval: "not_approved";
+}
+
 export interface ReviewSummary {
+  criteria_evaluation?: CriteriaEvaluation;
   schema: "qa-human-summary.v1";
   scope: "verified_human_summary_preview";
   run_id: string;

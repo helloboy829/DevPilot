@@ -6,6 +6,7 @@ from typing import Literal
 from devpilot.qa_json_binding import QAJSONBinding
 from pydantic import Field, field_validator, model_validator
 
+from app.evaluation.criteria import EffectivenessCriteria
 from app.evaluation.datasets import StrictDTO
 from app.evaluation.registry import version_key
 
@@ -91,4 +92,25 @@ class PlanDefinition(PlanSettings):
             or check.total_body_bytes > self.limits.max_total_body_bytes
         ):
             raise ValueError("Invalid frozen QA plan budget")
+        return self
+
+
+class AcceptancePlanCreate(PlanCreate):
+    acceptance_criteria: EffectivenessCriteria
+
+    @model_validator(mode="after")
+    def effectiveness_only(self):
+        if self.limits.mode != "effectiveness":
+            raise ValueError("Effectiveness criteria require effectiveness mode")
+        return self
+
+
+class AcceptancePlanDefinition(PlanDefinition):
+    schema_version: Literal["qa-json-plan.v2"] = Field(alias="schema")
+    acceptance_criteria: EffectivenessCriteria
+
+    @model_validator(mode="after")
+    def effectiveness_only(self):
+        if self.limits.mode != "effectiveness":
+            raise ValueError("Effectiveness criteria require effectiveness mode")
         return self

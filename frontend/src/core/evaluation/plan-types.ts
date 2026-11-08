@@ -7,7 +7,13 @@ export interface PlanLimits {
   wall_time_ms: number;
   max_total_body_bytes: number;
 }
+export interface EffectivenessCriteria {
+  schema: "qa-effectiveness-criteria.v1";
+  version_label: string;
+  min_pass_rate_bps: number;
+}
 export interface PlanCreate {
+  acceptance_criteria?: EffectivenessCriteria;
   version_label: string;
   request_version_id: string;
   request_protected_hash: string;
@@ -33,7 +39,7 @@ export interface FrozenPlan {
   scope: "frozen_definition_only";
   definition_hash: string;
   definition: Omit<PlanCreate, "confirmed"> & {
-    schema: "qa-json-plan.v1";
+    schema: "qa-json-plan.v1" | "qa-json-plan.v2";
     scope: "frozen_definition_only";
     project_id: string;
     component_id: string;

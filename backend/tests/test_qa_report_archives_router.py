@@ -24,7 +24,7 @@ async def test_explicit_archive_reopen_metadata_and_permissions(api, monkeypatch
     client, app, base, _ = api
     payload = await source(api, monkeypatch)
     catalog = await client.get(base + "/report-templates")
-    assert catalog.status_code == 200 and len(catalog.json()["templates"]) == 2
+    assert catalog.status_code == 200 and len(catalog.json()["templates"]) == 4
     path = base + "/report-archives/" + uuid4().hex
     response = await client.put(path, json=payload)
     assert response.status_code == 200 and "no-store" in response.headers["cache-control"]

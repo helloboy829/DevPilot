@@ -12,7 +12,7 @@ from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest,
 from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.execution import ExecutionCreate
 from app.evaluation.plan_repository import PlanRepository
-from app.evaluation.plans import PlanCreate, PlanPreflightError
+from app.evaluation.plans import AcceptancePlanCreate, PlanCreate, PlanPreflightError
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
 from app.evaluation.qa_reports import ArchiveCreate, ReportArchiveRepository, archive_templates
 from app.evaluation.qa_retests import RetestCreate, RetestRepository
@@ -250,7 +250,7 @@ async def request_version_audit(project_id: str, version_id: str, request: Reque
 @router.post("/{project_id}/components/{component_id}/plans")
 @require_permission("evaluation_projects", "write")
 @require_permission("evaluation_projects", "review")
-async def create_plan(project_id: str, component_id: str, payload: PlanCreate, request: Request):
+async def create_plan(project_id: str, component_id: str, payload: AcceptancePlanCreate | PlanCreate, request: Request):
     owner, repository = await _context(request)
     _require_human(request)
     return await _result(PlanRepository(repository.sf).create_plan(owner, project_id, component_id, payload))

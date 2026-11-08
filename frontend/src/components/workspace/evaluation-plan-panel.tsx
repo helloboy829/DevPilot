@@ -351,6 +351,66 @@ export function EvaluationPlanPanel({
             )}
           </Link>
         )}
+        <fieldset
+          className="min-w-0 space-y-3 rounded-lg border p-4"
+          disabled={form.mode !== "effectiveness"}
+        >
+          <legend className="px-1 text-sm font-medium">
+            {t("Pre-run effectiveness criteria", "执行前冻结效果标准")}
+          </legend>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={form.criteriaEnabled}
+              onChange={(e) => edit({ criteriaEnabled: e.target.checked })}
+            />
+            <span>
+              {t(
+                "Freeze effectiveness criteria before execution",
+                "在执行前冻结效果验收标准",
+              )}
+            </span>
+          </label>
+          <p className="text-muted-foreground text-xs">
+            {t(
+              "Optional for exploratory plans. Without frozen criteria, no threshold verdict is available. Criteria cannot be edited later: create a new plan version. All samples count; incomplete evidence blocks a verdict. Threshold satisfaction is not performance acceptance or formal project approval.",
+              "探索性计划可不设置；未冻结标准的运行不判定达标。标准不可事后修改，需创建新计划版本。全部样本计入分母，证据不完整时不判达标。效果阈值达标不等于性能合格或正式项目批准。",
+            )}
+          </p>
+          {form.criteriaEnabled && (
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
+              <label className="block min-w-0 space-y-1 text-sm">
+                <span>{t("Criteria version label", "标准版本名称")}</span>
+                <Input
+                  maxLength={80}
+                  value={form.criteriaLabel}
+                  onChange={(e) => edit({ criteriaLabel: e.target.value })}
+                />
+              </label>
+              <label className="block min-w-0 space-y-1 text-sm">
+                <span>
+                  {t("Minimum human pass rate (%)", "最低人工通过率（%）")}
+                </span>
+                <Input
+                  inputMode="decimal"
+                  aria-label={t(
+                    "Minimum human pass rate (%)",
+                    "最低人工通过率（%）",
+                  )}
+                  value={form.minPassPercent}
+                  onChange={(e) => edit({ minPassPercent: e.target.value })}
+                />
+                <span className="text-muted-foreground text-xs">
+                  {t(
+                    "0–100, at most two decimal places; no automatic default",
+                    "0–100，最多两位小数，不自动指定阈值",
+                  )}
+                </span>
+              </label>
+            </div>
+          )}
+        </fieldset>
         <h3 className="text-sm font-medium">
           {t("3. Bound the future workload", "3. 限定未来执行负载")}
         </h3>
@@ -361,7 +421,11 @@ export function EvaluationPlanPanel({
               className={selectStyle}
               value={form.mode}
               onChange={(e) =>
-                edit({ mode: e.target.value as PlanForm["mode"] })
+                edit({
+                  mode: e.target.value as PlanForm["mode"],
+                  criteriaEnabled:
+                    e.target.value === "effectiveness" && form.criteriaEnabled,
+                })
               }
             >
               <option value="effectiveness">
@@ -553,6 +617,14 @@ export function EvaluationPlanPanel({
                   "Preflight counts only; no requests were sent and no quality score exists.",
                   "仅预检统计，未发送请求、无效果得分。",
                 )}
+              </p>
+              <p className="text-sm break-words">
+                {row.definition.acceptance_criteria
+                  ? `${row.definition.acceptance_criteria.version_label} · ${(row.definition.acceptance_criteria.min_pass_rate_bps / 100).toFixed(2)}% · ${t("Frozen effectiveness criteria; not approved", "已冻结效果标准；未批准")}`
+                  : t(
+                      "No pre-run frozen criteria; no threshold verdict",
+                      "未在执行前冻结标准，不判定达标",
+                    )}
               </p>
               <details className="min-w-0 text-xs break-all">
                 <summary className="cursor-pointer py-2">

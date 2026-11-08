@@ -49,7 +49,9 @@ function plan(body: Record<string, unknown>) {
     definition_hash: "d".repeat(64),
     definition: {
       ...settings,
-      schema: "qa-json-plan.v1",
+      schema: settings.acceptance_criteria
+        ? "qa-json-plan.v2"
+        : "qa-json-plan.v1",
       scope: "frozen_definition_only",
       project_id: "p1",
       component_id: "c1",
@@ -467,3 +469,54 @@ test("project switching keeps exactly one registry and one plan panel with indep
     ).toHaveValue("");
   }
 });
+
+for (const width of [1440, 390]) {
+  test(`freeze versioned effectiveness criteria with renewed consent (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const panel = await fill(page);
+    let posted: Record<string, unknown> | undefined;
+    await page.route(
+      "**/api/evaluation/projects/p1/components/c1/plans",
+      async (route) => {
+        if (route.request().method() === "GET")
+          return route.fulfill({ json: { plans: [] } });
+        posted = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ json: plan(posted) });
+      },
+    );
+    const confirmation = panel.getByRole("checkbox", { name: consent });
+    await confirmation.check();
+    await panel
+      .getByRole("checkbox", {
+        name: "Freeze effectiveness criteria before execution",
+        exact: true,
+      })
+      .check();
+    await expect(confirmation).not.toBeChecked();
+    await panel
+      .getByLabel("Criteria version label", { exact: true })
+      .fill("Synthetic criteria v1");
+    await panel
+      .getByLabel("Minimum human pass rate (%)", { exact: true })
+      .fill("85.25");
+    await confirmation.check();
+    await panel
+      .getByRole("button", { name: "Freeze plan definition", exact: true })
+      .click();
+    await expect(
+      panel.getByText(/Synthetic criteria v1.*85.25%/),
+    ).toBeVisible();
+    expect(posted?.acceptance_criteria).toEqual({
+      schema: "qa-effectiveness-criteria.v1",
+      version_label: "Synthetic criteria v1",
+      min_pass_rate_bps: 8525,
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  });
+}

@@ -54,3 +54,13 @@ def test_development_compose_keeps_explicit_hot_reload():
     frontend = compose["services"]["frontend"]
     assert frontend["build"]["target"] == "dev"
     assert re.search(r"pnpm (?:run )?dev\b", str(frontend["command"]))
+
+
+def test_production_gateway_never_synchronizes_dependencies_at_startup():
+    compose = yaml.safe_load((ROOT / "docker/docker-compose.yaml").read_text(encoding="utf-8"))
+    command = compose["services"]["gateway"]["command"]
+    assert "uv run --no-sync uvicorn app.gateway.app:app" in command
+    assert "--workers ${GATEWAY_WORKERS:-1}" in command
+    assert "uv run --no-sync" in (ROOT / "backend/Dockerfile").read_text(encoding="utf-8")
+    dev = yaml.safe_load((ROOT / "docker/docker-compose-dev.yaml").read_text(encoding="utf-8"))
+    assert "dev-entrypoint.sh" in str(dev["services"]["gateway"]["command"])

@@ -88,3 +88,29 @@ async def test_plan_errors_are_private_and_do_not_create_partial_plans(api, monk
     assert "SYNTHETIC" not in response.text
     assert "no-store" in response.headers["cache-control"]
     assert (await client.get(path)).json()["plans"] == []
+
+
+@pytest.mark.asyncio
+async def test_pre_run_criteria_are_frozen_owner_private_and_effectiveness_only(api, monkeypatch):
+    client, app, base, _ = api
+    path, fields = await setup_plan(api, monkeypatch)
+    criteria = {"schema": "qa-effectiveness-criteria.v1", "version_label": "Synthetic criteria", "min_pass_rate_bps": 8500}
+    payload = {**fields, "acceptance_criteria": criteria}
+    response = await client.post(path, json=payload)
+    assert response.status_code == 200
+    saved = response.json()
+    assert saved["definition"]["schema"] == "qa-json-plan.v2"
+    assert saved["definition"]["acceptance_criteria"] == criteria
+    app.state.internal = True
+    assert (await client.post(path, json={**payload, "version_label": "Synthetic other"})).status_code == 403
+    app.state.internal = False
+    app.state.actor = 2
+    assert (await client.get(base + "/plans/" + saved["id"])).status_code == 404
+    app.state.actor = 1
+    assert (await client.patch(base + "/plans/" + saved["id"], json=payload)).status_code == 405
+    for change in ({"min_pass_rate_bps": True}, {"min_pass_rate_bps": "8500"}, {"ttft": 1}, {"automatic_approval": True}):
+        rejected = await client.post(path, json={**payload, "acceptance_criteria": {**criteria, **change}})
+        assert rejected.status_code == 422
+        assert "Synthetic criteria" not in rejected.text
+    response = await client.post(path, json={**payload, "limits": {**fields["limits"], "mode": "performance"}})
+    assert response.status_code == 422

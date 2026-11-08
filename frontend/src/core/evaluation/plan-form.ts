@@ -4,6 +4,9 @@ import type { RequestVersionMetadata } from "@/core/evaluation/request-version-t
 
 export interface PlanForm {
   versionLabel: string;
+  criteriaEnabled: boolean;
+  criteriaLabel: string;
+  minPassPercent: string;
   inputPointer: string;
   outputPointer: string;
   rootOutput: boolean;
@@ -17,6 +20,9 @@ export interface PlanForm {
 export function initialPlanForm(): PlanForm {
   return {
     versionLabel: "",
+    criteriaEnabled: false,
+    criteriaLabel: "",
+    minPassPercent: "",
     inputPointer: "",
     outputPointer: "",
     rootOutput: false,
@@ -97,7 +103,28 @@ export function buildPlanPayload(
   const timeout = integer(form.timeoutMs, 100, 300000);
   const wall = integer(form.wallTimeMs, 100, 3600000);
   if (wall < timeout) return invalid();
+  let acceptance: PlanCreate["acceptance_criteria"];
+  if (form.criteriaEnabled) {
+    const criteriaLabel = form.criteriaLabel.trim();
+    if (
+      form.mode !== "effectiveness" ||
+      !criteriaLabel ||
+      criteriaLabel.length > 80 ||
+      /\p{C}/u.test(criteriaLabel) ||
+      !/^(0|[1-9][0-9]{0,2})(\.[0-9]{1,2})?$/.test(form.minPassPercent)
+    )
+      return invalid();
+    const [whole, fraction = ""] = form.minPassPercent.split(".");
+    const bps = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+    if (bps > 10000) return invalid();
+    acceptance = {
+      schema: "qa-effectiveness-criteria.v1",
+      version_label: criteriaLabel,
+      min_pass_rate_bps: bps,
+    };
+  }
   return {
+    ...(acceptance ? { acceptance_criteria: acceptance } : {}),
     version_label: label,
     request_version_id: request.id,
     request_protected_hash: request.protected_hash,

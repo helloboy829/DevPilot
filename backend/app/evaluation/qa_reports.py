@@ -61,7 +61,7 @@ class ArchiveCreate(StrictDTO):
 
 
 def archive_templates():
-    return [
+    templates = [
         {
             "id": "verified-qa-project-en",
             "version": "1.0.0",
@@ -92,6 +92,18 @@ def archive_templates():
             },
         },
     ]
+    latest = copy.deepcopy(templates)
+    for item in latest:
+        item["version"] = "1.1.0"
+        zh = item["language"] == "zh"
+        item["layout"].update(
+            criteria_heading="冻结效果标准（不是正式批准）" if zh else "Frozen effectiveness criteria (not formal approval)",
+            criteria_columns="组件 | 标准版本 | 最低人工通过率 | 标准判定（未批准）" if zh else "Component | Criteria version | Minimum human pass rate | Threshold status (not approved)",
+            criteria_notice="met＝效果阈值达标；not_met＝未达标；incomplete＝证据不完整；not_configured＝执行前未冻结标准。均不代表性能合格或项目批准。"
+            if zh
+            else "met: effectiveness threshold met; not_met: threshold not met; incomplete: incomplete evidence; not_configured: no pre-run frozen criteria. None means performance acceptance or project approval.",
+        )
+    return latest + templates
 
 
 def _safe(text):
@@ -107,6 +119,15 @@ def _render(title, project, template, summaries):
     for item in summaries:
         rate = item["human_pass_rate"]
         lines.append("| " + " | ".join([_safe(item["component_name"]), _safe(item["plan_label"]), str(rate["numerator"]) + " / " + str(rate["denominator"]), f"{rate['value']:.2%}"]) + " |")
+    if "criteria_heading" in layout:
+        lines.extend(["", "## " + layout["criteria_heading"], "", layout["criteria_notice"], "", "| " + layout["criteria_columns"] + " |", "| --- | --- | ---: | --- |"])
+        for item in summaries:
+            assessment = item.get("criteria_evaluation")
+            fields = [_safe(item["component_name"]), "—", "—", "not_configured"]
+            if assessment:
+                criteria = assessment["criteria"]
+                fields = [_safe(item["component_name"]), _safe(criteria["version_label"]), f"{criteria['min_pass_rate_bps'] / 100:.2f}%", _safe(assessment["status"])]
+            lines.append("| " + " | ".join(fields) + " |")
     lines.extend(["", "## " + layout["sources"], ""])
     for item in summaries:
         lines.extend(["- " + _safe(item["component_name"]), "  - Run: " + _safe(item["run_id"]), "  - Plan: " + _safe(item["plan_hash"]), "  - Summary: " + _safe(item["summary_hash"])])
@@ -187,6 +208,8 @@ class ReportArchiveRepository(SummaryRepository):
             snapshots = [await self._summary_snapshot(session, owner, project_id, source.run_id) for source in payload.sources]
         summaries = await asyncio.to_thread(self._verify_sources, owner, snapshots, self._evidence_protection())
         if {item["run_id"]: item["summary_hash"] for item in summaries} != {item.run_id: item.summary_hash for item in payload.sources}:
+            raise Conflict
+        if any("criteria_evaluation" in summary for summary in summaries) and "criteria_heading" not in template["layout"]:
             raise Conflict
         document = {
             "schema": "qa-project-report-archive.v1",

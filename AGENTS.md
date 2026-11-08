@@ -1,5 +1,13 @@
 # AGENTS.md
 
+## Frozen pre-run effectiveness criteria (2026-11-08)
+
+`qa-json-plan.v2` binds strict plan-scoped basis-point criteria to the existing definition hash. v1 serialization/hashes remain unchanged; no migration. Verified summaries use ALL frozen samples and integer comparison; incomplete/uncertain evidence blocks even zero thresholds, and `met` is never approval. Template 1.1.0 adds criteria; 1.0.0/historical archives remain immutable, and v2 sources cannot silently use old layouts. Retests require identical schema/criteria. No additional model/target calls or auto-enabled execution. [Scope, contracts and exclusions](docs/DevPilot_Frozen_Effectiveness_Criteria.md).
+
+## Local Docker image hygiene
+
+After building and independently verifying a replacement, remove obsolete **DevPilot-only** images that no container (including stopped containers) references. Use exact image references, no force, global prune, volume deletion or unrelated-project cleanup. Keep the current deployment and pre-upgrade rollback image until verification succeeds; do not build at service startup. Dangling images require proven build provenance; absence of a tag alone is not ownership. Image deletion may share layers and does not prove host VHDX compaction. [Operations](docs/DevPilot_Docker_Diagnostics.md#镜像清理与空间维护)。
+
 ## Same-benchmark QA retest archives (2026-11-08)
 
 `app.evaluation.qa_retests` and `/workspace/retests` add immutable, owner/human-only comparisons of fully reviewed effectiveness runs. Strict frozen benchmark/budget equality, distinct version declarations and non-overlapping chronology are required. Off-loop verification precedes final ordered locks and atomic append/two-run audit. Unknown writes only reconcile the same ID by GET, never auto-resend. UI retains pending IDs across project switches, fences late responses and opens paired Q/A separately; current review revisions do not rewrite frozen decisions. App head `eval_0009` is additive and is now backed up, deployed and independently verified locally. No execution/model calls, approval or automatic notification. [Scope, privacy, tests and exclusions](docs/DevPilot_Same_Benchmark_Retesting.md).

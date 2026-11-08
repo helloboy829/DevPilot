@@ -184,7 +184,8 @@ def test_strict_contract_never_accepts_client_metrics_or_implicit_consent(change
 def test_catalog_has_both_versioned_language_templates():
     templates = archive_templates()
     assert {item["language"] for item in templates} == {"zh", "en"}
-    assert all(item["version"] == "1.0.0" and item["layout"] for item in templates)
+    assert {(item["language"], item["version"]) for item in templates} == {(language, version) for language in ("en", "zh") for version in ("1.0.0", "1.1.0")}
+    assert all(item["layout"] for item in templates)
 
 
 async def completed_run(repo, project, plan):

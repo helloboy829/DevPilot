@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.evaluation import tables as t
 from app.evaluation.datasets import QASample, dataset_hash
-from app.evaluation.plans import PlanCreate, PlanDefinition, PlanPreflightError
+from app.evaluation.plans import AcceptancePlanCreate, AcceptancePlanDefinition, PlanCreate, PlanDefinition, PlanPreflightError
 from app.evaluation.registry import fingerprint, version_key
 from app.evaluation.repository import Conflict, NotFound, now
 from app.evaluation.request_version_repository import RequestVersionRepository
@@ -48,8 +48,11 @@ def _preflight(frozen, inputs, payload):
 
 
 class PlanRepository(RequestVersionRepository):
-    async def create_plan(self, owner, project_id, component_id, payload: PlanCreate):
-        payload = PlanCreate.model_validate(payload.model_dump())
+    async def create_plan(self, owner, project_id, component_id, payload: PlanCreate | AcceptancePlanCreate):
+        with_criteria = isinstance(payload, AcceptancePlanCreate)
+        create_model = AcceptancePlanCreate if with_criteria else PlanCreate
+        definition_model = AcceptancePlanDefinition if with_criteria else PlanDefinition
+        payload = create_model.model_validate(payload.model_dump(by_alias=True))
         try:
             async with self.sf.begin() as session:
                 await self._linked_component(session, owner, project_id, component_id)
@@ -75,10 +78,10 @@ class PlanRepository(RequestVersionRepository):
                 inputs = await asyncio.to_thread(_verified_inputs, dataset, rows)
                 frozen = await self._open_request_row(session, owner, version)
                 checked = await asyncio.to_thread(_preflight, frozen, inputs, payload)
-                definition = PlanDefinition.model_validate(
+                definition = definition_model.model_validate(
                     {
-                        **payload.model_dump(exclude={"confirmed"}),
-                        "schema": "qa-json-plan.v1",
+                        **payload.model_dump(exclude={"confirmed"}, by_alias=True),
+                        "schema": "qa-json-plan.v2" if with_criteria else "qa-json-plan.v1",
                         "scope": "frozen_definition_only",
                         "project_id": project_id,
                         "component_id": component_id,
@@ -113,7 +116,10 @@ class PlanRepository(RequestVersionRepository):
     def _public_plan(row):
         try:
             definition = row["definition"]
-            validated = PlanDefinition.model_validate(definition).model_dump(by_alias=True)
+            if not isinstance(definition, dict):
+                raise ValueError
+            model = AcceptancePlanDefinition if definition.get("schema") == "qa-json-plan.v2" else PlanDefinition
+            validated = model.model_validate(definition).model_dump(by_alias=True)
             if definition != validated or not hmac.compare_digest(fingerprint(validated), row["definition_hash"]):
                 raise ValueError
             for name in ("project_id", "component_id", "request_version_id", "dataset_id", "version_label", "scope"):

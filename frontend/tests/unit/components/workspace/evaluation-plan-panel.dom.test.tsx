@@ -215,3 +215,32 @@ it("each editable mapping or limit revokes consent", async () => {
   }
   expect(writes()).toHaveLength(0);
 });
+
+it("requires renewed confirmation after editing pre-run criteria and sends their frozen version", async () => {
+  render(<EvaluationPlanPanel projectId="p1" zh={false} />);
+  await ready();
+  fireEvent.click(
+    screen.getByRole("checkbox", {
+      name: "Freeze effectiveness criteria before execution",
+    }),
+  );
+  expect(
+    screen.getByRole<HTMLInputElement>("checkbox", { name: consent }).checked,
+  ).toBe(false);
+  fireEvent.change(screen.getByLabelText("Criteria version label"), {
+    target: { value: "Criteria v1" },
+  });
+  fireEvent.change(screen.getByLabelText("Minimum human pass rate (%)"), {
+    target: { value: "85.25" },
+  });
+  fireEvent.click(screen.getByRole("checkbox", { name: consent }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Freeze plan definition" }),
+  );
+  await waitFor(() => expect(writes()).toHaveLength(1));
+  expect(writes()[0]![1]).toHaveProperty(
+    "acceptance_criteria.min_pass_rate_bps",
+    8525,
+  );
+  expect(await screen.findByText(/Criteria v1.*85.25%/)).toBeTruthy();
+});

@@ -145,3 +145,37 @@ it("requires real boolean confirmation and same project/component frozen referen
   ).toThrow();
   expect(() => build({}, request, { ...dataset, revision: 0 })).toThrow();
 });
+
+it("freezes explicit versioned criteria using exact hundredths of a percent, not rounded floats", () => {
+  expect(
+    build({
+      criteriaEnabled: true,
+      criteriaLabel: "Criteria v1",
+      minPassPercent: "85.25",
+    }).acceptance_criteria,
+  ).toEqual({
+    schema: "qa-effectiveness-criteria.v1",
+    version_label: "Criteria v1",
+    min_pass_rate_bps: 8525,
+  });
+  expect(build()).not.toHaveProperty("acceptance_criteria");
+  for (const value of ["85.255", "1e2", "-1", "100.01", "NaN", "", " 85 "])
+    expect(() =>
+      build({
+        criteriaEnabled: true,
+        criteriaLabel: "Criteria v1",
+        minPassPercent: value,
+      }),
+    ).toThrow();
+  expect(() =>
+    build({ criteriaEnabled: true, criteriaLabel: "  ", minPassPercent: "85" }),
+  ).toThrow();
+  expect(() =>
+    build({
+      mode: "performance",
+      criteriaEnabled: true,
+      criteriaLabel: "Criteria v1",
+      minPassPercent: "85",
+    }),
+  ).toThrow();
+});

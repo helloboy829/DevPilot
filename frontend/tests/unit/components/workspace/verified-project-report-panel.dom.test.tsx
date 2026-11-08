@@ -380,3 +380,62 @@ it("shows export failure without saving a fake document or retrying", async () =
   expect(create).not.toHaveBeenCalled();
   expect(screen.getByText("# Synthetic immutable DRAFT")).toBeTruthy();
 });
+
+it("prevents old templates from silently omitting frozen effectiveness criteria", async () => {
+  state.api.mockImplementation(
+    async (route: string, body?: unknown, method?: string) => {
+      if (route.endsWith("/report-templates"))
+        return {
+          templates: [
+            template,
+            {
+              ...template,
+              version: "1.1.0",
+              layout: { criteria_heading: "Frozen effectiveness criteria" },
+            },
+          ],
+        };
+      if (route.endsWith("/summary"))
+        return {
+          ...summary,
+          criteria_evaluation: {
+            scope: "effectiveness_threshold_only",
+            criteria: {
+              schema: "qa-effectiveness-criteria.v1",
+              version_label: "Synthetic criteria",
+              min_pass_rate_bps: 5000,
+            },
+            status: "met",
+            blockers: [],
+            approval: "not_approved",
+          },
+        };
+      return respond(route, body, method);
+    },
+  );
+  await staged();
+  fireEvent.click(screen.getByLabelText("Confirm immutable draft storage"));
+  const button = screen.getByRole<HTMLButtonElement>("button", {
+    name: "Archive verified draft",
+  });
+  expect(button.disabled).toBe(true);
+  expect(
+    screen.getByRole<HTMLOptionElement>("option", {
+      name: /en · verified-qa-project-en@1\.0\.0/,
+    }).disabled,
+  ).toBe(true);
+  expect(
+    screen.getByText(
+      /Choose a template that includes frozen effectiveness criteria/,
+    ),
+  ).toBeTruthy();
+  fireEvent.change(screen.getByRole("combobox", { name: "Archive template" }), {
+    target: { value: "verified-qa-project-en@1.1.0" },
+  });
+  expect(button.disabled).toBe(true);
+  fireEvent.click(screen.getByLabelText("Confirm immutable draft storage"));
+  expect(button.disabled).toBe(false);
+  expect(state.api.mock.calls.filter((call) => call[2] === "PUT")).toHaveLength(
+    0,
+  );
+});
