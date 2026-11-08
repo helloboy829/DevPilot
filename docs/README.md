@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前本地状态：已备份更新（2026-11-08）
+
+[Docker 恢复与保留数据升级](DevPilot_Local_Recovery_and_Upgrade.md)：普通重启超时后，经授权官方 force-stop/start 恢复；在线一致性备份后仅更新 gateway/frontend 至功能提交 `59ab6304cd842af3e5222a17dfb41a10d7d52894`，App head `eval_0008`。账号、旧记录、配置和挂载已核验保留；所有既有账号的助手界面只读冒烟通过。没有配置模型、密钥或启用真实评测外呼。下面早期“待恢复/未部署”的段落属于历史切片，不是当前状态。
+
 ## 当前：冻结 Word 草稿导出（2026-11-08）
 
 [Word 草稿导出](DevPilot_QA_Word_Draft_Export.md)从历史存档生成真实多组件 DOCX，固定 renderer、模板版本和事实，不重新调用模型/目标、不批准。App head 不变；Docker 重启后已恢复，应用升级需备份和独立核验。存档提交 13ace1d 六项 Actions 均已通过，Word 改动须另核验新 SHA。

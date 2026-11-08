@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Verified local recovery and deployment (2026-11-08)
+
+Docker Desktop recovered after normal restart timed out and an explicitly authorized official force-stop/start succeeded. The backed-up gateway/frontend-only update deployed feature SHA `59ab6304cd842af3e5222a17dfb41a10d7d52894`, App head `eval_0008`. Accounts, existing evaluation rows, Harness ledger, four config hashes and persistent mounts were preserved; unrelated services were not recreated. All 630 tracked runtime Python sources and 524 frontend source files matched. Existing-account assistant UI smoke passed without saves or model calls. Assistants are enabled for all authenticated users with private ownership; no model or request-encryption key is configured, and execution remains disabled. [Recovery procedure and evidence limits](docs/DevPilot_Local_Recovery_and_Upgrade.md). This current status supersedes earlier deployment-blocked notes below, not their feature-scope exclusions.
+
 ## Frozen QA Word drafts (2026-11-08)
 
 `app.evaluation.report_docx` exports authenticated immutable archives via the pinned `qa-docx-v1` GET route. Stored Markdown only, no current-template lookup/metric recomputation/model/target calls/approval. Standard-library bounded OOXML runs off-loop; owner + human + read/review and viewed receipt are mandatory. UI downloads explicitly, validates bounded binary responses and fences scope changes. MarkItDown/Mammoth is an existing independent test reader; synthetic browser fixture parts are checked against the renderer. No new dependency or migration. [Workflow, safety and exclusions](docs/DevPilot_QA_Word_Draft_Export.md). Earlier notes retain their original slice scope.
