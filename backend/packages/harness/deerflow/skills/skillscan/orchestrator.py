@@ -4,7 +4,8 @@
 functions of their inputs; async callers must dispatch them off the event
 loop. Policy is one code constant — ``CRITICAL`` blocks, everything else is a
 warning — applied by ``enforce_static_scan()``, which also honours the
-``skill_scan.enabled`` kill switch. Rule specs live next to the analyzers
+``skill_scan.enabled`` kill switch. Reported analyzer/read errors fail closed
+with ``StaticScannerError``; an incomplete scan is not authorization. Rule specs live next to the analyzers
 that match them so a rule is authored, read, and tested in one place.
 """
 
@@ -167,7 +168,9 @@ def enforce_static_scan(
             message=f"Static security scan blocked skill '{skill_name}': {format_static_findings(blocked)}" if skill_name else f"Static security scan blocked skill content: {format_static_findings(blocked)}",
         )
     if result["scanner_errors"]:
-        logger.warning("SkillScan analyzer errors for %s: %s", skill_name or skill_dir, "; ".join(result["scanner_errors"]))
+        logger.warning("SkillScan analysis did not complete (%d errors)", len(result["scanner_errors"]))
+        # Keep raw analyzer/file errors out of the exception exposed by installers and HTTP routes.
+        raise StaticScannerError("Static security analysis did not complete; skill was not authorized.")
     warnings = [finding for finding in result["findings"] if finding["severity"] != _BLOCK_SEVERITY]
     if warnings:
         logger.warning("SkillScan warning findings for %s: %s", skill_name or skill_dir, format_static_findings(warnings))

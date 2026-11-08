@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Static-scan failures and deterministic regressions (2026-11-08)
+
+With skill scanning enabled, `enforce_static_scan` rejects reported `scanner_errors` with a generic `StaticScannerError`; critical findings keep precedence and their existing details, and the explicit operator switch remains unchanged. An incomplete scan is not a clean scan. The native scanner tests build deep ASTs iteratively to exercise the analyzer independently of CPython parser limits, while separate injected parser/read failures prove rejection. Run ordering tests use distinct frozen timestamps; the equal-timestamp insertion-order contract is unchanged. Tests: `backend/tests/test_skillscan_native.py`, `backend/tests/test_run_manager.py` plus existing installer/router/tool rejection tests. No model/target calls, migration or Docker changes.
+
 ## Frozen pre-run effectiveness criteria (2026-11-08)
 
 `qa-json-plan.v2` binds strict plan-scoped basis-point criteria to the existing definition hash. v1 serialization/hashes remain unchanged; no migration. Verified summaries use ALL frozen samples and integer comparison; incomplete/uncertain evidence blocks even zero thresholds, and `met` is never approval. Template 1.1.0 adds criteria; 1.0.0/historical archives remain immutable, and v2 sources cannot silently use old layouts. Retests require identical schema/criteria. No additional model/target calls or auto-enabled execution. [Scope, contracts and exclusions](docs/DevPilot_Frozen_Effectiveness_Criteria.md).

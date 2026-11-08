@@ -64,6 +64,8 @@ Evaluation pages have one component-test navigation entry. Custom assistant mana
 
 ## Important boundaries
 
+- **Skill safety:** with static scanning enabled, reported analysis/read failures reject skill writes or installs instead of treating incomplete analysis as a clean scan. Deterministic critical findings retain their normal rejection details; scanner-failure responses omit raw internal errors.
+
 - **Project inventories:** link existing owner-owned components to frozen QA revision/hash and create multiple immutable inventory-only submission versions. Server snapshots exclude endpoints, credentials and gold. This is not a locked request/executable plan, test verdict or report evidence. See [inventory delivery](docs/DevPilot_项目组件与提测清单.md).
 
 - **Request debugger:** parses one complete cURL without running a shell or reading files. Review method/URL/headers/body and explicitly authorize sending. Operator host approval, DNS pinning, TLS verification, no redirects/environment proxies, bounded timeout/response. Not a full Postman replacement: no multipart uploads, cookie jar, collections/environments, scripts or runnable test export yet. Debug data is not persisted or automatically promoted into an approved evaluation specification.
