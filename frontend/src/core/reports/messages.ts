@@ -56,7 +56,7 @@ export const enReports: Messages = {
   },
   title: "Report workspace",
   notice:
-    "DRAFT: manually entered, unverified results. This is not an acceptance decision. Do not enter secrets or unnecessary personal data. This preview is not saved on the server; download it before leaving. Template editing, formal approval and historical revisions are not available yet.",
+    "Manual forms and Agent suggestions are unverified DRAFTS, not acceptance decisions. Do not enter secrets or unnecessary personal data. These manual previews are not saved on the server; download them before leaving. Verified platform evidence uses the separate archive workflow with frozen history and appended revisions. Template editing and formal approval are not available yet.",
   template: "Template version",
   loading: "Loading templates…",
   empty: "No published templates are available.",
@@ -131,7 +131,7 @@ export const zhReports: Messages = {
   },
   title: "评测报告工作台",
   notice:
-    "草稿：人工填报、结果未经核验，不构成验收结论。请勿填写凭据或不必要的个人信息。本页不会在服务端保存报告，离开前请下载。模板编辑、正式审批与历史修订尚未开放。",
+    "人工填报 / Agent 建议是未经核验的草稿，不构成验收结论。请勿填写凭据或不必要的个人信息。这些手工预览不在服务端保存，离开前请下载。已验证的平台证据通过独立存档流程保存冻结历史并追加修订。模板编辑与正式审批尚未开放。",
   template: "模板及版本",
   loading: "正在加载模板…",
   empty: "暂无可用的已发布模板。",

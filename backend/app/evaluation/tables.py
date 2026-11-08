@@ -315,3 +315,28 @@ executions = Table(
     CheckConstraint("created_at_ms > 0 AND deadline_ms > created_at_ms", name="ck_evaluation_execution_clock"),
 )
 Index("ix_evaluation_execution_queue", executions.c.reservation_held, executions.c.state, executions.c.created_at_ms)
+
+# Append-only report drafts; source summaries and exact templates are frozen in JSON.
+report_archives = Table(
+    "evaluation_report_archives",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", ForeignKey("evaluation_projects.id"), nullable=False),
+    Column("root_id", String(32), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("supersedes_id", String(32), nullable=True),
+    Column("title", String(160), nullable=False),
+    Column("template_id", String(64), nullable=False),
+    Column("template_version", String(32), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("request_hash", String(64), nullable=False),
+    Column("archive_hash", String(64), nullable=False),
+    Column("document", JSON, nullable=False),
+    UniqueConstraint("project_id", "id", name="uq_evaluation_archive_project_id"),
+    UniqueConstraint("project_id", "supersedes_id", name="uq_evaluation_archive_successor"),
+    UniqueConstraint("root_id", "revision", name="uq_evaluation_archive_revision"),
+    ForeignKeyConstraint(["project_id", "supersedes_id"], ["evaluation_report_archives.project_id", "evaluation_report_archives.id"]),
+    CheckConstraint("revision BETWEEN 1 AND 1000 AND created_at_ms > 0", name="ck_evaluation_archive_bounds"),
+)
+Index("ix_evaluation_archive_project_time", report_archives.c.project_id, report_archives.c.created_at_ms)

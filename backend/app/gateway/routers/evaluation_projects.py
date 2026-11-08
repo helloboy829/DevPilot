@@ -11,6 +11,7 @@ from app.evaluation.execution import ExecutionCreate
 from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import PlanCreate, PlanPreflightError
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
+from app.evaluation.qa_reports import ArchiveCreate, ReportArchiveRepository, archive_templates
 from app.evaluation.qa_summary import SummaryRepository
 from app.evaluation.registry import ComponentLinkCreate, SubmissionCreate
 from app.evaluation.registry_repository import RegistryRepository
@@ -369,3 +370,51 @@ async def cancel_execution(project_id: str, execution_id: str, request: Request)
     _require_human(request)
     owner, repository = await _execution_context(request, project_id)
     return await _result(repository.cancel(owner, project_id, execution_id))
+
+
+async def _report_context(request):
+    _require_human(request)
+    owner, repository = await _context(request)
+    return owner, ReportArchiveRepository(repository.sf)
+
+
+def _report_identifier(archive_id):
+    if len(archive_id) != 32 or any(char not in "0123456789abcdef" for char in archive_id):
+        raise HTTPException(422, "Invalid report identifier")
+
+
+@router.get("/{project_id}/report-templates")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def report_templates(project_id: str, request: Request):
+    owner, repository = await _report_context(request)
+    async with repository.sf() as session:
+        await _result(repository._project(session, owner, project_id))
+    return {"templates": archive_templates()}
+
+
+@router.get("/{project_id}/report-archives")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def list_report_archives(project_id: str, request: Request):
+    owner, repository = await _report_context(request)
+    return {"archives": await _result(repository.list_archives(owner, project_id))}
+
+
+@router.get("/{project_id}/report-archives/{archive_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_report_archive(project_id: str, archive_id: str, request: Request):
+    owner, repository = await _report_context(request)
+    _report_identifier(archive_id)
+    return await _result(repository.get_archive(owner, project_id, archive_id))
+
+
+@router.put("/{project_id}/report-archives/{archive_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def create_report_archive(project_id: str, archive_id: str, payload: ArchiveCreate, request: Request):
+    owner, repository = await _report_context(request)
+    _report_identifier(archive_id)
+    return await _result(repository.create_archive(owner, project_id, archive_id, payload))

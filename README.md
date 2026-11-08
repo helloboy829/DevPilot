@@ -1,10 +1,12 @@
 # DevPilot
 
-**Current code versus local deployment:** App code head is `eval_0007`; the last verified local deployment is `eval_0006` while Docker's management API is unresponsive. Do not assume the new UI/Worker is locally live. The execution commit `0e56c3b60216350c3f598414b8b4eb02d842494a` passed all six triggered Actions; newer summary changes require their own verification.
+**Current code versus local deployment:** App code head is `eval_0008`; the last verified local deployment is `eval_0006` while Docker's management API is unresponsive. Do not assume the new UI/Worker is locally live. The execution commit `0e56c3b60216350c3f598414b8b4eb02d842494a` passed all six triggered Actions; all newer changes, including the report archive slice, require their own exact-SHA verification.
 
 **QA execution and human review:** freeze a request/data/mapping plan, separately authorize bounded execution, collect encrypted output, then inspect Q, actual A, reference and source in **Projects & datasets**. Worker enablement is operator-owned/default-off and requires the explicit key and destination policy. Unknown sends are never retried; collection is not quality PASS. [Execution and cancellation scope](docs/DevPilot_Admitted_QA_Execution.md) · [Encrypted evidence/review](docs/DevPilot_QA_Evidence_Review.md).
 
 **Verified human summary preview:** explicitly load a selected effectiveness run's summary. Latest human PASS / all frozen-plan samples is shown alongside unreviewed/uncertain/technical blockers. Changing cases or scope invalidates the preview. Complete review is not project approval or an archived report. [Formula, integrity and permissions](docs/DevPilot_Verified_QA_Summaries.md).
+
+**Immutable multi-component QA report drafts:** Reports can explicitly bind fully reviewed platform runs to pinned template versions, freeze the historical Markdown, and append new revisions without overwriting earlier results. Server metrics only; still not formal approval. Unknown writes reconcile by the same archive ID, never automatic retry. [Workflow and limits](docs/DevPilot_Immutable_QA_Report_Archives.md).
 
 **AI component evaluation workspace and bounded evaluation agents**, built on ByteDance DeerFlow. Targets include AI/CV models, LLMs and agents. [中文](README_zh.md) · [Design index](docs/README.md) · [Delivery and configuration](docs/DevPilot_Evaluation_Workspace.md)
 
@@ -28,7 +30,7 @@ The evaluation-first sidebar keeps stable Evaluation center and AI collaboration
 | `/workspace/datasets` | Owner-scoped projects, QA import/review/freeze, existing-component links, immutable inventory-only submissions, frozen QA plans and revisioned human result review |
 | `/workspace/component-tests` | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses |
 | `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery |
-| `/workspace/reports` | Manual single-component and multi-component project snapshots, pinned Chinese/English templates, Markdown/JSON draft downloads |
+| `/workspace/reports` | Verified immutable multi-component QA archives and revisions, plus separate manual/Agent drafts; pinned Chinese/English templates and Markdown downloads |
 | `/workspace/models` | Connection profiles for OpenAI Chat, OpenAI Responses, Anthropic and Gemini; controlled parameters, encrypted write-only credentials, probes and default/report role routing |
 | Chat | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger |
 

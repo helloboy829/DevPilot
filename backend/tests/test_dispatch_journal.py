@@ -33,7 +33,7 @@ async def prepared(tmp_path, request, monkeypatch):
 
     async with engine.begin() as connection:
         await connection.run_sync(lambda conn: ComponentRow.__table__.create(conn))
-    if getattr(request, "param", None) in {"eval_0004", "eval_0005", "eval_0006"}:
+    if getattr(request, "param", None) in {"eval_0004", "eval_0005", "eval_0006", "eval_0007"}:
         from app.evaluation import schema
 
         original = schema.command.upgrade
@@ -336,7 +336,7 @@ async def test_journal_survives_repeat_migration(prepared):
     assert (await repo.list_dispatches("owner", project, run["id"]))[0]["state"] == "dispatched"
     await repo.record_observation("owner", project, run["id"], ticket, observed())
     async with engine.connect() as conn:
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0007"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0008"
 
 
 @pytest.mark.asyncio
@@ -529,7 +529,7 @@ async def test_deployed_eval_0004_upgrade_preserves_old_rows_and_harness_ledger(
     async with engine.connect() as conn:
         for name in preserved:
             assert (await conn.execute(text('SELECT * FROM "' + name + '"'))).all() == before[name]
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0007"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0008"
         assert not (await conn.execute(text("PRAGMA foreign_key_check"))).all()
     run = await record(prepared)
     assert len(await repo.list_dispatches("owner", project, run["id"])) == 2
@@ -537,7 +537,9 @@ async def test_deployed_eval_0004_upgrade_preserves_old_rows_and_harness_ledger(
 
 @pytest.mark.asyncio
 async def test_separate_os_processes_cannot_over_reserve_response_budget(prepared):
+    import subprocess
     import sys
+    import time
 
     repo, engine, project, plan, clock = prepared
     run = await repo.record_run("owner", project, plan["id"], plan["definition_hash"], JournalLimits(max_response_bytes=16, max_total_response_bytes=17))
@@ -556,18 +558,28 @@ async def work():
  finally:await engine.dispose()
 asyncio.run(work())
 """
-    children = []
-    try:
-        for ordinal in (1, 2):
-            children.append(await asyncio.create_subprocess_exec(sys.executable, "-c", script, str(engine.url), project, run["id"], str(ordinal), str(clock["ms"]), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE))
-        outputs = await asyncio.wait_for(asyncio.gather(*(child.communicate() for child in children)), timeout=60)
-        assert all(child.returncode == 0 for child in children)
-        assert sum(json.loads(stdout)["reserved"] for stdout, _stderr in outputs) == 1
-    finally:
-        for child in children:
-            if child.returncode is None:
-                child.terminate()
-                await child.wait()
+
+    def reserve_in_processes():
+        # The backend intentionally uses the Windows Selector policy (psycopg),
+        # which cannot create asyncio subprocess transports. Keep two real OS
+        # processes racing against SQLite without changing that global policy
+        # or blocking the event loop; always reap them, including timeout paths.
+        children = []
+        try:
+            for ordinal in (1, 2):
+                children.append(subprocess.Popen([sys.executable, "-c", script, str(engine.url), project, run["id"], str(ordinal), str(clock["ms"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE))
+            deadline = time.monotonic() + 60
+            outputs = [child.communicate(timeout=max(0.1, deadline - time.monotonic())) for child in children]
+            assert all(child.returncode == 0 for child in children), [stderr.decode(errors="replace") for _stdout, stderr in outputs]
+            assert sum(json.loads(stdout)["reserved"] for stdout, _stderr in outputs) == 1
+        finally:
+            for child in children:
+                if child.poll() is None:
+                    child.kill()
+            for child in children:
+                child.communicate(timeout=5)
+
+    await asyncio.to_thread(reserve_in_processes)
     state = await repo.get_journal("owner", project, run["id"])
     assert state["reserved_response_bytes"] == 17 and state["reserved_body_bytes"] == 20
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectReportPanel } from "@/components/workspace/project-report-panel";
+import { VerifiedProjectReportPanel } from "@/components/workspace/verified-project-report-panel";
 import {
   WorkspaceBody,
   WorkspaceContainer,
@@ -245,6 +246,7 @@ export default function ReportsPage() {
               </Button>
             </div>
           )}
+          <VerifiedProjectReportPanel zh={locale === "zh-CN"} />
           <ProjectReportPanel
             getFacts={() => toReportFacts(form)}
             applyProposal={(proposal) => {
