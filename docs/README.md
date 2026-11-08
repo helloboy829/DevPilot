@@ -2,11 +2,13 @@
 
 [只读 Docker 诊断](DevPilot_Docker_Diagnostics.md)：有界元数据检查，区分 Docker 无响应、应用状态与磁盘风险；不自动重启、不读取日志/凭据或修改数据。
 
+生产/开发 Compose 增加核心服务 HTTP 健康检查与 nginx 初始就绪依赖；这不是自动恢复，也不代表现有容器已应用。[探测范围与部署边界](DevPilot_Docker_Diagnostics.md#服务健康与启动顺序)。
+
 - [同基准整改复测 / Same-benchmark retesting](DevPilot_Same_Benchmark_Retesting.md)：不可变逐条变化档案、固定分母与按需前后 Q/A；不是正式验收。
 
 ## 当前本地状态：已备份更新（2026-11-08）
 
-[Docker 恢复与保留数据升级](DevPilot_Local_Recovery_and_Upgrade.md)：普通重启超时后，经授权官方 force-stop/start 恢复；在线一致性备份后仅更新 gateway/frontend 至功能提交 `59ab6304cd842af3e5222a17dfb41a10d7d52894`，App head `eval_0008`。账号、旧记录、配置和挂载已核验保留；所有既有账号的助手界面只读冒烟通过。没有配置模型、密钥或启用真实评测外呼。下面早期“待恢复/未部署”的段落属于历史切片，不是当前状态。
+[Docker 恢复与保留数据升级](DevPilot_Local_Recovery_and_Upgrade.md)：功能提交 `3a5cd38fc99d84160d8abc59ce446a77d26605f7` 已在线一致性备份后部署，App head `eval_0009`；仅替换 gateway/frontend 并重载原 nginx，本次不需再次重启 Desktop。账号、旧记录、配置、挂载和数据库完整性核验通过；全部现有账号的整改复测/助手界面桌面与移动端只读冒烟通过。精确功能 SHA 的六项 Actions 均成功。没有配置模型、密钥或启用真实评测外呼。下面早期“待恢复/未部署”的段落属于历史切片，不是当前状态；新提交 CI 不能借用历史绿灯。
 
 ## 当前：冻结 Word 草稿导出（2026-11-08）
 

@@ -107,12 +107,21 @@ services:
         cp /etc/nginx/nginx.conf.template /etc/nginx/nginx.conf
         test -e /proc/net/if_inet6 || sed -i '/^[[:space:]]*listen[[:space:]]\+\[::\]:2026[[:space:]]/d' /etc/nginx/nginx.conf
         exec nginx -g 'daemon off;'
+    # Startup readiness only; no cascading restarts or evaluation resends.
     depends_on:
-      - frontend
-      - gateway
+      frontend:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
     networks:
       - deer-flow-dev
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-Y", "off", "-O", "/dev/null", "-T", "2", "-t", "1", "http://127.0.0.1:2026/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # Frontend - Next.js Development Server
   frontend:
@@ -143,6 +152,21 @@ services:
     networks:
       - deer-flow-dev
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - |
+          setTimeout(() => process.exit(1), 3000);
+          require('node:http').get('http://127.0.0.1:3000/login', { agent: false }, (response) => {
+            response.destroy();
+            process.exit(response.statusCode === 200 ? 0 : 1);
+          }).on('error', () => process.exit(1));
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
   # Backend - Gateway API
   gateway:
@@ -222,6 +246,29 @@ services:
     networks:
       - deer-flow-dev
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import http.client
+          connection = None
+          ready = False
+          try:
+              connection = http.client.HTTPConnection("127.0.0.1", 8001, timeout=2)
+              connection.request("GET", "/health")
+              ready = connection.getresponse().status == 200
+          except Exception:
+              pass
+          finally:
+              if connection is not None:
+                  connection.close()
+          raise SystemExit(0 if ready else 1)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
 volumes:
   # Persist .venv across container restarts so dependencies installed during

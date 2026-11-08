@@ -8,7 +8,7 @@
 
 **不可变平台 QA 项目报告草稿：**报告页明确加载本人项目，每组件选择一个完整复核的效果运行，服务器重新验证已看过的汇总标识并冻结指标、模板版本与 Markdown。历史不随后续复核或模板更新改变，修订追加新记录；未知写入只核对同一 ID，不自动重试。人工填报 / Agent 建议仍是分开的未验证草稿，不等于正式批准。[流程与限制](docs/DevPilot_Immutable_QA_Report_Archives.md)。
 
-**本地部署已核验（2026-11-08）**：Docker 经授权重启恢复，在线一致性备份后仅更新 gateway/frontend，部署功能提交 `59ab6304cd842af3e5222a17dfb41a10d7d52894`，App head 为 `eval_0008`。原账号、评测记录、配置哈希和挂载保持一致。所有登录用户可管理自己的助手；尚未配置模型，QA 执行策略仍关闭。[恢复流程与核验边界](docs/DevPilot_Local_Recovery_and_Upgrade.md)。该功能 SHA 的六项 GitHub Actions 已全部成功；文档后续提交需单独核对 CI，以上不代表真实模型评测。
+**本地部署已核验（2026-11-08）**：在线一致性备份后仅更新 gateway/frontend、重载原 nginx，部署功能提交 `3a5cd38fc99d84160d8abc59ce446a77d26605f7`，App head 为 `eval_0009`；此次升级无需再次重启 Docker Desktop。原账号、旧评测记录、配置哈希和挂载已核验保留，全部现有账号的整改复测/助手界面桌面与移动端只读冒烟通过。所有登录用户可管理自己的助手；尚未配置模型，QA 执行策略仍关闭。[恢复流程与核验边界](docs/DevPilot_Local_Recovery_and_Upgrade.md)。该功能 SHA 的六项 GitHub Actions 已全部成功；后续提交需单独核对 CI，以上不代表真实模型评测或平台已完成。
 
 **QA 执行与人工复核**：项目与数据 → 冻结请求/数据/映射计划 → 独立授权执行 → 有界采集 → 加密输出 → 人工复核。计划冻结本身不外呼；执行默认关闭，需要运营方显式配置密钥和目标策略，未知送达不重试。复核同屏展示 Q、实际 A、参考答案和来源，追加人工三态决策及理由，保留修订。[执行范围](docs/DevPilot_Admitted_QA_Execution.md) · [证据与复核](docs/DevPilot_QA_Evidence_Review.md)。
 
@@ -25,6 +25,8 @@ DevPilot 基于 ByteDance DeerFlow 的 Agent 底座二次开发，面向 AI 模�
 > 当前是可体验的开发版本，不是完整的无人值守验收系统。平台事实、模型建议和人工决定必须分开；不能因为接口返回成功就判定组件效果通过。
 
 **前端生产构建与启动分离**：镜像构建时编译，容器启动时由 Node 直接运行已构建的服务；生产启动不再编译或下载包管理器。开发模式仍保留热更新，不要将生产启动覆盖为 `build && start`。[操作与边界](docs/DevPilot_Local_Recovery_and_Upgrade.md#前端构建与运行分离)。
+
+**容器 HTTP 健康检查**：生产/开发 Compose 模板显式探测 gateway、frontend、nginx，初始启动时 nginx 等待上游健康。固定回环请求有超时，不调用模型或被测组件；unhealthy 仅用于诊断，不自动重启或重发。模板更新不等于现有容器已应用，需另行核验；也不代表完整业务就绪。[检查与边界](docs/DevPilot_Docker_Diagnostics.md#服务健康与启动顺序)。
 
 ## 工作台外观与导航
 

@@ -44,6 +44,25 @@ make docker-health DOCKER_HEALTH_PROJECT=devpilot-local
 - 历史 restart_count/OOM 标志为风险提示，不证明当前循环重启或当前发生内存耗尽；这些字段也不是历史事件的完整记录。
 - 没有 HTTP 探测、数据库完整性检查、模型调用、目标请求或测试结果检查。真正的页面/接口/迁移验收仍须独立进行。
 
+## 服务健康与启动顺序
+
+生产与开发 Compose 模板新增以下独立健康检查。**诊断脚本本身仍是 metadata-only，不发送 HTTP；这里的 HTTP 请求是 Docker 定期执行的另一个机制。**
+
+| 服务 | 最小探测 | 能证明什么 / 不能证明什么 |
+| --- | --- | --- |
+| gateway | 镜像自带 Python HTTPConnection → `127.0.0.1:8001/health`，socket 超时 2 秒，必须 200 | ASGI HTTP 入口响应；不读取 DB/配置、不校验迁移/权限/模型/目标。直连不使用代理，不跟随重定向，不读取响应正文。 |
+| frontend | 镜像自带 Node HTTP → `127.0.0.1:3000/login`，总时限 3 秒，必须 200 | 已有匿名登录页能返回 HTTP 头；不证明资源加载、客户端水合、登录成功或全部页面可用。使用独立无池化连接，不带凭据、不跟随重定向、不读取响应正文。开发模式首个请求可能触发正常路由编译，但不安装依赖。 |
+| nginx | 镜像自带 BusyBox wget → `127.0.0.1:2026/nginx-health`，2 秒超时、一次尝试 | 显式关闭 wget 代理；代理自身固定 `ok` 文本响应；不依赖上游，不暴露业务内容，也不证明 gateway/frontend 正常。该固定公开端点不记录访问日志。 |
+
+- 均为 exec-form CMD，无 shell、包安装、运行配置读取、凭据输出、日志抓取、模型调用或被测组件请求。失败无原始异常/正文输出；现有 `/health` 服务访问日志不在此声明中被关闭。
+- 周期 30 秒、Docker 强制时限 5 秒、连续失败 3 次标记异常；gateway/frontend 启动宽限 60 秒、nginx 10 秒。宽限期不是“强制等待后才探测”，也不是启动成功保证。
+- nginx 的 `depends_on` 改为两路 `service_healthy`，仅在初始 Compose 启动/创建时等待。没有依赖重启级联、轮询修复、自动重发或生产编排控制器。
+- 既有 `restart: unless-stopped` 保持不变；它针对进程退出/引擎恢复，不因为 unhealthy 状态自行重启仍在运行的容器。不要在 healthcheck 中 kill 主进程、重启 Docker 或重发评测。
+- 修改模板不会更新既有容器，也不修改私有部署覆盖。应用前先检查配置/挂载与备份；只针对本项目受影响服务重建，随后逐项确认实际 Config.Healthcheck、状态和数据保留，不直接执行全栈 down/up。
+- 这是分层的最小 HTTP/进程信号，不是完整就绪探针、业务验收、长时稳定性保证或 Desktop 卡顿根因修复。
+
+离线回归 `backend/tests/test_compose_service_health.py` 覆盖两个模板、初始依赖和精确探测源码的非 200/重定向/连接错误/总时限/静默失败；Node 用合成 VM，不碰网络。实际 Docker 执行、nginx 语法、故障到 unhealthy 的状态转换和正式环境应用仍需要独立记录，不能拿配置测试当部署成功。
+
 ## 恢复决策与数据保护
 
 1. 先保存本地、受控的诊断结果；不用上传原始 inspect/log/Compose/env 来排障。
@@ -59,3 +78,9 @@ make docker-health DOCKER_HEALTH_PROJECT=devpilot-local
 `backend/tests/test_docker_health.py` 先红后绿，使用合成元数据覆盖：健康/缺失服务、无 healthcheck、历史重启/OOM、低磁盘/未知磁盘、项目/ID/数量/输出边界、固定错误码、单命令超时、共享截止时间、无 shell、无敏感原文和 CLI 退出码。
 
 本机实际只读运行已成功，能够区分 daemon 正常与服务观测告警；实际运行时的资源数字保留在本地而不写入此公开文档。测试不是长期负载稳定性证明，也不是全部 GitHub Actions 通过证明。
+
+### 隔离运行时验证（2026-11-08）
+
+除配置单测外，使用现有 gateway/frontend/nginx 镜像创建无网络、无挂载的临时容器，执行真实探测命令：Gateway 6 种、frontend 7 种合成 HTTP 场景（200、非 200/重定向、拒绝连接，以及前端不响应的总时限），均符合预期且不输出原始内容；nginx 完成实际语法检查和本地固定端点探测。两个独立合成服务器也观察到 Docker healthy → unhealthy → healthy，期间进程重启数为 0。状态转换测试缩短了周期，不能冒充生产 30 秒配置的持续运行证明。
+
+这些测试不挂业务卷、不修改现有服务；验证收据只留本机。每个新提交仍需独立核对 CI，本地实际应用也需另有收据，不能把合成容器结果当成业务部署或根因修复。
