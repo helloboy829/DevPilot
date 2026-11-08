@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## Frozen QA Word drafts (2026-11-08)
+
+`app.evaluation.report_docx` exports authenticated immutable archives via the pinned `qa-docx-v1` GET route. Stored Markdown only, no current-template lookup/metric recomputation/model/target calls/approval. Standard-library bounded OOXML runs off-loop; owner + human + read/review and viewed receipt are mandatory. UI downloads explicitly, validates bounded binary responses and fences scope changes. MarkItDown/Mammoth is an existing independent test reader; synthetic browser fixture parts are checked against the renderer. No new dependency or migration. [Workflow, safety and exclusions](docs/DevPilot_QA_Word_Draft_Export.md). Earlier notes retain their original slice scope.
+
+
 ## Immutable platform QA report drafts (2026-11-08)
 
 `app.evaluation.qa_reports` appends reverified multi-component server summaries, full template/layout versions and rendered Markdown to `evaluation_report_archives` (`eval_0008`). Owner-only human read/review; write also requires write permission and separate confirmation. Sources are IDs + viewed hashes, never client metrics. Complete review is required, not all-PASS or approval. Crypto runs off-loop; final ordered run locks recheck every snapshot, with archive/audits atomic. Same-ID receipts are immutable; unknown writes only reconcile by GET, never retry/new-ID automatically. `VerifiedProjectReportPanel` explicitly loads data, retains pending IDs across project switches in page memory, fences unmounts and opens old documents without rerendering current templates. Manual/Agent suggestions stay separate and unverified. No formal approval, DOCX/PDF or target/model calls. Local last confirmed head remains `eval_0006`; preserve accounts/config/mounts and back up before deployment. [Scope and gates](docs/DevPilot_Immutable_QA_Report_Archives.md). Earlier notes below retain their historical boundaries.

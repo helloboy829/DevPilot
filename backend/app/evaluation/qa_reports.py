@@ -147,7 +147,7 @@ class ReportArchiveRepository(SummaryRepository):
             row = await self._archive_row(session, owner, project_id, archive_id)
         if row is None:
             raise NotFound
-        return self._decode(row)
+        return await asyncio.to_thread(self._decode, row)
 
     async def list_archives(self, owner, project_id):
         # Metadata only. Explicit open validates the stored document and receipt.
@@ -176,11 +176,11 @@ class ReportArchiveRepository(SummaryRepository):
             if existing:
                 if existing["request_hash"] != request_hash:
                     raise Conflict
-                return self._decode(existing)
+                return await asyncio.to_thread(self._decode, existing)
             parent = await self._archive_row(session, owner, project_id, payload.supersedes_id) if payload.supersedes_id else None
             if payload.supersedes_id and parent is None:
                 raise NotFound
-            previous = self._decode(parent) if parent else None
+            previous = await asyncio.to_thread(self._decode, parent) if parent else None
             template = next((copy.deepcopy(item) for item in archive_templates() if (item["id"], item["version"]) == (payload.template_id, payload.template_version)), None)
             if template is None:
                 raise Conflict
@@ -223,7 +223,7 @@ class ReportArchiveRepository(SummaryRepository):
             if existing:
                 if existing["request_hash"] != request_hash:
                     raise Conflict
-                return self._decode(existing)
+                return await asyncio.to_thread(self._decode, existing)
             if parent:
                 if (
                     parent != await self._archive_row(session, owner, project_id, payload.supersedes_id)

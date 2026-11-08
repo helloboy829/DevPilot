@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## Frozen QA Word drafts (2026-11-08)
+
+`app.evaluation.report_docx` owns the bounded standard-library `qa-docx-v1` renderer. The archive GET export route requires human owner read/review and the viewed archive hash, verifies historical archive integrity, then renders off-loop; no current key/template dependency, mutation, external relationships or calls. Stored Markdown is the source of text/tables; fixed ZIP metadata, XML escaping and safe attachment names are required. Renderer semantics must be versioned. `test_qa_report_docx.py` checks actual OOXML with the existing MarkItDown/Mammoth reader and shared synthetic browser fixture; router tests cover auth, integrity and off-loop work. No new dependency/migration. [Scope](../docs/DevPilot_QA_Word_Draft_Export.md). Earlier no-DOCX notes describe historical slices.
+
+
 ## Immutable platform QA report drafts (2026-11-08)
 
 `app.evaluation.qa_reports` appends reverified multi-component server summaries, full template/layout versions and rendered Markdown to `evaluation_report_archives` (`eval_0008`). Owner-only human read/review; write also requires write permission and separate confirmation. Sources are IDs + viewed hashes, never client metrics. Complete review is required, not all-PASS or approval. Crypto runs off-loop; final ordered run locks recheck every snapshot, with archive/audits atomic. Same-ID receipts are immutable; unknown writes only reconcile by GET, never retry/new-ID automatically. `VerifiedProjectReportPanel` explicitly loads data, retains pending IDs across project switches in page memory, fences unmounts and opens old documents without rerendering current templates. Manual/Agent suggestions stay separate and unverified. No formal approval, DOCX/PDF or target/model calls. Local last confirmed head remains `eval_0006`; preserve accounts/config/mounts and back up before deployment. [Scope and gates](../docs/DevPilot_Immutable_QA_Report_Archives.md). Earlier notes below retain their historical boundaries.

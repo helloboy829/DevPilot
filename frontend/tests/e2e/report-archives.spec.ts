@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import type {
@@ -7,6 +9,13 @@ import type {
 import type { ReviewSummary } from "../../src/core/evaluation/review-types";
 
 import { mockLangGraphAPI } from "./utils/mock-api";
+
+const wordFixture = JSON.parse(
+  readFileSync(
+    new URL("../fixtures/synthetic-qa-docx-v1.json", import.meta.url),
+    "utf8",
+  ),
+) as { document: ReportArchive; docx_base64: string };
 
 function summary(index: number): ReviewSummary {
   return {
@@ -29,10 +38,11 @@ function summary(index: number): ReviewSummary {
     acceptance: "not_approved",
   };
 }
-async function setup(page: Page, uncertain = false) {
+async function setup(page: Page, uncertain = false, initial?: ReportArchive) {
   mockLangGraphAPI(page, { threads: [] });
   const summaries = [summary(1), summary(2)];
   const archives = new Map<string, ReportArchive>();
+  if (initial) archives.set(initial.id, initial);
   const writes: { id: string; body: ArchiveRequest }[] = [];
   const checks: string[] = [];
   let outbound = 0;
@@ -282,4 +292,88 @@ test("unknown write is reconciled by same-ID GET without a second PUT", async ({
   await expect(panel.getByTestId("archive-document")).toBeVisible();
   expect(writes).toHaveLength(1);
   expect(checks).toEqual([writes[0]!.id]);
+});
+
+for (const width of [1280, 390]) {
+  test(`Word draft downloads real frozen DOCX at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const frozen = wordFixture.document;
+    const { panel, writes, outbound } = await setup(page, false, frozen);
+    let exports = 0;
+    await page.route(
+      "**/report-archives/*/exports/qa-docx-v1?*",
+      async (route) => {
+        exports++;
+        const url = new URL(route.request().url());
+        expect(url.pathname).toContain(
+          `/report-archives/${frozen.id}/exports/qa-docx-v1`,
+        );
+        expect(url.searchParams.get("archive_hash")).toBe(frozen.archive_hash);
+        expect(route.request().method()).toBe("GET");
+        await route.fulfill({
+          contentType:
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          headers: {
+            "x-devpilot-renderer": "qa-docx-v1",
+            "cache-control": "private, no-store",
+          },
+          body: Buffer.from(wordFixture.docx_base64, "base64"),
+        });
+      },
+    );
+    await panel.getByRole("button", { name: /Open Synthetic draft/ }).click();
+    const detail = panel.getByTestId("archive-document");
+    expect(exports).toBe(0);
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      detail
+        .getByRole("button", { name: "Download Word draft", exact: true })
+        .click(),
+    ]);
+    expect(download.suggestedFilename()).toBe(
+      `qa-report-${frozen.id}-r${frozen.revision}.docx`,
+    );
+    const chunks: Buffer[] = [];
+    for await (const chunk of await download.createReadStream())
+      chunks.push(Buffer.from(chunk));
+    expect(Buffer.concat(chunks)).toEqual(
+      Buffer.from(wordFixture.docx_base64, "base64"),
+    );
+    expect(exports).toBe(1);
+    expect(writes).toHaveLength(0);
+    expect(outbound()).toBe(0);
+    await expect(detail.locator("pre")).toHaveText(frozen.markdown);
+  });
+}
+
+test("failed Word export preserves frozen draft without downloading an error page", async ({
+  page,
+}) => {
+  const frozen = wordFixture.document;
+  const { panel, writes } = await setup(page, false, frozen);
+  let exports = 0;
+  const downloads: string[] = [];
+  page.on("download", (file) => downloads.push(file.suggestedFilename()));
+  await page.route(
+    "**/report-archives/*/exports/qa-docx-v1?*",
+    async (route) => {
+      exports++;
+      await route.fulfill({ status: 409, json: { detail: "Receipt changed" } });
+    },
+  );
+  await panel.getByRole("button", { name: /Open Synthetic draft/ }).click();
+  const detail = panel.getByTestId("archive-document");
+  await detail
+    .getByRole("button", { name: "Download Word draft", exact: true })
+    .click();
+  await expect(panel.getByRole("alert")).toBeVisible();
+  await expect(
+    detail.getByRole("button", { name: "Download Word draft", exact: true }),
+  ).toBeEnabled();
+  await expect(detail.locator("pre")).toHaveText(frozen.markdown);
+  expect(exports).toBe(1);
+  expect(downloads).toEqual([]);
+  expect(writes).toHaveLength(0);
 });

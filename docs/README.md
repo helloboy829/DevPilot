@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前：冻结 Word 草稿导出（2026-11-08）
+
+[Word 草稿导出](DevPilot_QA_Word_Draft_Export.md)从历史存档生成真实多组件 DOCX，固定 renderer、模板版本和事实，不重新调用模型/目标、不批准。App head 不变；Docker 重启后已恢复，应用升级需备份和独立核验。存档提交 13ace1d 六项 Actions 均已通过，Word 改动须另核验新 SHA。
+
 ## 当前：不可变平台 QA 报告草稿（2026-11-08）
 
 [多组件报告存档](DevPilot_Immutable_QA_Report_Archives.md)追加服务端已验证指标引用、完整模板版本/布局冻结和不覆盖历史的修订。人工填报与 Agent 建议不混入实测事实，全部仍为未批准草稿。代码 head 为 eval_0008，本地最后核验仍为 eval_0006；Docker 管理 API 无响应，未更改账号、配置或数据卷。下节是前一切片的历史说明。

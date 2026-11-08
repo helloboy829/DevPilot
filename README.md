@@ -1,6 +1,8 @@
 # DevPilot
 
-**Current code versus local deployment:** App code head is `eval_0008`; the last verified local deployment is `eval_0006` while Docker's management API is unresponsive. Do not assume the new UI/Worker is locally live. The execution commit `0e56c3b60216350c3f598414b8b4eb02d842494a` passed all six triggered Actions; all newer changes, including the report archive slice, require their own exact-SHA verification.
+**Frozen QA Word drafts:** explicitly download `.docx` from an opened historical archive, including real component tables, draft labels and receipt metadata. No current-template recomputation, model calls or automatic approval. [Workflow and limits](docs/DevPilot_QA_Word_Draft_Export.md).
+
+**Current code versus local deployment:** App code head is `eval_0008`; the last verified local deployment is `eval_0006` at the pre-deployment check. Docker was recovered by an authorized Desktop restart; a backed-up gateway/frontend upgrade is still required. Do not assume the new UI/Worker is locally live. The execution commit `0e56c3b60216350c3f598414b8b4eb02d842494a` passed all six triggered Actions. The immutable archive commit `13ace1d4015989dedd196230bb02dd8813b0198d` also passed all six triggered Actions; Word export changes require their own exact-SHA verification.
 
 **QA execution and human review:** freeze a request/data/mapping plan, separately authorize bounded execution, collect encrypted output, then inspect Q, actual A, reference and source in **Projects & datasets**. Worker enablement is operator-owned/default-off and requires the explicit key and destination policy. Unknown sends are never retried; collection is not quality PASS. [Execution and cancellation scope](docs/DevPilot_Admitted_QA_Execution.md) · [Encrypted evidence/review](docs/DevPilot_QA_Evidence_Review.md).
 
@@ -30,7 +32,7 @@ The evaluation-first sidebar keeps stable Evaluation center and AI collaboration
 | `/workspace/datasets` | Owner-scoped projects, QA import/review/freeze, existing-component links, immutable inventory-only submissions, frozen QA plans and revisioned human result review |
 | `/workspace/component-tests` | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses |
 | `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery |
-| `/workspace/reports` | Verified immutable multi-component QA archives and revisions, plus separate manual/Agent drafts; pinned Chinese/English templates and Markdown downloads |
+| `/workspace/reports` | Verified immutable multi-component QA archives and revisions, plus separate manual/Agent drafts; pinned Chinese/English templates and frozen Markdown/Word draft downloads |
 | `/workspace/models` | Connection profiles for OpenAI Chat, OpenAI Responses, Anthropic and Gemini; controlled parameters, encrypted write-only credentials, probes and default/report role routing |
 | Chat | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger |
 

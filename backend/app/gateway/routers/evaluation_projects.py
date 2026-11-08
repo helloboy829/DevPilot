@@ -1,8 +1,11 @@
 """Private project/data ledger. Authorization is independent from chat permissions."""
 
+import asyncio
+import hmac
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import Response
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest, ProjectCreate, parse_samples
@@ -15,6 +18,7 @@ from app.evaluation.qa_reports import ArchiveCreate, ReportArchiveRepository, ar
 from app.evaluation.qa_summary import SummaryRepository
 from app.evaluation.registry import ComponentLinkCreate, SubmissionCreate
 from app.evaluation.registry_repository import RegistryRepository
+from app.evaluation.report_docx import DOCX_MIME, RENDERER_ID, ReportExportError, render_archived_docx
 from app.evaluation.repository import Conflict, NotFound
 from app.evaluation.request_protection import RequestProtectionError, RequestProtectionUnavailable
 from app.evaluation.request_version_repository import RequestVersionRepository
@@ -418,3 +422,28 @@ async def create_report_archive(project_id: str, archive_id: str, payload: Archi
     owner, repository = await _report_context(request)
     _report_identifier(archive_id)
     return await _result(repository.create_archive(owner, project_id, archive_id, payload))
+
+
+@router.get("/{project_id}/report-archives/{archive_id}/exports/qa-docx-v1")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def export_report_docx(project_id: str, archive_id: str, request: Request, archive_hash: str = Query(pattern=r"^[0-9a-f]{64}$")):
+    owner, repository = await _report_context(request)
+    _report_identifier(archive_id)
+    document = await _result(repository.get_archive(owner, project_id, archive_id))
+    if not hmac.compare_digest(document["archive_hash"], archive_hash):
+        raise HTTPException(409, "Archive receipt changed; explicitly reopen the archived draft")
+    try:
+        content = await asyncio.to_thread(render_archived_docx, document)
+    except ReportExportError:
+        raise HTTPException(422, "Archived draft cannot be exported by this renderer; the stored draft was not changed") from None
+    return Response(
+        content,
+        media_type=DOCX_MIME,
+        headers={
+            "Cache-Control": "private, no-store",
+            "Content-Disposition": 'attachment; filename="qa-report-' + archive_id + "-r" + str(document["revision"]) + '.docx"',
+            "X-Content-Type-Options": "nosniff",
+            "X-DevPilot-Renderer": RENDERER_ID,
+        },
+    )

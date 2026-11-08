@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Frozen QA Word drafts (2026-11-08)
+
+`VerifiedProjectReportPanel` explicitly downloads the opened archive through `evaluationReportDocx` and the pinned `qa-docx-v1` endpoint. Reuse authenticated/no-store fetch, check MIME/renderer/512-KiB streaming bound/ZIP prefix, never save an error/login page or auto-retry. Retain busy and project/unmount epoch fences; errors keep frozen text. `tests/fixtures/synthetic-qa-docx-v1.json` contains real synthetic renderer output; backend tests verify its XML parts, browser tests verify downloaded bytes at desktop/mobile widths. This is draft export, not approval, arbitrary template upload or Office visual acceptance. No App migration. [Scope](../docs/DevPilot_QA_Word_Draft_Export.md).
+
 ## Immutable platform QA report drafts (2026-11-08)
 
 `app.evaluation.qa_reports` appends reverified multi-component server summaries, full template/layout versions and rendered Markdown to `evaluation_report_archives` (`eval_0008`). Owner-only human read/review; write also requires write permission and separate confirmation. Sources are IDs + viewed hashes, never client metrics. Complete review is required, not all-PASS or approval. Crypto runs off-loop; final ordered run locks recheck every snapshot, with archive/audits atomic. Same-ID receipts are immutable; unknown writes only reconcile by GET, never retry/new-ID automatically. `VerifiedProjectReportPanel` explicitly loads data, retains pending IDs across project switches in page memory, fences unmounts and opens old documents without rerendering current templates. Manual/Agent suggestions stay separate and unverified. No formal approval, DOCX/PDF or target/model calls. Local last confirmed head remains `eval_0006`; preserve accounts/config/mounts and back up before deployment. [Scope and gates](../docs/DevPilot_Immutable_QA_Report_Archives.md). Earlier notes below retain their historical boundaries.

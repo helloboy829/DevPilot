@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { EvaluationProject } from "@/core/datasets/types";
-import { evaluationApi } from "@/core/evaluation/api";
+import { evaluationApi, evaluationReportDocx } from "@/core/evaluation/api";
 import type {
   ArchiveMetadata,
   ArchiveTemplate,
@@ -325,16 +325,34 @@ function ProjectArchiveWorkspace({
     !summary.blockers.length &&
     staged.length < 10 &&
     !staged.some((s) => s.component_id === summary.component_id);
+  function saveDocument(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    try {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
   function download() {
     if (!opened) return;
-    const url = URL.createObjectURL(
+    saveDocument(
       new Blob([opened.markdown], { type: "text/markdown;charset=utf-8" }),
+      `qa-report-${opened.id}-r${opened.revision}.md`,
     );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `qa-report-${opened.id}-r${opened.revision}.md`;
-    link.click();
-    URL.revokeObjectURL(url);
+  }
+  async function downloadWord() {
+    if (!opened || locked) return;
+    const archive = opened;
+    await operation(async (current) => {
+      const blob = await evaluationReportDocx(
+        `${base}/report-archives/${archive.id}/exports/qa-docx-v1?archive_hash=${archive.archive_hash}`,
+      );
+      if (current())
+        saveDocument(blob, `qa-report-${archive.id}-r${archive.revision}.docx`);
+    });
   }
   return (
     <div className="min-w-0 space-y-4">
@@ -573,6 +591,14 @@ function ProjectArchiveWorkspace({
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={download}>
               {zh ? "下载已存档 Markdown" : "Download archived Markdown"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={locked}
+              onClick={() => void downloadWord()}
+            >
+              {zh ? "下载 Word 草稿" : "Download Word draft"}
             </Button>
             <Button
               type="button"

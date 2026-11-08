@@ -9,8 +9,11 @@ import {
 
 import { VerifiedProjectReportPanel } from "@/components/workspace/verified-project-report-panel";
 
-const state = rs.hoisted(() => ({ api: rs.fn() }));
-rs.mock("@/core/evaluation/api", () => ({ evaluationApi: state.api }));
+const state = rs.hoisted(() => ({ api: rs.fn(), docx: rs.fn() }));
+rs.mock("@/core/evaluation/api", () => ({
+  evaluationApi: state.api,
+  evaluationReportDocx: state.docx,
+}));
 const summary = {
   schema: "qa-human-summary.v1",
   scope: "verified_human_summary_preview",
@@ -80,11 +83,15 @@ function respond(route: string, body?: unknown, method?: string): unknown {
 }
 beforeEach(() => {
   state.api.mockReset();
+  state.docx.mockReset();
   state.api.mockImplementation(async (...args: [string, unknown?, string?]) =>
     respond(...args),
   );
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  rs.restoreAllMocks();
+});
 async function loaded() {
   render(<VerifiedProjectReportPanel zh={false} />);
   expect(state.api).not.toHaveBeenCalled();
@@ -305,4 +312,71 @@ it("gives Chinese selectors stable names independent of their options", async ()
   await screen.findByRole("option", { name: /Synthetic first/ });
   expect(screen.getByRole("combobox", { name: "证据运行" })).toBeTruthy();
   expect(screen.getByRole("combobox", { name: "存档模板" })).toBeTruthy();
+});
+
+async function archived() {
+  await staged();
+  fireEvent.click(screen.getByLabelText("Confirm immutable draft storage"));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Archive verified draft" }),
+  );
+  await screen.findByText("# Synthetic immutable DRAFT");
+}
+it("downloads Word only on click, uses the viewed receipt, and fences duplicate clicks", async () => {
+  await archived();
+  expect(state.docx).not.toHaveBeenCalled();
+  const anchor = rs
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => undefined);
+  const blob = new Blob(["synthetic ZIP"]);
+  const create = rs
+    .spyOn(URL, "createObjectURL")
+    .mockReturnValue("blob:synthetic");
+  const revoke = rs
+    .spyOn(URL, "revokeObjectURL")
+    .mockImplementation(() => undefined);
+  state.docx.mockResolvedValue(blob);
+  const button = screen.getByRole("button", { name: "Download Word draft" });
+  fireEvent.click(button);
+  fireEvent.click(button);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  const put = state.api.mock.calls.find((call) => call[2] === "PUT")!;
+  expect(state.docx.mock.calls).toEqual([
+    [`${put[0]}/exports/qa-docx-v1?archive_hash=${saved.archive_hash}`],
+  ]);
+  expect(create).toHaveBeenCalledWith(blob);
+  expect(anchor).toHaveBeenCalledOnce();
+  expect(revoke).toHaveBeenCalledWith("blob:synthetic");
+});
+it("does not save a late Word response after switching projects", async () => {
+  await archived();
+  let resolve!: (blob: Blob) => void;
+  state.docx.mockImplementation(
+    () =>
+      new Promise<Blob>((done) => {
+        resolve = done;
+      }),
+  );
+  const create = rs.spyOn(URL, "createObjectURL");
+  fireEvent.click(screen.getByRole("button", { name: "Download Word draft" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Report project" }), {
+    target: { value: "p2" },
+  });
+  await act(async () => {
+    resolve(new Blob(["late"]));
+  });
+  expect(create).not.toHaveBeenCalled();
+  expect(screen.queryByText("# Synthetic immutable DRAFT")).toBeNull();
+});
+it("shows export failure without saving a fake document or retrying", async () => {
+  await archived();
+  state.docx.mockRejectedValue(new Error("Synthetic failed export"));
+  const create = rs.spyOn(URL, "createObjectURL");
+  fireEvent.click(screen.getByRole("button", { name: "Download Word draft" }));
+  await screen.findByRole("alert");
+  expect(state.docx).toHaveBeenCalledOnce();
+  expect(create).not.toHaveBeenCalled();
+  expect(screen.getByText("# Synthetic immutable DRAFT")).toBeTruthy();
 });
