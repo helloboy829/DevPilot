@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -34,6 +35,19 @@ def _collect_live_tests(
         LIVE_TEST_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    # Never read the developer's .env, even through app_config imports.
+    dotenv_path = temp_repo / ".env"
+    dotenv_path.write_text("", encoding="utf-8")
+    (temp_tests / "conftest.py").write_text(
+        "import socket, dotenv\n"
+        "def blocked(*a, **kw): raise AssertionError('Network forbidden during collection')\n"
+        "socket.socket.connect = blocked\n"
+        "socket.socket.connect_ex = blocked\n"
+        "_original_load_dotenv = dotenv.load_dotenv\n"
+        f"def isolated_dotenv(*a, **kw): return _original_load_dotenv({str(dotenv_path)!r})\n"
+        "dotenv.load_dotenv = isolated_dotenv\n",
+        encoding="utf-8",
+    )
     if config_exists:
         (temp_repo / "config.yaml").write_text("models: []\n", encoding="utf-8")
 
@@ -50,6 +64,10 @@ def _collect_live_tests(
         ),
         "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
     }
+    # Winsock initialization requires the Windows system root, not credentials.
+    for name in ("SYSTEMROOT", "WINDIR"):
+        if name in os.environ:
+            env[name] = os.environ[name]
     if opt_in:
         env[LIVE_OPT_IN] = "1"
     if ci:
@@ -73,6 +91,8 @@ def _collect_live_tests(
         env=env,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        timeout=60,
         check=False,
     )
 
@@ -91,6 +111,8 @@ def _dry_run_make_target(target: str) -> str:
         cwd=BACKEND_ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        timeout=60,
         check=False,
     )
     output = result.stdout + result.stderr
@@ -124,6 +146,17 @@ def test_opt_in_without_config_reports_missing_config(tmp_path: Path) -> None:
     _assert_collection_skipped(result, "No config.yaml found")
 
 
+def test_makefile_source_keeps_default_tests_offline_and_live_opt_in_separate() -> None:
+    source = (BACKEND_ROOT / "Makefile").read_text(encoding="utf-8")
+    default_recipe = source.split("test: test-devpilot\n", 1)[1].split("\n\n", 1)[0]
+    live_recipe = source.split("test-live:\n", 1)[1].split("\n\n", 1)[0]
+    assert 'pytest -m "not live" tests/' in default_recipe
+    assert LIVE_OPT_IN not in default_recipe
+    assert f"{LIVE_OPT_IN}=1" in live_recipe
+    assert "pytest -m live tests/" in live_recipe
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="GNU make required for recipe expansion; source contract is tested separately")
 def test_make_targets_keep_default_tests_offline_and_support_live_opt_in() -> None:
     default_command = _dry_run_make_target("test")
     live_command = _dry_run_make_target("test-live")

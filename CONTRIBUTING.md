@@ -324,8 +324,34 @@ make test-e2e
 
 `make test-live` calls real external APIs and may incur API costs or create
 local sandboxes, artifacts, and files. It is never run by the default backend
-test command or CI. Direct pytest invocations of `tests/test_client_live.py`
-must also set `DEER_FLOW_RUN_LIVE_TESTS=1`.
+test command or CI. Direct pytest invocations also require
+`DEER_FLOW_RUN_LIVE_TESTS=1` in the process environment **before pytest starts**.
+This applies to both `tests/test_client_live.py` and the 11 model-calling cases
+in `tests/test_client_e2e.py`; the latter's offline file/config cases remain in
+`make test`. The shared session gate captures opt-in before test-module imports:
+existing API credentials, config files or an opt-in loaded later from `.env`
+do not authorize calls. CI blocks live tests even with explicit opt-in. Do not
+set live opt-in globally or put it in default CI/test commands.
+
+中文：默认 `make test` 不运行真实模型用例；直接运行 pytest 也需要在启动前显式设置
+`DEER_FLOW_RUN_LIVE_TESTS=1`，已有密钥和测试模块后来读取的 `.env` 不能代替授权。
+CI 始终阻止真实模型用例。授权运行前须确认外发内容、费用与沙箱/文件副作用。
+
+### Local Docker lifecycle tests
+
+`tests/test_sandbox_orphan_reconciliation_e2e.py` uses the separately gated
+`docker` marker. Set `DEVPILOT_RUN_DOCKER_TESTS=1` in the process environment
+before pytest starts **only after reviewing the local side effects**. CI and
+default tests skip these three integration cases; collection never probes Docker.
+The image `busybox:latest` must already be present: `--pull=never` avoids implicit
+network downloads. Containers use a per-run prefix and ownership label, no
+network/mounts/published ports, and cleanup stops only exact names with matching
+ownership (no force/prefix sweeps). Unknown CLI delivery remains recorded for
+bounded cleanup. Synthetic policy/helper tests run without executing Docker.
+
+中文：Docker 生命周期集成测试需独立显式授权，不因本机装有 Docker 就自动运行；
+不隐式拉镜像、不挂业务卷、不开放端口、不删除其他运行的测试资源。镜像维护仍按
+[已验证升级后的定向清理规则](docs/DevPilot_Docker_Diagnostics.md#镜像清理与空间维护)。
 
 ### PR Regression Checks
 

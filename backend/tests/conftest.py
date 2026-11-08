@@ -7,12 +7,35 @@ issues when unit-testing lightweight config/registry code in isolation.
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+
+# Capture authorization before test-module imports can load a repository .env.
+# Existing credentials, config files or a later dotenv opt-in are NOT consent.
+_LIVE_TEST_OPT_IN = os.environ.get("DEER_FLOW_RUN_LIVE_TESTS") == "1"
+_LIVE_TEST_IN_CI = bool(os.environ.get("CI"))
+_DOCKER_TEST_OPT_IN = os.environ.get("DEVPILOT_RUN_DOCKER_TESTS") == "1"
+
+
+def pytest_collection_modifyitems(items):
+    """Keep direct pytest invocations safe as well as ``make test``."""
+    gates = (
+        ("live", _LIVE_TEST_OPT_IN, "DEER_FLOW_RUN_LIVE_TESTS"),
+        ("docker", _DOCKER_TEST_OPT_IN, "DEVPILOT_RUN_DOCKER_TESTS"),
+    )
+    for marker, opted_in, flag in gates:
+        if opted_in and not _LIVE_TEST_IN_CI:
+            continue
+        reason = f"{marker} integration tests skipped in CI" if _LIVE_TEST_IN_CI else f"Set {flag}=1 before pytest starts to run {marker} integration tests"
+        for item in items:
+            if item.get_closest_marker(marker) is not None:
+                item.add_marker(pytest.mark.skip(reason=reason))
+
 
 # Make 'app' and 'deerflow' importable from any working directory
 sys.path.insert(0, str(Path(__file__).parent.parent))

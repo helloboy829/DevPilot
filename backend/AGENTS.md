@@ -1633,9 +1633,24 @@ PYTHONPATH=. uv run pytest tests/test_<feature>.py -v
 
 Windows backend startup deliberately selects the Selector event-loop policy for psycopg compatibility. Tests that need real OS subprocesses must use bounded `subprocess.Popen` work off-loop (for example `asyncio.to_thread`), use an explicit absolute backend working directory so imports do not depend on the pytest caller, launch all competing children before waiting, and always reap them; do not switch the global policy or weaken cross-process assertions just to make a test pass.
 
-Direct pytest collection or execution of `tests/test_client_live.py` remains
-skipped unless `DEER_FLOW_RUN_LIVE_TESTS=1` is set. Do not add that opt-in to
-default CI workflows.
+`tests/conftest.py` snapshots process live-test opt-in and CI status before
+collecting test modules, then skips every `live` item unless explicitly opted
+in outside CI. The 11 real-model cases in `tests/test_client_e2e.py` carry that
+marker; its offline file/config tests remain selectable. Direct pytest runs
+also require `DEER_FLOW_RUN_LIVE_TESTS=1` **before pytest starts**. A repository
+`.env`, an existing key or config must not enable calls through later test-module
+imports. Do not add opt-in to default CI workflows. Collection-only policy
+tests copy the actual gate, redirect dotenv reads to a synthetic repo, block
+socket connects and never run model cases; subprocesses have explicit UTF-8,
+a deadline and a credential-free environment (including Windows system root).
+
+`tests/test_sandbox_orphan_reconciliation_e2e.py` is separately marked `docker`.
+The same pre-collection gate snapshots `DEVPILOT_RUN_DOCKER_TESTS=1`; default/CI
+runs skip it, and collection never probes the daemon. Explicit local execution
+requires an existing busybox image (`--pull=never`). Unique run-scoped names and
+labels constrain exact-name cleanup, including ambiguous start timeouts; no
+business mounts, network, published ports, forced/prefix-wide removal or pulls.
+`test_docker_e2e_policy.py` uses collection-only children and mocked CLI helpers.
 
 ### Running the Full Application
 

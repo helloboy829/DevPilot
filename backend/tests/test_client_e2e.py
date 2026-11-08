@@ -9,7 +9,10 @@ Core principle: use the real LLM from config.yaml, let config, middleware
 chain, tool registration, file I/O, and event serialization all run for real.
 Only DEER_FLOW_HOME is redirected to tmp_path for filesystem isolation.
 
-Tests that call the LLM are marked ``requires_llm`` and skipped in CI.
+Tests that call the LLM are marked ``live`` via ``requires_llm``. They require
+explicit process opt-in (DEER_FLOW_RUN_LIVE_TESTS=1 before pytest starts), are
+excluded by ``make test`` and are always skipped in CI. Credentials or .env
+settings alone are not authorization; the session gate lives in conftest.py.
 File-management tests (upload/list/delete) don't need LLM and run everywhere.
 """
 
@@ -32,10 +35,15 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
 # Markers
 # ---------------------------------------------------------------------------
 
-requires_llm = pytest.mark.skipif(
-    os.getenv("CI", "").lower() in ("true", "1") or not os.getenv("OPENAI_API_KEY"),
-    reason="Requires LLM API key — skipped in CI or when OPENAI_API_KEY is unset",
-)
+
+def requires_llm(test):
+    """Use the shared explicit opt-in gate, plus the client credential check."""
+    return pytest.mark.live(
+        pytest.mark.skipif(
+            not os.getenv("OPENAI_API_KEY"),
+            reason="Requires OPENAI_API_KEY as well as explicit live-test opt-in",
+        )(test)
+    )
 
 
 # ---------------------------------------------------------------------------

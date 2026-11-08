@@ -95,6 +95,8 @@ See the [implementation matrix](docs/DevPilot_实现进度与下一步.md) for d
 4. Durable execution, quotas/cancellation, security policy across legacy execution paths and audit.
 5. Explicitly authorized judge-model integration and reviewed knowledge promotion, not automatic training.
 
+Default backend `make test` excludes real-model cases. Direct pytest runs also require `DEER_FLOW_RUN_LIVE_TESTS=1` before pytest starts; existing keys or a later test-module `.env` read are not authorization. CI always blocks live cases. Local Docker lifecycle integration is separately gated by `DEVPILOT_RUN_DOCKER_TESTS=1`, never probes the daemon during collection, and never implicitly pulls an image. Authorized live tests may incur API costs and create local artifacts; see [test safety](CONTRIBUTING.md#testing).
+
 New features ship with backend tests and frontend browser/API regressions. Backend: Ruff format/check and pytest/toolkit tests. Host pnpm commands go through `scripts/pnpm.py`; frontend: `check`, unit tests and Playwright. See [backend](backend/AGENTS.md), [frontend](frontend/AGENTS.md), [upstream](README_upstream.md) and [LICENSE](LICENSE).
 
 ### Manual evaluation assistants

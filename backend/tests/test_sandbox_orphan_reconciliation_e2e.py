@@ -10,14 +10,24 @@ a new ``AioSandboxProvider`` instance or assert provider startup orphan
 reconciliation end-to-end — that logic is covered by unit tests in
 ``test_sandbox_orphan_reconciliation.py``.
 
-Run with: PYTHONPATH=. uv run pytest tests/test_sandbox_orphan_reconciliation_e2e.py -v -s
-Requires: Docker running locally
+Run only after explicit authorization:
+    DEVPILOT_RUN_DOCKER_TESTS=1 PYTHONPATH=. uv run pytest -m docker tests/test_sandbox_orphan_reconciliation_e2e.py -v -s
+Requires Docker and a pre-existing busybox:latest image; never pulls an image.
+Default/CI runs skip; collection never probes Docker. Temporary containers use
+no mounts, published ports or network, and cleanup checks unique run ownership.
 """
 
 import subprocess
 import time
+import uuid
 
 import pytest
+
+pytestmark = pytest.mark.docker
+
+_RUN_ID = uuid.uuid4().hex
+_RUN_LABEL = "devpilot.test.run_id"
+_START_ATTEMPTS: set[str] = set()
 
 
 def _docker_available() -> bool:
@@ -38,33 +48,53 @@ def _container_running(container_name: str) -> bool:
     return result.returncode == 0 and result.stdout.strip().lower() == "true"
 
 
+def _start_test_container(container_name: str) -> None:
+    # A timed-out CLI is not proof of non-delivery; record intent first.
+    _START_ATTEMPTS.add(container_name)
+    result = subprocess.run(
+        ["docker", "run", "--pull=never", "--network", "none", "--rm", "-d", "--label", f"{_RUN_LABEL}={_RUN_ID}", "--name", container_name, E2E_TEST_IMAGE, "sleep", "3600"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, "Failed to start explicitly authorized test container"
+
+
 def _stop_container(container_name: str) -> None:
-    subprocess.run(["docker", "stop", container_name], capture_output=True, timeout=15)
+    if container_name not in _START_ATTEMPTS:
+        return
+    result = subprocess.run(
+        ["docker", "inspect", "-f", '{{index .Config.Labels "' + _RUN_LABEL + '"}}', container_name],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if result.returncode == 0 and result.stdout.strip() == _RUN_ID:
+        # --rm removes this exact container on stop. No force or prefix sweeps.
+        subprocess.run(["docker", "stop", "--time", "2", container_name], capture_output=True, timeout=15)
 
 
-# Use a lightweight image for testing to avoid pulling the heavy sandbox image
 E2E_TEST_IMAGE = "busybox:latest"
-E2E_PREFIX = "deer-flow-sandbox-e2e-test"
+E2E_PREFIX = f"devpilot-sandbox-e2e-{_RUN_ID}"
 
 
 @pytest.fixture(autouse=True)
 def cleanup_test_containers():
-    """Ensure all test containers are cleaned up after the test."""
-    yield
-    # Cleanup: stop any remaining test containers
-    result = subprocess.run(
-        ["docker", "ps", "-a", "--filter", f"name={E2E_PREFIX}-", "--format", "{{.Names}}"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
-    for name in result.stdout.strip().splitlines():
-        name = name.strip()
-        if name:
-            subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=10)
+    """Only explicitly authorized runs may probe Docker or create resources."""
+    if not _docker_available():
+        pytest.skip("Docker not available")
+    image = subprocess.run(["docker", "image", "inspect", E2E_TEST_IMAGE], capture_output=True, timeout=5)
+    if image.returncode:
+        pytest.skip("busybox:latest must already exist; this test never pulls images")
+    _START_ATTEMPTS.clear()
+    try:
+        yield
+    finally:
+        for name in sorted(_START_ATTEMPTS):
+            _stop_container(name)
+        _START_ATTEMPTS.clear()
 
 
-@pytest.mark.skipif(not _docker_available(), reason="Docker not available")
 class TestOrphanReconciliationE2E:
     """E2E tests for orphan container reconciliation."""
 
@@ -80,13 +110,7 @@ class TestOrphanReconciliationE2E:
         container_name = f"{E2E_PREFIX}-orphan01"
 
         # Step 1: Start a container (simulating previous process lifecycle)
-        result = subprocess.run(
-            ["docker", "run", "--rm", "-d", "--name", container_name, E2E_TEST_IMAGE, "sleep", "3600"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        assert result.returncode == 0, f"Failed to start test container: {result.stderr}"
+        _start_test_container(container_name)
 
         try:
             assert _container_running(container_name), "Test container should be running"
@@ -132,13 +156,7 @@ class TestOrphanReconciliationE2E:
             # Start 3 containers
             for i in range(3):
                 name = f"{E2E_PREFIX}-multi{i:02d}"
-                result = subprocess.run(
-                    ["docker", "run", "--rm", "-d", "--name", name, E2E_TEST_IMAGE, "sleep", "3600"],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                )
-                assert result.returncode == 0, f"Failed to start {name}: {result.stderr}"
+                _start_test_container(name)
                 containers.append(name)
 
             from deerflow.community.aio_sandbox.local_backend import LocalContainerBackend
@@ -174,22 +192,14 @@ class TestOrphanReconciliationE2E:
 
     def test_list_running_ignores_unrelated_containers(self):
         """Containers with different prefixes should not be listed."""
-        unrelated_name = "unrelated-test-container"
+        unrelated_name = f"devpilot-docker-other-{_RUN_ID}"
         our_name = f"{E2E_PREFIX}-ours001"
 
         try:
             # Start an unrelated container
-            subprocess.run(
-                ["docker", "run", "--rm", "-d", "--name", unrelated_name, E2E_TEST_IMAGE, "sleep", "3600"],
-                capture_output=True,
-                timeout=30,
-            )
+            _start_test_container(unrelated_name)
             # Start our container
-            subprocess.run(
-                ["docker", "run", "--rm", "-d", "--name", our_name, E2E_TEST_IMAGE, "sleep", "3600"],
-                capture_output=True,
-                timeout=30,
-            )
+            _start_test_container(our_name)
 
             from deerflow.community.aio_sandbox.local_backend import LocalContainerBackend
 
@@ -206,7 +216,7 @@ class TestOrphanReconciliationE2E:
 
             # Should find ours but not unrelated
             assert "ours001" in found_ids
-            # "unrelated-test-container" doesn't match "deer-flow-sandbox-e2e-test-" prefix
+            # This distinct, run-scoped unrelated name does not match E2E_PREFIX.
             for info in running:
                 assert not info.sandbox_id.startswith("unrelated")
 
