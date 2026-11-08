@@ -120,6 +120,8 @@ DeerFlow Frontend is a Next.js 16 web interface for an AI agent system. It commu
 
 ## Commands
 
+Production Docker images compile in `builder` and run `node node_modules/next/dist/bin/next start` directly in `/app/frontend`, with explicit host/port and `NODE_ENV=production`. Do not install package managers in the runtime stage or override startup with a compiler. The `dev` target and developer `preview` command remain intentionally separate. `backend/tests/test_frontend_docker_runtime.py` guards the image/Compose contract; local deployment additionally verifies unchanged build ID/manifests across a frontend-only restart.
+
 | Command          | Purpose                                           |
 | ---------------- | ------------------------------------------------- |
 | `pnpm dev`       | Dev server with Turbopack (http://localhost:3000) |

@@ -8,16 +8,13 @@ Docker Desktop recovered after normal restart timed out and an explicitly author
 
 `app.evaluation.report_docx` exports authenticated immutable archives via the pinned `qa-docx-v1` GET route. Stored Markdown only, no current-template lookup/metric recomputation/model/target calls/approval. Standard-library bounded OOXML runs off-loop; owner + human + read/review and viewed receipt are mandatory. UI downloads explicitly, validates bounded binary responses and fences scope changes. MarkItDown/Mammoth is an existing independent test reader; synthetic browser fixture parts are checked against the renderer. No new dependency or migration. [Workflow, safety and exclusions](docs/DevPilot_QA_Word_Draft_Export.md). Earlier notes retain their original slice scope.
 
-
 ## Immutable platform QA report drafts (2026-11-08)
 
 `app.evaluation.qa_reports` appends reverified multi-component server summaries, full template/layout versions and rendered Markdown to `evaluation_report_archives` (`eval_0008`). Owner-only human read/review; write also requires write permission and separate confirmation. Sources are IDs + viewed hashes, never client metrics. Complete review is required, not all-PASS or approval. Crypto runs off-loop; final ordered run locks recheck every snapshot, with archive/audits atomic. Same-ID receipts are immutable; unknown writes only reconcile by GET, never retry/new-ID automatically. `VerifiedProjectReportPanel` explicitly loads data, retains pending IDs across project switches in page memory, fences unmounts and opens old documents without rerendering current templates. Manual/Agent suggestions stay separate and unverified. No formal approval, DOCX/PDF or target/model calls. Local last confirmed head remains `eval_0006`; preserve accounts/config/mounts and back up before deployment. [Scope and gates](docs/DevPilot_Immutable_QA_Report_Archives.md). Earlier notes below retain their historical boundaries.
 
-
 ## Verified human summary preview (2026-11-08)
 
 `app.evaluation.qa_summary` authenticates shared frozen sources, each output and only the latest encrypted human decision off-loop, then rechecks the whole snapshot under the run lock before audit/return. Denominator is ALL frozen effectiveness samples, never the reviewed/successful subset. Performance repetitions are rejected. Complete review is not acceptance; no report snapshot is persisted. No migration; code head remains `eval_0007`, local confirmed head `eval_0006`. [Scope and gates](docs/DevPilot_Verified_QA_Summaries.md).
-
 
 ## Independently authorized QA execution (2026-11-08)
 
@@ -30,7 +27,6 @@ The candidate App head is `eval_0007`; local deployed head remains `eval_0006` u
 ## Internal durable dispatch journal (2026-11-08)
 
 `app.evaluation.dispatch_journal` persists owner-scoped technical metadata only (`dispatch_journal_only`). This slice used App head `eval_0006`; deployed migrations and Harness ledger are unchanged. Per-run DB row writes serialize one-way ordinal dispatch, concurrency and non-recycled response reservations (`max_response_bytes + 1`). A future independently admitted caller must confirm dispatch commit before sending; uncertain writes never return permission to send/retry. Expired leases interrupt the whole run, never reclaim slots for continuing. No network, input/gold/ciphertext reads, output evidence, API, reaper or verdict. `recording_finished` is not PASS. See [scope](docs/DevPilot_Durable_Dispatch_Journal.md).
-
 
 ## Internal bounded QA attempt collection (2026-11-08)
 
@@ -66,11 +62,9 @@ The sidebar brand/product groups never insert route-dependent creation rows. New
 
 `devpilot.request_templates` is pure configuration-only wiring: all request values become explicit references; method/origin/header names remain. `/api/component-tests/debug/template` and the debugger download do not send, persist, certify debugging, resolve secrets, or create execution plans/evidence. Fingerprint is structural integrity, not a signature or secret/value binding. Never send `resolve()` output without fresh policy/consent. See [delivery](docs/DevPilot_Assistants_Request_Templates.md).
 
-
 ## Navigation / shared outbound slice (2026-11-07)
 
 Evaluation component calls share app.evaluation.http.PinnedEvaluationTransport across debugger/manual/scheduled paths. Manual admission requires runs:create and checks policy before creating a run. Custom-assistant navigation is hidden when disabled; do not bypass its operator gate to remove grey UI. Full RequestSpec execution/credential references remain pending. See [scope](docs/DevPilot_导航与统一出站基线.md).
-
 
 ## Project component/submission inventory (2026-11-07)
 
@@ -87,7 +81,6 @@ Evaluation component calls share app.evaluation.http.PinnedEvaluationTransport a
 ## Reports slice (2026-11-07)
 
 `devpilot.reporting` is a pure, version-pinned manual draft renderer. Gateway `/api/reports/templates` and `/api/reports/preview` enforce existing thread read/write permissions; `/workspace/reports` offers entry and Markdown/JSON downloads. Facts and template snapshots are included, but hashes are not signatures. This is stateless, unverified input: no report publication, persistent revision history, template uploads or acceptance decisions. See [report design](docs/DevPilot_报告模块设计.md). Keep published template versions immutable and old downloads invalidated after any input/version change. Never commit customer scenario names, historical aggregate metrics or original materials.
-
 
 This file provides guidance to AI coding agents (Claude Code, Codex, and others) when working with code in this repository. It is the source of truth; the sibling `CLAUDE.md` imports it via `@AGENTS.md`.
 
@@ -145,7 +138,7 @@ DingTalk) bridge into the same agent through the Gateway.
 
 A single `make dev` / Docker stack runs four cooperating services:
 
-| Service         | Port   | Role                                                                 |
+| Service         | Port   | Role                                                                |
 | --------------- | ------ | ------------------------------------------------------------------- |
 | **Nginx**       | `2026` | Unified reverse-proxy entry point — open this in the browser        |
 | **Gateway API** | `8001` | FastAPI REST API + embedded LangGraph-compatible agent runtime      |
@@ -205,6 +198,7 @@ Gateway API. Config schema and resolution order are documented in
 [backend/AGENTS.md](backend/AGENTS.md).
 
 Skill quality review note:
+
 - `skills/public/skill-reviewer/` is the built-in read-only skill quality reviewer.
   It uses the harness-layer `review_skill_package` tool and contracts in
   `contracts/skill_review/`. Model-visible review data is compact and
@@ -213,6 +207,7 @@ Skill quality review note:
   `skill-creator` ownership boundaries.
 
 Scheduled-task note:
+
 - The scheduled-task MVP adds a workspace page at `/workspace/scheduled-tasks` plus a background scheduler service gated by `config.yaml -> scheduler.enabled`.
 - Scheduled background runs are intentionally non-interactive: they execute through the normal run lifecycle, but the lead-agent toolset excludes `ask_clarification` when `context.non_interactive=true`. The key is honored only for internally-authenticated callers (the scheduler launch path); client-supplied `context.non_interactive` is dropped.
 
@@ -271,6 +266,8 @@ Host-side pnpm consumers, including the root/frontend Makefiles and local diagno
 - Cutting a release → **[RELEASING.md](RELEASING.md)**
 
 ## Cross-Cutting Conventions
+
+Production frontend compilation belongs to the Docker builder stage, never container startup. The production image starts Node directly; Compose production must preserve that command. Keep development hot reload explicit. Contract tests: `backend/tests/test_frontend_docker_runtime.py`. Local overrides are private, must preserve existing mounts/configuration and must not introduce `build && start`.
 
 These apply repo-wide; module guides own the module-specific detail.
 

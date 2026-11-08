@@ -1,7 +1,7 @@
 # Frontend Dockerfile
 # Supports two targets:
 #   --target dev   — install deps only, run `pnpm dev` at container start
-#   --target prod  — full build baked in, run `pnpm start` at container start (default if no --target is specified)
+#   --target prod  -- prebuild once, start Node directly (default target)
 
 ARG PNPM_STORE_PATH=/root/.local/share/pnpm/store
 ARG NPM_REGISTRY
@@ -41,15 +41,11 @@ RUN cd /app/frontend && SKIP_ENV_VALIDATION=1 pnpm build
 
 # ── Prod: minimal runtime with pre-built output ───────────────────────────────
 FROM node:22-alpine AS prod
-ARG PNPM_STORE_PATH
-ARG NPM_REGISTRY
-RUN if [ -n "${NPM_REGISTRY}" ]; then \
-      export COREPACK_NPM_REGISTRY="${NPM_REGISTRY}"; \
-    fi && \
-    corepack enable && corepack install -g pnpm@10.26.2
-RUN pnpm config set store-dir ${PNPM_STORE_PATH}
-RUN if [ -n "${NPM_REGISTRY}" ]; then pnpm config set registry "${NPM_REGISTRY}"; fi
-WORKDIR /app
-COPY --from=builder /app/frontend ./frontend
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+WORKDIR /app/frontend
+COPY --from=builder /app/frontend ./
 EXPOSE 3000
-CMD ["sh", "-c", "cd /app/frontend && pnpm start"]
+# Keep compilation/package downloads out of startup and let Node receive SIGTERM.
+# Local Compose overrides must not replace this with `build && start`.
+CMD ["node", "node_modules/next/dist/bin/next", "start", "--hostname", "0.0.0.0", "--port", "3000"]

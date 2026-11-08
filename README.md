@@ -18,6 +18,8 @@ Plan confirmation: open **Projects & datasets → select project → Frozen QA p
 
 The [single-attempt collector](docs/DevPilot_Bounded_QA_Attempts.md) and [durable dispatch journal](docs/DevPilot_Durable_Dispatch_Journal.md) now serve the separately admitted QA Worker. Their original scope notes describe earlier internal slices. Plan freeze itself still sends no requests, and legacy evaluation paths are not silently redirected.
 
+**Restart-stable production frontend:** compile when building the image, then run the prebuilt Next.js server directly as Node. Production startup does not compile or download a package manager. Keep `dev`/hot reload for development; do not override production startup with `build && start`. [Operations and limits](docs/DevPilot_Local_Recovery_and_Upgrade.md#前端构建与运行分离)。
+
 ## Workspace appearance and navigation
 
 The evaluation-first sidebar keeps stable Evaluation center and AI collaboration groups. Opening Chats or Custom assistants no longer inserts a new-chat row above the menu; create conversations inside Chats (or use the command palette). Assistant management does not open a conversation.
@@ -26,15 +28,15 @@ The evaluation-first sidebar keeps stable Evaluation center and AI collaboration
 
 ## Available workspace slices
 
-| Page | Implemented scope |
-| --- | --- |
-| `/workspace/evaluations` | Default evaluation-first landing page with real component inventory and explicit remaining capabilities |
-| `/workspace/datasets` | Owner-scoped projects, QA import/review/freeze, existing-component links, immutable inventory-only submissions, frozen QA plans and revisioned human result review |
-| `/workspace/component-tests` | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses |
-| `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery |
-| `/workspace/reports` | Verified immutable multi-component QA archives and revisions, plus separate manual/Agent drafts; pinned Chinese/English templates and frozen Markdown/Word draft downloads |
-| `/workspace/models` | Connection profiles for OpenAI Chat, OpenAI Responses, Anthropic and Gemini; controlled parameters, encrypted write-only credentials, probes and default/report role routing |
-| Chat | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger |
+| Page                              | Implemented scope                                                                                                                                                            |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/workspace/evaluations`          | Default evaluation-first landing page with real component inventory and explicit remaining capabilities                                                                      |
+| `/workspace/datasets`             | Owner-scoped projects, QA import/review/freeze, existing-component links, immutable inventory-only submissions, frozen QA plans and revisioned human result review           |
+| `/workspace/component-tests`      | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses                                            |
+| `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery                     |
+| `/workspace/reports`              | Verified immutable multi-component QA archives and revisions, plus separate manual/Agent drafts; pinned Chinese/English templates and frozen Markdown/Word draft downloads   |
+| `/workspace/models`               | Connection profiles for OpenAI Chat, OpenAI Responses, Anthropic and Gemini; controlled parameters, encrypted write-only credentials, probes and default/report role routing |
+| Chat                              | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger                                                                       |
 
 The unified local entry point is `http://127.0.0.1:2026`. See [Install.md](Install.md), [AGENTS.md](AGENTS.md) and module guides for installation and full-stack `make dev`/Docker commands. Do not commit local configuration, credentials or customer materials.
 
