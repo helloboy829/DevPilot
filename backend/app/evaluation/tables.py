@@ -1,6 +1,6 @@
 """App-owned evaluation tables, intentionally separate from Harness metadata."""
 
-from sqlalchemy import JSON, BigInteger, CheckConstraint, Column, Float, ForeignKey, ForeignKeyConstraint, Index, Integer, MetaData, String, Table, Text, UniqueConstraint
+from sqlalchemy import JSON, BigInteger, Boolean, CheckConstraint, Column, Float, ForeignKey, ForeignKeyConstraint, Index, Integer, MetaData, String, Table, Text, UniqueConstraint
 
 metadata = MetaData()
 projects = Table(
@@ -281,3 +281,37 @@ case_reviews = Table(
     CheckConstraint("ordinal BETWEEN 1 AND 10000 AND revision BETWEEN 1 AND 100 AND created_at_ms > 0", name="ck_evaluation_review_bounds"),
     CheckConstraint("decision IN ('pass','fail','uncertain')", name="ck_evaluation_review_decision"),
 )
+
+# Independent human execution admission; journal scope remains metadata-only.
+execution_guard = Table(
+    "evaluation_execution_guard",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("policy_hash", String(64), nullable=True),
+    CheckConstraint("id = 1", name="ck_evaluation_execution_guard"),
+)
+executions = Table(
+    "evaluation_executions",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), nullable=False, unique=True),
+    Column("plan_hash", String(64), nullable=False),
+    Column("scope", String(32), nullable=False),
+    Column("state", String(32), nullable=False),
+    Column("reservation_held", Boolean, nullable=False),
+    Column("claim_hash", String(64), nullable=True),
+    Column("reserved_concurrency", Integer, nullable=False),
+    Column("reserved_body_bytes", BigInteger, nullable=False),
+    Column("reserved_response_bytes", BigInteger, nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("deadline_ms", BigInteger, nullable=False),
+    Column("finished_at_ms", BigInteger, nullable=True),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    CheckConstraint("scope = 'admitted_qa_json'", name="ck_evaluation_execution_scope"),
+    CheckConstraint("state IN ('queued','running','cancel_requested','collected','interrupted')", name="ck_evaluation_execution_state"),
+    CheckConstraint("reserved_concurrency BETWEEN 1 AND 64 AND reserved_body_bytes BETWEEN 1 AND 67108864 AND reserved_response_bytes BETWEEN 2 AND 67108864", name="ck_evaluation_execution_reserved"),
+    CheckConstraint("created_at_ms > 0 AND deadline_ms > created_at_ms", name="ck_evaluation_execution_clock"),
+)
+Index("ix_evaluation_execution_queue", executions.c.reservation_held, executions.c.state, executions.c.created_at_ms)

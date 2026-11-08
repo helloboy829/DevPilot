@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Authorized QA execution UI (2026-11-08)
+
+`EvaluationExecutionPanel` is mounted with the project key between plan confirmation and human review. It loads only metadata on explicit clicks, requires two fresh human confirmations, generates one execution ID before PUT, and reconciles unknown results by GET of that same ID. No automatic run creation, write retries, polling, browser persistence or plaintext request/Q/A/gold access. Keep the synchronous lock and unmount epoch guard. Operator policy is read-only; disabled execution cannot be enabled by the UI. Technical collection is not quality acceptance or TTFT. Execution/review DOM tests and full fixture-backed browser suite pass; local deployment remains pending. Empty review state directs users to separate execution authorization, not automatic runs. See [scope/status](../docs/DevPilot_Admitted_QA_Execution.md).
+
 ## Human result review workspace (2026-11-08)
 
 `EvaluationReviewPanel` is embedded in `/workspace/datasets` with a project-specific review key, not a duplicate sidebar entry. Explicit run/case metadata reads precede a separately authorized sensitive case open; display component/plan/sample, Q, actual A, reference, source, technical status and review history as plain text. Source references must not auto-fetch. Human decisions append with case hash, expected revision, reason and separate consent; missing evidence disables PASS. Editing/reloading/submitting revokes consent; ref locking prevents double submissions, and unknown writes require explicit case reload, not retry. Page-memory-only sensitive state, unmount epochs and project keys prevent stale cross-project display. No target/model calls, run creation, browser storage or chat persistence. Counts are not accuracy; empty state explains the Worker gap. Tests: `evaluation-review-panel.dom.test.tsx`, `evaluation-review.spec.ts`. See [scope](../docs/DevPilot_QA_Evidence_Review.md).

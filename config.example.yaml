@@ -2575,3 +2575,14 @@ reports_agent:
 evaluation_http:
   allowed_hosts: []
   allow_private: false
+
+# Independently authorized QA JSON Worker; restart Gateway after changes.
+# Requires explicit DEVPILOT_REQUEST_ENCRYPTION_KEY and approved evaluation_http hosts.
+# Never enable automatically just because a model, plan or schedule exists.
+evaluation_execution:
+  enabled: false
+  max_active_runs: 2
+  max_reserved_concurrency: 8
+  max_response_bytes: 65536
+  max_reserved_body_bytes: 67108864
+  max_reserved_response_bytes: 67108864

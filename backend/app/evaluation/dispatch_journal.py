@@ -119,49 +119,53 @@ class DispatchJournalRepository(PlanRepository):
         if not isinstance(expected_plan_hash, str) or len(expected_plan_hash) != 64 or any(c not in "0123456789abcdef" for c in expected_plan_hash):
             raise ValueError("Invalid journal plan hash")
         async with self._transaction() as session:
-            plan = await self._plan(session, owner, project_id, plan_id)
-            if not hmac.compare_digest(plan["definition_hash"], expected_plan_hash):
-                raise Conflict
-            definition = plan["definition"]
-            dataset = await self._dataset(session, owner, project_id, plan["dataset_id"])
-            if dataset["status"] != "frozen" or dataset["revision"] != definition["dataset_revision"] or dataset["content_hash"] != definition["dataset_hash"]:
-                raise Conflict
-            sample_ids = sorted((await session.execute(select(t.samples.c.sample_id).where(t.samples.c.dataset_id == dataset["id"]).limit(501))).scalars())
-            if len(sample_ids) != definition["preflight"]["sample_count"] or not sample_ids:
-                raise Conflict
-            at = self._time()
-            configured = definition["limits"]
-            row = {
-                "id": uuid4().hex,
-                "project_id": project_id,
-                "plan_id": plan_id,
-                "plan_hash": expected_plan_hash,
-                "scope": "dispatch_journal_only",
-                "status": "recording",
-                "request_count": configured["request_count"],
-                "concurrency": configured["concurrency"],
-                "timeout_ms": configured["timeout_ms"],
-                "max_total_body_bytes": configured["max_total_body_bytes"],
-                "max_response_bytes": limits.max_response_bytes,
-                "max_total_response_bytes": limits.max_total_response_bytes,
-                "lease_grace_ms": limits.lease_grace_ms,
-                "started_at_ms": at,
-                "deadline_ms": at + configured["wall_time_ms"],
-                "reserved_body_bytes": 0,
-                "reserved_response_bytes": 0,
-                "revision": 1,
-                "finished_at_ms": None,
-                "stop_reason": None,
-            }
-            await session.execute(insert(t.dispatch_runs).values(**row))
-            # Stable ordinal/sample binding is persisted before any future dispatch.
-            # At most 10,000 rows, with batches to avoid dialect bind limits.
-            for begin in range(0, row["request_count"], 100):
-                await session.execute(
-                    insert(t.dispatches),
-                    [{"project_id": project_id, "run_id": row["id"], "ordinal": index + 1, "sample_id": sample_ids[index % len(sample_ids)], "state": "pending"} for index in range(begin, min(begin + 100, row["request_count"]))],
-                )
-            await self._journal_event(session, row, "run_recorded", at)
+            row = await self._record_run(session, owner, project_id, plan_id, expected_plan_hash, limits)
+        return row
+
+    async def _record_run(self, session, owner, project_id, plan_id, expected_plan_hash, limits):
+        plan = await self._plan(session, owner, project_id, plan_id)
+        if not hmac.compare_digest(plan["definition_hash"], expected_plan_hash):
+            raise Conflict
+        definition = plan["definition"]
+        dataset = await self._dataset(session, owner, project_id, plan["dataset_id"])
+        if dataset["status"] != "frozen" or dataset["revision"] != definition["dataset_revision"] or dataset["content_hash"] != definition["dataset_hash"]:
+            raise Conflict
+        sample_ids = sorted((await session.execute(select(t.samples.c.sample_id).where(t.samples.c.dataset_id == dataset["id"]).limit(501))).scalars())
+        if len(sample_ids) != definition["preflight"]["sample_count"] or not sample_ids:
+            raise Conflict
+        at = self._time()
+        configured = definition["limits"]
+        row = {
+            "id": uuid4().hex,
+            "project_id": project_id,
+            "plan_id": plan_id,
+            "plan_hash": expected_plan_hash,
+            "scope": "dispatch_journal_only",
+            "status": "recording",
+            "request_count": configured["request_count"],
+            "concurrency": configured["concurrency"],
+            "timeout_ms": configured["timeout_ms"],
+            "max_total_body_bytes": configured["max_total_body_bytes"],
+            "max_response_bytes": limits.max_response_bytes,
+            "max_total_response_bytes": limits.max_total_response_bytes,
+            "lease_grace_ms": limits.lease_grace_ms,
+            "started_at_ms": at,
+            "deadline_ms": at + configured["wall_time_ms"],
+            "reserved_body_bytes": 0,
+            "reserved_response_bytes": 0,
+            "revision": 1,
+            "finished_at_ms": None,
+            "stop_reason": None,
+        }
+        await session.execute(insert(t.dispatch_runs).values(**row))
+        # Stable ordinal/sample binding is persisted before any future dispatch.
+        # At most 10,000 rows, with batches to avoid dialect bind limits.
+        for begin in range(0, row["request_count"], 100):
+            await session.execute(
+                insert(t.dispatches),
+                [{"project_id": project_id, "run_id": row["id"], "ordinal": index + 1, "sample_id": sample_ids[index % len(sample_ids)], "state": "pending"} for index in range(begin, min(begin + 100, row["request_count"]))],
+            )
+        await self._journal_event(session, row, "run_recorded", at)
         return row
 
     async def record_dispatch(self, owner, project_id, run_id, ordinal, *, body_bytes):
@@ -173,36 +177,36 @@ class DispatchJournalRepository(PlanRepository):
         _positive_int(ordinal, 10_000)
         _positive_int(body_bytes, 262_144)
         async with self._transaction() as session:
-            run = await self._journal(session, owner, project_id, run_id, lock=True)
-            at = self._time()
-            active = (await session.execute(select(t.dispatches.c.lease_expires_at_ms).where(t.dispatches.c.run_id == run_id, t.dispatches.c.state == "dispatched"))).scalars().all()
-            attempt = (await session.execute(select(t.dispatches.c.state, t.dispatches.c.sample_id).where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ordinal))).mappings().first()
-            reserve = run["max_response_bytes"] + 1
-            if (
-                run["status"] != "recording"
-                or at >= run["deadline_ms"]
-                or any(expiry <= at for expiry in active)
-                or len(active) >= run["concurrency"]
-                or attempt is None
-                or attempt["state"] != "pending"
-                or run["reserved_body_bytes"] + body_bytes > run["max_total_body_bytes"]
-                or run["reserved_response_bytes"] + reserve > run["max_total_response_bytes"]
-            ):
-                raise Conflict
-            token = uuid4().hex
-            expiry = min(at + run["timeout_ms"] + run["lease_grace_ms"], run["deadline_ms"])
-            ticket = DispatchTicket(run_id, ordinal, attempt["sample_id"], expiry, token)
-            await session.execute(
-                update(t.dispatches)
-                .where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ordinal)
-                .values(state="dispatched", ticket_hash=hashlib.sha256(token.encode()).hexdigest(), dispatched_at_ms=at, lease_expires_at_ms=expiry)
-            )
-            await session.execute(
-                update(t.dispatch_runs)
-                .where(t.dispatch_runs.c.id == run_id)
-                .values(reserved_body_bytes=run["reserved_body_bytes"] + body_bytes, reserved_response_bytes=run["reserved_response_bytes"] + reserve, revision=run["revision"] + 1)
-            )
-            await self._journal_event(session, run, "dispatch_recorded", at, ordinal=ordinal)
+            ticket = await self._record_dispatch(session, owner, project_id, run_id, ordinal, body_bytes=body_bytes)
+        return ticket
+
+    async def _record_dispatch(self, session, owner, project_id, run_id, ordinal, *, body_bytes):
+        run = await self._journal(session, owner, project_id, run_id, lock=True)
+        at = self._time()
+        active = (await session.execute(select(t.dispatches.c.lease_expires_at_ms).where(t.dispatches.c.run_id == run_id, t.dispatches.c.state == "dispatched"))).scalars().all()
+        attempt = (await session.execute(select(t.dispatches.c.state, t.dispatches.c.sample_id).where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ordinal))).mappings().first()
+        reserve = run["max_response_bytes"] + 1
+        if (
+            run["status"] != "recording"
+            or at >= run["deadline_ms"]
+            or any(expiry <= at for expiry in active)
+            or len(active) >= run["concurrency"]
+            or attempt is None
+            or attempt["state"] != "pending"
+            or run["reserved_body_bytes"] + body_bytes > run["max_total_body_bytes"]
+            or run["reserved_response_bytes"] + reserve > run["max_total_response_bytes"]
+        ):
+            raise Conflict
+        token = uuid4().hex
+        expiry = min(at + run["timeout_ms"] + run["lease_grace_ms"], run["deadline_ms"])
+        ticket = DispatchTicket(run_id, ordinal, attempt["sample_id"], expiry, token)
+        await session.execute(
+            update(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ordinal).values(state="dispatched", ticket_hash=hashlib.sha256(token.encode()).hexdigest(), dispatched_at_ms=at, lease_expires_at_ms=expiry)
+        )
+        await session.execute(
+            update(t.dispatch_runs).where(t.dispatch_runs.c.id == run_id).values(reserved_body_bytes=run["reserved_body_bytes"] + body_bytes, reserved_response_bytes=run["reserved_response_bytes"] + reserve, revision=run["revision"] + 1)
+        )
+        await self._journal_event(session, run, "dispatch_recorded", at, ordinal=ordinal)
         return ticket
 
     @staticmethod

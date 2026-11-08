@@ -428,6 +428,7 @@ async def langgraph_runtime(app: FastAPI, startup_config: AppConfig) -> AsyncGen
         # Initialize repositories — one get_session_factory() call for all.
         sf = get_session_factory()
         app.state.evaluation_repo = None
+        app.state.evaluation_execution_repo = None
         if sf is not None:
             from app.evaluation.repository import EvaluationRepository
             from app.evaluation.schema import upgrade_evaluation_schema
@@ -435,6 +436,9 @@ async def langgraph_runtime(app: FastAPI, startup_config: AppConfig) -> AsyncGen
 
             await upgrade_evaluation_schema(get_engine(), postgres_schema=config.database.postgres_schema if config.database.backend == "postgres" else "")
             app.state.evaluation_repo = EvaluationRepository(sf)
+            from app.evaluation.execution_lifecycle import qa_execution_runtime
+
+            await stack.enter_async_context(qa_execution_runtime(app, sf, config, get_config))
         if sf is not None:
             from deerflow.persistence.feedback import FeedbackRepository
             from deerflow.persistence.run import RunRepository

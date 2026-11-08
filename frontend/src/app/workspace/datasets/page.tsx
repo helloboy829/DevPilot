@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { EvaluationExecutionPanel } from "@/components/workspace/evaluation-execution-panel";
 import { EvaluationPlanPanel } from "@/components/workspace/evaluation-plan-panel";
 import { EvaluationReviewPanel } from "@/components/workspace/evaluation-review-panel";
 import { ProjectRegistryPanel } from "@/components/workspace/project-registry-panel";
@@ -662,6 +663,13 @@ export default function DatasetsPage() {
           {projectId && (
             <EvaluationPlanPanel
               key={`plan:${projectId}`}
+              projectId={projectId}
+              zh={zh}
+            />
+          )}
+          {projectId && (
+            <EvaluationExecutionPanel
+              key={"execute:" + projectId}
               projectId={projectId}
               zh={zh}
             />

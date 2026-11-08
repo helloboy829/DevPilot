@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest, ProjectCreate, parse_samples
 from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
+from app.evaluation.execution import ExecutionCreate
 from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import PlanCreate, PlanPreflightError
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
@@ -304,3 +305,57 @@ async def review_case(project_id: str, run_id: str, ordinal: int, payload: Revie
     if not 1 <= ordinal <= 10_000:
         raise HTTPException(422, "Invalid case ordinal")
     return await _result(EvidenceRepository(repository.sf).review_case(owner, project_id, run_id, ordinal, payload))
+
+
+async def _execution_context(request, project_id):
+    owner, repository = await _context(request)
+    async with repository.sf() as session:
+        await _result(repository._project(session, owner, project_id))
+    execution = getattr(request.app.state, "evaluation_execution_repo", None)
+    if execution is None:
+        raise HTTPException(503, "Evaluation execution service is unavailable")
+    return owner, execution
+
+
+@router.get("/{project_id}/execution-policy")
+@require_permission("evaluation_projects", "read")
+async def execution_policy(project_id: str, request: Request):
+    _, repository = await _execution_context(request, project_id)
+    # Operator-owned, read-only and restart-required. No credentials or target list.
+    return {**repository.policy.model_dump(), "scope": "admitted_qa_json", "automatic_retry": False, "streaming": False}
+
+
+@router.get("/{project_id}/execution-runs")
+@require_permission("evaluation_projects", "read")
+async def list_executions(project_id: str, request: Request):
+    owner, repository = await _execution_context(request, project_id)
+    return {"executions": await _result(repository.list_executions(owner, project_id))}
+
+
+@router.get("/{project_id}/execution-runs/{execution_id}")
+@require_permission("evaluation_projects", "read")
+async def get_execution(project_id: str, execution_id: str, request: Request):
+    owner, repository = await _execution_context(request, project_id)
+    return await _result(repository.get_execution(owner, project_id, execution_id))
+
+
+@router.put("/{project_id}/execution-runs/{execution_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def admit_execution(project_id: str, execution_id: str, payload: ExecutionCreate, request: Request):
+    _require_human(request)
+    owner, repository = await _execution_context(request, project_id)
+    if len(execution_id) != 32 or any(char not in "0123456789abcdef" for char in execution_id):
+        raise HTTPException(422, "Invalid execution identifier")
+    return await _result(repository.admit(owner, project_id, execution_id, payload))
+
+
+@router.post("/{project_id}/execution-runs/{execution_id}/cancel")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def cancel_execution(project_id: str, execution_id: str, request: Request):
+    _require_human(request)
+    owner, repository = await _execution_context(request, project_id)
+    return await _result(repository.cancel(owner, project_id, execution_id))

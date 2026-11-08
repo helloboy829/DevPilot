@@ -1,12 +1,16 @@
 # AGENTS.md
 
+## Independently authorized QA execution (2026-11-08)
+
+The candidate App head is `eval_0007`; local deployed head remains `eval_0006` until a backed-up upgrade succeeds. Separate human-only authorization connects frozen QA JSON plans to global DB reservations, one-time claims, a bounded Worker and encrypted review evidence. Operator policy is restart-required/default-disabled; never generate keys or enable target/model calls implicitly. Unknown writes/delivery never retry; DB operations and local tasks drain before reservation release. Lost Workers retain quota, never reclaim. See [scope and verification gates](docs/DevPilot_Admitted_QA_Execution.md) and the module guides. Earlier slice notes below describe their original boundaries.
+
 ## Encrypted QA evidence and human review (2026-11-08)
 
-`app.evaluation.qa_evidence` adds internal atomic extracted-output capture and owner-only revisioned human review. Current App head is `eval_0006`; preserve deployed revisions and Harness ledger. `EvidenceProtection` requires the explicit request-encryption key, binds output/review envelopes to owner/project/run/ordinal/sample/plan/observation, and exposes no plaintext output hashes. Metadata reads exclude Q/A/gold/ciphertext; sensitive opens and reviews verify snapshots off-loop, recheck under the run lock and audit atomically. Human decisions append; absent evidence cannot PASS. `/workspace/datasets` adds the explicit review panel; no new execution or output-upload route, automatic target/model calls, Worker, independent-team arbitration or acceptance verdict. See [scope](docs/DevPilot_QA_Evidence_Review.md).
+`app.evaluation.qa_evidence` adds internal atomic extracted-output capture and owner-only revisioned human review. This slice introduced `eval_0006`; preserve deployed revisions and Harness ledger. `EvidenceProtection` requires the explicit request-encryption key, binds output/review envelopes to owner/project/run/ordinal/sample/plan/observation, and exposes no plaintext output hashes. Metadata reads exclude Q/A/gold/ciphertext; sensitive opens and reviews verify snapshots off-loop, recheck under the run lock and audit atomically. Human decisions append; absent evidence cannot PASS. `/workspace/datasets` adds the explicit review panel; no new execution or output-upload route, automatic target/model calls, Worker, independent-team arbitration or acceptance verdict. See [scope](docs/DevPilot_QA_Evidence_Review.md).
 
 ## Internal durable dispatch journal (2026-11-08)
 
-`app.evaluation.dispatch_journal` persists owner-scoped technical metadata only (`dispatch_journal_only`). App head is `eval_0006`; deployed migrations and Harness ledger are unchanged. Per-run DB row writes serialize one-way ordinal dispatch, concurrency and non-recycled response reservations (`max_response_bytes + 1`). A future independently admitted caller must confirm dispatch commit before sending; uncertain writes never return permission to send/retry. Expired leases interrupt the whole run, never reclaim slots for continuing. No network, input/gold/ciphertext reads, output evidence, API, reaper or verdict. `recording_finished` is not PASS. See [scope](docs/DevPilot_Durable_Dispatch_Journal.md).
+`app.evaluation.dispatch_journal` persists owner-scoped technical metadata only (`dispatch_journal_only`). This slice used App head `eval_0006`; deployed migrations and Harness ledger are unchanged. Per-run DB row writes serialize one-way ordinal dispatch, concurrency and non-recycled response reservations (`max_response_bytes + 1`). A future independently admitted caller must confirm dispatch commit before sending; uncertain writes never return permission to send/retry. Expired leases interrupt the whole run, never reclaim slots for continuing. No network, input/gold/ciphertext reads, output evidence, API, reaper or verdict. `recording_finished` is not PASS. See [scope](docs/DevPilot_Durable_Dispatch_Journal.md).
 
 
 ## Internal bounded QA attempt collection (2026-11-08)
@@ -19,7 +23,7 @@
 
 ## Frozen QA JSON plans (2026-11-08)
 
-The frozen-plan slice introduced `eval_0004`; current App head is `eval_0006`. `app.evaluation.plan_repository` freezes same-owner/project/component request versions, gold-bound QA revision/hash, strict JSON mappings and bounded limits after all-input preflight. Decryption audit and plan/audit commit atomically. `frozen_definition_only` is NOT execution authorization, evidence or a Worker; the workspace plan UI consumes these routes without adding execution authority. Metadata reads exclude gold/ciphertext. Never pass expected answers to rendering. See [scope](docs/DevPilot_Frozen_QA_Plans.md).
+The frozen-plan slice introduced `eval_0004`; its original App head was `eval_0006`. `app.evaluation.plan_repository` freezes same-owner/project/component request versions, gold-bound QA revision/hash, strict JSON mappings and bounded limits after all-input preflight. Decryption audit and plan/audit commit atomically. `frozen_definition_only` is NOT execution authorization, evidence or a Worker; the workspace plan UI consumes these routes without adding execution authority. Metadata reads exclude gold/ciphertext. Never pass expected answers to rendering. See [scope](docs/DevPilot_Frozen_QA_Plans.md).
 
 ## QA JSON wiring core (2026-11-08)
 

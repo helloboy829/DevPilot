@@ -239,3 +239,15 @@ it("ignores a sensitive response that completes after leaving its project", asyn
   expect(screen.queryByText(detail.output)).toBeNull();
   expect(writes()).toHaveLength(0);
 });
+
+it("empty review directs users to separate execution authorization, never starts a run", async () => {
+  state.api.mockResolvedValue({ runs: [] });
+  render(<EvaluationReviewPanel projectId="project" zh={false} />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load / refresh review runs" }),
+  );
+  await screen.findByText(/Use the separately authorized execution panel/);
+  expect(state.api).toHaveBeenCalledTimes(1);
+  expect(state.api.mock.calls[0]?.[0]).toMatch(/review-runs$/);
+  expect(state.api.mock.calls[0]?.[1]).toBeUndefined();
+});

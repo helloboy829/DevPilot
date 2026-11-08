@@ -95,8 +95,8 @@ export function EvaluationReviewPanel({
       if (!result.runs.length)
         setNotice(
           zh
-            ? "尚无派发记录。此处不会自动创建运行；Worker 接入后才有新的实际结果。"
-            : "No dispatch records yet. This page never creates runs; new real results require Worker integration.",
+            ? "尚无派发记录。请在上方独立授权的执行面板中确认并运行冻结计划，再刷新复核列表。需运营方启用执行；本复核面板不会创建运行。"
+            : "No dispatch records yet. Use the separately authorized execution panel above to confirm and run a frozen plan, then refresh review runs. Operator execution enablement is required; this review panel never creates runs.",
         );
     }
   }
