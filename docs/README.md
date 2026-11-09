@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+[真实登录的合成多账号 QA 回归](DevPilot_Authenticated_QA_Regression.md)：真实密码/JWT/CSRF/RBAC 与独立 cookie 的离线主链，不是真实用户、浏览器或部署验收。
+
 [独立历史报告/重测 PDF 草稿](DevPilot_Independent_PDF_Drafts.md)：固定嵌入字体与历史公开投影、显式收据下载；不是正式批准或部署。
 
 [独立历史重测 Word 草稿](DevPilot_Independent_Retest_Word_Drafts.md)以固定双语格式投影存档比较事实，保留 ALL 样本和历史评估收据，不重算指标或授予批准。

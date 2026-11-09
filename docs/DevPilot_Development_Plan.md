@@ -14,7 +14,7 @@
 1. App/FastAPI 负责项目、冻结数据/请求/计划、授权、耐久 dispatch、有界 Worker、加密证据和审计；纯 `devpilot` 领域逻辑与 Harness 保持单向依赖边界。
 2. 既有 owner 人工复核链已连接 verified summary、冻结标准、不可变报告/Word 与同基准复测，不等于独立批准。
 3. 独立任务提供两名盲审人/第三名仲裁人，独立评估修订和历史报告/复测及显式工作区已进入候选代码。候选迁移 head `eval_0012`；历史部署收据是 `eval_0009`，不能因已拉取最新代码而认定新版已部署。
-4. 本轮补齐独立历史报告/重测 Word 与 PDF 候选及合成独立主链回归；正式批准、真实多账号联调、保留数据升级/最终验收仍有缺口。旧设计文档里“待开发”的切片以当前交付矩阵为准，不重复重写已实现模块。
+4. 本轮补齐独立历史报告/重测 Word 与 PDF 候选及合成独立主链回归；新增真实登录的合成多账号离线回归，仍不替代真实用户/浏览器联调；正式批准、保留数据升级/最终验收仍有缺口。旧设计文档里“待开发”的切片以当前交付矩阵为准，不重复重写已实现模块。
 
 ## 接续顺序与退出条件
 
@@ -43,3 +43,11 @@ The clean continuation baseline is `8890bd061f3407b8c187ceaf388dff28aa463b4e`; i
 独立历史重测 Word 已在 GitHub 远端核实 `a3fb0db9de885a03e9883743216b5aca6c93665f`，六项 Actions 均 completed/success：Unit `42634173580`、Frontend Unit `42634173600`、Blocking IO `42634174621`、Lint `42634173290`、E2E `42634173439`、Replay `42634173556`。此前待推送回执由本次远端核验替代，不推断部署。
 
 后续 [PDF 草稿](DevPilot_Independent_PDF_Drafts.md) 独立模块补齐固定字体历史报告/重测 PDF、权限/收据 GET、显式下载及合成回归；定向 **178 passed**、标准后端 **12,414 passed**、领域 **15 / 58 passed**、Blocking IO **72 passed**，前端 **1,206 passed**、完整格式/lint/typecheck/build、模拟 Chromium **226 passed** 和认证恢复 **2 passed**。固定字体两次重建同 SHA，uv 0.7.20/0.13.7 离线锁检查和所有旧包版本不变审计通过；详细限制见合同，实际提交/精确 SHA Actions 另记交付矩阵。旧 Word/档案/hash 和禁止真实调用、默认禁用执行的边界不变。正式批准政策/角色/生命周期不能由 `PASS`、`met` 或报告下载自动补全；经授权保留数据升级、真实多账号与最终验收仍单列待完成。
+
+## 2026-11-10 接续：真实认证的离线多账号回归
+
+PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SHA 实际触发七项 Actions **全部 completed / success**：Unit Tests `42651605785`、Frontend Unit Tests `42651606003`、Backend Blocking IO `42651605741`、Lint Check `42651605792`、E2E Tests `42651605830`、Replay E2E `42651605934`、Skill Review CI `42651605943`。这是候选源码 CI，不是本机部署或正式批准。
+
+下一测试切片见[真实认证回归](DevPilot_Authenticated_QA_Regression.md)：隔离数据库五个普通账号，真实密码登录/JWT/CSRF/RBAC，接入既有离线 Worker/独立任务/历史档案。不改变运行权力或启用执行；仍缺少另行授权的真实用户浏览器联调/保留数据部署和正式批准政策。
+
+最终本地门禁：新增 18 项，联合定向 **63 passed**；标准后端 **12,432 passed / 18 skipped / 11 deselected**、纯领域 **15 / 58 passed**、Blocking IO **72 passed**；Ruff check/format **1,248 文件**、离线锁检查、完整 frontend Prettier 与六份模块 Markdown 检查通过。1,309 份实际后端/领域源码缺失/不符均为零。无前端运行源码变更，本模块没有重跑前端单测/build/浏览器，不以 PDF 提交的 CI 替代本次推送 SHA 的实际 Actions；最终统计、排除项与本机证据目录见交付矩阵。该测试补齐真实认证的离线主链，不等于真实用户、部署或正式批准。

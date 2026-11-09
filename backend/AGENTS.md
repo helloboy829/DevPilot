@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Authenticated synthetic multi-account QA regression (2026-11-10)
+
+`backend/tests/test_qa_authenticated_workflow_api.py` overrides only the old workflow's API fixture: real temporary-DB password users, local login/JWT/token-version, CSRF and enabled fail-closed RBAC; independent cookie jars, never identity middleware/state actor switches. Keep synthetic secrets/config isolated, socket fail-closed, blind-review narrow grants, ALL denominators, historical immutability and no approval authority. This is offline ASGI/Worker integration, not real-user/browser/deployment acceptance; no runtime, migration, dependency or real calls. [Scope](../docs/DevPilot_Authenticated_QA_Regression.md).
+
 ## Independent historical PDF candidate (2026-11-09)
 
 `independent-qa-pdf-v1` / `independent-retest-pdf-v1` consume only pinned internal Word-v1 historical public projections, never client XML/HTML or current sources. Keep human owner read/review + viewed hash, off-loop checks/rendering, ALL frozen populations, literal bounded whole-document rejection, fixed engine/embedded OFL font and frontend no-store/ref locks/late-response fences. Unsupported glyph/complex direction fails closed; no system-font/network fallback. Preserve legacy archives/Word/hash. Font rebuild is build-only; the Tenki source override retains the exact old official wheel/hash, not a new SDK. No migration/deployment/execution/model/approval authority. [Contract](../docs/DevPilot_Independent_PDF_Drafts.md).

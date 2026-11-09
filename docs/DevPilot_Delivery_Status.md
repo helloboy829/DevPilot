@@ -2,7 +2,19 @@
 
 > 核对日期：2026-11-10。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-10：真实登录的合成多账号 QA 回归候选
+
+新增[真实认证离线主链回归](DevPilot_Authenticated_QA_Regression.md)：临时 DB 五个独立合成账号，真实密码登录、JWT/数据库/token-version、CSRF 和启用的 fail-closed RBAC，接通双盲/仲裁、历史评估/报告/复测及 Word/PDF。不挂载旧合成身份中间件，不改运行权限/依赖/迁移。真实账号/浏览器/部署验收与正式批准仍未完成。
+
+- 新模块 **18 项**与既有主链/任务/PDF 路由联合定向 **63 passed，132.04s**。标准 `make test` **12,432 passed / 18 skipped / 11 deselected / 40 warnings，676.37s**；含纯领域 **15 / 58 passed**，与定向不叠加计数。
+- `make test-blocking-io` **72 passed / 2 warnings，5.61s**；`make lint` Ruff check/format **1,248 文件**与 `uv lock --check --offline` 通过。实际测试的 **1,309** 份后端/领域公开源码逐项核对，缺失/不符均为 **0**。
+- 完整 frontend Prettier 与六份变更 Markdown 格式检查通过；本模块不改前端源码，不冒称再次运行前端单测/类型检查/构建/浏览器，也不借用上一提交的 Actions。编写阶段 cookie/路由夹具错误与最终日志均保留，未改运行 cookie、放宽断言、增超时或重试。
+
+本模块仅新增测试/说明，不改运行权限、配置、依赖、迁移或默认禁用执行；候选 head `eval_0012`、历史部署收据 `eval_0009` 不变。推送后须按新精确 SHA 核实全部实际触发的 Actions；本地门禁不等于远端成功。ignored 本机证据在 `.deer-flow/ci/20261110-authenticated-qa/`，测试全部结束、日志导出验 hash 后仅停止本轮启动的四个专用 CI 容器，保留依赖缓存/业务服务/卷，无部署、真实调用或正式批准。
+
 ## 2026-11-09 开发 / 2026-11-10 收尾：独立历史报告/重测 PDF 候选
+
+PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SHA 实际触发七项 Actions **全部 completed / success**：Unit Tests `42651605785`、Frontend Unit Tests `42651606003`、Backend Blocking IO `42651605741`、Lint Check `42651605792`、E2E Tests `42651605830`、Replay E2E `42651605934`、Skill Review CI `42651605943`。这是候选源码 CI，不是本机部署或正式批准。
 
 新增 [独立历史 PDF 草稿](DevPilot_Independent_PDF_Drafts.md)：`independent-qa-pdf-v1` / `independent-retest-pdf-v1` 只读取既有固定 Word-v1 renderer 的内部历史公开投影，分别保持存储 Markdown/历史收据与无 Markdown 的重测公开比较事实。人类 owner + read/review、已查看 hash、off-loop 完整性/渲染、ALL 冻结总体、精确 namespace、显式下载/ref 锁/迟到响应屏障和不重试均保持。旧 Word、档案、模板和 hash 不变。
 
@@ -14,7 +26,7 @@
 - 唯一新增运行依赖 `reportlab==4.4.10`。Dockerfile 固定的 uv **0.7.20** 真实解析锁，且 uv **0.13.7** 检查兼容；两者 offline lock check 均通过。原 249 个包版本全部不变，仅增加一个包；Tenki 可选源只绑定原官方 0.4.0 wheel/同 SHA，应对索引 404，不删 extra、不换 SDK、不启用调用。字体构建工具只用于隔离构建。
 - 实际测试源码与待提交文件按文本 LF/二进制原 bytes 核对：后端/领域 **1,308**、前端 **827** 个文件，缺失/不符均为 **0**。初始读取器/夹具失败和最终日志分别保留，未用重试、扩大超时或弱化完整总体断言掩盖错误。
 
-候选 App head 仍为 `eval_0012`，历史部署收据仍为 `eval_0009`；无迁移、部署、生产配置/key、执行启用或真实模型/目标调用。正式批准政策/角色/生命周期、经授权保留数据升级、真实多账号与最终用户验收仍未完成。精确推送 SHA 和实际 Actions 必须另行核验，不能将本地成功或前一模块 CI 当作本模块远端成功；本机合成日志/hash/CI 回执只存 ignored `.deer-flow/ci/20261109-independent-pdf/`。
+候选 App head 仍为 `eval_0012`，历史部署收据仍为 `eval_0009`；无迁移、部署、生产配置/key、执行启用或真实模型/目标调用。正式批准政策/角色/生命周期、经授权保留数据升级、真实多账号与最终用户验收仍未完成。上列精确推送 SHA 的七项实际 Actions 已核实，不能将这些结果冒用为后续新提交的 CI；本机合成日志/hash/CI 回执只存 ignored `.deer-flow/ci/20261109-independent-pdf/`。
 
 ## 2026-11-09：独立历史重测 Word 候选
 
