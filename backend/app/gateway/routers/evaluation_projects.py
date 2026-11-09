@@ -11,6 +11,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest, ProjectCreate, parse_samples
 from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.execution import ExecutionCreate
+from app.evaluation.independent_report_docx import RENDERER_ID as INDEPENDENT_RENDERER_ID
+from app.evaluation.independent_report_docx import render_independent_docx
 from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import AcceptancePlanCreate, PlanCreate, PlanPreflightError
 from app.evaluation.qa_assessments import AssessmentCreate, AssessmentRepository
@@ -568,6 +570,31 @@ async def create_independent_report_archive(project_id: str, archive_id: str, pa
     owner, repository = await _independent_report_context(request)
     _report_identifier(archive_id)
     return await _result(repository.create_archive(owner, project_id, archive_id, payload))
+
+
+@router.get("/{project_id}/independent-report-archives/{archive_id}/exports/independent-qa-docx-v1")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def export_independent_report_docx(project_id: str, archive_id: str, request: Request, archive_hash: str = Query(pattern=r"^[0-9a-f]{64}$")):
+    owner, repository = await _independent_report_context(request)
+    _report_identifier(archive_id)
+    document = await _result(repository.get_archive(owner, project_id, archive_id))
+    if not hmac.compare_digest(document["archive_hash"], archive_hash):
+        raise HTTPException(409, "Archive receipt changed; explicitly reopen the independent archived draft")
+    try:
+        content = await asyncio.to_thread(render_independent_docx, document)
+    except ReportExportError:
+        raise HTTPException(422, "Archived draft cannot be exported by this renderer; the stored draft was not changed") from None
+    return Response(
+        content,
+        media_type=DOCX_MIME,
+        headers={
+            "Cache-Control": "private, no-store",
+            "Content-Disposition": 'attachment; filename="independent-qa-report-' + archive_id + "-r" + str(document["revision"]) + '.docx"',
+            "X-Content-Type-Options": "nosniff",
+            "X-DevPilot-Renderer": INDEPENDENT_RENDERER_ID,
+        },
+    )
 
 
 async def _independent_retest_context(request):

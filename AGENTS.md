@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Independent historical Word candidate (2026-11-09)
+
+`app.evaluation.independent_report_docx` and the separate `independent-qa-docx-v1` GET export explicitly viewed independent report archives only. Preserve stored Markdown/public historical receipts, off-loop integrity/rendering, human owner read/review, bounded OOXML, no active content, no current sources/keys/metric recomputation and frontend late-response fences. Legacy `qa-docx-v1` is unchanged. No retest Word/PDF, approval, migration, deployment or target/model calls. See [contract](docs/DevPilot_Independent_Word_Drafts.md).
+
 ## New-machine CI and database cancellation (2026-11-09)
 
 Treat deployment receipts from another computer as historical evidence, not this machine's runtime. Rebuild isolated dependencies from tracked source and lockfiles; never copy private configuration, databases or virtual environments. The QA Worker must drain monitor database reads as well as writes before finalization: cancelling an aiosqlite read can strand a pooled lock and block the final commit. Preserve cancellation, same-ID reconciliation and no-resend semantics; do not hide the failure with retries, longer timeouts, weaker assertions or execution enablement. See [execution](docs/DevPilot_Admitted_QA_Execution.md) and [current status](docs/DevPilot_Delivery_Status.md).

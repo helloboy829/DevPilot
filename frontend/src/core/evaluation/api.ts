@@ -24,6 +24,17 @@ export async function evaluationApi<T>(
 
 /** Explicit version-pinned binary export; never cache, retry, or save an HTML login page. */
 export async function evaluationReportDocx(route: string): Promise<Blob> {
+  return reportDocx(route, "qa-docx-v1");
+}
+
+/** Independent history has a separate namespace/renderer, never the owner export. */
+export async function evaluationIndependentReportDocx(
+  route: string,
+): Promise<Blob> {
+  return reportDocx(route, "independent-qa-docx-v1");
+}
+
+async function reportDocx(route: string, renderer: string): Promise<Blob> {
   const response = await fetch(`${getBackendBaseURL()}/api/${route}`, {
     method: "GET",
     cache: "no-store",
@@ -35,7 +46,7 @@ export async function evaluationReportDocx(route: string): Promise<Blob> {
   const maximum = 524288;
   if (
     response.headers.get("content-type")?.split(";")[0] !== mime ||
-    response.headers.get("x-devpilot-renderer") !== "qa-docx-v1" ||
+    response.headers.get("x-devpilot-renderer") !== renderer ||
     Number(response.headers.get("content-length")) > maximum ||
     !response.body
   )

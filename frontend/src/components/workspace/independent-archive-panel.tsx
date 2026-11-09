@@ -5,7 +5,10 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EvaluationCriteriaView } from "@/components/workspace/evaluation-criteria-view";
-import { evaluationApi } from "@/core/evaluation/api";
+import {
+  evaluationApi,
+  evaluationIndependentReportDocx,
+} from "@/core/evaluation/api";
 import {
   assessmentIdValid,
   parseAssessmentArchive,
@@ -401,6 +404,25 @@ export function IndependentArchiveWorkspace({
       URL.revokeObjectURL(url);
     }
   }
+  async function downloadWord() {
+    if (!opened || !("markdown" in opened) || locked) return;
+    const archive = opened;
+    await operation(async (current) => {
+      const blob = await evaluationIndependentReportDocx(
+        `${base}/independent-report-archives/${archive.id}/exports/independent-qa-docx-v1?archive_hash=${archive.archive_hash}`,
+      );
+      if (!current()) return;
+      const url = URL.createObjectURL(blob);
+      try {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `independent-qa-report-${archive.id}-r${archive.revision}.docx`;
+        link.click();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    });
+  }
   return (
     <div className="min-w-0 space-y-4">
       <Button variant="outline" disabled={locked} onClick={() => void load()}>
@@ -671,6 +693,20 @@ export function IndependentArchiveWorkspace({
               >
                 {zh ? "下载历史 Markdown" : "Download historical Markdown"}
               </Button>
+              <Button
+                variant="outline"
+                disabled={locked}
+                onClick={() => void downloadWord()}
+              >
+                {zh
+                  ? "下载独立历史 Word 草稿"
+                  : "Download independent historical Word draft"}
+              </Button>
+              <p className="text-muted-foreground text-sm">
+                {zh
+                  ? "固定历史 Markdown 与独立评估收据；Word 仍是草稿，不是正式批准。"
+                  : "Frozen historical Markdown and independent assessment receipts; Word remains a draft, not formal approval."}
+              </p>
             </>
           ) : (
             <>
@@ -702,8 +738,8 @@ export function IndependentArchiveWorkspace({
           </Button>
           <p>
             {zh
-              ? "独立 Word/PDF 和正式批准尚未交付；旧 Word 路由不用于此档案。"
-              : "Independent Word/PDF and formal approval are not delivered; the legacy Word route is not used for this archive."}
+              ? "独立复测 Word、PDF 和正式批准尚未交付；旧 Word 路由不用于此档案。"
+              : "Independent retest Word, PDF and formal approval are not delivered; the legacy Word route is not used for this archive."}
           </p>
         </section>
       )}

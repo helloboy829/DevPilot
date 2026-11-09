@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Independent historical Word candidate (2026-11-09)
+
+The separate `independent_report_docx` renderer and GET require a viewed archive hash and human owner read/review. Verify archived metadata off-loop, never reopen evidence/tasks/templates or recompute metrics. Keep bounded deterministic OOXML, generic errors and legacy `qa-docx-v1` bytes unchanged. No migration, key, model/target or approval authority. Tests: `test_independent_report_docx.py` / `_router.py`; see [contract](../docs/DevPilot_Independent_Word_Drafts.md).
+
 ## QA Worker monitor cancellation (2026-11-09)
 
 `app.evaluation.execution._drained_database` protects both monitor reads and writes. Stop/cancel the outer task without cancelling its in-flight DB operation; drain that operation and close its session before finalization or quota release. An interrupted aiosqlite read can otherwise strand a pooled connection lock and fail the final commit. Keep generic public errors, no transaction/request retries and no unknown-outcome resends. Deterministic regressions in `tests/test_qa_execution.py` cover monitor cancellation and repeated cancellation; the actual API-to-Worker regression still covers concurrency 1/2. New-machine verification uses an isolated Linux source snapshot, never existing `.venv`, configuration or business data.

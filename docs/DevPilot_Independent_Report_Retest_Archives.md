@@ -1,5 +1,7 @@
 # 独立评估修订绑定的报告与复测档案 / Independent assessment archives
 
+> 接续更新（2026-11-09）：[独立历史报告 Word 草稿](DevPilot_Independent_Word_Drafts.md)已有单独候选接口/工作区，不调用旧 DOCX 路由；下文未交付 Word 的描述保留前轮边界。独立复测 Word/PDF、正式批准及部署仍未完成。
+
 > 2026-11-09 后端/API 与工作区 UI 候选。App head `eval_0012`，现有部署仍为 `eval_0009`。未部署、未启用执行、未完成整个平台或用户验收。以下反引号标记的字段是合同，不是批准凭证。
 
 ## 1. 独立命名空间，不切换旧语义

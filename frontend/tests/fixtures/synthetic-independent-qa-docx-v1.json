@@ -1,0 +1,123 @@
+{
+  "document": {
+    "schema": "qa-independent-project-report-archive.v1",
+    "scope": "immutable_independent_qa_report_draft",
+    "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "project_id": "p1",
+    "project_name": "Synthetic project",
+    "root_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "revision": 1,
+    "supersedes_id": null,
+    "title": "Independent draft",
+    "created_at_ms": 1800000000000,
+    "template": {
+      "id": "independent-qa-project-en",
+      "version": "1.0.0",
+      "language": "en",
+      "layout": {
+        "heading": "Independent draft",
+        "project": "Project",
+        "notice": "Not approved",
+        "columns": "All samples",
+        "sources": "Sources",
+        "footer": "Historical",
+        "criteria_heading": "Criteria",
+        "criteria_columns": "Criteria",
+        "criteria_notice": "Not approved"
+      }
+    },
+    "template_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "components": [
+      {
+        "schema": "qa-independent-assessment-preview.v1",
+        "scope": "verified_independent_assessment_preview",
+        "policy": {
+          "id": "independent-double-blind.v1",
+          "population": "all_frozen_effectiveness_samples",
+          "timing": "post_collection_assessment"
+        },
+        "project_id": "p1",
+        "run_id": "11111111111111111111111111111111",
+        "run_status": "recording_finished",
+        "component_id": "c1",
+        "component_name": "Synthetic independent component",
+        "plan_id": "r1plan",
+        "plan_label": "r1 frozen version",
+        "plan_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "summary_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "counts": {
+          "pass": 1,
+          "fail": 1,
+          "uncertain": 0,
+          "unreviewed": 0
+        },
+        "technical_counts": {
+          "collected": 2,
+          "other": 0
+        },
+        "human_pass_rate": {
+          "numerator": 1,
+          "denominator": 2,
+          "value": 0.5
+        },
+        "readiness": "review_complete",
+        "blockers": [],
+        "acceptance": "not_approved",
+        "cases": [
+          {
+            "ordinal": 1,
+            "case_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+            "outcome": "pass",
+            "tasks": [
+              {
+                "task_id": "11111111111111111111111111111111",
+                "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "round": 1,
+                "task_revision": 5,
+                "status": "resolved",
+                "resolution_revision": 1,
+                "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+              }
+            ]
+          },
+          {
+            "ordinal": 2,
+            "case_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+            "outcome": "fail",
+            "tasks": [
+              {
+                "task_id": "22222222222222222222222222222222",
+                "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "round": 1,
+                "task_revision": 5,
+                "status": "resolved",
+                "resolution_revision": 1,
+                "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+              }
+            ]
+          }
+        ],
+        "criteria_evaluation": {
+          "scope": "effectiveness_threshold_only",
+          "criteria": {
+            "schema": "qa-effectiveness-criteria.v1",
+            "version_label": "frozen-1",
+            "min_pass_rate_bps": 5000
+          },
+          "status": "met",
+          "blockers": [],
+          "approval": "not_approved"
+        },
+        "assessment_ref": {
+          "assessment_id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "assessment_revision": 1,
+          "assessment_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      }
+    ],
+    "markdown": "# Independent QA — DRAFT / NOT APPROVED\n\n## 独立评估历史草稿 / 未批准\n\n| Component | Frozen plan | Independent PASS / ALL | Rate |\n| --- | --- | ---: | ---: |\n| Synthetic independent component | r1 frozen version | 1 / 2 | 50.00% |\n\n&lt;img src=\"https://invalid.example/pixel\"&gt;\nIndependent frozen historical sources; later reopens do not rewrite this draft.",
+    "acceptance": "not_approved",
+    "archive_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "docx_base64": "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"
+}

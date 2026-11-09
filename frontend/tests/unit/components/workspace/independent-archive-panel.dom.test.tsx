@@ -24,8 +24,11 @@ import {
   independentRetest,
   independentTemplate,
 } from "../../../fixtures/independent-archive";
-const state = rs.hoisted(() => ({ api: rs.fn() }));
-rs.mock("@/core/evaluation/api", () => ({ evaluationApi: state.api }));
+const state = rs.hoisted(() => ({ api: rs.fn(), word: rs.fn() }));
+rs.mock("@/core/evaluation/api", () => ({
+  evaluationApi: state.api,
+  evaluationIndependentReportDocx: state.word,
+}));
 const writes = () => state.api.mock.calls.filter((c: unknown[]) => c[1]);
 function response(route: string, body?: unknown) {
   if (route.endsWith("/review-runs"))
@@ -73,6 +76,7 @@ function response(route: string, body?: unknown) {
 }
 beforeEach(() => {
   state.api.mockReset();
+  state.word.mockReset();
   state.api.mockImplementation(response);
 });
 afterEach(cleanup);
@@ -323,4 +327,94 @@ it("revokes confirmation on edits and refresh and treats archive text literally"
   });
   expect(region.textContent).toContain(literal);
   expect(region.querySelector("img,a")).toBeNull();
+});
+
+it("exports only an explicitly opened independent historical report, once, with the viewed receipt", async () => {
+  const blob = new Blob([new Uint8Array([80, 75, 3, 4])]);
+  state.word.mockResolvedValue(blob);
+  const createUrl = rs
+    .spyOn(URL, "createObjectURL")
+    .mockReturnValue("blob:independent");
+  const revokeUrl = rs
+    .spyOn(URL, "revokeObjectURL")
+    .mockImplementation(() => undefined);
+  const save = rs
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => undefined);
+  try {
+    mount();
+    await prepare();
+    expect(state.word).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("checkbox"));
+    await click("Create independent report draft");
+    const id = (writes()[0]![0] as string).split("/").at(-1)!;
+    const count = writes().length;
+    await click("Download independent historical Word draft");
+    expect(state.word).toHaveBeenCalledTimes(1);
+    expect(state.word).toHaveBeenCalledWith(
+      `evaluation/projects/p1/independent-report-archives/${id}/exports/independent-qa-docx-v1?archive_hash=${"c".repeat(64)}`,
+    );
+    expect(createUrl).toHaveBeenCalledWith(blob);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(writes()).toHaveLength(count);
+  } finally {
+    createUrl.mockRestore();
+    revokeUrl.mockRestore();
+    save.mockRestore();
+  }
+});
+it("late Word responses after scope unmount never create a download", async () => {
+  let resolve!: (value: Blob) => void;
+  state.word.mockImplementation(
+    () =>
+      new Promise<Blob>((done) => {
+        resolve = done;
+      }),
+  );
+  const createUrl = rs
+    .spyOn(URL, "createObjectURL")
+    .mockReturnValue("blob:late");
+  try {
+    const mounted = mount();
+    await prepare();
+    fireEvent.click(screen.getByRole("checkbox"));
+    await click("Create independent report draft");
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Download independent historical Word draft",
+        }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Download independent historical Word draft",
+        }),
+      );
+    });
+    expect(state.word).toHaveBeenCalledTimes(1);
+    mounted.unmount();
+    await act(async () => {
+      resolve(new Blob(["late"]));
+    });
+    expect(createUrl).not.toHaveBeenCalled();
+  } finally {
+    createUrl.mockRestore();
+  }
+});
+it("failed Word export shows a generic error, retains the archive, and never retries", async () => {
+  state.word.mockRejectedValue(new Error("PRIVATE_RESPONSE"));
+  mount();
+  await prepare();
+  fireEvent.click(screen.getByRole("checkbox"));
+  await click("Create independent report draft");
+  await click("Download independent historical Word draft");
+  expect(state.word).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("alert").textContent).not.toContain(
+    "PRIVATE_RESPONSE",
+  );
+  expect(
+    screen.getByRole("region", {
+      name: "Opened independent historical archive",
+    }),
+  ).toBeTruthy();
 });

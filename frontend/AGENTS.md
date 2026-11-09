@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Independent historical Word candidate (2026-11-09)
+
+Only explicitly opened independent reports offer Word download through the authenticated no-store fetcher and separate `independent-qa-docx-v1` renderer. Validate MIME/header/stream bounds/ZIP prefix, revoke Blob URLs, preserve ref locks and unmount/scope fences. Never use legacy owner Word or auto-retry. Unknown archive writes still reconcile by same-ID GET only. Desktop/mobile synthetic coverage: `independent-word.spec.ts`; see [contract](../docs/DevPilot_Independent_Word_Drafts.md).
+
 ## Independent historical archive workspace candidate (2026-11-09)
 
 `IndependentArchivePanel` on reports/retests explicitly loads immutable assessment history and requires a selected historical revision, separate source staging and write consent. Keep independent namespaces/templates separate from legacy owner reports. Receipt checks bind exact sources, report parent/root/revision and retest ALL-sample counts/criteria; do not implement a browser threshold engine. Page-memory pending IDs survive project/locale switches, late responses are fenced and unknown writes only GET the same ID, including 404. Open stored Markdown as literal text and export only explicit MD/JSON; do not reuse the legacy Word route. No sensitive Q/A/gold/current-task reads or execution calls. Candidate `eval_0012` remains undeployed. [Contract and gates](../docs/DevPilot_Independent_Report_Retest_Archives.md).

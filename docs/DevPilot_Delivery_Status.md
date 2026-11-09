@@ -2,6 +2,25 @@
 
 > 核对日期：2026-11-09。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-09：开发接续与独立历史报告 Word 候选
+
+本轮接手时工作区干净，本地及实际远端 `main` 为 `8890bd061f3407b8c187ceaf388dff28aa463b4e`。该完整 SHA 实际触发四项 Actions，均成功：Unit Tests `42573792483`、Frontend Unit Tests `42573792602`、Backend Blocking IO `42573792621`、Lint Check `42573792762`；未触发 E2E，不外推其结果。较早章节保留历史状态，不是本轮运行收据。
+
+首个模块新增单独的 `independent-qa-docx-v1`：人类 owner + read/review，显式历史档案 ID/已查看 hash，复用 off-loop 存档完整性验证并 off-loop 渲染。输出只有冻结 Markdown 与公开历史 assessment 收据；不重开证据/当前任务/模板、不重算指标、不替换 owner 票，旧 `qa-docx-v1` 和历史哈希不变。前端独立下载保持大小/MIME/renderer 校验、ref 锁和迟到响应围栏，无重试或写入重发。合同见[独立 Word](DevPilot_Independent_Word_Drafts.md)；整体缺口和接续顺序见[开发计划](DevPilot_Development_Plan.md)。
+
+所有依赖从跟踪源码和锁文件重建到本轮专用 Linux Python 3.12/Node 22 容器；PostgreSQL/Redis 只含合成测试数据、无业务挂载或发布端口。依赖安装后容器仅 internal 网络；不复制本机私有配置、数据库、venv 或 node_modules。本机业务容器只读健康元数据，不据此宣称新版部署。
+
+- 未修改源码基线：后端 `make test` **12,294 passed / 18 skipped / 11 deselected，681.24s**；纯领域 **15 / 58 passed**。前端 **148 files / 1,164 passed**。
+- 本模块新旧 Word/独立档案定向回归 **61 passed，39.60s**；独立 Blocking IO **72 passed，28.37s**；Ruff 全目录 check/format **1,240 文件**通过。定向回归与全量有重叠，不叠加计数。
+- 修改后前端全量 **148 files / 1,173 passed**；完整 Prettier、ESLint、typecheck 和生产 build 通过。合成 Word 桌面 1440px/手机 390px、键盘下载、真实生成 fixture、409 不重试：**3 passed，4.7s**，retries=0。
+- 修改后标准 `make test` **12,323 passed / 18 skipped / 11 deselected / 40 warnings，807.32s**；纯领域 **15 / 58 passed**。完整工作区 Chromium **217 passed，2.4m**；独立认证恢复配置重建并测试 **2 passed，2.1m**，均 retries=0、exit=0。浏览器使用合成 API，不是部署或真实多账号验收。
+- 两个实际 CI 容器各 **2,177 个**公开运行/测试文件与工作区逐项 SHA-256 一致（按 Git 统一文本行尾）；失败日志与最终结果一起保留在 ignored 本机会话证据目录。
+- 首次基线收集缺少 Git 根标记、一次定向命令文件名错误，以及新增测试的格式/import/空函数 lint 失败均保留原日志；修正环境/命令/代码，不删除或弱化断言、不增加超时或重试。构建的无 Git 历史时间戳警告不是功能验收。
+
+候选 migration head 仍为 `eval_0012`；无新迁移、依赖、生产配置、key、执行启用或真实模型/目标调用。独立复测 Word、PDF、正式批准、真实多账号联调、保留数据升级与最终用户验收仍未完成。本模块本地门禁已完成，尚待独立提交/push 和新完整 SHA 的 Actions 核验；上一 SHA 成功不等于新模块 CI 成功。收尾在确认测试进程全部退出、56 份成功/失败日志与退出码导出且六份主要日志验 hash 一致后，只按四个精确 ID 停止本轮专用 CI 容器；保留依赖缓存，没有停止预存服务、删卷、删镜像或全局 prune。
+
+English: the continuation baseline and its four successful runs are explicitly pinned. The new independent historical report Word draft is a separate, bounded, read-only renderer; legacy exports and approval/execution boundaries remain unchanged. New local gates are recorded separately from previous CI and historical deployment; unfinished checks are not success claims.
+
 ## 2026-11-09：新电脑 CI 排查与 Worker 取消修复
 
 本地与实际远端 `main` 已核对为 `c7ddbdc1417a589bbb544effb2e65630601823e8`。该 SHA 的六项 Actions 不是全绿：Frontend Unit Tests `42543077302`、Replay E2E `42543077373`、Lint Check `42543077333`、E2E Tests `42543077345`、Backend Blocking IO `42543077363` 成功；Unit Tests `42543077340` 失败，其默认安装收集 job 成功，后端 job `128922108984` 为 `1 failed / 12,291 passed / 18 skipped / 11 deselected`。原始 job 日志已下载并保留，失败是合成并发 Worker 收尾 `JournalWriteUnconfirmed`，不能归咎于换电脑。
@@ -33,19 +52,19 @@
 
 ## 2. 已实现的评测主链
 
-| 环节                  | 当前代码能力                                                                   | 必须保留的边界                                                                     |
-| --------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| 项目与组件            | owner 隔离项目、现有组件关联、不可变提测清单                                   | `inventory_only` 不是可执行 RequestSpec 或批准                                     |
-| QA 与请求版本         | JSON/JSONL 导入、自复核冻结、分离金标读取；完整请求显式加密保存                | 自复核不是独立审批；普通元数据不含金标、请求明文或密文                             |
-| 冻结计划与标准        | 请求/QA 版本、严格 JSON 输入输出映射、预算与 v2 效果阈值冻结并绑定 hash        | v1 hash/历史模板不变；冻结本身不授权执行                                           |
-| 独立执行准入          | 人类单独确认、全局 DB 配额、一次 claim、有界 Worker、逐序号持久派发日志        | operator 默认关闭；未知写入/交付不重发，失联 Worker 不回收配额                     |
-| 输出与人工复核        | 加密提取输出、按需打开 Q/A/参考/来源、追加人工决策及修订                       | 采集成功不是 PASS；缺少证据不能 PASS；该路径仍是 owner 自复核                      |
-| 独立逐条复核（候选）  | 两名盲审、第三人仲裁；窄授权、租约/回执、追加结论与历史轮次；中心/内联共享服务 | `eval_0010` 任务切片未部署；不接入原汇总/报告，不是正式批准                        |
-| 独立评估修订（候选）  | 全冻结分母、独立决定验真、阻塞与整数阈值；显式不可变评估修订/CAS               | `eval_0011` 未部署；已有独立评估 UI，后续 `eval_0012` 显式历史来源 API，非正式批准 |
-| 独立报告/复测（候选） | 指定历史 assessment ID/修订/hash、独立固定模板、原子报告与同基准比较           | `eval_0012` 未部署；已有独立选择 UI；无独立 Word/正式批准，不切换旧 owner 档案     |
-| 已验证汇总            | 逐条验证输出与最新人工决策，固定全量冻结样本分母，整数阈值比较                 | 未复核/不确定/技术缺失阻塞；完整或 `met` 都不是批准                                |
-| 报告草稿              | 不可变多组件汇总、固定模板全文/版本、冻结 Markdown、历史 Word 草稿下载         | 手工/Agent 建议独立且未验证；无正式出具/审批或 PDF                                 |
-| 同基准复测            | 严格相同基准/预算/标准，两版完整复核运行的逐样本变化与不可变存档               | 非自动再执行/通知；当前复核修订不改写历史判断                                      |
+| 环节                  | 当前代码能力                                                                   | 必须保留的边界                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| 项目与组件            | owner 隔离项目、现有组件关联、不可变提测清单                                   | `inventory_only` 不是可执行 RequestSpec 或批准                                                         |
+| QA 与请求版本         | JSON/JSONL 导入、自复核冻结、分离金标读取；完整请求显式加密保存                | 自复核不是独立审批；普通元数据不含金标、请求明文或密文                                                 |
+| 冻结计划与标准        | 请求/QA 版本、严格 JSON 输入输出映射、预算与 v2 效果阈值冻结并绑定 hash        | v1 hash/历史模板不变；冻结本身不授权执行                                                               |
+| 独立执行准入          | 人类单独确认、全局 DB 配额、一次 claim、有界 Worker、逐序号持久派发日志        | operator 默认关闭；未知写入/交付不重发，失联 Worker 不回收配额                                         |
+| 输出与人工复核        | 加密提取输出、按需打开 Q/A/参考/来源、追加人工决策及修订                       | 采集成功不是 PASS；缺少证据不能 PASS；该路径仍是 owner 自复核                                          |
+| 独立逐条复核（候选）  | 两名盲审、第三人仲裁；窄授权、租约/回执、追加结论与历史轮次；中心/内联共享服务 | `eval_0010` 任务切片未部署；不接入原汇总/报告，不是正式批准                                            |
+| 独立评估修订（候选）  | 全冻结分母、独立决定验真、阻塞与整数阈值；显式不可变评估修订/CAS               | `eval_0011` 未部署；已有独立评估 UI，后续 `eval_0012` 显式历史来源 API，非正式批准                     |
+| 独立报告/复测（候选） | 指定历史 assessment ID/修订/hash、独立固定模板、原子报告与同基准比较           | `eval_0012` 未部署；已有独立选择 UI/报告 Word 候选；复测 Word、PDF/正式批准未交付，不切换旧 owner 档案 |
+| 已验证汇总            | 逐条验证输出与最新人工决策，固定全量冻结样本分母，整数阈值比较                 | 未复核/不确定/技术缺失阻塞；完整或 `met` 都不是批准                                                    |
+| 报告草稿              | 不可变多组件汇总、固定模板全文/版本、冻结 Markdown、历史 Word 草稿下载         | 手工/Agent 建议独立且未验证；无正式出具/审批或 PDF                                                     |
+| 同基准复测            | 严格相同基准/预算/标准，两版完整复核运行的逐样本变化与不可变存档               | 非自动再执行/通知；当前复核修订不改写历史判断                                                          |
 
 证据入口：[计划](DevPilot_Frozen_QA_Plans.md) · [阈值](DevPilot_Frozen_Effectiveness_Criteria.md) · [执行](DevPilot_Admitted_QA_Execution.md) · [复核](DevPilot_QA_Evidence_Review.md) · [独立复核](DevPilot_Independent_Case_Review.md) · [独立评估](DevPilot_Independent_Assessments.md) · [独立档案](DevPilot_Independent_Report_Retest_Archives.md) · [汇总](DevPilot_Verified_QA_Summaries.md) · [报告](DevPilot_Immutable_QA_Report_Archives.md) · [Word](DevPilot_QA_Word_Draft_Export.md) · [复测](DevPilot_Same_Benchmark_Retesting.md)。
 
