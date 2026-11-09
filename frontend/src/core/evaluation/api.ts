@@ -41,16 +41,53 @@ export async function evaluationIndependentRetestDocx(
   return reportDocx(route, "independent-retest-docx-v1");
 }
 
+export async function evaluationIndependentReportPdf(
+  route: string,
+): Promise<Blob> {
+  return reportBinary(
+    route,
+    "independent-qa-pdf-v1",
+    "application/pdf",
+    8388608,
+    [37, 80, 68, 70, 45],
+  );
+}
+
+export async function evaluationIndependentRetestPdf(
+  route: string,
+): Promise<Blob> {
+  return reportBinary(
+    route,
+    "independent-retest-pdf-v1",
+    "application/pdf",
+    8388608,
+    [37, 80, 68, 70, 45],
+  );
+}
+
 async function reportDocx(route: string, renderer: string): Promise<Blob> {
+  return reportBinary(
+    route,
+    renderer,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    524288,
+    [80, 75, 3, 4],
+  );
+}
+
+async function reportBinary(
+  route: string,
+  renderer: string,
+  mime: string,
+  maximum: number,
+  signature: number[],
+): Promise<Blob> {
   const response = await fetch(`${getBackendBaseURL()}/api/${route}`, {
     method: "GET",
     cache: "no-store",
   });
   if (!response.ok)
     await throwGatewayApiError(response, "Report export failed");
-  const mime =
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  const maximum = 524288;
   if (
     response.headers.get("content-type")?.split(";")[0] !== mime ||
     response.headers.get("x-devpilot-renderer") !== renderer ||
@@ -76,13 +113,12 @@ async function reportDocx(route: string, renderer: string): Promise<Blob> {
     reader.releaseLock();
   }
   const blob = new Blob(chunks, { type: mime });
-  const prefix = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  const prefix = new Uint8Array(
+    await blob.slice(0, signature.length).arrayBuffer(),
+  );
   if (
-    prefix.length !== 4 ||
-    prefix[0] !== 80 ||
-    prefix[1] !== 75 ||
-    prefix[2] !== 3 ||
-    prefix[3] !== 4
+    prefix.length !== signature.length ||
+    signature.some((byte, index) => prefix[index] !== byte)
   )
     throw new Error("Invalid report export");
   return blob;

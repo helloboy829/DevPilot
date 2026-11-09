@@ -1,0 +1,16 @@
+{
+  "schema": "independent-pdf-font.v1",
+  "family": "DevPilot Export Sans",
+  "file": "DevPilotExportSans-Regular.ttf",
+  "sha256": "3c7dfdf896efce570073376a39654dd98d4776fa9ecdbc0fe01c68418b190762",
+  "upstream_repository": "https://github.com/notofonts/noto-cjk",
+  "upstream_commit": "f8d157532fbfaeda587e826d4cd5b21a49186f7c",
+  "upstream_path": "Sans/Variable/TTF/Subset/NotoSansSC-VF.ttf",
+  "upstream_sha256": "d68bafcb48a2707749396aa12bbbd833cb70401f3a9a689fd2902c7e0d295964",
+  "upstream_version": "2.004",
+  "license": "OFL-1.1",
+  "build_fonttools": "4.61.0",
+  "weight": 400,
+  "character_count": 30890,
+  "build": "scripts/build_independent_pdf_font.py"
+}

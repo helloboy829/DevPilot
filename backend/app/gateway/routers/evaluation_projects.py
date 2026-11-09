@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest, ProjectCreate, parse_samples
 from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.execution import ExecutionCreate
+from app.evaluation.independent_pdf import PDF_MIME, render_independent_report_pdf, render_independent_retest_pdf
 from app.evaluation.independent_report_docx import RENDERER_ID as INDEPENDENT_RENDERER_ID
 from app.evaluation.independent_report_docx import render_independent_docx
 from app.evaluation.independent_retest_docx import render_independent_retest_docx
@@ -652,5 +653,55 @@ async def export_independent_retest_docx(project_id: str, retest_id: str, reques
             "Content-Disposition": 'attachment; filename="independent-retest-' + retest_id + '.docx"',
             "X-Content-Type-Options": "nosniff",
             "X-DevPilot-Renderer": "independent-retest-docx-v1",
+        },
+    )
+
+
+@router.get("/{project_id}/independent-report-archives/{archive_id}/exports/independent-qa-pdf-v1")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def export_independent_report_pdf(project_id: str, archive_id: str, request: Request, archive_hash: str = Query(pattern=r"^[0-9a-f]{64}$")):
+    owner, repository = await _independent_report_context(request)
+    _report_identifier(archive_id)
+    document = await _result(repository.get_archive(owner, project_id, archive_id))
+    if not hmac.compare_digest(document["archive_hash"], archive_hash):
+        raise HTTPException(409, "Archive receipt changed; explicitly reopen the independent historical draft")
+    try:
+        content = await asyncio.to_thread(render_independent_report_pdf, document)
+    except ReportExportError:
+        raise HTTPException(422, "Archived draft cannot be exported by this renderer; the stored draft was not changed") from None
+    return Response(
+        content,
+        media_type=PDF_MIME,
+        headers={
+            "Cache-Control": "private, no-store",
+            "Content-Disposition": 'attachment; filename="independent-qa-report-' + archive_id + "-r" + str(document["revision"]) + '.pdf"',
+            "X-Content-Type-Options": "nosniff",
+            "X-DevPilot-Renderer": "independent-qa-pdf-v1",
+        },
+    )
+
+
+@router.get("/{project_id}/independent-retest-archives/{retest_id}/exports/independent-retest-pdf-v1")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def export_independent_retest_pdf(project_id: str, retest_id: str, request: Request, archive_hash: str = Query(pattern=r"^[0-9a-f]{64}$")):
+    owner, repository = await _independent_retest_context(request)
+    _retest_identifier(retest_id)
+    document = await _result(repository.get_retest(owner, project_id, retest_id))
+    if not hmac.compare_digest(document["archive_hash"], archive_hash):
+        raise HTTPException(409, "Archive receipt changed; explicitly reopen the independent historical draft")
+    try:
+        content = await asyncio.to_thread(render_independent_retest_pdf, document)
+    except ReportExportError:
+        raise HTTPException(422, "Archived draft cannot be exported by this renderer; the stored draft was not changed") from None
+    return Response(
+        content,
+        media_type=PDF_MIME,
+        headers={
+            "Cache-Control": "private, no-store",
+            "Content-Disposition": 'attachment; filename="independent-retest-' + retest_id + '.pdf"',
+            "X-Content-Type-Options": "nosniff",
+            "X-DevPilot-Renderer": "independent-retest-pdf-v1",
         },
     )

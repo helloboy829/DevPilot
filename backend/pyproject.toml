@@ -23,6 +23,8 @@ dependencies = [
     "pyjwt>=2.13.0",
     "email-validator>=2.0.0",
     "e2b-code-interpreter>=2.8.1",
+    # Pinned PDF-v1 layout/font-subsetting engine; no HTML renderer or fetcher.
+    "reportlab==4.4.10",
 ]
 
 [project.optional-dependencies]
@@ -90,3 +92,7 @@ members = ["packages/harness", "packages/extension-api"]
 deerflow-harness = { workspace = true }
 deerflow-extension-api = { workspace = true }
 devpilot = { path = "../devpilot", editable = true }
+
+# PyPI removed the Tenki index; preserve the exact previously locked official
+# 0.4.0 artifact/hash for the opt-in workspace extra, never a replacement SDK.
+tenki-sandbox = { url = "https://files.pythonhosted.org/packages/3b/f7/3c02da98793dc0e56230c520064d7d233c6e0edab13b410c031e1cfe7fd9/tenki_sandbox-0.4.0-py3-none-any.whl" }

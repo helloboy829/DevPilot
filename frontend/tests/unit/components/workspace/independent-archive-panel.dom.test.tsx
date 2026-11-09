@@ -28,11 +28,15 @@ const state = rs.hoisted(() => ({
   api: rs.fn(),
   word: rs.fn(),
   retestWord: rs.fn(),
+  pdf: rs.fn(),
+  retestPdf: rs.fn(),
 }));
 rs.mock("@/core/evaluation/api", () => ({
   evaluationApi: state.api,
   evaluationIndependentReportDocx: state.word,
   evaluationIndependentRetestDocx: state.retestWord,
+  evaluationIndependentReportPdf: state.pdf,
+  evaluationIndependentRetestPdf: state.retestPdf,
 }));
 const writes = () => state.api.mock.calls.filter((c: unknown[]) => c[1]);
 function response(route: string, body?: unknown) {
@@ -83,6 +87,8 @@ beforeEach(() => {
   state.api.mockReset();
   state.word.mockReset();
   state.retestWord.mockReset();
+  state.pdf.mockReset();
+  state.retestPdf.mockReset();
   state.api.mockImplementation(response);
 });
 afterEach(cleanup);
@@ -520,6 +526,200 @@ it("failed retest Word export shows a generic error, retains the archive, and ne
   await click("Download independent historical retest Word draft");
   expect(state.retestWord).toHaveBeenCalledTimes(1);
   expect(state.word).not.toHaveBeenCalled();
+  expect(screen.getByRole("alert").textContent).not.toContain(
+    "PRIVATE_RESPONSE",
+  );
+  expect(
+    screen.getByRole("region", {
+      name: "Opened independent historical archive",
+    }),
+  ).toBeTruthy();
+});
+it("exports only an explicitly opened independent historical report PDF, once, with the viewed receipt", async () => {
+  const blob = new Blob(["%PDF-1.4\nSYNTHETIC"]);
+  state.pdf.mockResolvedValue(blob);
+  const createUrl = rs
+    .spyOn(URL, "createObjectURL")
+    .mockReturnValue("blob:independent");
+  const revokeUrl = rs
+    .spyOn(URL, "revokeObjectURL")
+    .mockImplementation(() => undefined);
+  const save = rs
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => undefined);
+  try {
+    mount();
+    await prepare();
+    expect(state.pdf).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("checkbox"));
+    await click("Create independent report draft");
+    const id = (writes()[0]![0] as string).split("/").at(-1)!;
+    const count = writes().length;
+    await click("Download independent historical PDF draft");
+    expect(state.pdf).toHaveBeenCalledTimes(1);
+    expect(state.pdf).toHaveBeenCalledWith(
+      `evaluation/projects/p1/independent-report-archives/${id}/exports/independent-qa-pdf-v1?archive_hash=${"c".repeat(64)}`,
+    );
+    expect(createUrl).toHaveBeenCalledWith(blob);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(writes()).toHaveLength(count);
+  } finally {
+    createUrl.mockRestore();
+    revokeUrl.mockRestore();
+    save.mockRestore();
+  }
+});
+it("late PDF responses after scope unmount never create a download", async () => {
+  let resolve!: (value: Blob) => void;
+  state.pdf.mockImplementation(
+    () =>
+      new Promise<Blob>((done) => {
+        resolve = done;
+      }),
+  );
+  const createUrl = rs
+    .spyOn(URL, "createObjectURL")
+    .mockReturnValue("blob:late");
+  try {
+    const mounted = mount();
+    await prepare();
+    fireEvent.click(screen.getByRole("checkbox"));
+    await click("Create independent report draft");
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Download independent historical PDF draft",
+        }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Download independent historical PDF draft",
+        }),
+      );
+    });
+    expect(state.pdf).toHaveBeenCalledTimes(1);
+    mounted.unmount();
+    await act(async () => {
+      resolve(new Blob(["late"]));
+    });
+    expect(createUrl).not.toHaveBeenCalled();
+  } finally {
+    createUrl.mockRestore();
+  }
+});
+it("failed PDF export shows a generic error, retains the archive, and never retries", async () => {
+  state.pdf.mockRejectedValue(new Error("PRIVATE_RESPONSE"));
+  mount();
+  await prepare();
+  fireEvent.click(screen.getByRole("checkbox"));
+  await click("Create independent report draft");
+  await click("Download independent historical PDF draft");
+  expect(state.pdf).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("alert").textContent).not.toContain(
+    "PRIVATE_RESPONSE",
+  );
+  expect(
+    screen.getByRole("region", {
+      name: "Opened independent historical archive",
+    }),
+  ).toBeTruthy();
+});
+
+it("exports only an explicitly opened independent historical retest PDF, once, with the viewed receipt", async () => {
+  const blob = new Blob(["%PDF-1.4\nSYNTHETIC"]);
+  state.retestPdf.mockResolvedValue(blob);
+  const createUrl = rs
+    .spyOn(URL, "createObjectURL")
+    .mockReturnValue("blob:independent");
+  const revokeUrl = rs
+    .spyOn(URL, "revokeObjectURL")
+    .mockImplementation(() => undefined);
+  const save = rs
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => undefined);
+  try {
+    mount("retest");
+    await load();
+    await source();
+    await click("Use as historical baseline");
+    await source("r2");
+    await click("Use as historical retest");
+    expect(state.retestPdf).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("checkbox"));
+    await click("Create independent retest comparison");
+    const id = (writes()[0]![0] as string).split("/").at(-1)!;
+    const count = writes().length;
+    await click("Download independent historical retest PDF draft");
+    expect(state.retestPdf).toHaveBeenCalledTimes(1);
+    expect(state.pdf).not.toHaveBeenCalled();
+    expect(state.retestPdf).toHaveBeenCalledWith(
+      `evaluation/projects/p1/independent-retest-archives/${id}/exports/independent-retest-pdf-v1?archive_hash=${"c".repeat(64)}`,
+    );
+    expect(createUrl).toHaveBeenCalledWith(blob);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(writes()).toHaveLength(count);
+  } finally {
+    createUrl.mockRestore();
+    revokeUrl.mockRestore();
+    save.mockRestore();
+  }
+});
+it("late retest PDF responses after scope unmount never create a download", async () => {
+  let resolve!: (value: Blob) => void;
+  state.retestPdf.mockImplementation(
+    () =>
+      new Promise<Blob>((done) => {
+        resolve = done;
+      }),
+  );
+  const createUrl = rs
+    .spyOn(URL, "createObjectURL")
+    .mockReturnValue("blob:late");
+  try {
+    const mounted = mount("retest");
+    await load();
+    await source();
+    await click("Use as historical baseline");
+    await source("r2");
+    await click("Use as historical retest");
+    fireEvent.click(screen.getByRole("checkbox"));
+    await click("Create independent retest comparison");
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Download independent historical retest PDF draft",
+        }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Download independent historical retest PDF draft",
+        }),
+      );
+    });
+    expect(state.retestPdf).toHaveBeenCalledTimes(1);
+    expect(state.pdf).not.toHaveBeenCalled();
+    mounted.unmount();
+    await act(async () => {
+      resolve(new Blob(["late"]));
+    });
+    expect(createUrl).not.toHaveBeenCalled();
+  } finally {
+    createUrl.mockRestore();
+  }
+});
+it("failed retest PDF export shows a generic error, retains the archive, and never retries", async () => {
+  state.retestPdf.mockRejectedValue(new Error("PRIVATE_RESPONSE"));
+  mount("retest");
+  await load();
+  await source();
+  await click("Use as historical baseline");
+  await source("r2");
+  await click("Use as historical retest");
+  fireEvent.click(screen.getByRole("checkbox"));
+  await click("Create independent retest comparison");
+  await click("Download independent historical retest PDF draft");
+  expect(state.retestPdf).toHaveBeenCalledTimes(1);
+  expect(state.pdf).not.toHaveBeenCalled();
   expect(screen.getByRole("alert").textContent).not.toContain(
     "PRIVATE_RESPONSE",
   );

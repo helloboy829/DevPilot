@@ -9,6 +9,8 @@ import {
   evaluationReportDocx,
   evaluationIndependentReportDocx,
   evaluationIndependentRetestDocx,
+  evaluationIndependentReportPdf,
+  evaluationIndependentRetestPdf,
 } from "@/core/evaluation/api";
 
 const mockedFetch = rs.mocked(fetcher);
@@ -264,3 +266,77 @@ it.each(["html", "oversize", "signature", "stream-error", "http-error"])(
     expect(mockedFetch).toHaveBeenCalledTimes(1);
   },
 );
+
+for (const [exportPdf, renderer] of [
+  [evaluationIndependentReportPdf, "independent-qa-pdf-v1"],
+  [evaluationIndependentRetestPdf, "independent-retest-pdf-v1"],
+] as const) {
+  it(`${renderer} downloads a bounded real PDF prefix with the exact receipt and no-store`, async () => {
+    const bytes = new TextEncoder().encode("%PDF-1.4\nSYNTHETIC");
+    mockedFetch.mockResolvedValue(
+      new Response(bytes, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "X-DevPilot-Renderer": renderer,
+        },
+      }),
+    );
+    const route = `independent/export/${renderer}?archive_hash=h`;
+    const blob = await exportPdf(route);
+    expect(blob.type).toBe("application/pdf");
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
+    expect(mockedFetch.mock.calls[0]).toEqual([
+      "/backend/api/" + route,
+      { method: "GET", cache: "no-store" },
+    ]);
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    "mime",
+    "renderer",
+    "header-size",
+    "stream-size",
+    "signature",
+    "empty",
+    "stream-error",
+    "http-error",
+  ])(`${renderer} rejects %s without retry`, async (failure) => {
+    const headers = {
+      "Content-Type": "application/pdf",
+      "X-DevPilot-Renderer": renderer,
+    };
+    let response: Response;
+    if (failure === "http-error")
+      response = new Response("{}", { status: 409 });
+    else if (failure === "mime")
+      response = new Response("<html>Login</html>", {
+        headers: { ...headers, "Content-Type": "text/html" },
+      });
+    else if (failure === "renderer")
+      response = new Response("%PDF-1.4", {
+        headers: { ...headers, "X-DevPilot-Renderer": "qa-docx-v1" },
+      });
+    else if (failure === "header-size")
+      response = new Response("%PDF-1.4", {
+        headers: { ...headers, "Content-Length": "8388609" },
+      });
+    else if (failure === "stream-size")
+      response = new Response(new Uint8Array(8388609), { headers });
+    else if (failure === "stream-error")
+      response = new Response(
+        new ReadableStream({
+          pull(c) {
+            c.error(new Error("interrupted"));
+          },
+        }),
+        { headers },
+      );
+    else
+      response = new Response(failure === "empty" ? "" : "PK!wrong", {
+        headers,
+      });
+    mockedFetch.mockResolvedValue(response);
+    await expect(exportPdf("independent/export")).rejects.toThrow();
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+  });
+}

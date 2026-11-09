@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+[独立历史报告/重测 PDF 草稿](DevPilot_Independent_PDF_Drafts.md)：固定嵌入字体与历史公开投影、显式收据下载；不是正式批准或部署。
+
 [独立历史重测 Word 草稿](DevPilot_Independent_Retest_Word_Drafts.md)以固定双语格式投影存档比较事实，保留 ALL 样本和历史评估收据，不重算指标或授予批准。
 
 [开发接续分析与模块计划](DevPilot_Development_Plan.md)记录当前源码、上一提交 Actions、运行观察及分模块门禁；[独立历史 Word 草稿](DevPilot_Independent_Word_Drafts.md)使用单独 renderer，不改变旧 owner Word 或批准边界。

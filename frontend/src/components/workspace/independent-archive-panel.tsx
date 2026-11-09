@@ -8,7 +8,9 @@ import { EvaluationCriteriaView } from "@/components/workspace/evaluation-criter
 import {
   evaluationApi,
   evaluationIndependentReportDocx,
+  evaluationIndependentReportPdf,
   evaluationIndependentRetestDocx,
+  evaluationIndependentRetestPdf,
 } from "@/core/evaluation/api";
 import {
   assessmentIdValid,
@@ -405,17 +407,23 @@ export function IndependentArchiveWorkspace({
       URL.revokeObjectURL(url);
     }
   }
-  async function downloadWord() {
+  async function downloadDocument(format: "docx" | "pdf") {
     if (!opened || locked) return;
     const archive = opened;
     await operation(async (current) => {
       const isReport = "markdown" in archive;
-      const blob = await (
-        isReport
-          ? evaluationIndependentReportDocx
-          : evaluationIndependentRetestDocx
-      )(
-        `${base}/${namespace}/${archive.id}/exports/${isReport ? "independent-qa-docx-v1" : "independent-retest-docx-v1"}?archive_hash=${archive.archive_hash}`,
+      const exportDocument =
+        format === "pdf"
+          ? isReport
+            ? evaluationIndependentReportPdf
+            : evaluationIndependentRetestPdf
+          : isReport
+            ? evaluationIndependentReportDocx
+            : evaluationIndependentRetestDocx;
+      const renderer =
+        (isReport ? "independent-qa-" : "independent-retest-") + format + "-v1";
+      const blob = await exportDocument(
+        `${base}/${namespace}/${archive.id}/exports/${renderer}?archive_hash=${archive.archive_hash}`,
       );
       if (!current()) return;
       const url = URL.createObjectURL(blob);
@@ -424,8 +432,8 @@ export function IndependentArchiveWorkspace({
         link.href = url;
         link.download =
           "markdown" in archive
-            ? `independent-qa-report-${archive.id}-r${archive.revision}.docx`
-            : `independent-retest-${archive.id}.docx`;
+            ? `independent-qa-report-${archive.id}-r${archive.revision}.${format}`
+            : `independent-retest-${archive.id}.${format}`;
         link.click();
       } finally {
         URL.revokeObjectURL(url);
@@ -705,11 +713,20 @@ export function IndependentArchiveWorkspace({
               <Button
                 variant="outline"
                 disabled={locked}
-                onClick={() => void downloadWord()}
+                onClick={() => void downloadDocument("docx")}
               >
                 {zh
                   ? "下载独立历史 Word 草稿"
                   : "Download independent historical Word draft"}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={locked}
+                onClick={() => void downloadDocument("pdf")}
+              >
+                {zh
+                  ? "下载独立历史 PDF 草稿"
+                  : "Download independent historical PDF draft"}
               </Button>
               <p className="text-muted-foreground text-sm">
                 {zh
@@ -722,11 +739,20 @@ export function IndependentArchiveWorkspace({
               <Button
                 variant="outline"
                 disabled={locked}
-                onClick={() => void downloadWord()}
+                onClick={() => void downloadDocument("docx")}
               >
                 {zh
                   ? "下载独立历史重测 Word 草稿"
                   : "Download independent historical retest Word draft"}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={locked}
+                onClick={() => void downloadDocument("pdf")}
+              >
+                {zh
+                  ? "下载独立历史重测 PDF 草稿"
+                  : "Download independent historical retest PDF draft"}
               </Button>
               <p className="text-muted-foreground text-sm">
                 {zh

@@ -1,6 +1,6 @@
 # 开发接续分析与模块计划 / Development continuation plan
 
-> 核对日期：2026-11-09。本计划记录代码/CI/运行的差别，不声称整个平台完成，也不以功能数估计完成百分比。
+> 核对日期：2026-11-10。本计划记录代码/CI/运行的差别，不声称整个平台完成，也不以功能数估计完成百分比。
 
 ## 接手基线
 
@@ -14,7 +14,7 @@
 1. App/FastAPI 负责项目、冻结数据/请求/计划、授权、耐久 dispatch、有界 Worker、加密证据和审计；纯 `devpilot` 领域逻辑与 Harness 保持单向依赖边界。
 2. 既有 owner 人工复核链已连接 verified summary、冻结标准、不可变报告/Word 与同基准复测，不等于独立批准。
 3. 独立任务提供两名盲审人/第三名仲裁人，独立评估修订和历史报告/复测及显式工作区已进入候选代码。候选迁移 head `eval_0012`；历史部署收据是 `eval_0009`，不能因已拉取最新代码而认定新版已部署。
-4. 本轮补齐独立历史报告/重测 Word 候选；独立 PDF、正式批准、真实多账号联调、保留数据升级/最终验收仍有缺口。旧设计文档里“待开发”的切片以当前交付矩阵为准，不重复重写已实现模块。
+4. 本轮补齐独立历史报告/重测 Word 与 PDF 候选及合成独立主链回归；正式批准、真实多账号联调、保留数据升级/最终验收仍有缺口。旧设计文档里“待开发”的切片以当前交付矩阵为准，不重复重写已实现模块。
 
 ## 接续顺序与退出条件
 
@@ -32,8 +32,14 @@
 
 - 独立历史报告 Word 已提交并推送 `86c13930cd688b55722020da2b68b74bb61d25c7`，实际触发的六项 Actions 均成功；逐项 run ID 见 [交付矩阵](DevPilot_Delivery_Status.md)。
 - 独立主链合成回归已实现 16 个参数化用例，本地标准后端 **12,339 passed**、领域 **15 / 58 passed**、Blocking IO **72 passed**，Ruff 和完整前端格式检查通过。它证明隔离合成链的边界，不是迁移部署或正式批准；已推送 `b1fe355c1c924b0a0073f154b7c25ee65f491e64`，实际触发的四项 Actions 均成功；逐项收据见交付矩阵。
-- 独立复测 Word 单独固定 renderer/显式历史下载已通过本地门禁：定向 **148 passed**、标准后端 **12,384 passed**、领域 **15 / 58 passed**、Blocking IO **72 passed**；前端 **1,182 passed**、完整格式/lint/typecheck/build、模拟 Chromium **220 passed** 和认证恢复 **2 passed**。重测无 Markdown，导出存档公开比较事实，不能冒用报告格式；精确新提交的实际 Actions 须另行核对。PDF、正式批准政策、经授权的保留数据升级及真实多账号验收仍未完成，不能据此宣称整个平台完成。
+- 独立复测 Word 单独固定 renderer/显式历史下载已通过本地门禁：定向 **148 passed**、标准后端 **12,384 passed**、领域 **15 / 58 passed**、Blocking IO **72 passed**；前端 **1,182 passed**、完整格式/lint/typecheck/build、模拟 Chromium **220 passed** 和认证恢复 **2 passed**。重测无 Markdown，导出存档公开比较事实，不能冒用报告格式；精确提交 `a3fb0db9de885a03e9883743216b5aca6c93665f` 六项 Actions 已核实成功（见下节）。该切片当时不含 PDF；正式批准政策、经授权的保留数据升级及真实多账号验收仍未完成，不能据此宣称整个平台完成。
 
 ## English summary
 
 The clean continuation baseline is `8890bd061f3407b8c187ceaf388dff28aa463b4e`; its four triggered Actions succeeded. Existing QA execution/review/report flows and independent historical candidates are not a finished platform or a deployment of candidate migrations. Work proceeds in bounded modules: independent Word drafts, a synthetic independent lifecycle regression, remaining pinned exports, separately authorized approval, and explicitly approved deployment/acceptance. Each module requires scoped tests and relevant full gates, documentation, an independent commit/push and exact-SHA Actions verification. No private configuration, databases, real model/target calls, execution enablement or implicit deployment is permitted.
+
+## 本轮接续：独立历史重测 Word 与 PDF
+
+独立历史重测 Word 已在 GitHub 远端核实 `a3fb0db9de885a03e9883743216b5aca6c93665f`，六项 Actions 均 completed/success：Unit `42634173580`、Frontend Unit `42634173600`、Blocking IO `42634174621`、Lint `42634173290`、E2E `42634173439`、Replay `42634173556`。此前待推送回执由本次远端核验替代，不推断部署。
+
+后续 [PDF 草稿](DevPilot_Independent_PDF_Drafts.md) 独立模块补齐固定字体历史报告/重测 PDF、权限/收据 GET、显式下载及合成回归；定向 **178 passed**、标准后端 **12,414 passed**、领域 **15 / 58 passed**、Blocking IO **72 passed**，前端 **1,206 passed**、完整格式/lint/typecheck/build、模拟 Chromium **226 passed** 和认证恢复 **2 passed**。固定字体两次重建同 SHA，uv 0.7.20/0.13.7 离线锁检查和所有旧包版本不变审计通过；详细限制见合同，实际提交/精确 SHA Actions 另记交付矩阵。旧 Word/档案/hash 和禁止真实调用、默认禁用执行的边界不变。正式批准政策/角色/生命周期不能由 `PASS`、`met` 或报告下载自动补全；经授权保留数据升级、真实多账号与最终验收仍单列待完成。

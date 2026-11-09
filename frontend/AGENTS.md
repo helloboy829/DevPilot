@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Independent historical PDF candidate (2026-11-09)
+
+`independent-qa-pdf-v1` / `independent-retest-pdf-v1` consume only pinned internal Word-v1 historical public projections, never client XML/HTML or current sources. Keep human owner read/review + viewed hash, off-loop checks/rendering, ALL frozen populations, literal bounded whole-document rejection, fixed engine/embedded OFL font and frontend no-store/ref locks/late-response fences. Unsupported glyph/complex direction fails closed; no system-font/network fallback. Preserve legacy archives/Word/hash. Font rebuild is build-only; the Tenki source override retains the exact old official wheel/hash, not a new SDK. No migration/deployment/execution/model/approval authority. [Contract](../docs/DevPilot_Independent_PDF_Drafts.md).
+
 ## Independent historical retest Word candidate (2026-11-09)
 
 `independent-retest-docx-v1` exports a pinned bilingual projection of stored public comparison facts, NOT stored Markdown (retests have none). Human owner read/review + viewed archive hash; integrity and rendering off-loop, no current sources/keys or metric/criteria recomputation. Preserve ALL frozen samples/task commitments, strict bounded whole-document rejection, literal text and separate namespaces. UI downloads explicitly with ref locks/late-response fences; no retry. No migration/dependency/deployment/approval authority; old report/Word bytes unchanged. [Contract](../docs/DevPilot_Independent_Retest_Word_Drafts.md).
