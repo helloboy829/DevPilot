@@ -2,6 +2,17 @@
 
 > 核对日期：2026-11-09。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-09：独立主链合成回归候选
+
+新增 [独立主链离线集成回归](DevPilot_Independent_Workflow_Regression.md)，以 HTTP 创建的三个冻结样本、v2 计划和真实有界 Worker 串起独立双盲任务/第三人仲裁、评估修订、历史报告/同基准复测及固定 Word。并发 1/2、六种采集故障、四类写入提交前/后响应丢失，共 16 个参数化用例。无运行时代码、迁移、依赖或前端行为变化；不部署、启用运行、生成生产 key 或调用真实模型/目标。本地门禁完成，尚待本模块独立提交/push 和精确新 SHA 的 Actions 核验，未运行项不记为通过。
+
+- 新增集成用例 **16 passed，44.11s**；标准 `make test` **12,339 passed / 18 skipped / 11 deselected / 40 warnings，606.06s**，纯领域 evaluation/toolkit **15 / 58 passed**，均 exit=0。定向用例已包含在全量中，不叠加计数。
+- `make test-blocking-io` **72 passed，5.50s**；`make lint` 全目录 Ruff check/format **1,241 文件**通过；整个前端 `pnpm format` 与本轮 Markdown 格式检查通过。没有前端运行时变更，本模块没有本地重跑前端单测/build/浏览器，上一模块结果另列而不冒用。
+- 实际 Python CI 快照的 **2,178 个**公开源码/测试/静态文件逐项 SHA-256 一致；二进制原始字节和文本统一行尾分别处理。测试编写阶段失败日志和最终结果一起导出，本机 ignored 证据不提交。
+- 仅复用本线程重建的专用 Python/Node/PostgreSQL/Redis 容器，internal 网络且没有业务挂载/发布端口。最终收尾在测试进程退出、日志导出/验 hash 和文档格式验证后进行；不停止预存服务，不删容器、卷或镜像，不全局 prune。
+
+上一 Word 模块已实际推送 `86c13930cd688b55722020da2b68b74bb61d25c7`，精确 SHA 的六项 Actions **全部 completed / success**：E2E Tests `42620344093`、Unit Tests `42620343936`、Frontend Unit Tests `42620343965`、Backend Blocking IO `42620343994`、Replay E2E `42620343903`、Lint Check `42620343976`。这只是该候选提交的 CI，不是 `eval_0012` 部署或真实身份/目标验收。
+
 ## 2026-11-09：开发接续与独立历史报告 Word 候选
 
 本轮接手时工作区干净，本地及实际远端 `main` 为 `8890bd061f3407b8c187ceaf388dff28aa463b4e`。该完整 SHA 实际触发四项 Actions，均成功：Unit Tests `42573792483`、Frontend Unit Tests `42573792602`、Backend Blocking IO `42573792621`、Lint Check `42573792762`；未触发 E2E，不外推其结果。较早章节保留历史状态，不是本轮运行收据。
@@ -17,7 +28,7 @@
 - 两个实际 CI 容器各 **2,177 个**公开运行/测试文件与工作区逐项 SHA-256 一致（按 Git 统一文本行尾）；失败日志与最终结果一起保留在 ignored 本机会话证据目录。
 - 首次基线收集缺少 Git 根标记、一次定向命令文件名错误，以及新增测试的格式/import/空函数 lint 失败均保留原日志；修正环境/命令/代码，不删除或弱化断言、不增加超时或重试。构建的无 Git 历史时间戳警告不是功能验收。
 
-候选 migration head 仍为 `eval_0012`；无新迁移、依赖、生产配置、key、执行启用或真实模型/目标调用。独立复测 Word、PDF、正式批准、真实多账号联调、保留数据升级与最终用户验收仍未完成。本模块本地门禁已完成，尚待独立提交/push 和新完整 SHA 的 Actions 核验；上一 SHA 成功不等于新模块 CI 成功。收尾在确认测试进程全部退出、56 份成功/失败日志与退出码导出且六份主要日志验 hash 一致后，只按四个精确 ID 停止本轮专用 CI 容器；保留依赖缓存，没有停止预存服务、删卷、删镜像或全局 prune。
+候选 migration head 仍为 `eval_0012`；无新迁移、依赖、生产配置、key、执行启用或真实模型/目标调用。独立复测 Word、PDF、正式批准、真实多账号联调、保留数据升级与最终用户验收仍未完成。本模块本地门禁及独立提交/push 已完成，精确 SHA 与六项成功 Actions 见上节；这不替代后续模块自身的 CI。收尾在确认测试进程全部退出、56 份成功/失败日志与退出码导出且六份主要日志验 hash 一致后，只按四个精确 ID 停止本轮专用 CI 容器；保留依赖缓存，没有停止预存服务、删卷、删镜像或全局 prune。
 
 English: the continuation baseline and its four successful runs are explicitly pinned. The new independent historical report Word draft is a separate, bounded, read-only renderer; legacy exports and approval/execution boundaries remain unchanged. New local gates are recorded separately from previous CI and historical deployment; unfinished checks are not success claims.
 

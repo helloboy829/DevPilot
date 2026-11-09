@@ -2,6 +2,10 @@
 
 [开发接续分析与模块计划](DevPilot_Development_Plan.md)记录当前源码、上一提交 Actions、运行观察及分模块门禁；[独立历史 Word 草稿](DevPilot_Independent_Word_Drafts.md)使用单独 renderer，不改变旧 owner Word 或批准边界。
 
+## 独立主链合成回归 / Independent workflow regression
+
+- [独立 QA 主链离线集成回归 / Independent QA workflow regression](DevPilot_Independent_Workflow_Regression.md)：HTTP/真实 Worker、双盲复核/仲裁、历史评估/报告/复测/Word；合成测试不是部署或正式批准。
+
 ## 2026-11-09：独立逐条复核中心与内联界面（候选，未部署）
 
 [独立复核范围与合同](DevPilot_Independent_Case_Review.md)：明确指派两名不同盲审人和第三名仲裁人，owner 不可兼任；仅授予冻结 case，不开放项目成员/普通数据权限。候选现增加 `/workspace/reviews` 中心及项目内联分配/详情，共用同一人类专用服务；显式加载、领取、打开证据、追加决定及历史轮次结果，未知写入只核对同一 ID。任务/UI 切片为 `eval_0010`，最新独立档案候选 head `eval_0012`，运行仍为 `eval_0009`。**独立评估 API/修订 UI、历史报告/复测绑定 API/选择 UI 已有候选；正式批准与保留数据部署尚未完成**；没有真实模型/目标调用，不是整个平台完成。

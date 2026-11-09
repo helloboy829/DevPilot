@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Independent API-to-Worker integration regression (2026-11-09)
+
+`tests/test_qa_independent_workflow_api.py` reuses the migrated synthetic `test_qa_workflow_api` fixture; import its `api` and `workflow` fixtures explicitly for pytest resolution. All lifecycle records are created through HTTP and the real Worker, not direct seeding. Cover concurrency 1/2, six transport/output faults, and eight before/after-commit lost-response cases. Keep ALL frozen denominators, two blind reviewers plus separate arbitration, owner isolation, exact historical assessment bindings and same-ID GET-only reconciliation including 404. Sensitive result opens intentionally contain decrypted notes; metadata/exports/logs must not. No runtime, migration, dependency, approval, deployment or real network/model feature is added. [Contract](../docs/DevPilot_Independent_Workflow_Regression.md).
+
 ## Independent historical Word candidate (2026-11-09)
 
 The separate `independent_report_docx` renderer and GET require a viewed archive hash and human owner read/review. Verify archived metadata off-loop, never reopen evidence/tasks/templates or recompute metrics. Keep bounded deterministic OOXML, generic errors and legacy `qa-docx-v1` bytes unchanged. No migration, key, model/target or approval authority. Tests: `test_independent_report_docx.py` / `_router.py`; see [contract](../docs/DevPilot_Independent_Word_Drafts.md).

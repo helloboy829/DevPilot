@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Independent lifecycle integration regression (2026-11-09)
+
+`backend/tests/test_qa_independent_workflow_api.py` joins HTTP-frozen v2 plans and the real offline Worker to blind reviewers/arbitration, immutable assessment revisions and explicitly selected historical report/retest archives/Word. Preserve ALL frozen denominators, owner-vote isolation, missing-evidence rejection, unique assessment pairs, reopened-history immutability and same-ID GET-only reconciliation even on 404. DNS/wire are synthetic and sockets fail closed; no runtime feature, migration, dependency, execution enablement, deployment or real calls. Explicit case/result opens are sensitive, unlike metadata. See [scope and gates](docs/DevPilot_Independent_Workflow_Regression.md).
+
 ## Independent historical Word candidate (2026-11-09)
 
 `app.evaluation.independent_report_docx` and the separate `independent-qa-docx-v1` GET export explicitly viewed independent report archives only. Preserve stored Markdown/public historical receipts, off-loop integrity/rendering, human owner read/review, bounded OOXML, no active content, no current sources/keys/metric recomputation and frontend late-response fences. Legacy `qa-docx-v1` is unchanged. No retest Word/PDF, approval, migration, deployment or target/model calls. See [contract](docs/DevPilot_Independent_Word_Drafts.md).
