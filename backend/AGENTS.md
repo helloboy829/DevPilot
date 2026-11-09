@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Independent historical retest Word candidate (2026-11-09)
+
+`independent-retest-docx-v1` exports a pinned bilingual projection of stored public comparison facts, NOT stored Markdown (retests have none). Human owner read/review + viewed archive hash; integrity and rendering off-loop, no current sources/keys or metric/criteria recomputation. Preserve ALL frozen samples/task commitments, strict bounded whole-document rejection, literal text and separate namespaces. UI downloads explicitly with ref locks/late-response fences; no retry. No migration/dependency/deployment/approval authority; old report/Word bytes unchanged. [Contract](../docs/DevPilot_Independent_Retest_Word_Drafts.md).
+
 ## Independent API-to-Worker integration regression (2026-11-09)
 
 `tests/test_qa_independent_workflow_api.py` reuses the migrated synthetic `test_qa_workflow_api` fixture; import its `api` and `workflow` fixtures explicitly for pytest resolution. All lifecycle records are created through HTTP and the real Worker, not direct seeding. Cover concurrency 1/2, six transport/output faults, and eight before/after-commit lost-response cases. Keep ALL frozen denominators, two blind reviewers plus separate arbitration, owner isolation, exact historical assessment bindings and same-ID GET-only reconciliation including 404. Sensitive result opens intentionally contain decrypted notes; metadata/exports/logs must not. No runtime, migration, dependency, approval, deployment or real network/model feature is added. [Contract](../docs/DevPilot_Independent_Workflow_Regression.md).

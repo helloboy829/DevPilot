@@ -34,6 +34,13 @@ export async function evaluationIndependentReportDocx(
   return reportDocx(route, "independent-qa-docx-v1");
 }
 
+/** Stored independent comparison facts; not a report/Markdown export. */
+export async function evaluationIndependentRetestDocx(
+  route: string,
+): Promise<Blob> {
+  return reportDocx(route, "independent-retest-docx-v1");
+}
+
 async function reportDocx(route: string, renderer: string): Promise<Blob> {
   const response = await fetch(`${getBackendBaseURL()}/api/${route}`, {
     method: "GET",

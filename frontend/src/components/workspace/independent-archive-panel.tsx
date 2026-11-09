@@ -8,6 +8,7 @@ import { EvaluationCriteriaView } from "@/components/workspace/evaluation-criter
 import {
   evaluationApi,
   evaluationIndependentReportDocx,
+  evaluationIndependentRetestDocx,
 } from "@/core/evaluation/api";
 import {
   assessmentIdValid,
@@ -405,18 +406,26 @@ export function IndependentArchiveWorkspace({
     }
   }
   async function downloadWord() {
-    if (!opened || !("markdown" in opened) || locked) return;
+    if (!opened || locked) return;
     const archive = opened;
     await operation(async (current) => {
-      const blob = await evaluationIndependentReportDocx(
-        `${base}/independent-report-archives/${archive.id}/exports/independent-qa-docx-v1?archive_hash=${archive.archive_hash}`,
+      const isReport = "markdown" in archive;
+      const blob = await (
+        isReport
+          ? evaluationIndependentReportDocx
+          : evaluationIndependentRetestDocx
+      )(
+        `${base}/${namespace}/${archive.id}/exports/${isReport ? "independent-qa-docx-v1" : "independent-retest-docx-v1"}?archive_hash=${archive.archive_hash}`,
       );
       if (!current()) return;
       const url = URL.createObjectURL(blob);
       try {
         const link = document.createElement("a");
         link.href = url;
-        link.download = `independent-qa-report-${archive.id}-r${archive.revision}.docx`;
+        link.download =
+          "markdown" in archive
+            ? `independent-qa-report-${archive.id}-r${archive.revision}.docx`
+            : `independent-retest-${archive.id}.docx`;
         link.click();
       } finally {
         URL.revokeObjectURL(url);
@@ -710,6 +719,20 @@ export function IndependentArchiveWorkspace({
             </>
           ) : (
             <>
+              <Button
+                variant="outline"
+                disabled={locked}
+                onClick={() => void downloadWord()}
+              >
+                {zh
+                  ? "下载独立历史重测 Word 草稿"
+                  : "Download independent historical retest Word draft"}
+              </Button>
+              <p className="text-muted-foreground text-sm">
+                {zh
+                  ? "固定双语格式展示存档事实、全部样本和历史评估收据；不重算指标，不代表批准。"
+                  : "Pinned bilingual projection of stored facts, ALL samples and historical assessment receipts; no metric recomputation or approval."}
+              </p>
               <p>
                 {zh ? "全样本通过率差值" : "All-sample pass-rate delta"}:{" "}
                 {opened.pass_rate_delta.numerator} /{" "}
@@ -738,8 +761,8 @@ export function IndependentArchiveWorkspace({
           </Button>
           <p>
             {zh
-              ? "独立复测 Word、PDF 和正式批准尚未交付；旧 Word 路由不用于此档案。"
-              : "Independent retest Word, PDF and formal approval are not delivered; the legacy Word route is not used for this archive."}
+              ? "PDF 和正式批准尚未交付；旧 Word 路由不用于此档案。"
+              : "PDF and formal approval are not delivered; the legacy Word route is not used for this archive."}
           </p>
         </section>
       )}

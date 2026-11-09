@@ -13,6 +13,7 @@ from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.execution import ExecutionCreate
 from app.evaluation.independent_report_docx import RENDERER_ID as INDEPENDENT_RENDERER_ID
 from app.evaluation.independent_report_docx import render_independent_docx
+from app.evaluation.independent_retest_docx import render_independent_retest_docx
 from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import AcceptancePlanCreate, PlanCreate, PlanPreflightError
 from app.evaluation.qa_assessments import AssessmentCreate, AssessmentRepository
@@ -628,3 +629,28 @@ async def create_independent_retest_archive(project_id: str, retest_id: str, pay
     owner, repository = await _independent_retest_context(request)
     _retest_identifier(retest_id)
     return await _result(repository.create_retest(owner, project_id, retest_id, payload))
+
+
+@router.get("/{project_id}/independent-retest-archives/{retest_id}/exports/independent-retest-docx-v1")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def export_independent_retest_docx(project_id: str, retest_id: str, request: Request, archive_hash: str = Query(pattern=r"^[0-9a-f]{64}$")):
+    owner, repository = await _independent_retest_context(request)
+    _retest_identifier(retest_id)
+    document = await _result(repository.get_retest(owner, project_id, retest_id))
+    if not hmac.compare_digest(document["archive_hash"], archive_hash):
+        raise HTTPException(409, "Archive receipt changed; explicitly reopen the independent comparison")
+    try:
+        content = await asyncio.to_thread(render_independent_retest_docx, document)
+    except ReportExportError:
+        raise HTTPException(422, "Archived comparison cannot be exported by this renderer; the stored comparison was not changed") from None
+    return Response(
+        content,
+        media_type=DOCX_MIME,
+        headers={
+            "Cache-Control": "private, no-store",
+            "Content-Disposition": 'attachment; filename="independent-retest-' + retest_id + '.docx"',
+            "X-Content-Type-Options": "nosniff",
+            "X-DevPilot-Renderer": "independent-retest-docx-v1",
+        },
+    )

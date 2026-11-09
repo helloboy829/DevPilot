@@ -27,10 +27,10 @@
 
 本轮测试结果和精确提交/Actions 另记[当前交付状态](DevPilot_Delivery_Status.md)。未运行的门禁不算通过；模拟浏览器不是真实多账号授权联调。源码、失败日志和收尾收据保留在 ignored `.deer-flow/ci/20261109-independent-word/`，不提交本机证据或配置。
 
-## 4. 未交付与回退
+## 4. 后续范围与回退
 
-独立复测 Word、独立 PDF、正式批准、真实多账号联调、保留数据升级和最终用户验收仍未完成。无新增依赖、迁移、生产配置、key、执行开关或真实模型/目标调用。回退只需回退本模块代码；没有数据转换，已有历史档案与旧导出继续保留。
+独立复测 Word 由后续[单独存档事实投影模块](DevPilot_Independent_Retest_Word_Drafts.md)提供，不扩展本报告 renderer。独立 PDF、正式批准、真实多账号联调、保留数据升级和最终用户验收仍未完成。无新增依赖、迁移、生产配置、key、执行开关或真实模型/目标调用。回退只需回退本模块代码；没有数据转换，已有历史档案与旧导出继续保留。
 
 ## English summary
 
-A separate pinned human-owner GET exports an explicitly opened immutable independent report, bound to the viewed archive hash. It verifies the archived document and renders off-loop, without current templates, evidence decryption, live review state, metric recomputation, models, targets or approval. Deterministic bounded OOXML contains stored Markdown and public historical receipts only; text never becomes active content or external relationships. The authenticated frontend validates the bounded binary response, fences late downloads and never retries automatically. Legacy owner-review archives and `qa-docx-v1` remain unchanged. Independent retest Word/PDF, formal approval, real multi-account acceptance and deployment remain outside this module.
+A separate pinned human-owner GET exports an explicitly opened immutable independent report, bound to the viewed archive hash. It verifies the archived document and renders off-loop, without current templates, evidence decryption, live review state, metric recomputation, models, targets or approval. Deterministic bounded OOXML contains stored Markdown and public historical receipts only; text never becomes active content or external relationships. The authenticated frontend validates the bounded binary response, fences late downloads and never retries automatically. Legacy owner-review archives and `qa-docx-v1` remain unchanged. Independent retest Word is a separate later archived-fact projection, not an extension of this renderer. PDF, formal approval, real multi-account acceptance and deployment remain unfinished.

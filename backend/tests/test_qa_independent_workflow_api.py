@@ -231,6 +231,16 @@ async def test_worker_blind_review_assessment_historical_report_word_and_retest(
         assert response_json(await state.client.get(path)) == saved
     assert response_json(await state.client.get(comparison_path)) == comparison
     assert (await state.client.get(url)).content == word.content
+    retest_url = comparison_path + "/exports/independent-retest-docx-v1?archive_hash=" + comparison["archive_hash"]
+    retest_word = await state.client.get(retest_url)
+    assert retest_word.status_code == 200 and retest_word.headers["x-devpilot-renderer"] == "independent-retest-docx-v1"
+    with zipfile.ZipFile(io.BytesIO(retest_word.content)) as package:
+        retest_xml = package.read("word/document.xml").decode()
+    assert comparison["archive_hash"] in retest_xml and "ALL frozen cases" in retest_xml
+    for assessment in assessments:
+        assert assessment[1]["id"] in retest_xml
+    assert all(value not in retest_xml for value in CANARIES)
+    assert (await state.client.get(retest_url)).content == retest_word.content
     response_json(await state.client.get(roots[0] + "/cases/1"), 503)
     assert len(state.sent) == len(set(state.sent)) == len(state.dns) == 6
     assert await state.worker.run_once() is False

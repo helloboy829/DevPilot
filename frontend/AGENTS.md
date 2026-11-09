@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Independent historical retest Word candidate (2026-11-09)
+
+`independent-retest-docx-v1` exports a pinned bilingual projection of stored public comparison facts, NOT stored Markdown (retests have none). Human owner read/review + viewed archive hash; integrity and rendering off-loop, no current sources/keys or metric/criteria recomputation. Preserve ALL frozen samples/task commitments, strict bounded whole-document rejection, literal text and separate namespaces. UI downloads explicitly with ref locks/late-response fences; no retry. No migration/dependency/deployment/approval authority; old report/Word bytes unchanged. [Contract](../docs/DevPilot_Independent_Retest_Word_Drafts.md).
+
 ## Independent historical Word candidate (2026-11-09)
 
 Only explicitly opened independent reports offer Word download through the authenticated no-store fetcher and separate `independent-qa-docx-v1` renderer. Validate MIME/header/stream bounds/ZIP prefix, revoke Blob URLs, preserve ref locks and unmount/scope fences. Never use legacy owner Word or auto-retry. Unknown archive writes still reconcile by same-ID GET only. Desktop/mobile synthetic coverage: `independent-word.spec.ts`; see [contract](../docs/DevPilot_Independent_Word_Drafts.md).

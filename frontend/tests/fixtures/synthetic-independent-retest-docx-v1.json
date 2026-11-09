@@ -1,0 +1,309 @@
+{
+  "document": {
+    "schema": "qa-independent-retest-archive.v1",
+    "scope": "same_benchmark_independent_comparison",
+    "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "project_id": "p1",
+    "project_name": "Synthetic project <img src=\"https://invalid.example/pixel\"> &lt;literal&gt;",
+    "component_id": "c1",
+    "component_name": "Synthetic independent component",
+    "created_at_ms": 1800000000000,
+    "baseline": {
+      "schema": "qa-independent-assessment-preview.v1",
+      "scope": "verified_independent_assessment_preview",
+      "policy": {
+        "id": "independent-double-blind.v1",
+        "population": "all_frozen_effectiveness_samples",
+        "timing": "post_collection_assessment"
+      },
+      "project_id": "p1",
+      "run_id": "11111111111111111111111111111111",
+      "run_status": "recording_finished",
+      "component_id": "c1",
+      "component_name": "Synthetic independent component",
+      "plan_id": "r1plan",
+      "plan_label": "r1 frozen version",
+      "plan_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "summary_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "counts": {
+        "pass": 1,
+        "fail": 1,
+        "uncertain": 0,
+        "unreviewed": 0
+      },
+      "technical_counts": {
+        "collected": 2,
+        "other": 0
+      },
+      "human_pass_rate": {
+        "numerator": 1,
+        "denominator": 2,
+        "value": 0.5
+      },
+      "readiness": "review_complete",
+      "blockers": [],
+      "acceptance": "not_approved",
+      "cases": [
+        {
+          "ordinal": 1,
+          "case_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "outcome": "pass",
+          "tasks": [
+            {
+              "task_id": "11111111111111111111111111111111",
+              "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "round": 1,
+              "task_revision": 5,
+              "status": "resolved",
+              "resolution_revision": 1,
+              "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+          ]
+        },
+        {
+          "ordinal": 2,
+          "case_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+          "outcome": "fail",
+          "tasks": [
+            {
+              "task_id": "22222222222222222222222222222222",
+              "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "round": 1,
+              "task_revision": 5,
+              "status": "resolved",
+              "resolution_revision": 1,
+              "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+          ]
+        }
+      ],
+      "criteria_evaluation": {
+        "scope": "effectiveness_threshold_only",
+        "criteria": {
+          "schema": "qa-effectiveness-criteria.v1",
+          "version_label": "frozen-1",
+          "min_pass_rate_bps": 5000
+        },
+        "status": "met",
+        "blockers": [],
+        "approval": "not_approved"
+      },
+      "assessment_ref": {
+        "assessment_id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "assessment_revision": 1,
+        "assessment_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      }
+    },
+    "retest": {
+      "schema": "qa-independent-assessment-preview.v1",
+      "scope": "verified_independent_assessment_preview",
+      "policy": {
+        "id": "independent-double-blind.v1",
+        "population": "all_frozen_effectiveness_samples",
+        "timing": "post_collection_assessment"
+      },
+      "project_id": "p1",
+      "run_id": "22222222222222222222222222222222",
+      "run_status": "recording_finished",
+      "component_id": "c1",
+      "component_name": "Synthetic independent component",
+      "plan_id": "r2plan",
+      "plan_label": "Synthetic frozen v2",
+      "plan_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "summary_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+      "counts": {
+        "pass": 2,
+        "fail": 0,
+        "uncertain": 0,
+        "unreviewed": 0
+      },
+      "technical_counts": {
+        "collected": 2,
+        "other": 0
+      },
+      "human_pass_rate": {
+        "numerator": 2,
+        "denominator": 2,
+        "value": 1.0
+      },
+      "readiness": "review_complete",
+      "blockers": [],
+      "acceptance": "not_approved",
+      "cases": [
+        {
+          "ordinal": 1,
+          "case_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "outcome": "pass",
+          "tasks": [
+            {
+              "task_id": "11111111111111111111111111111111",
+              "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "round": 1,
+              "task_revision": 5,
+              "status": "resolved",
+              "resolution_revision": 1,
+              "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+          ]
+        },
+        {
+          "ordinal": 2,
+          "case_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+          "outcome": "pass",
+          "tasks": [
+            {
+              "task_id": "22222222222222222222222222222222",
+              "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "round": 1,
+              "task_revision": 5,
+              "status": "resolved",
+              "resolution_revision": 1,
+              "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+          ]
+        }
+      ],
+      "criteria_evaluation": {
+        "scope": "effectiveness_threshold_only",
+        "criteria": {
+          "schema": "qa-effectiveness-criteria.v1",
+          "version_label": "frozen-1",
+          "min_pass_rate_bps": 5000
+        },
+        "status": "met",
+        "blockers": [],
+        "approval": "not_approved"
+      },
+      "assessment_ref": {
+        "assessment_id": "44444444444444444444444444444444",
+        "assessment_revision": 7,
+        "assessment_hash": "5555555555555555555555555555555555555555555555555555555555555555"
+      }
+    },
+    "benchmark_hash": "6666666666666666666666666666666666666666666666666666666666666666",
+    "request_definition_changed": true,
+    "transitions": {
+      "fail_to_pass": 1,
+      "pass_to_fail": 0,
+      "pass_to_pass": 1,
+      "fail_to_fail": 0
+    },
+    "pass_rate_delta": {
+      "numerator": 1,
+      "denominator": 2,
+      "value": 0.5
+    },
+    "acceptance": "not_approved",
+    "archive_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "benchmark": {
+      "schema": "qa-json-plan.v2",
+      "acceptance_criteria": {
+        "schema": "qa-effectiveness-criteria.v1",
+        "version_label": "frozen-1",
+        "min_pass_rate_bps": 5000
+      },
+      "project_id": "p1",
+      "component_id": "c1",
+      "dataset_id": "qa1",
+      "dataset_revision": 1,
+      "dataset_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "dataset_purpose": "baseline",
+      "binding": {
+        "schema": "qa-json-binding.v1",
+        "input_pointer": "/input",
+        "output_pointer": "/output"
+      },
+      "limits": {
+        "mode": "effectiveness",
+        "concurrency": 1,
+        "request_count": 2,
+        "timeout_ms": 1000,
+        "wall_time_ms": 2000,
+        "max_total_body_bytes": 1000
+      },
+      "response_mode": "json_text",
+      "sample_order": "sample_id_ascending_cycle.v1",
+      "evaluation_policy": "human_review_required.v1",
+      "preflight": {
+        "sample_count": 2,
+        "request_count": 2,
+        "total_body_bytes": 20
+      },
+      "run_response_budgets": {
+        "max_response_bytes": 100,
+        "max_total_response_bytes": 200,
+        "lease_grace_ms": 1000
+      },
+      "independent_policy": {
+        "id": "independent-double-blind.v1",
+        "population": "all_frozen_effectiveness_samples",
+        "timing": "post_collection_assessment"
+      }
+    },
+    "cases": [
+      {
+        "ordinal": 1,
+        "sample_id": "s1",
+        "transition": "pass_to_pass",
+        "baseline_decision": "pass",
+        "baseline_case_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "baseline_tasks": [
+          {
+            "task_id": "11111111111111111111111111111111",
+            "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "round": 1,
+            "task_revision": 5,
+            "status": "resolved",
+            "resolution_revision": 1,
+            "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ],
+        "retest_decision": "pass",
+        "retest_case_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "retest_tasks": [
+          {
+            "task_id": "11111111111111111111111111111111",
+            "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "round": 1,
+            "task_revision": 5,
+            "status": "resolved",
+            "resolution_revision": 1,
+            "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      },
+      {
+        "ordinal": 2,
+        "sample_id": "s2",
+        "transition": "fail_to_pass",
+        "baseline_decision": "fail",
+        "baseline_case_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+        "baseline_tasks": [
+          {
+            "task_id": "22222222222222222222222222222222",
+            "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "round": 1,
+            "task_revision": 5,
+            "status": "resolved",
+            "resolution_revision": 1,
+            "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ],
+        "retest_decision": "pass",
+        "retest_case_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+        "retest_tasks": [
+          {
+            "task_id": "22222222222222222222222222222222",
+            "subject_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "round": 1,
+            "task_revision": 5,
+            "status": "resolved",
+            "resolution_revision": 1,
+            "resolution_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ]
+  },
+  "docx_base64": "UEsDBBQAAAAIAAAAIQB3cFu4CgEAAJMCAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbK2SzU7DMBCE7zyFlUsOVeLAASGUpAfgCj3wApazSSz8J++mtG/PJqUVQqUIiaO9M/ON1q7XO2fFFhKa4Jv8uqxyAV6HzvihySfqi7t83V7Vr/sIKFjrsclGongvJeoRnMIyRPA86UNyiviYBhmVflMDyJuqupU6eAJPBc0ZWVs/Qq8mS+Jpx9cLN0tgMRMPB+HMajIVozVaEc/l1nffKMUnoWTnosHRRFyxIBPyLGIZ/Ug4Gl94Fcl0IDYq0bNyLJPvIXWyC3pybC0v55xpGvreaDj557SYggZE3rGz5WnilPGrX4sg7S3g/9c45F7ks3mTQkR+0QR/b3B8stldMDtCIvMFKZdP1n4AUEsDBBQAAAAIAAAAIQANBhBWywAAAKwBAAALAAAAX3JlbHMvLnJlbHONkMtOAzEMRfd8RZTNrDqedoEQaqabbrpDiB+wEs9MRPOQ4/L4eyyEgKIidRnn+vjY291bOpoX4hZLdt26HzpD2ZcQ8+y6k0yru2433mwf6YiikbbE2oz25ObsIlLvAZpfKGHrS6WsP1PhhKJPnqGif8aZYDMMt8C/GXY8Y5pDcJYPYW3N03ula9hlmqKnffGnRFkujPiTUDLyTOLsa+EA4avcK9YauKyzuV7n/1UhkWBAQfCFaVVZu1kitR8jlXnQcvtMfBvB2dXHD1BLAwQUAAAACAAAACEARFs4QOsHAACYKAAAEQAAAHdvcmQvZG9jdW1lbnQueG1s7VrtjxRFGv9+f0WlP8CXnZmdQRAbdg0eZzDxhbDkvhjTqemumSmp7mqqqnd3NCSrRhYOVj6Ahtx5J74kEsXVGE89WOF/OZiZ5ZP/gs9T3dPTsDojPbvreVgfZrqrq573en5PVffhp5dDQRaZ0lxGc3vr1dm9hEW+DHjUntubmFbl4N6n5/90eMkNpJ+ELDIEJkTaXZpzOsbEbq2m/Q4Lqa7KmEXwrCVVSA3cqnZtSaogVtJnWgO9UNQas7MHaiHlkTMPJJsy6OJ/bH+OK/u3YLqCkSV3kYo556iiLfOiNNxnDqnNH67l4+yPFcbVMfXZnBMrpplaZM780RNHnj1JauTFl06SI8ePn3jpr385Sv67coVsrp0fXL8DT/rvf9Y//5/e6lmkaCxdlVIfL89JbsSjSPJcFDAwS4B263BtpOI+FUQxw7QBOQYXbgw+v9B752zv0tf3V9f6/77wywKN47MAlFlAfBnGVHEtI9KivtFERqJ7iBx5/nnSUvI1FhFNw1gwXSXHitIscnS/niGRNMRPlEJ5taGGEakIjcGHoH4VBL536+3eF1f7H37c//LK5u237t280Fv/148b/+i9ff3+W9d7Z28Nbl3uX/uu//6Nuytvpnrdu7O+uf7RjxsX732/1r/6Ze+Hy73za4O/fdtfeaN/7r3UDTC4nOIn0LiKKfTptY3exqXB+XPA3CV8ZPlKau4KRPByZbH+iC4/xiguhvojeP0E8xmP0b+Zra58219bL6cgD1xCJ7RylMGprzLfeMghHmOVX0MjoiFzyUI3Mh0Gi5Vk/WSPMId42CZa+Wm+0JAweASG5UGVLdtgrMV8mQlnT9scInug5xDMEdwwRYW9hf5ywuFqkBEEgFXRL6niiMrDShZCjOSjSjJRDBZb4FHjhdol9YOzo1aOIlV+hy8yr0N1B5SfspWToQlI0gmpOpVJcWDKVk4KxU4nsPy9gLV4xA0kOs/v0KjNICiMSlhJ+/o+iw2NfAgJyJpemiRZsPPZ5RmqmeARw/Tywc3BzTslzZJEdl3UJ7Ty1BFAEohmxXyoA0BLDx2gO+OMNI6mTkIIpm4WTM0pW8mEJ2hqNlXHyymIpFpMSu07lPpRAEGbTKAiw9ogqwLLrjIMZCj0XFtPsCUPU6IA5N2t9TWWmtYgGpavnmItl7zuFHrQE47rtKZszkyRKA+AJJvQHpwyrMMct36mLFYlkdGoXotyAXRmnBgY2IsETKkMlt7uLN6lXmIg5mxJbob5nQgrSG/E15dCAPAj2caMIwEpVXkGnSSEOEUNPAXwiPQBbGXIIwq1q+UQwZ5EpXegI6TUhAG/6v6yBlRYeHDqMSRFESxssGQVMLi0GIvgvqaQ/ilYN4778iszznC6477ugJQj0b1mDEP2A5rPOOl+CUidphXWaoG1AKdx5VSG06uLdSCdLcd0nWJ82lVaqTtnkAbstjDAivM90wFFOlIEHtb9QCLNwDAuZMYZY5LtK3yzfc00e5khMDUmtP9VYNo3ZZsWmBr/J8A0KrSH+FTW5b97aNo/ZfsZaHpiQvslaHpym6BpdghNjccAmho5NNWrZTn+AU1TQdOzaQ7Jt6S4e7KnVbCHGnsOOI4omD/PBd6uWbjJI9Qe+fAoTowXSx4ZjGanZjtgvkzMQ0/SHudBEV7VMqpk9JAxUC+emsAgH6UJqIFNZ56OpsWGAkXL4zQtMokTFUuNIdTMdrqFh4UaecYZrQRQVHC/C3PShZnledz6c8WC1KaF85p8PJgQJSieFgYyaQpWaQLnbGIs40RYPqi8EF7qDe/BEM+OVmG84aH1D0zUxsvyDko5yqhoaQHDjEYZfBmlp64oEigW0mXPSAPpC4/IvWYXyip4YCMolMGW5QU8h6ccNt/ZjANSMHC6F+ZTl1B27LZ9DegDKSCaW4K3OwYF2Uol1apIdotcjZTM8DQR9a5biTQEkgZmqcQYa55hyxiDWIXlz5tJ0GapIQQDL3ttBeusIDeaYzQ6N0bRTg8/bljdMuGhyLNrILvlATjCZzboPb/rC5a6ecvCwGqkutjYjfSUHeAbRSNtz6h0fnq8+cON3qWrm+sf9t/9qmyaQswFS3k59g478u2hzVbFEcOObMTu2QAZVjBvkoAJQ3M73F/5++ad1cE7q73v1nsrG2VNsQ07yO1SuPBexoe4ty7f8h5l58X4M/C270+QHSl54Gc3UhTK9pLz87XpEl2SxGjxuKQYveWoDcHHC5hvISclOiUx9HO2w5p08LozB7O5JICnp6AufhmTvpYisQCVAXwwZUuz/5DoA5itAEgCe5VXgHZoWrPqpGlRJJNj2tcWiMWgZgpKk+w5HDwSd/+ZV8ruOE36xmH6yMlI/eZxk8nxR9RMFzU7k7NLHozkObvk/GLOLkmimLOLNcm25Wwkun05e9KZ5M6cWT6+OXuSPX8vOfu3iZvHNWfvYtQcA/GhcKeKETxpaStuuvheAb//yb6ngh0vU5BmieZt2HYkCj+/CpmpHT+ysFCze5yUAA4ufmvVu3yu9/1F/GRq/WL/3W/6K5+mHxKNPqX65D3YLAy+uD34/NrdlTc3b9/uX1u9u/IGEoa/dJ/U++dqOnr8l1YanJFhU3vhNUCmpTnAvqdmDzhw3YHrAwf3HbQAhSNeoAq6jYxx0L4ncIzCM4TRbVMaI8PRvWCt/GmKckOOteGHgLXRR4bzPwFQSwMEFAAAAAgAAAAhAKjTwtBKAQAACgUAAA8AAAB3b3JkL3N0eWxlcy54bWzFks9PwjAUx+/+FUsvO0m3YVAWCsEfBA8SD1w8PrqONenapa8w8a93w00xI8ZExVPb7/f1237y3mjynCtvKyxKo5kf9gLfE5qbROo18zcuPb/yJ+OzURmj2ymBXlWuMS4ZyZwrYkqRZyIH7JlC6MpLjc3BVUe7pqWxSWENF4hVWq5oFAQDmoPUZNwGemXsdoVgpAALawtFRrzGuk8YWdRxqpYSkcJGOUbC/WUNeX13C+qjiNaGfbT7ZWa0w6oCkEvJyA0oubKyTsqmGj8rAtBNUQIjD5JbgyZ13hPMhWwy8aV9KooaiRtlbKuGd9Gwf713aPMD2kB8F3QpnRIdsjf1FGD9wTGwYBZeRtPGWf2Eby6gHqlu896Nk7Tv6m8pl7BSoiYSttvLA+//RvX3WG8tpG5hnOTduT30TsJ6cYx1OAuj/vBr1naH41dQSwMEFAAAAAgAAAAhAPQHhOClAAAACwEAABwAAAB3b3JkL19yZWxzL2RvY3VtZW50LnhtbC5yZWxzjc+/CsIwEAbw3acIWTLZax1EpEkXl67iC4T0kgabPySp2Lc34KLg4Phx9/2O64enW8gDU7bBc9Y1LSPoVZisN5ytRe9PbBC7/oqLLHUlzzZmUjs+czqXEs8AWc3oZG5CRF8nOiQnS43JQJTqLg3CoW2PkD4NKr5MMk6cpnHqKLltEf+xg9ZW4SWo1aEvP05ALtuCuYoyGSycvnNTHUpA9PD1lHgBUEsDBBQAAAAIAAAAIQB+Ms7HHQEAAJsBAAARAAAAZG9jUHJvcHMvY29yZS54bWxlkMFKw0AQhu8+xdJLTsk2HkRCmiJU0IsNIt6X2Wm6mOwus9PSJ9BDUB9ET4KPVItv4bZqK3ic+ef//p8px6uuFUukYJwdJXk2TARacNrYZpQseJaeJuPqqARfgCOsyXkkNhhE9NlQgB8N5sy+kDLAHDsVsnhhozhz1CmOIzXSK7hTDcrj4fBEdshKK1ZyC0z9njj4QWrYI/2C2h1Ag8QWO7QcZJ7lclCVGgo23GJ1aTXGSB1FMTeBHRlQrSBkDCyk2PSvm5d+/XS/fn77fHj8eO9LuTdvMUCooqua4LI2reOd/LvcHmgMQMZzfFF1cUgA13lFJjgrNKkZZ+JqeiPO6vp6ens+yYQ5FEu/26TawSpd5ruEv9RS/ntw9QVQSwECFAMUAAAACAAAACEAd3BbuAoBAACTAgAAEwAAAAAAAAAAAAAAgAEAAAAAW0NvbnRlbnRfVHlwZXNdLnhtbFBLAQIUAxQAAAAIAAAAIQANBhBWywAAAKwBAAALAAAAAAAAAAAAAACAATsBAABfcmVscy8ucmVsc1BLAQIUAxQAAAAIAAAAIQBEWzhA6wcAAJgoAAARAAAAAAAAAAAAAACAAS8CAAB3b3JkL2RvY3VtZW50LnhtbFBLAQIUAxQAAAAIAAAAIQCo08LQSgEAAAoFAAAPAAAAAAAAAAAAAACAAUkKAAB3b3JkL3N0eWxlcy54bWxQSwECFAMUAAAACAAAACEA9AeE4KUAAAALAQAAHAAAAAAAAAAAAAAAgAHACwAAd29yZC9fcmVscy9kb2N1bWVudC54bWwucmVsc1BLAQIUAxQAAAAIAAAAIQB+Ms7HHQEAAJsBAAARAAAAAAAAAAAAAACAAZ8MAABkb2NQcm9wcy9jb3JlLnhtbFBLBQYAAAAABgAGAH8BAADrDQAAAAA="
+}

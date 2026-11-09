@@ -8,6 +8,7 @@ import {
   evaluationApi,
   evaluationReportDocx,
   evaluationIndependentReportDocx,
+  evaluationIndependentRetestDocx,
 } from "@/core/evaluation/api";
 
 const mockedFetch = rs.mocked(fetcher);
@@ -197,6 +198,68 @@ it.each(["html", "oversize", "signature", "stream-error", "http-error"])(
     mockedFetch.mockResolvedValue(response);
     await expect(
       evaluationIndependentReportDocx("independent/export"),
+    ).rejects.toThrow();
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("independent retest Word uses its own pinned renderer and rejects the owner renderer", async () => {
+  const route =
+    "evaluation/projects/p/independent-retest-archives/a/exports/independent-retest-docx-v1?archive_hash=h";
+  mockedFetch.mockResolvedValue(
+    new Response(new Uint8Array([80, 75, 3, 4]), {
+      headers: {
+        "Content-Type": docxMime,
+        "X-DevPilot-Renderer": "independent-retest-docx-v1",
+      },
+    }),
+  );
+  expect((await evaluationIndependentRetestDocx(route)).size).toBe(4);
+  expect(mockedFetch.mock.calls[0]).toEqual([
+    "/backend/api/" + route,
+    { method: "GET", cache: "no-store" },
+  ]);
+  mockedFetch.mockResolvedValue(
+    new Response(new Uint8Array([80, 75, 3, 4]), {
+      headers: {
+        "Content-Type": docxMime,
+        "X-DevPilot-Renderer": "qa-docx-v1",
+      },
+    }),
+  );
+  await expect(evaluationIndependentRetestDocx(route)).rejects.toThrow(
+    "Invalid report export",
+  );
+  expect(mockedFetch).toHaveBeenCalledTimes(2);
+});
+it.each(["html", "oversize", "signature", "stream-error", "http-error"])(
+  "independent retest Word fails closed without retry: %s",
+  async (kind) => {
+    const headers = {
+      "Content-Type": docxMime,
+      "X-DevPilot-Renderer": "independent-retest-docx-v1",
+    };
+    let response: Response;
+    if (kind === "http-error") response = new Response("{}", { status: 503 });
+    else if (kind === "html")
+      response = new Response("<html>Login</html>", {
+        headers: { ...headers, "Content-Type": "text/html" },
+      });
+    else if (kind === "oversize")
+      response = new Response(new Uint8Array(524289), { headers });
+    else if (kind === "stream-error")
+      response = new Response(
+        new ReadableStream({
+          pull(controller) {
+            controller.error(new Error("stream interrupted"));
+          },
+        }),
+        { headers },
+      );
+    else response = new Response(new Uint8Array([1, 2, 3, 4]), { headers });
+    mockedFetch.mockResolvedValue(response);
+    await expect(
+      evaluationIndependentRetestDocx("independent/export"),
     ).rejects.toThrow();
     expect(mockedFetch).toHaveBeenCalledTimes(1);
   },
