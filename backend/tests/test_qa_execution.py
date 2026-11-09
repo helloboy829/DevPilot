@@ -388,6 +388,88 @@ async def test_worker_shutdown_drains_before_releasing_reservations(prepared, po
 
 
 @pytest.mark.asyncio
+async def test_worker_shutdown_drains_monitor_read_before_finish(prepared, policy, monkeypatch):
+    repo = repository(prepared, policy)
+    await repo.initialize()
+    row = await admit(repo, prepared)
+    read_entered, read_release = asyncio.Event(), asyncio.Event()
+    read_cancelled, read_drained = asyncio.Event(), asyncio.Event()
+    original_read, original_finish = repo.get_execution, repo.finish
+    reads = 0
+
+    async def delayed_read(*args):
+        nonlocal reads
+        result = await original_read(*args)
+        reads += 1
+        if reads == 1:
+            return result
+        read_entered.set()
+        try:
+            await read_release.wait()
+        except asyncio.CancelledError:
+            read_cancelled.set()
+            raise
+        read_drained.set()
+        return result
+
+    async def collect(*args):
+        await read_entered.wait()
+        await read_release.wait()
+        return AttemptObservation("output_collected", 200, 35, 1.0, "SYNTHETIC_ACTUAL")
+
+    async def finish(*args, **kwargs):
+        assert read_drained.is_set()
+        return await original_finish(*args, **kwargs)
+
+    monkeypatch.setattr(repo, "get_execution", delayed_read)
+    monkeypatch.setattr(repo, "finish", finish)
+    monkeypatch.setattr("app.evaluation.execution.collect_json_attempt", collect)
+    worker = asyncio.create_task(QAExecutionWorker(repo, repo.config_getter).run_once())
+    try:
+        await asyncio.wait_for(read_entered.wait(), 5)
+        worker.cancel()
+        await asyncio.sleep(0)
+        assert not worker.done() and not read_drained.is_set()
+    finally:
+        read_release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(worker, 5)
+    assert read_drained.is_set()
+    assert not read_cancelled.is_set()
+    state = await original_read("owner", prepared[2], row["id"])
+    assert state["state"] == "interrupted" and not state["reservation_held"]
+    assert not await repo.claim()
+
+
+@pytest.mark.asyncio
+async def test_database_drain_survives_repeated_cancellation_without_restarting():
+    from app.evaluation.execution import _drained_database
+
+    entered, release, drained = asyncio.Event(), asyncio.Event(), asyncio.Event()
+    operations = []
+
+    async def operation():
+        operations.append(asyncio.current_task())
+        entered.set()
+        await release.wait()
+        drained.set()
+
+    task = asyncio.create_task(_drained_database(operation()))
+    try:
+        await asyncio.wait_for(entered.wait(), 5)
+        for _ in range(3):
+            task.cancel()
+            await asyncio.sleep(0)
+            assert not task.done()
+            assert operations[0].cancelling() == 0
+    finally:
+        release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, 5)
+    assert drained.is_set() and len(operations) == 1
+
+
+@pytest.mark.asyncio
 async def test_shutdown_during_claim_drains_and_finishes_original_claim(prepared, policy, monkeypatch):
     repo = repository(prepared, policy)
     await repo.initialize()

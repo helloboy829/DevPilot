@@ -344,12 +344,12 @@ class _RunStopped(Exception):
     pass
 
 
-async def _drained_write(awaitable):
-    """Never cancel a database operation mid-commit/RETURNING cursor.
+async def _drained_database(awaitable):
+    """Drain database reads and writes before cancellation or finalization.
 
     Cancellation still prevents the caller's next send. First drain the private
-    transaction task, even if its acknowledgement is uncertain. In particular,
-    do not leave an aiosqlite cursor holding a pooled connection's write lock.
+    operation task, even if its acknowledgement is uncertain. A cancelled read
+    can also leave an aiosqlite cursor holding a pooled connection's lock.
     """
     task = asyncio.create_task(awaitable)
     try:
@@ -381,10 +381,10 @@ class QAExecutionWorker:
             claim = await self.repo.claim()
 
         try:
-            await _drained_write(claim_and_remember())
+            await _drained_database(claim_and_remember())
             if claim is None:
                 return False
-            prepared, run = await _drained_write(self.repo.load_claim(claim))
+            prepared, run = await _drained_database(self.repo.load_claim(claim))
             binding = QAJSONBinding.from_dict(prepared.plan["definition"]["binding"])
             ordinals = iter(range(1, run["request_count"] + 1))
             stopped = asyncio.Event()
@@ -401,7 +401,7 @@ class QAExecutionWorker:
                     if stopped.is_set():
                         raise _RunStopped
                     spec = await asyncio.to_thread(binding.render, prepared.request, prepared.inputs[(ordinal - 1) % len(prepared.inputs)])
-                    ticket = await _drained_write(self.repo.reserve_attempt(claim, ordinal, body_bytes=len(spec.body.encode("utf-8"))))
+                    ticket = await _drained_database(self.repo.reserve_attempt(claim, ordinal, body_bytes=len(spec.body.encode("utf-8"))))
                     remaining = min(run["timeout_ms"], run["deadline_ms"] - self.repo._time())
                     if remaining < 100 or stopped.is_set():
                         raise _RunStopped
@@ -411,14 +411,14 @@ class QAExecutionWorker:
                     # still drain; their unknown outcomes are never retried.
                     if observation.kind == "delivery_unknown":
                         stopped.set()
-                    await _drained_write(self.repo.record_attempt(claim.owner, claim.project_id, run["id"], ticket, observation))
+                    await _drained_database(self.repo.record_attempt(claim.owner, claim.project_id, run["id"], ticket, observation))
                     if observation.kind == "delivery_unknown":
                         raise _RunStopped
 
             async def monitor():
                 while True:
                     await asyncio.sleep(0.2)
-                    row = await self.repo.get_execution(claim.owner, claim.project_id, claim.execution_id)
+                    row = await _drained_database(self.repo.get_execution(claim.owner, claim.project_id, claim.execution_id))
                     if row["state"] != "running" or self.repo._time() >= row["deadline_ms"]:
                         raise _RunStopped
 
@@ -445,7 +445,7 @@ class QAExecutionWorker:
             if group is not None:
                 await asyncio.gather(group, return_exceptions=True)
             if claim is not None:
-                await _drained_write(self.repo.finish(claim, completed=completed))
+                await _drained_database(self.repo.finish(claim, completed=completed))
         return True
 
     async def serve(self):

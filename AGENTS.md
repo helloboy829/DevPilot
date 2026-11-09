@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## New-machine CI and database cancellation (2026-11-09)
+
+Treat deployment receipts from another computer as historical evidence, not this machine's runtime. Rebuild isolated dependencies from tracked source and lockfiles; never copy private configuration, databases or virtual environments. The QA Worker must drain monitor database reads as well as writes before finalization: cancelling an aiosqlite read can strand a pooled lock and block the final commit. Preserve cancellation, same-ID reconciliation and no-resend semantics; do not hide the failure with retries, longer timeouts, weaker assertions or execution enablement. See [execution](docs/DevPilot_Admitted_QA_Execution.md) and [current status](docs/DevPilot_Delivery_Status.md).
+
 ## Module delivery and GitHub CI discipline (2026-11-09)
 
 Finish a scoped module, run its regression tests and relevant full checks, then commit and push the verified changes to GitHub. Keep unrelated work, private configuration and local evidence out of the commit. Record the exact pushed SHA and its Actions runs; a successful push is not successful CI. Long-running Actions may be checked before the next module push, but inspect the previous results and fix attributable failures rather than carrying a known failure forward. Do not implicitly deploy, enable execution or call real models/targets.

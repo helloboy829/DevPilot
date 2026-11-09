@@ -80,6 +80,16 @@ The journal scope remains `dispatch_journal_only`; the separate admission row ha
 `admitted_qa_json`. Neither is a quality verdict. Extracted outputs remain encrypted
 and audited via `EvidenceRepository`; no arbitrary output-upload endpoint is added.
 
+## Monitor database cancellation / 监控数据库取消（2026-11-09）
+
+精确提交 `c7ddbdc1417a589bbb544effb2e65630601823e8` 的后端 Actions `42543077340` / job `128922108984` 在合成并发 2 的 API → Worker 回归失败：收尾抛出通用 `JournalWriteUnconfirmed`。新电脑的隔离 Linux 全量和定向复现了同一失败；临时 SQLAlchemy 观测进一步确认监控 SELECT 被取消，随后收尾 commit 报 SQLite `database is locked`。这不是仅凭换电脑推断的环境故障，也不是目标交付可重试的证明。
+
+Worker 现将监控读取与现有写入共同交给 `_drained_database`：取消仍阻止后续发送，但数据库私有任务先排空、会话先退出，再执行最终事务和配额释放。没有改变真实请求次数、授权、阈值、迁移、超时或未知写入对账规则；不增加重试，也不把 SQLite WAL 配置或测试串行化当作修复。
+
+新增事件屏障回归先证明旧代码在 monitor 尚未排空时就开始 finish，修复后要求原读取不被取消、收尾顺序正确、运行中断且不会再次 claim。另测重复取消不会重新启动或打断数据库私有任务。既有合成 API → Worker 全文件与并发 1/2 断言保留。具体最终验证记录见[当前交付矩阵](DevPilot_Delivery_Status.md)；本节不是新版本部署、真实模型/目标调用或正式验收。
+
+English: cancellation now drains monitor database reads as well as writes before finalization. The original task is never restarted; unknown outcomes still do not authorize a resend. Deterministic event-based cancellation tests accompany the unchanged synthetic API-to-Worker contract. No operator setting, runtime dependency, migration or deployment is added.
+
 ## Migration and exclusions
 
 `eval_0007` only appends the guard and admission tables/index. Do not edit previous

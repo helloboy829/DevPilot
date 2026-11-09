@@ -2,6 +2,24 @@
 
 > 核对日期：2026-11-09。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-09：新电脑 CI 排查与 Worker 取消修复
+
+本地与实际远端 `main` 已核对为 `c7ddbdc1417a589bbb544effb2e65630601823e8`。该 SHA 的六项 Actions 不是全绿：Frontend Unit Tests `42543077302`、Replay E2E `42543077373`、Lint Check `42543077333`、E2E Tests `42543077345`、Backend Blocking IO `42543077363` 成功；Unit Tests `42543077340` 失败，其默认安装收集 job 成功，后端 job `128922108984` 为 `1 failed / 12,291 passed / 18 skipped / 11 deselected`。原始 job 日志已下载并保留，失败是合成并发 Worker 收尾 `JournalWriteUnconfirmed`，不能归咎于换电脑。
+
+新电脑初始仅见四个停止的旧 `deer-flow-dev` 容器；前电脑 `0fd689...` / `eval_0009` 的部署收据仍是历史验证，不宣称此机已有同一部署。未启动旧服务或读取其配置、账号库和日志。宿主默认 Python 3.11、不可执行旧 venv、pnpm 11 与 PowerShell 脚本限制均单独记录，不更改全局策略或降低仓库版本要求。
+
+本轮独立 Linux Python 3.12、冻结依赖、PostgreSQL 17/Redis 7、internal 网络复现失败，临时观测确认 monitor SELECT 被取消后留住 SQLite 锁，最终 commit 失败。修复仅将 monitor DB 读取纳入现有排空保护；取消、无重试、未知结果不重发和配额保留语义不变，无迁移、依赖、运营开关或部署改动。
+
+- 最终标准 `make test`：**12,294 passed / 18 skipped / 11 deselected / 40 warnings，596.69s**，exit=0；其中包含新事件屏障取消和重复取消回归。纯领域 evaluation/toolkit 由标准入口分别 **15 / 58 passed**，不与 pytest 数相加。
+- 执行、真实 Worker 合成链及附件定向：**63 passed，22.38s**，与全量有重叠，不相加。旧 monitor 的确定性红测试先因提前 finish 失败，修复后通过，不靠增加超时、修改 WAL 或串行化请求。
+- 原合成工作流全文件连续三轮各 **8 passed**；独立 Blocking IO **72 passed，6.55s**。这是重复稳定性和独立门禁验证，不与全量叠加计数。
+- Ruff 全目录 check/format **1,237 文件**通过；整个 frontend Prettier 和本轮 Markdown 指南检查通过。前端运行源码没有改动，本轮不冒称重跑前端单测、浏览器或构建；Windows 全套也未重跑。
+- 初始 slim 容器缺系统 MIME 数据库/Node，首次完整回归为 **3 failed / 12,282 passed / 25 skipped / 11 deselected**；补齐 CI 工具后原 XHTML 附件测试通过，业务 MIME 代码未改。原失败、收集命令引号失败及诊断日志均保留在 ignored 证据目录。
+
+源码收尾核验 **1,360 个**受跟踪非 Markdown 运行/测试文件与实际回归容器逐项 SHA-256 一致，**15 份**日志导出并验 hash。确认测试进程已全部退出后，仅停止本轮三个 CI 容器、移除从未启动的精确 Node 工具来源容器及本轮 internal 网络；四个旧业务容器保持原停止状态，未删卷、镜像或共享缓存。测试证据/资源 ID 只在 ignored 目录保存，不计为部署证据。
+
+当前修复完成后必须按新推送 SHA 单独核对 Actions；本节本地通过不是新 SHA 的远端成功。候选 head 仍为 `eval_0012`，没有业务数据迁移、真实模型/目标调用、正式批准或用户验收。[复现环境](DevPilot_CI修复与隔离开发环境.md)与[执行合同](DevPilot_Admitted_QA_Execution.md)记录细节。
+
 ## 1. 版本与运行边界
 
 - 本轮起点：`main`，源码提交 `d2a58a390971`。后续工作区修改不属于该提交的 CI 证据。

@@ -2,6 +2,18 @@
 
 > 2026-11-07。仅记录本轮已执行的工程验证；不等于生产部署验收、真实组件效果验收或安全整改全部完成。不会改 Conda base，也不操作现有业务容器。
 
+## 2026-11-09：新电脑的隔离复现基线
+
+本轮在另一台开发电脑核对远端 `main` 与本地同为 `c7ddbdc1417a589bbb544effb2e65630601823e8`。该 SHA 触发的六项 Actions 中五项成功，后端 Unit Tests `42543077340` / job `128922108984` 失败；default-install-collection 成功。下载原 job 日志确认仅合成 API → Worker 并发 2 场景失败（`1 failed / 12,291 passed / 18 skipped / 11 deselected`），不能把其他五项或前电脑的全量通过当作它的成功证据。
+
+- 宿主默认 Python 为 3.11.8，低于后端要求的 3.12；旧 `.venv` 不可执行，不复用或修改全局 Python/执行策略。Node 22.21.1 已有，宿主 pnpm 11.1.1 不等于项目固定的 10.26.2；PowerShell `.ps1` 限制不要求全局解禁，可使用既有 `scripts/pnpm.py` / `.cmd`。本轮前端格式检查使用项目现有 Prettier，并从 frontend 工作目录解析插件。
+- 本机 Docker context 为 `desktop-linux`，开始只有四个停止的旧 `deer-flow-dev` 容器；这是新电脑的观察，不证明前电脑已核验的 `0fd689...` / `eval_0009` 服务当前异常或仍在本机运行。没有启动旧服务、读取其私有环境/日志/数据库或执行部署。
+- 仅 `git archive HEAD` 加显式列出的源码改动进入新建 Python 3.12.13 容器；以 `uv sync --frozen --group dev --extra postgres` 安装锁定依赖。使用本轮独占 PostgreSQL 17、Redis 7 和 internal 网络，无业务挂载、Docker socket 或宿主端口。依赖安装完成后移除 Python 容器的普通 bridge，测试阶段不访问外网，live/Docker 集成开关保持关闭。
+- slim Python 初始缺少系统 MIME 数据库及 Node，首次标准完整回归记录为 `3 failed / 12,282 passed / 25 skipped / 11 deselected`：两个旧 XHTML 附件断言及与远端相同的并发 Worker 失败。补齐 `media-types`、从未启动的独占工具来源容器复制 Node 22.23.4 后，XHTML 原测试通过；没有为此改动业务 MIME 策略、项目依赖或跳过断言。该环境差异和首次失败保留，不冒称初始全量已通过。
+- 临时 SQLAlchemy 观测确认：取消 monitor 的 SELECT 后，下一收尾 commit 报 SQLite `database is locked`。Worker 现排空监控读取与写入，再释放资源；没有增加超时、重试、串行化执行、修改 WAL 或改变未知交付语义。确定性红测试证明旧代码提前 finish；修复后定向执行、合成工作流及附件回归 `63 passed`，最终全量结果另记[交付矩阵](DevPilot_Delivery_Status.md)。
+
+证据、资源 ID、源码归档与原始日志只保留在 ignored `.deer-flow/ci/20261109-new-machine/`，不提交凭据或本机快照。GitHub CLI 受失效的进程 token 覆盖，但既有 Git Credential Manager 登录可用于同仓库 API；不显示/保存 token，也不更改全局登录。测试结束应先确认所有测试进程退出、导出并核验日志，再仅停止本轮启动的三个 CI 容器并精确清理本轮工具来源和临时快照；保留旧业务容器、数据卷和可复用测试依赖。没有将此环境搭建当作部署或用户验收。
+
 ## 1. 真实失败原因
 
 核查 GitHub 仓库 helloboy829/DevPilot 两次提交的实际 job 日志，而不是根据邮件猜测：b7f930a4669713125c116350af331679d7577bfa、5c43303d383097fb4fa3cbd74905d4d002d0aa34。

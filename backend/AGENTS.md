@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## QA Worker monitor cancellation (2026-11-09)
+
+`app.evaluation.execution._drained_database` protects both monitor reads and writes. Stop/cancel the outer task without cancelling its in-flight DB operation; drain that operation and close its session before finalization or quota release. An interrupted aiosqlite read can otherwise strand a pooled connection lock and fail the final commit. Keep generic public errors, no transaction/request retries and no unknown-outcome resends. Deterministic regressions in `tests/test_qa_execution.py` cover monitor cancellation and repeated cancellation; the actual API-to-Worker regression still covers concurrency 1/2. New-machine verification uses an isolated Linux source snapshot, never existing `.venv`, configuration or business data.
+
 ## Independent historical report/retest archives candidate (2026-11-09)
 
 `app.evaluation.qa_independent_archives` explicitly binds archived assessment IDs/revisions/hashes in separate report/retest namespaces and fixed bilingual templates. `eval_0012` adds two tables/indexes; deployed head remains `eval_0009`. Historical complete revisions remain selectable after task reopen; no latest-state pointer, owner-vote substitution, sensitive evidence reads, execution or approval. Keep ALL frozen samples, strict benchmark/budget/criteria equality, off-loop checks and final project → ordered-run locks with atomic archive/audits. Unknown writes only GET the same ID. Legacy archives/templates/hashes are unchanged. The separate frontend now provides explicit historical source selection. Independent Word/PDF and formal approval remain unfinished. [Contract and gates](../docs/DevPilot_Independent_Report_Retest_Archives.md).
