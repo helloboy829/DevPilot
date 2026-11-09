@@ -159,7 +159,7 @@ class EvidenceRepository(DispatchJournalRepository):
             row.update(has_output_evidence=row["ordinal"] in outputs, review_revision=reviewed["revision"] if reviewed else 0, review_decision=reviewed["decision"] if reviewed else None)
         return {"scope": "human_review_only", "run": run, "cases": cases, "counts": counts, "offset": offset, "limit": limit}
 
-    async def _snapshot(self, session, owner, project_id, run_id, ordinal, *, run=None):
+    async def _snapshot(self, session, owner, project_id, run_id, ordinal, *, run=None, include_owner_reviews=True):
         run = run if run is not None else await self._journal(session, owner, project_id, run_id)
         plan = await self._plan(session, owner, project_id, run["plan_id"])
         dataset = await self._dataset(session, owner, project_id, plan["dataset_id"])
@@ -182,7 +182,11 @@ class EvidenceRepository(DispatchJournalRepository):
         if component is None:
             raise Conflict
         evidence = (await session.execute(select(t.output_evidence).where(t.output_evidence.c.run_id == run_id, t.output_evidence.c.ordinal == ordinal))).mappings().first()
-        reviews = [dict(row) for row in (await session.execute(select(t.case_reviews).where(t.case_reviews.c.run_id == run_id, t.case_reviews.c.ordinal == ordinal).order_by(t.case_reviews.c.revision).limit(101))).mappings()]
+        reviews = (
+            [dict(row) for row in (await session.execute(select(t.case_reviews).where(t.case_reviews.c.run_id == run_id, t.case_reviews.c.ordinal == ordinal).order_by(t.case_reviews.c.revision).limit(101))).mappings()]
+            if include_owner_reviews
+            else []
+        )
         # Exclude mutable run lifecycle/counters: concurrent *other* attempts may finish.
         return {
             "run": {key: run[key] for key in ("id", "project_id", "plan_id", "plan_hash", "request_count", "max_response_bytes")},

@@ -33,7 +33,7 @@ async def prepared(tmp_path, request, monkeypatch):
 
     async with engine.begin() as connection:
         await connection.run_sync(lambda conn: ComponentRow.__table__.create(conn))
-    if getattr(request, "param", None) in {"eval_0004", "eval_0005", "eval_0006", "eval_0007", "eval_0008"}:
+    if getattr(request, "param", None) in {"eval_0004", "eval_0005", "eval_0006", "eval_0007", "eval_0008", "eval_0009", "eval_0010", "eval_0011"}:
         from app.evaluation import schema
 
         original = schema.command.upgrade
@@ -336,7 +336,7 @@ async def test_journal_survives_repeat_migration(prepared):
     assert (await repo.list_dispatches("owner", project, run["id"]))[0]["state"] == "dispatched"
     await repo.record_observation("owner", project, run["id"], ticket, observed())
     async with engine.connect() as conn:
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0009"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0012"
 
 
 @pytest.mark.asyncio
@@ -529,7 +529,7 @@ async def test_deployed_eval_0004_upgrade_preserves_old_rows_and_harness_ledger(
     async with engine.connect() as conn:
         for name in preserved:
             assert (await conn.execute(text('SELECT * FROM "' + name + '"'))).all() == before[name]
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0009"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0012"
         assert not (await conn.execute(text("PRAGMA foreign_key_check"))).all()
     run = await record(prepared)
     assert len(await repo.list_dispatches("owner", project, run["id"])) == 2

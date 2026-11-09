@@ -1,5 +1,43 @@
 # AGENTS.md
 
+## Module delivery and GitHub CI discipline (2026-11-09)
+
+Finish a scoped module, run its regression tests and relevant full checks, then commit and push the verified changes to GitHub. Keep unrelated work, private configuration and local evidence out of the commit. Record the exact pushed SHA and its Actions runs; a successful push is not successful CI. Long-running Actions may be checked before the next module push, but inspect the previous results and fix attributable failures rather than carrying a known failure forward. Do not implicitly deploy, enable execution or call real models/targets.
+
+## Independent historical archive workspace candidate (2026-11-09)
+
+`IndependentArchivePanel` adds separate report/retest sections without changing legacy owner-review routes. Explicitly load and open historical assessment IDs/revisions; never default to latest, substitute owner votes or read sensitive evidence. Only complete historical sources may be staged. Keep strict receipt/source/parent and benchmark-population coherence checks, ALL frozen denominators, page-memory pending IDs, write locks and late-response fences. Unknown PUT outcomes, including 404, reconcile only by same-ID GET; never resend. Stored Markdown is displayed literally. Independent Word/PDF and formal approval remain unfinished. Candidate head `eval_0012` is not deployed. [Contract and verification](docs/DevPilot_Independent_Report_Retest_Archives.md).
+
+## Independent historical report/retest archives candidate (2026-11-09)
+
+`app.evaluation.qa_independent_archives` explicitly binds archived assessment IDs/revisions/hashes in separate report/retest namespaces and fixed bilingual templates. `eval_0012` adds two tables/indexes; deployed head remains `eval_0009`. Historical complete revisions remain selectable after task reopen; no latest-state pointer, owner-vote substitution, sensitive evidence reads, execution or approval. Keep ALL frozen samples, strict benchmark/budget/criteria equality, off-loop checks and final project → ordered-run locks with atomic archive/audits. Unknown writes only GET the same ID. Legacy archives/templates/hashes are unchanged. The separate workspace now provides explicit historical source selection; independent Word/PDF and formal approval remain unfinished. [Contract and gates](docs/DevPilot_Independent_Report_Retest_Archives.md).
+
+## Independent assessment revisions candidate (2026-11-09)
+
+`app.evaluation.qa_assessments` verifies ALL frozen effectiveness samples against independent case tasks, not owner self-review. Off-loop verification precedes whole-snapshot run-lock rechecks and atomic immutable assessment/audit append with revision CAS. Missing/cancelled/conflicting/uncertain or technical evidence blocks completeness; frozen v2 criteria use integer comparisons, never approval. Candidate App head `eval_0011` adds one table/index; deployment remains `eval_0009`. Post-collection assessment is not retroactive pre-run admission. The datasets workspace now adds explicit independent preview/history/archive UI with page-memory pending IDs and same-ID GET-only reconciliation. No legacy report/retest switch, formal approval or target/model calls. [Contract and tests](docs/DevPilot_Independent_Assessments.md).
+
+## Independent case review workspace candidate (2026-11-09)
+
+`/workspace/reviews` and the datasets inline assignment/detail reuse the same human-only task APIs: explicit metadata loads/claims/case opens, two blind reviewers, a separate arbitrator and immutable owner round results. Three exact account UUIDs and separate sharing/creation consent are required; no account directory or project membership grant. Keep page-memory pending creation IDs across project switches, same-ID GET-only reconciliation, write locks, unmount fences and post-await lease checks; no polling, automatic retry, persistent sensitive caching or target/model calls. Reasons/edits revoke consent, missing evidence cannot PASS, expired leases close evidence without renewal. This slice remains undeployed; the later assessment and historical report/retest slices extend it without adding formal approval. [Scope and verification](docs/DevPilot_Independent_Case_Review.md).
+
+## Independent case review backend candidate (2026-11-09)
+
+`app.evaluation.review_tasks` and human-only task APIs grant one frozen case to two distinct blind reviewers and a third arbitrator, never the owner or general project membership. Claims have bounded leases; viewed revision, CAS and ordered run-lock rechecks fence changes. Notes/reopen reasons use domain-separated encrypted envelopes; decisions/resolutions/rounds/audit append atomically. Missing/technical evidence cannot PASS. Unknown writes reconcile the same task ID by GET, never auto-resend. Candidate `eval_0010` adds five tables/two indexes; deployed `eval_0009` is unchanged. The workspace UI described above consumes these APIs; no assessment/summary/report integration, formal approval, model/target calls or automatic deployment. [Scope and tests](docs/DevPilot_Independent_Case_Review.md).
+
+## Current delivery and test-resource lifecycle (2026-11-09)
+
+[Current matrix](docs/DevPilot_Delivery_Status.md) separates implemented code, deployed SHA, verification and remaining work; older slice notes are historical, not a claim that later Workers/reports/retests are missing. Never equate the bounded QA chain with formal independent approval or a completed platform.
+
+Record which isolated CI containers a session starts and stop those after all test processes finish; do not stop pre-existing services or active tests. Retire obsolete DevPilot-only verification containers only after checking purpose/state/data and retaining replacement verification. Use exact container IDs, no force or volume removal. Then check image references across **all** containers before exact project-only image removal. Keep useful stopped dependency caches, current deployment and required rollback resources; no global prune/build-cache cleanup or unrelated-project changes. Images consume disk; running containers consume RAM. `docker system df` reclaimable percentages and missing tags never authorize deletion; verify exact ownership and all container references. See [operations](docs/DevPilot_Docker_Diagnostics.md).
+
+## Synthetic API-to-Worker QA regression (2026-11-09)
+
+`backend/tests/test_qa_workflow_api.py` exercises HTTP-created frozen v2 plans through the real Worker, durable dispatch, encrypted evidence, human review, verified criteria, immutable reports/Word and same-benchmark retests. Migrated temporary SQLite and synthetic auth/data/keys are explicit; DNS/wire are substituted and socket sends are fail-closed. Concurrency 1/2 and six transport/output failures cover dispatch-before-I/O, frozen request versions, no retries, all-sample denominators and immutable history. This is offline regression, not deployed/browser/real-auth acceptance, independent approval or production enablement. No runtime feature, dependency or migration is added.
+
+## PostgreSQL TLS URL compatibility (2026-11-09)
+
+Only `DatabaseConfig.app_sqlalchemy_url` translates a single explicit libpq `sslmode` to asyncpg's `ssl`, preserving the mode, encoded credentials and other query values. The original DSN and synchronous psycopg path are unchanged. Duplicate/invalid modes or simultaneous `ssl`/`sslmode` fail closed with a generic error; never drop TLS policy or default to disabled TLS. Regression: `backend/tests/test_postgres_url_sslmode.py`; dedicated PostgreSQL schema checks use an owned temporary test database. No dependency, migration, production configuration, deployment or target/model calls.
+
 ## Static-scan failures and deterministic regressions (2026-11-08)
 
 With skill scanning enabled, `enforce_static_scan` rejects reported `scanner_errors` with a generic `StaticScannerError`; critical findings keep precedence and their existing details, and the explicit operator switch remains unchanged. An incomplete scan is not a clean scan. The native scanner tests build deep ASTs iteratively to exercise the analyzer independently of CPython parser limits, while separate injected parser/read failures prove rejection. Run ordering tests use distinct frozen timestamps; the equal-timestamp insertion-order contract is unchanged. Tests: `backend/tests/test_skillscan_native.py`, `backend/tests/test_run_manager.py` plus existing installer/router/tool rejection tests. No model/target calls, migration or Docker changes.
@@ -9,6 +47,8 @@ With skill scanning enabled, `enforce_static_scan` rejects reported `scanner_err
 `qa-json-plan.v2` binds strict plan-scoped basis-point criteria to the existing definition hash. v1 serialization/hashes remain unchanged; no migration. Verified summaries use ALL frozen samples and integer comparison; incomplete/uncertain evidence blocks even zero thresholds, and `met` is never approval. Template 1.1.0 adds criteria; 1.0.0/historical archives remain immutable, and v2 sources cannot silently use old layouts. Retests require identical schema/criteria. No additional model/target calls or auto-enabled execution. [Scope, contracts and exclusions](docs/DevPilot_Frozen_Effectiveness_Criteria.md).
 
 ## Local Docker image hygiene
+
+After each test session, stop only the CI containers started by that session once all tests and evidence export are complete. Precisely remove session-owned temporary snapshots and helpers after verifying evidence copies; keep reusable dependency caches, business services, volumes and unrelated resources. Audit project image references against ALL containers before deletion. Running containers use RAM; image/snapshot cleanup concerns disk and does not establish host memory or VHDX reclamation. No unattended cleanup daemon or global prune.
 
 After building and independently verifying a replacement, remove obsolete **DevPilot-only** images that no container (including stopped containers) references. Use exact image references, no force, global prune, volume deletion or unrelated-project cleanup. Keep the current deployment and pre-upgrade rollback image until verification succeeds; do not build at service startup. Dangling images require proven build provenance; absence of a tag alone is not ownership. Image deletion may share layers and does not prove host VHDX compaction. [Operations](docs/DevPilot_Docker_Diagnostics.md#镜像清理与空间维护)。
 

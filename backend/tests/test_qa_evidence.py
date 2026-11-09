@@ -356,7 +356,7 @@ async def test_additive_migration_matches_metadata_and_preserves_harness(capture
         for table in (t.output_evidence, t.case_reviews):
             columns = await conn.run_sync(lambda c: inspect(c).get_columns(table.name))
             assert {row["name"] for row in columns} == set(table.c.keys())
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0009"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0012"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "synthetic_harness"
     assert (await repo.open_case("owner", project, run["id"], 1))["output"] == "SYNTHETIC_OUTPUT"
 

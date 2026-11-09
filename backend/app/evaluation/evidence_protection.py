@@ -59,6 +59,28 @@ class EvidenceProtection:
                 or len(payload["case_hash"]) != 64
             ):
                 raise ValueError
+        elif kind in {"task_decision", "task_action"}:
+            common = {"task_id", "round", "actor", "subject_hash", "created_at_ms"}
+            fields = {"role", "decision", "note"} if kind == "task_decision" else {"action", "reason"}
+            text = "note" if kind == "task_decision" else "reason"
+            if (
+                type(payload) is not dict
+                or set(payload) != common | fields
+                or type(payload["round"]) is not int
+                or not 1 <= payload["round"] <= 10
+                or type(payload["created_at_ms"]) is not int
+                or payload["created_at_ms"] <= 0
+                or any(type(payload[n]) is not str or not payload[n].strip() for n in ("task_id", "actor", "subject_hash", text))
+                or len(payload["task_id"]) != 32
+                or len(payload["actor"]) > 64
+                or len(payload["subject_hash"]) != 64
+                or len(payload[text]) > 2000
+            ):
+                raise ValueError
+            if kind == "task_decision" and (payload["role"] not in {"reviewer_1", "reviewer_2", "arbitrator"} or payload["decision"] not in {"pass", "fail", "uncertain"}):
+                raise ValueError
+            if kind == "task_action" and payload["action"] != "reopened":
+                raise ValueError
         else:
             raise ValueError
         return payload

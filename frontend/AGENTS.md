@@ -1,5 +1,21 @@
 # AGENTS.md
 
+## Independent historical archive workspace candidate (2026-11-09)
+
+`IndependentArchivePanel` on reports/retests explicitly loads immutable assessment history and requires a selected historical revision, separate source staging and write consent. Keep independent namespaces/templates separate from legacy owner reports. Receipt checks bind exact sources, report parent/root/revision and retest ALL-sample counts/criteria; do not implement a browser threshold engine. Page-memory pending IDs survive project/locale switches, late responses are fenced and unknown writes only GET the same ID, including 404. Open stored Markdown as literal text and export only explicit MD/JSON; do not reuse the legacy Word route. No sensitive Q/A/gold/current-task reads or execution calls. Candidate `eval_0012` remains undeployed. [Contract and gates](../docs/DevPilot_Independent_Report_Retest_Archives.md).
+
+## Independent all-sample assessment UI candidate (2026-11-09)
+
+`IndependentAssessmentPanel` in `/workspace/datasets` explicitly reads independent preview/history and appends immutable assessment revisions using viewed hash + revision CAS and separate consent. Keep strict scoped DTO validation, all frozen denominators, no client threshold engine, synchronous page-memory pending IDs, write locks and late-response fences. Unknown writes reconcile only by same-ID GET, including 404; never resend or generate a replacement ID. History opens pinned archives without recalculating current review. Provisional archives are not approval. Candidate `eval_0011` remains undeployed; legacy report/retest binding and formal approval remain unfinished. [Contract and verification](../docs/DevPilot_Independent_Assessments.md).
+
+## Independent case review workspace candidate (2026-11-09)
+
+`/workspace/reviews` and the datasets inline assignment/detail reuse the same human-only task APIs: explicit metadata loads/claims/case opens, two blind reviewers, a separate arbitrator and immutable owner round results. Three exact account UUIDs and separate sharing/creation consent are required; no account directory or project membership grant. Keep page-memory pending creation IDs across project switches, same-ID GET-only reconciliation, write locks, unmount fences and post-await lease checks; no polling, automatic retry, persistent sensitive caching or target/model calls. Reasons/edits revoke consent, missing evidence cannot PASS, expired leases close evidence without renewal. Candidate `eval_0010` remains undeployed; assessment/summary/report integration and formal approval are unfinished. [Scope and verification](../docs/DevPilot_Independent_Case_Review.md).
+
+## Current status versus historical slices (2026-11-09)
+
+Use the [current delivery matrix](../docs/DevPilot_Delivery_Status.md) to distinguish implemented code, verified deployment and unfinished work. Earlier slice notes below preserve their original boundaries; they do not override later admitted QA execution, evidence, report archives or retesting. Independent approval and the complete platform are still unfinished.
+
 ## Frozen pre-run effectiveness criteria (2026-11-08)
 
 `qa-json-plan.v2` binds strict plan-scoped basis-point criteria to the existing definition hash. v1 serialization/hashes remain unchanged; no migration. Verified summaries use ALL frozen samples and integer comparison; incomplete/uncertain evidence blocks even zero thresholds, and `met` is never approval. Template 1.1.0 adds criteria; 1.0.0/historical archives remain immutable, and v2 sources cannot silently use old layouts. Retests require identical schema/criteria. No additional model/target calls or auto-enabled execution. [Scope, contracts and exclusions](../docs/DevPilot_Frozen_Effectiveness_Criteria.md).

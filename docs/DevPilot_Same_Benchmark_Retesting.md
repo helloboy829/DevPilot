@@ -53,3 +53,7 @@ API：`GET /api/evaluation/projects/{project_id}/retest-archives`（最近 100 �
 The retesting workspace archives one immutable comparison per pair of fully human-reviewed QA effectiveness runs. It enforces the same owner/project/component, frozen dataset, mapping, policy and execution budgets; a distinct declared plan version; and retest start after baseline completion. Requests may change, but supplier version identity is not independently attested. Server-derived per-sample transitions and fixed-denominator human pass-rate deltas never imply acceptance.
 
 Only authenticated project owners with read/review access may read; writes also require write access and explicit human confirmation. Crypto validation runs off-loop; ordered final locks reject changed snapshots. Both run audit entries and the append are atomic. Unknown writes reconcile the same ID by GET only; never automatically resend or mint a replacement ID. History survives later reviews without copying raw Q/A into comparison metadata. On-demand paired evidence is separately authorized and shows frozen versus current revision boundaries. Additive `eval_0009` preserves prior data and the Harness ledger. Synthetic tests do not establish live model/target validation or platform completion.
+
+## 2026-11-09：独立历史来源档案后端/API 候选
+
+后续 [独立评估报告/复测档案](DevPilot_Independent_Report_Retest_Archives.md) 在独立命名空间绑定明确 assessment ID、修订和 hash，追加候选迁移 `eval_0012`，不切换本文既有 owner 自复核路径、历史模板或导出。完整历史修订可以明确选择，不追随当前任务；provisional 不可作完整来源。独立选择 UI/Word、正式批准、远端 CI 与备份部署仍待完成；运行部署仍为 `eval_0009`。此前章节保留原切片边界。

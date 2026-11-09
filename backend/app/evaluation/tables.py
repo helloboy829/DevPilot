@@ -364,3 +364,148 @@ retest_archives = Table(
     CheckConstraint("baseline_run_id <> retest_run_id AND created_at_ms > 0", name="ck_evaluation_retest_bounds"),
 )
 Index("ix_evaluation_retest_project_time", retest_archives.c.project_id, retest_archives.c.created_at_ms)
+
+# Explicitly granted independent human review. Never replaces owner decisions or approval.
+review_tasks = Table(
+    "evaluation_review_tasks",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("ordinal", Integer, nullable=False),
+    Column("case_hash", String(64), nullable=False),
+    Column("subject_hash", String(64), nullable=False),
+    Column("definition", JSON, nullable=False),
+    Column("round", Integer, nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("status", String(16), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    ForeignKeyConstraint(["run_id", "ordinal"], ["evaluation_dispatches.run_id", "evaluation_dispatches.ordinal"]),
+    CheckConstraint("ordinal BETWEEN 1 AND 10000 AND round BETWEEN 1 AND 10 AND revision BETWEEN 1 AND 10000 AND created_at_ms > 0", name="ck_evaluation_task_bounds"),
+    CheckConstraint("status IN ('queued','in_review','escalated','resolved','cancelled')", name="ck_evaluation_task_state"),
+)
+review_task_assignments = Table(
+    "evaluation_review_task_assignments",
+    metadata,
+    Column("task_id", String(32), ForeignKey("evaluation_review_tasks.id"), primary_key=True),
+    Column("round", Integer, primary_key=True),
+    Column("role", String(16), primary_key=True),
+    Column("actor_id", String(64), nullable=False),
+    Column("status", String(16), nullable=False),
+    Column("lease_until_ms", BigInteger, nullable=True),
+    Column("viewed_revision", Integer, nullable=True),
+    UniqueConstraint("task_id", "round", "actor_id", name="uq_evaluation_task_actor"),
+    CheckConstraint("round BETWEEN 1 AND 10 AND role IN ('reviewer_1','reviewer_2','arbitrator')", name="ck_evaluation_assignment_role"),
+    CheckConstraint("status IN ('offered','active','submitted','released')", name="ck_evaluation_assignment_status"),
+)
+review_task_decisions = Table(
+    "evaluation_review_task_decisions",
+    metadata,
+    Column("task_id", String(32), primary_key=True),
+    Column("round", Integer, primary_key=True),
+    Column("role", String(16), primary_key=True),
+    Column("actor_id", String(64), nullable=False),
+    Column("decision", String(16), nullable=False),
+    Column("encrypted_payload", Text, nullable=False),
+    Column("protected_hash", String(64), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["task_id", "round", "role"], ["evaluation_review_task_assignments.task_id", "evaluation_review_task_assignments.round", "evaluation_review_task_assignments.role"]),
+    CheckConstraint("decision IN ('pass','fail','uncertain') AND created_at_ms > 0", name="ck_evaluation_task_decision"),
+)
+review_task_resolutions = Table(
+    "evaluation_review_task_resolutions",
+    metadata,
+    Column("task_id", String(32), ForeignKey("evaluation_review_tasks.id"), primary_key=True),
+    Column("round", Integer, primary_key=True),
+    Column("revision", Integer, primary_key=True),
+    Column("document", JSON, nullable=False),
+    Column("resolution_hash", String(64), nullable=False),
+    CheckConstraint("round BETWEEN 1 AND 10 AND revision BETWEEN 1 AND 2", name="ck_evaluation_resolution_bounds"),
+)
+review_task_audit = Table(
+    "evaluation_review_task_audit",
+    metadata,
+    Column("task_id", String(32), ForeignKey("evaluation_review_tasks.id"), primary_key=True),
+    Column("sequence", Integer, primary_key=True),
+    Column("round", Integer, nullable=False),
+    Column("actor", String(64), nullable=False),
+    Column("action", String(32), nullable=False),
+    Column("subject_hash", String(64), nullable=False),
+    Column("at_ms", BigInteger, nullable=False),
+    Column("encrypted_reason", Text, nullable=True),
+    Column("protected_hash", String(64), nullable=True),
+)
+Index("ix_evaluation_review_task_project", review_tasks.c.project_id, review_tasks.c.created_at_ms)
+Index("ix_evaluation_review_assignment_actor", review_task_assignments.c.actor_id, review_task_assignments.c.task_id)
+
+# Append-only post-collection independent assessments; no publication/approval pointer.
+run_assessments = Table(
+    "evaluation_run_assessments",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("request_hash", String(64), nullable=False),
+    Column("summary_hash", String(64), nullable=False),
+    Column("document", JSON, nullable=False),
+    Column("assessment_hash", String(64), nullable=False),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    UniqueConstraint("run_id", "revision", name="uq_evaluation_assessment_revision"),
+    CheckConstraint("revision BETWEEN 1 AND 1000 AND created_at_ms > 0", name="ck_evaluation_assessment_bounds"),
+)
+Index("ix_evaluation_assessment_run_revision", run_assessments.c.run_id, run_assessments.c.revision)
+
+# Explicit independent historical sources; legacy owner archives stay separate.
+independent_report_archives = Table(
+    "evaluation_independent_report_archives",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", ForeignKey("evaluation_projects.id"), nullable=False),
+    Column("root_id", String(32), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("supersedes_id", String(32), nullable=True),
+    Column("title", String(160), nullable=False),
+    Column("template_id", String(64), nullable=False),
+    Column("template_version", String(32), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("request_hash", String(64), nullable=False),
+    Column("archive_hash", String(64), nullable=False),
+    Column("document", JSON, nullable=False),
+    UniqueConstraint("project_id", "id", name="uq_evaluation_ind_report_project_id"),
+    UniqueConstraint("project_id", "supersedes_id", name="uq_evaluation_ind_report_successor"),
+    UniqueConstraint("root_id", "revision", name="uq_evaluation_ind_report_revision"),
+    ForeignKeyConstraint(["project_id", "supersedes_id"], ["evaluation_independent_report_archives.project_id", "evaluation_independent_report_archives.id"]),
+    CheckConstraint("revision BETWEEN 1 AND 1000 AND created_at_ms > 0", name="ck_evaluation_ind_report_bounds"),
+)
+Index("ix_evaluation_ind_report_project_time", independent_report_archives.c.project_id, independent_report_archives.c.created_at_ms)
+
+independent_retest_archives = Table(
+    "evaluation_independent_retest_archives",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", String(64), nullable=False),
+    Column("component_id", String(64), nullable=False),
+    Column("baseline_run_id", String(64), nullable=False),
+    Column("retest_run_id", String(64), nullable=False),
+    Column("baseline_assessment_id", String(32), ForeignKey("evaluation_run_assessments.id"), nullable=False),
+    Column("retest_assessment_id", String(32), ForeignKey("evaluation_run_assessments.id"), nullable=False),
+    Column("baseline_label", String(80), nullable=False),
+    Column("retest_label", String(80), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("request_hash", String(64), nullable=False),
+    Column("archive_hash", String(64), nullable=False),
+    Column("document", JSON, nullable=False),
+    ForeignKeyConstraint(["project_id", "component_id"], ["evaluation_project_components.project_id", "evaluation_project_components.id"]),
+    ForeignKeyConstraint(["project_id", "baseline_run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    ForeignKeyConstraint(["project_id", "retest_run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    UniqueConstraint("project_id", "baseline_assessment_id", "retest_assessment_id", name="uq_evaluation_ind_retest_pair"),
+    CheckConstraint("baseline_run_id <> retest_run_id AND created_at_ms > 0", name="ck_evaluation_ind_retest_bounds"),
+)
+Index("ix_evaluation_ind_retest_project_time", independent_retest_archives.c.project_id, independent_retest_archives.c.created_at_ms)

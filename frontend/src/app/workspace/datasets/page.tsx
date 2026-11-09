@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EvaluationExecutionPanel } from "@/components/workspace/evaluation-execution-panel";
 import { EvaluationPlanPanel } from "@/components/workspace/evaluation-plan-panel";
 import { EvaluationReviewPanel } from "@/components/workspace/evaluation-review-panel";
+import { IndependentAssessmentPanel } from "@/components/workspace/independent-assessment-panel";
 import { ProjectRegistryPanel } from "@/components/workspace/project-registry-panel";
 import {
   WorkspaceBody,
@@ -21,6 +22,8 @@ import type {
   QASample,
 } from "@/core/datasets/types";
 import { evaluationApi } from "@/core/evaluation/api";
+import type { PendingAssessments } from "@/core/evaluation/assessment-policy";
+import type { PendingReviewTasks } from "@/core/evaluation/task-types";
 import { useI18n } from "@/core/i18n/hooks";
 
 const example =
@@ -50,6 +53,8 @@ export default function DatasetsPage() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const pendingReviewTasks = useRef<PendingReviewTasks>(new Map());
+  const pendingAssessments = useRef<PendingAssessments>(new Map());
   const epoch = useRef(0);
   const lock = useRef(false);
 
@@ -677,7 +682,15 @@ export default function DatasetsPage() {
           {projectId && (
             <EvaluationReviewPanel
               key={"review:" + projectId}
+              pendingTasks={pendingReviewTasks.current}
               projectId={projectId}
+              zh={zh}
+            />
+          )}
+          {projectId && (
+            <IndependentAssessmentPanel
+              projectId={projectId}
+              pendingAssessments={pendingAssessments.current}
               zh={zh}
             />
           )}

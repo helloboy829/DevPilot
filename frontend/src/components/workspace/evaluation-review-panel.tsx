@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { EvaluationReviewSummary } from "@/components/workspace/evaluation-review-summary";
+import { ReviewTaskAssignment } from "@/components/workspace/review-task-assignment";
 import { evaluationApi } from "@/core/evaluation/api";
 import type {
   ReviewCase,
@@ -12,13 +13,16 @@ import type {
   ReviewDecision,
   ReviewRun,
 } from "@/core/evaluation/review-types";
+import type { PendingReviewTasks } from "@/core/evaluation/task-types";
 
 export function EvaluationReviewPanel({
   projectId,
   zh,
+  pendingTasks,
 }: {
   projectId: string;
   zh: boolean;
+  pendingTasks?: PendingReviewTasks;
 }) {
   const [runs, setRuns] = useState<ReviewRun[]>([]);
   const [runId, setRunId] = useState("");
@@ -32,6 +36,7 @@ export function EvaluationReviewPanel({
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const fallbackPendingTasks = useRef<PendingReviewTasks>(new Map());
   const lock = useRef(false);
   const epoch = useRef(0);
   const base =
@@ -294,6 +299,15 @@ export function EvaluationReviewPanel({
               </Button>
             </div>
           </div>
+        )}
+        {opened && (
+          <ReviewTaskAssignment
+            key={opened.run_id + ":" + opened.ordinal + ":" + opened.case_hash}
+            projectId={projectId}
+            caseData={opened}
+            pendingTasks={pendingTasks ?? fallbackPendingTasks.current}
+            zh={zh}
+          />
         )}
         {opened && (
           <div className="space-y-4 border-t pt-4">

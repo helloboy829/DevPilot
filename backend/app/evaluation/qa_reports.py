@@ -136,6 +136,23 @@ def _render(title, project, template, summaries):
 
 
 class ReportArchiveRepository(SummaryRepository):
+    _archive_table = t.report_archives
+    _archive_schema = "qa-project-report-archive.v1"
+    _archive_scope = "immutable_qa_report_draft"
+    _create_model = ArchiveCreate
+    _audit_kind = "report_archived"
+    _render = staticmethod(_render)
+
+    @staticmethod
+    def templates():
+        return archive_templates()
+
+    def _source_protection(self):
+        return self._evidence_protection()
+
+    async def _source_snapshot(self, session, owner, project_id, source, *, run=None):
+        return await self._summary_snapshot(session, owner, project_id, source.run_id, run=run)
+
     @staticmethod
     def _identifier(value):
         if not isinstance(value, str) or len(value) != 32 or any(char not in "0123456789abcdef" for char in value):
@@ -143,16 +160,16 @@ class ReportArchiveRepository(SummaryRepository):
 
     async def _archive_row(self, session, owner, project_id, archive_id):
         await self._project(session, owner, project_id)
-        row = (await session.execute(select(t.report_archives).where(t.report_archives.c.id == archive_id, t.report_archives.c.project_id == project_id, t.report_archives.c.owner_id == owner))).mappings().first()
+        row = (await session.execute(select(self._archive_table).where(self._archive_table.c.id == archive_id, self._archive_table.c.project_id == project_id, self._archive_table.c.owner_id == owner))).mappings().first()
         return dict(row) if row is not None else None
 
-    @staticmethod
-    def _decode(row):
+    @classmethod
+    def _decode(cls, row):
         try:
             doc = row["document"]
             if not hmac.compare_digest(fingerprint({"owner_id": row["owner_id"], "request_hash": row["request_hash"], "document": doc}), row["archive_hash"]):
                 raise ValueError
-            if doc["schema"] != "qa-project-report-archive.v1" or doc["acceptance"] != "not_approved" or doc["scope"] != "immutable_qa_report_draft":
+            if doc["schema"] != cls._archive_schema or doc["acceptance"] != "not_approved" or doc["scope"] != cls._archive_scope:
                 raise ValueError
             if any(doc[key] != row[key] for key in ("id", "project_id", "root_id", "revision", "supersedes_id", "title", "created_at_ms")):
                 raise ValueError
@@ -174,9 +191,11 @@ class ReportArchiveRepository(SummaryRepository):
         # Metadata only. Explicit open validates the stored document and receipt.
         async with self.sf() as session:
             await self._project(session, owner, project_id)
-            columns = [c for c in t.report_archives.c if c.name not in {"document", "owner_id", "request_hash", "archive_hash"}]
+            columns = [c for c in self._archive_table.c if c.name not in {"document", "owner_id", "request_hash", "archive_hash"}]
             rows = (
-                await session.execute(select(*columns).where(t.report_archives.c.project_id == project_id, t.report_archives.c.owner_id == owner).order_by(t.report_archives.c.created_at_ms.desc(), t.report_archives.c.id.desc()).limit(100))
+                await session.execute(
+                    select(*columns).where(self._archive_table.c.project_id == project_id, self._archive_table.c.owner_id == owner).order_by(self._archive_table.c.created_at_ms.desc(), self._archive_table.c.id.desc()).limit(100)
+                )
             ).mappings()
             return [dict(row) for row in rows]
 
@@ -189,8 +208,8 @@ class ReportArchiveRepository(SummaryRepository):
 
     async def create_archive(self, owner, project_id, archive_id, payload: ArchiveCreate):
         self._identifier(archive_id)
-        payload = ArchiveCreate.model_validate(payload.model_dump())
-        request_hash = fingerprint(payload.model_dump())
+        payload = self._create_model.model_validate(payload.model_dump())
+        request_hash = await asyncio.to_thread(fingerprint, payload.model_dump())
         async with self.sf() as session:
             project = await self._project(session, owner, project_id)
             existing = await self._archive_row(session, owner, project_id, archive_id)
@@ -202,18 +221,18 @@ class ReportArchiveRepository(SummaryRepository):
             if payload.supersedes_id and parent is None:
                 raise NotFound
             previous = await asyncio.to_thread(self._decode, parent) if parent else None
-            template = next((copy.deepcopy(item) for item in archive_templates() if (item["id"], item["version"]) == (payload.template_id, payload.template_version)), None)
+            template = next((copy.deepcopy(item) for item in self.templates() if (item["id"], item["version"]) == (payload.template_id, payload.template_version)), None)
             if template is None:
                 raise Conflict
-            snapshots = [await self._summary_snapshot(session, owner, project_id, source.run_id) for source in payload.sources]
-        summaries = await asyncio.to_thread(self._verify_sources, owner, snapshots, self._evidence_protection())
+            snapshots = [await self._source_snapshot(session, owner, project_id, source) for source in payload.sources]
+        summaries = await asyncio.to_thread(self._verify_sources, owner, snapshots, self._source_protection())
         if {item["run_id"]: item["summary_hash"] for item in summaries} != {item.run_id: item.summary_hash for item in payload.sources}:
             raise Conflict
         if any("criteria_evaluation" in summary for summary in summaries) and "criteria_heading" not in template["layout"]:
             raise Conflict
         document = {
-            "schema": "qa-project-report-archive.v1",
-            "scope": "immutable_qa_report_draft",
+            "schema": self._archive_schema,
+            "scope": self._archive_scope,
             "id": archive_id,
             "project_id": project_id,
             "project_name": project["name"],
@@ -223,16 +242,21 @@ class ReportArchiveRepository(SummaryRepository):
             "title": payload.title,
             "created_at_ms": self._time(),
             "template": template,
-            "template_hash": fingerprint(template),
+            "template_hash": await asyncio.to_thread(fingerprint, template),
             "components": summaries,
-            "markdown": _render(payload.title, project, template, summaries),
+            "markdown": await asyncio.to_thread(self._render, payload.title, project, template, summaries),
             "acceptance": "not_approved",
         }
         if document["revision"] > 1000:
             raise Conflict
         row = {key: document[key] for key in ("id", "project_id", "root_id", "revision", "supersedes_id", "title", "created_at_ms")}
         row.update(
-            owner_id=owner, template_id=template["id"], template_version=template["version"], request_hash=request_hash, document=document, archive_hash=fingerprint({"owner_id": owner, "request_hash": request_hash, "document": document})
+            owner_id=owner,
+            template_id=template["id"],
+            template_version=template["version"],
+            request_hash=request_hash,
+            document=document,
+            archive_hash=await asyncio.to_thread(fingerprint, {"owner_id": owner, "request_hash": request_hash, "document": document}),
         )
         async with self._transaction() as session:
             # Serialize revision append at the project, then all run rows in ID order.
@@ -250,16 +274,16 @@ class ReportArchiveRepository(SummaryRepository):
             if parent:
                 if (
                     parent != await self._archive_row(session, owner, project_id, payload.supersedes_id)
-                    or (await session.execute(select(t.report_archives.c.id).where(t.report_archives.c.project_id == project_id, t.report_archives.c.supersedes_id == payload.supersedes_id))).first()
+                    or (await session.execute(select(self._archive_table.c.id).where(self._archive_table.c.project_id == project_id, self._archive_table.c.supersedes_id == payload.supersedes_id))).first()
                 ):
                     raise Conflict
             locked_runs = []
-            for snapshot in snapshots:  # DTO sorts sources by run ID.
+            for source, snapshot in zip(payload.sources, snapshots, strict=True):  # DTO sorts sources by run ID.
                 run = await self._journal(session, owner, project_id, snapshot["run"]["id"], lock=True)
                 locked_runs.append(run)
-                if snapshot != await self._summary_snapshot(session, owner, project_id, run["id"], run=run):
+                if snapshot != await self._source_snapshot(session, owner, project_id, source, run=run):
                     raise Conflict
-            await session.execute(insert(t.report_archives).values(**row))
+            await session.execute(insert(self._archive_table).values(**row))
             for run in locked_runs:
-                await self._journal_event(session, run, "report_archived", document["created_at_ms"])
+                await self._journal_event(session, run, self._audit_kind, document["created_at_ms"])
         return {**document, "archive_hash": row["archive_hash"]}

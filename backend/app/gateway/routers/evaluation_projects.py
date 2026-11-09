@@ -13,7 +13,9 @@ from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.execution import ExecutionCreate
 from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import AcceptancePlanCreate, PlanCreate, PlanPreflightError
+from app.evaluation.qa_assessments import AssessmentCreate, AssessmentRepository
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
+from app.evaluation.qa_independent_archives import IndependentArchiveCreate, IndependentReportRepository, IndependentRetestCreate, IndependentRetestRepository, independent_templates
 from app.evaluation.qa_reports import ArchiveCreate, ReportArchiveRepository, archive_templates
 from app.evaluation.qa_retests import RetestCreate, RetestRepository
 from app.evaluation.qa_summary import SummaryRepository
@@ -484,5 +486,118 @@ async def get_retest_archive(project_id: str, retest_id: str, request: Request):
 @require_permission("evaluation_projects", "review")
 async def create_retest_archive(project_id: str, retest_id: str, payload: RetestCreate, request: Request):
     owner, repository = await _retest_context(request)
+    _retest_identifier(retest_id)
+    return await _result(repository.create_retest(owner, project_id, retest_id, payload))
+
+
+@router.get("/{project_id}/review-runs/{run_id}/independent-assessment")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_independent_assessment_preview(project_id: str, run_id: str, request: Request):
+    _require_human(request)
+    owner, repository = await _context(request)
+    return await _result(AssessmentRepository(repository.sf).get_preview(owner, project_id, run_id))
+
+
+@router.get("/{project_id}/review-runs/{run_id}/assessments")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def list_run_assessments(project_id: str, run_id: str, request: Request):
+    _require_human(request)
+    owner, repository = await _context(request)
+    return await _result(AssessmentRepository(repository.sf).list_assessments(owner, project_id, run_id))
+
+
+@router.get("/{project_id}/review-runs/{run_id}/assessments/{assessment_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_run_assessment(project_id: str, run_id: str, assessment_id: str, request: Request):
+    _require_human(request)
+    owner, repository = await _context(request)
+    return await _result(AssessmentRepository(repository.sf).get_assessment(owner, project_id, run_id, assessment_id))
+
+
+@router.post("/{project_id}/review-runs/{run_id}/assessments/{assessment_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def create_run_assessment(project_id: str, run_id: str, assessment_id: str, payload: AssessmentCreate, request: Request):
+    _require_human(request)
+    owner, repository = await _context(request)
+    return await _result(AssessmentRepository(repository.sf).create_assessment(owner, project_id, run_id, assessment_id, payload))
+
+
+async def _independent_report_context(request):
+    _require_human(request)
+    owner, repository = await _context(request)
+    return owner, IndependentReportRepository(repository.sf)
+
+
+@router.get("/{project_id}/independent-report-templates")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def independent_report_templates(project_id: str, request: Request):
+    owner, repository = await _independent_report_context(request)
+    async with repository.sf() as session:
+        await _result(repository._project(session, owner, project_id))
+    return {"templates": independent_templates()}
+
+
+@router.get("/{project_id}/independent-report-archives")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def list_independent_report_archives(project_id: str, request: Request):
+    owner, repository = await _independent_report_context(request)
+    return {"archives": await _result(repository.list_archives(owner, project_id))}
+
+
+@router.get("/{project_id}/independent-report-archives/{archive_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_independent_report_archive(project_id: str, archive_id: str, request: Request):
+    owner, repository = await _independent_report_context(request)
+    _report_identifier(archive_id)
+    return await _result(repository.get_archive(owner, project_id, archive_id))
+
+
+@router.put("/{project_id}/independent-report-archives/{archive_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def create_independent_report_archive(project_id: str, archive_id: str, payload: IndependentArchiveCreate, request: Request):
+    owner, repository = await _independent_report_context(request)
+    _report_identifier(archive_id)
+    return await _result(repository.create_archive(owner, project_id, archive_id, payload))
+
+
+async def _independent_retest_context(request):
+    _require_human(request)
+    owner, repository = await _context(request)
+    return owner, IndependentRetestRepository(repository.sf)
+
+
+@router.get("/{project_id}/independent-retest-archives")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def list_independent_retest_archives(project_id: str, request: Request):
+    owner, repository = await _independent_retest_context(request)
+    return {"comparisons": await _result(repository.list_retests(owner, project_id))}
+
+
+@router.get("/{project_id}/independent-retest-archives/{retest_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_independent_retest_archive(project_id: str, retest_id: str, request: Request):
+    owner, repository = await _independent_retest_context(request)
+    _retest_identifier(retest_id)
+    return await _result(repository.get_retest(owner, project_id, retest_id))
+
+
+@router.put("/{project_id}/independent-retest-archives/{retest_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def create_independent_retest_archive(project_id: str, retest_id: str, payload: IndependentRetestCreate, request: Request):
+    owner, repository = await _independent_retest_context(request)
     _retest_identifier(retest_id)
     return await _result(repository.create_retest(owner, project_id, retest_id, payload))

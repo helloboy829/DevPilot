@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { IndependentArchivePanel } from "@/components/workspace/independent-archive-panel";
 import { ProjectReportPanel } from "@/components/workspace/project-report-panel";
 import { VerifiedProjectReportPanel } from "@/components/workspace/verified-project-report-panel";
 import {
@@ -246,6 +247,7 @@ export default function ReportsPage() {
               </Button>
             </div>
           )}
+          <IndependentArchivePanel kind="report" zh={locale === "zh-CN"} />
           <VerifiedProjectReportPanel zh={locale === "zh-CN"} />
           <ProjectReportPanel
             getFacts={() => toReportFacts(form)}

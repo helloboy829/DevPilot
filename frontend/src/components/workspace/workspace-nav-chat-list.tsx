@@ -10,6 +10,7 @@ import {
   MessagesSquare,
   Settings2,
   GitCompareArrows,
+  ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -58,6 +59,11 @@ export function WorkspaceNavChatList() {
           path: "retests",
           label: zh ? "整改复测" : "Remediation & retesting",
           icon: GitCompareArrows,
+        },
+        {
+          path: "reviews",
+          label: zh ? "独立复核" : "Independent review",
+          icon: ClipboardCheck,
         },
         { path: "reports", label: t.sidebar.reports, icon: FileText },
         {

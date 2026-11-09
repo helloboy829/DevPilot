@@ -29,12 +29,12 @@
 
 项目路径：`/api/evaluation/projects/{project_id}`。
 
-| 方法与相对路径 | 用途 |
-| --- | --- |
-| GET /report-templates | 当前双语模板目录 |
-| GET /report-archives | 最近 100 条元数据，无正文/样本/敏感证据 |
-| GET /report-archives/{archive_id} | 校验并读取原样冻结的历史文档 |
-| PUT /report-archives/{archive_id} | 独立确认的新草稿或追加修订 |
+| 方法与相对路径                    | 用途                                    |
+| --------------------------------- | --------------------------------------- |
+| GET /report-templates             | 当前双语模板目录                        |
+| GET /report-archives              | 最近 100 条元数据，无正文/样本/敏感证据 |
+| GET /report-archives/{archive_id} | 校验并读取原样冻结的历史文档            |
+| PUT /report-archives/{archive_id} | 独立确认的新草稿或追加修订              |
 
 全部限登录 owner + evaluation read/review，拒绝内部 Agent；PUT 另需 write。读写 private/no-store，错误不回显私密载荷。无 update/delete/自动发布路由。用户启用自定义助手并不授予它人工复核或报告存档的权限。
 
@@ -64,3 +64,7 @@
 ## English summary
 
 Owner-only immutable project QA report drafts bind reverified server-side summaries to a full template version/layout and rendered Markdown. One complete effectiveness run per component, at most ten; failures remain honest, no pooled metric, performance/TTFT or automatic approval. Client-supplied metrics/Markdown are rejected. Explicit human consent, same-ID receipt reconciliation, ordered run locks, full snapshot rechecks and atomic audits prevent stale or ambiguous writes. Revisions append without overwriting history. Agents remain separate, unverified suggestion providers. App migration eval_0008 is additive; the last confirmed local deployment remains eval_0006 pending Docker recovery and a backed-up code-only update. This is not completion of formal reporting or the overall platform.
+
+## 2026-11-09：独立历史来源档案后端/API 候选
+
+后续 [独立评估报告/复测档案](DevPilot_Independent_Report_Retest_Archives.md) 在独立命名空间绑定明确 assessment ID、修订和 hash，追加候选迁移 `eval_0012`，不切换本文既有 owner 自复核路径、历史模板或导出。完整历史修订可以明确选择，不追随当前任务；provisional 不可作完整来源。独立选择 UI/Word、正式批准、远端 CI 与备份部署仍待完成；运行部署仍为 `eval_0009`。此前章节保留原切片边界。

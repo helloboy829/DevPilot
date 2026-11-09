@@ -1,6 +1,7 @@
 "use client";
 
 import { EvaluationRetestPanel } from "@/components/workspace/evaluation-retest-panel";
+import { IndependentArchivePanel } from "@/components/workspace/independent-archive-panel";
 import {
   WorkspaceBody,
   WorkspaceContainer,
@@ -20,6 +21,7 @@ export default function RetestsPage() {
       </WorkspaceHeader>
       <WorkspaceBody>
         <main className="mx-auto w-full max-w-6xl p-4 md:p-6">
+          <IndependentArchivePanel kind="retest" zh={zh} />
           <EvaluationRetestPanel zh={zh} />
         </main>
       </WorkspaceBody>

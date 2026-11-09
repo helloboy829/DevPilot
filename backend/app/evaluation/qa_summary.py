@@ -18,9 +18,9 @@ from app.evaluation.repository import Conflict
 
 
 class SummaryRepository(EvidenceRepository):
-    async def _summary_snapshot(self, session, owner, project_id, run_id, *, run=None):
+    async def _summary_snapshot(self, session, owner, project_id, run_id, *, run=None, include_owner_reviews=True):
         run = run if run is not None else await self._journal(session, owner, project_id, run_id)
-        source = await self._snapshot(session, owner, project_id, run_id, 1, run=run)
+        source = await self._snapshot(session, owner, project_id, run_id, 1, run=run, include_owner_reviews=include_owner_reviews)
         definition = source["plan"]["definition"]
         if definition["limits"]["mode"] != "effectiveness" or not 1 <= run["request_count"] <= 500:
             raise Conflict
@@ -28,6 +28,9 @@ class SummaryRepository(EvidenceRepository):
         source["run"] = run
         source["dispatches"] = [dict(row) for row in (await session.execute(select(*[c for c in t.dispatches.c if c.name != "ticket_hash"]).where(t.dispatches.c.run_id == run_id).order_by(t.dispatches.c.ordinal).limit(501))).mappings()]
         source["outputs"] = [dict(row) for row in (await session.execute(select(t.output_evidence).where(t.output_evidence.c.run_id == run_id).order_by(t.output_evidence.c.ordinal).limit(501))).mappings()]
+        if not include_owner_reviews:
+            source["latest_reviews"] = []
+            return source
         # Only latest encrypted decisions enter a summary. Historical notes remain
         # in the explicit per-case history view; count == max proves no revision gap.
         latest = select(t.case_reviews.c.ordinal, func.max(t.case_reviews.c.revision).label("revision"), func.count().label("history_count")).where(t.case_reviews.c.run_id == run_id).group_by(t.case_reviews.c.ordinal).subquery()

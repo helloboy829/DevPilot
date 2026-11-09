@@ -1,5 +1,7 @@
 # DevPilot 人工复核工作台设计
 
+> 实现校准（2026-11-09）：[候选实现](DevPilot_Independent_Case_Review.md)已提供明确指派的双盲/仲裁与历史轮次，仅授予冻结 case；现增加 `/workspace/reviews` 中心和项目内联分配/详情，共用同一服务，候选 `eval_0010` 未部署。assessment/汇总/报告接入、正式批准和下述完整团队治理仍未实现。下文入口 `/workspace/evaluation/reviews` 是目标设计，不是当前路由；旧切片说明保留其历史边界。
+
 ## 2026-11-08 实现校准
 
 已交付的当前范围见[加密输出证据与人工复核](DevPilot_QA_Evidence_Review.md)：App 增量迁移 eval_0006，输出与技术观测原子落库、owner 自复核、敏感详情审计和追加修订。项目 API 的 review-runs 元数据、cases 分页、单条详情与 reviews 追加已实现；没有执行/上传输出路由。下文的团队分配、领取、仲裁、自动裁判、报告正式证据引用等仍是目标设计，不应据此认为已经贯通。独立执行准入与 Worker 仍待接入。
@@ -10,10 +12,10 @@
 
 全局“人工复核”解决跨项目待办、分工和进度；数据集/运行结果页提供“复核此条”入口并嵌入相同详情组件。两处引用同一个 ReviewTask、Decision 和 Resolution，不另存两份状态。助手可以整理证据、建议送审，但不能冒充人提交决定。
 
-| 复核种类 | 审核对象 | 产出与边界 |
-| --- | --- | --- |
-| dataset_label | 运行前：输入、预期、标签、来源、rubric | 审核标签；冻结前修改草稿并重审，冻结后只能新数据版本 |
-| case_judgment | 运行后：原始输出、提取结果、自动裁判 | 新人工决定与解析后的最终 outcome；不改原始观测 |
+| 复核种类             | 审核对象                                 | 产出与边界                                                    |
+| -------------------- | ---------------------------------------- | ------------------------------------------------------------- |
+| dataset_label        | 运行前：输入、预期、标签、来源、rubric   | 审核标签；冻结前修改草稿并重审，冻结后只能新数据版本          |
+| case_judgment        | 运行后：原始输出、提取结果、自动裁判     | 新人工决定与解析后的最终 outcome；不改原始观测                |
 | measurement_validity | 性能环境、时间线、窗口、错误、发生器异常 | 确认/否定测量有效性，必要时重跑；不可手改 p95/TTFT 或豁免门槛 |
 
 计划、数据版本整体批准和报告签批仍是 Approval 资源，不把“这一条语义 PASS”混成“批准全项目”。标签审核通过也不自动批准整个数据版本。
@@ -28,14 +30,14 @@
 
 ## 3. 详情：一屏对照、证据可定位
 
-~~~text
+```text
 顶部：项目 / 组件名与版本 / case / run / 数据与rubric版本 / 风险 / 任务状态
 左：输入 Q 与上下文        中：目标输出 A              右：预期与证据
     图片/多轮历史/附件        提取结果/原始响应切换         必需事实/可接受变体/禁项
     输入参数/输入hash         错误/结束原因/截断提示         来源原文、页码/片段、版本
 底部：判断维度 / 决定 / 理由与证据 / 暂存 / 提交并下一条
 可展开：自动裁判理由、历史决定、Agent轨迹、性能详情、相邻样本
-~~~
+```
 
 - **问答/LLM**：突出用户问题、必要上下文、回答、预期要点、容差/拒答条件、引用片段。可查看差异/高亮，但文本相似度不是正确性证明；长文可搜索/展开，截断需显式提示且不隐藏裁决必需内容。
 - **CV 分类/检测**：原图、金标与预测叠加，缩放/平移、类别与置信度筛选、框坐标/IoU 和字典版本；大图受限分辨率预览并允许授权查看原件。不能只让人看 JSON。
@@ -47,11 +49,11 @@
 
 ## 4. 动作与判定边界
 
-| kind | decision.action | 后续 |
-| --- | --- | --- |
-| dataset_label | approve_label / request_changes / escalate | 标签批准；退回新修订；送专家 |
-| case_judgment | pass / fail / insufficient_evidence / reference_issue / escalate | 建议 PASS/FAIL；资料不足保持 PENDING/待补证；金标疑错阻断并发起修订；送仲裁 |
-| measurement_validity | valid / invalid / insufficient_evidence / escalate | 记录测量有效性；无效/不足需补证或重跑，不改原采样 |
+| kind                 | decision.action                                                  | 后续                                                                        |
+| -------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| dataset_label        | approve_label / request_changes / escalate                       | 标签批准；退回新修订；送专家                                                |
+| case_judgment        | pass / fail / insufficient_evidence / reference_issue / escalate | 建议 PASS/FAIL；资料不足保持 PENDING/待补证；金标疑错阻断并发起修订；送仲裁 |
+| measurement_validity | valid / invalid / insufficient_evidence / escalate               | 记录测量有效性；无效/不足需补证或重跑，不改原采样                           |
 
 每次提交带 subject_revision/hash、task expected_revision、reason_code、说明、evidence_refs；人工 actor 由后端身份确定，不允许客户端填写 reviewer 名字冒充。风险策略可要求逐维 rubric 与理由，拒绝空理由批量盖章。
 对技术 ERROR/NOT_RUN，语义 pass/fail 动作服务端拒绝：可以标注故障原因、请求重跑，但不能把没得到有效回答的请求“人工通过”。裁判服务错误但目标有有效输出时，case 是 PENDING，可交给人判；目标输出不能因裁判不可用被误记成目标 ERROR。

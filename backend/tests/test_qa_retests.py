@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, inspect, select, text, update
 from test_dispatch_journal import prepared as prepared  # noqa: F401
 from test_qa_evidence import captured as captured
 from test_qa_evidence import review
@@ -207,17 +207,21 @@ async def test_additive_upgrade_preserves_reports_all_prior_rows_and_harness(cap
     first = await complete(captured)
     repo, engine, project, _, _, _, _ = captured
     saved = await archives(repo).create_archive("owner", project, uuid4().hex, payload(first))
-    preserved = [table for table in t.metadata.sorted_tables if table is not t.retest_archives]
     async with engine.begin() as conn:
         await conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
         await conn.execute(text("INSERT INTO alembic_version VALUES ('synthetic_harness')"))
         assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0008"
+        # Preserve every table actually present in the historical schema, not future metadata.
+        prior_names = {name for name in await conn.run_sync(lambda sync: inspect(sync).get_table_names()) if name.startswith("evaluation_")}
+        preserved = [table for table in t.metadata.sorted_tables if table.name in prior_names]
+        assert {table.name for table in preserved} == prior_names
+        assert t.report_archives.name in prior_names and t.retest_archives.name not in prior_names
         before = {table.name: [dict(row) for row in (await conn.execute(select(table))).mappings()] for table in preserved}
     await upgrade_evaluation_schema(engine)
     await upgrade_evaluation_schema(engine)
     async with engine.connect() as conn:
         assert {table.name: [dict(row) for row in (await conn.execute(select(table))).mappings()] for table in preserved} == before
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0009"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0012"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "synthetic_harness"
     assert await archives(repo).get_archive("owner", project, saved["id"]) == saved
 

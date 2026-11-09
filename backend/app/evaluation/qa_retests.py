@@ -61,7 +61,43 @@ def _same_benchmark(baseline, retest):
     return benchmark
 
 
+def _pair_benchmark(snapshots):
+    before, after = snapshots
+    old, new = before["plan"]["definition"], after["plan"]["definition"]
+    benchmark = _same_benchmark(old, new)
+    if (
+        before["run"]["id"] == after["run"]["id"]
+        or before["plan"]["id"] == after["plan"]["id"]
+        or version_key(old["version_label"]) == version_key(new["version_label"])
+        or before["run"]["finished_at_ms"] is None
+        or after["run"]["started_at_ms"] <= before["run"]["finished_at_ms"]
+        or any(before["run"][key] != after["run"][key] for key in _RUN_BUDGET_KEYS)
+    ):
+        raise Conflict
+    benchmark["run_response_budgets"] = {key: before["run"][key] for key in _RUN_BUDGET_KEYS}
+    return benchmark
+
+
 class RetestRepository(SummaryRepository):
+    _retest_table = t.retest_archives
+    _archive_schema = "qa-retest-archive.v1"
+    _archive_scope = "same_benchmark_human_comparison"
+    _create_model = RetestCreate
+    _audit_kind = "retest_archived"
+    _pair_columns = ("baseline_run_id", "retest_run_id")
+
+    def _pair_values(self, payload):
+        return payload.baseline.run_id, payload.retest.run_id
+
+    def _extra_row(self, payload):
+        return {}
+
+    def _source_protection(self):
+        return self._evidence_protection()
+
+    async def _source_snapshot(self, session, owner, project_id, source, *, run=None):
+        return await self._summary_snapshot(session, owner, project_id, source.run_id, run=run)
+
     @staticmethod
     def _identifier(value):
         if not isinstance(value, str) or len(value) != 32 or any(char not in "0123456789abcdef" for char in value):
@@ -69,16 +105,16 @@ class RetestRepository(SummaryRepository):
 
     async def _retest_row(self, session, owner, project_id, retest_id):
         await self._project(session, owner, project_id)
-        row = (await session.execute(select(t.retest_archives).where(t.retest_archives.c.id == retest_id, t.retest_archives.c.project_id == project_id, t.retest_archives.c.owner_id == owner))).mappings().first()
+        row = (await session.execute(select(self._retest_table).where(self._retest_table.c.id == retest_id, self._retest_table.c.project_id == project_id, self._retest_table.c.owner_id == owner))).mappings().first()
         return dict(row) if row is not None else None
 
-    @staticmethod
-    def _decode(row):
+    @classmethod
+    def _decode(cls, row):
         try:
             doc = row["document"]
             if not hmac.compare_digest(fingerprint({"owner_id": row["owner_id"], "request_hash": row["request_hash"], "document": doc}), row["archive_hash"]):
                 raise ValueError
-            if doc["schema"] != "qa-retest-archive.v1" or doc["scope"] != "same_benchmark_human_comparison" or doc["acceptance"] != "not_approved":
+            if doc["schema"] != cls._archive_schema or doc["scope"] != cls._archive_scope or doc["acceptance"] != "not_approved":
                 raise ValueError
             if any(doc[key] != row[key] for key in ("id", "project_id", "component_id", "created_at_ms")):
                 raise ValueError
@@ -99,9 +135,11 @@ class RetestRepository(SummaryRepository):
     async def list_retests(self, owner, project_id):
         async with self.sf() as session:
             await self._project(session, owner, project_id)
-            columns = [column for column in t.retest_archives.c if column.name not in {"document", "request_hash", "archive_hash", "owner_id"}]
+            columns = [column for column in self._retest_table.c if column.name not in {"document", "request_hash", "archive_hash", "owner_id"}]
             rows = (
-                await session.execute(select(*columns).where(t.retest_archives.c.project_id == project_id, t.retest_archives.c.owner_id == owner).order_by(t.retest_archives.c.created_at_ms.desc(), t.retest_archives.c.id.desc()).limit(100))
+                await session.execute(
+                    select(*columns).where(self._retest_table.c.project_id == project_id, self._retest_table.c.owner_id == owner).order_by(self._retest_table.c.created_at_ms.desc(), self._retest_table.c.id.desc()).limit(100)
+                )
             ).mappings()
             return [dict(row) for row in rows]
 
@@ -115,17 +153,7 @@ class RetestRepository(SummaryRepository):
             if not hmac.compare_digest(summary["summary_hash"], viewed.summary_hash):
                 raise Conflict
         old, new = before["plan"]["definition"], after["plan"]["definition"]
-        benchmark = _same_benchmark(old, new)
-        if (
-            before["run"]["id"] == after["run"]["id"]
-            or before["plan"]["id"] == after["plan"]["id"]
-            or version_key(old["version_label"]) == version_key(new["version_label"])
-            or before["run"]["finished_at_ms"] is None
-            or after["run"]["started_at_ms"] <= before["run"]["finished_at_ms"]
-            or any(before["run"][key] != after["run"][key] for key in _RUN_BUDGET_KEYS)
-        ):
-            raise Conflict
-        benchmark["run_response_budgets"] = {key: before["run"][key] for key in _RUN_BUDGET_KEYS}
+        benchmark = _pair_benchmark(snapshots)
         # Every row was already authenticated by _verify_summary above. Copy only
         # bounded decision commitments, never decrypted Q/A/gold/review notes.
         reviews = [{row["ordinal"]: row for row in snapshot["latest_reviews"]} for snapshot in snapshots]
@@ -160,10 +188,10 @@ class RetestRepository(SummaryRepository):
 
     async def create_retest(self, owner, project_id, retest_id, payload: RetestCreate):
         self._identifier(retest_id)
-        payload = RetestCreate.model_validate(payload.model_dump())
+        payload = self._create_model.model_validate(payload.model_dump())
         if payload.baseline.run_id == payload.retest.run_id:
             raise Conflict
-        request_hash = fingerprint(payload.model_dump())
+        request_hash = await asyncio.to_thread(fingerprint, payload.model_dump())
         async with self.sf() as session:
             project = await self._project(session, owner, project_id)
             existing = await self._retest_row(session, owner, project_id, retest_id)
@@ -171,11 +199,11 @@ class RetestRepository(SummaryRepository):
                 if existing["request_hash"] != request_hash:
                     raise Conflict
                 return await asyncio.to_thread(self._decode, existing)
-            snapshots = [await self._summary_snapshot(session, owner, project_id, source.run_id) for source in (payload.baseline, payload.retest)]
-        verified = await asyncio.to_thread(self._verify_pair, owner, snapshots, self._evidence_protection(), payload)
+            snapshots = [await self._source_snapshot(session, owner, project_id, source) for source in (payload.baseline, payload.retest)]
+        verified = await asyncio.to_thread(self._verify_pair, owner, snapshots, self._source_protection(), payload)
         document = {
-            "schema": "qa-retest-archive.v1",
-            "scope": "same_benchmark_human_comparison",
+            "schema": self._archive_schema,
+            "scope": self._archive_scope,
             "id": retest_id,
             "project_id": project_id,
             "project_name": project["name"],
@@ -188,7 +216,8 @@ class RetestRepository(SummaryRepository):
         row = {key: document[key] for key in ("id", "project_id", "component_id", "created_at_ms")}
         row.update({side + "_run_id": document[side]["run_id"] for side in ("baseline", "retest")})
         row.update({side + "_label": document[side]["plan_label"] for side in ("baseline", "retest")})
-        row.update(owner_id=owner, request_hash=request_hash, document=document, archive_hash=fingerprint({"owner_id": owner, "request_hash": request_hash, "document": document}))
+        row.update(self._extra_row(payload))
+        row.update(owner_id=owner, request_hash=request_hash, document=document, archive_hash=await asyncio.to_thread(fingerprint, {"owner_id": owner, "request_hash": request_hash, "document": document}))
         async with self._transaction() as session:
             locked = (await session.execute(update(t.projects).where(t.projects.c.id == project_id, t.projects.c.owner_id == owner).values(id=t.projects.c.id).returning(t.projects))).mappings().first()
             if locked is None:
@@ -202,17 +231,18 @@ class RetestRepository(SummaryRepository):
                 return await asyncio.to_thread(self._decode, existing)
             if (
                 await session.execute(
-                    select(t.retest_archives.c.id).where(t.retest_archives.c.project_id == project_id, t.retest_archives.c.baseline_run_id == payload.baseline.run_id, t.retest_archives.c.retest_run_id == payload.retest.run_id)
+                    select(self._retest_table.c.id).where(self._retest_table.c.project_id == project_id, *[self._retest_table.c[key] == value for key, value in zip(self._pair_columns, self._pair_values(payload), strict=True)])
                 )
             ).first():
                 raise Conflict
             locked_runs = []
+            viewed = {source.run_id: source for source in (payload.baseline, payload.retest)}
             for snapshot in sorted(snapshots, key=lambda source: source["run"]["id"]):
                 run = await self._journal(session, owner, project_id, snapshot["run"]["id"], lock=True)
-                if snapshot != await self._summary_snapshot(session, owner, project_id, run["id"], run=run):
+                if snapshot != await self._source_snapshot(session, owner, project_id, viewed[run["id"]], run=run):
                     raise Conflict
                 locked_runs.append(run)
-            await session.execute(insert(t.retest_archives).values(**row))
+            await session.execute(insert(self._retest_table).values(**row))
             for run in locked_runs:
-                await self._journal_event(session, run, "retest_archived", document["created_at_ms"])
+                await self._journal_event(session, run, self._audit_kind, document["created_at_ms"])
         return {**document, "archive_hash": row["archive_hash"]}

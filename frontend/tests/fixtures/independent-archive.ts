@@ -1,0 +1,120 @@
+import { assessmentArchive } from "./assessment";
+export const independentSource = (run = "r1") => {
+  const a = assessmentArchive();
+  return {
+    ...a.assessment,
+    run_id: run,
+    plan_id: run + "plan",
+    plan_label: run + " frozen version",
+    assessment_ref: {
+      assessment_id: run === "r1" ? a.id : "d".repeat(32),
+      assessment_revision: 1,
+      assessment_hash: a.assessment_hash,
+    },
+  };
+};
+export const independentTemplate = {
+  id: "independent-qa-project-en",
+  version: "1.0.0",
+  language: "en",
+  layout: {
+    heading: "Independent draft",
+    project: "Project",
+    notice: "Not approved",
+    columns: "All samples",
+    sources: "Sources",
+    footer: "Historical",
+    criteria_heading: "Criteria",
+    criteria_columns: "Criteria",
+    criteria_notice: "Not approved",
+  },
+};
+export const independentReport = (id = "a".repeat(32)) => ({
+  schema: "qa-independent-project-report-archive.v1",
+  scope: "immutable_independent_qa_report_draft",
+  id,
+  project_id: "p1",
+  project_name: "Synthetic project",
+  root_id: id,
+  revision: 1,
+  supersedes_id: null,
+  title: "Independent draft",
+  created_at_ms: 1800000000000,
+  template: independentTemplate,
+  template_hash: "a".repeat(64),
+  components: [independentSource()],
+  markdown: "# Historical independent DRAFT / NOT APPROVED",
+  acceptance: "not_approved",
+  archive_hash: "c".repeat(64),
+});
+export const independentRetest = (id = "a".repeat(32)) => {
+  const baseline = independentSource(),
+    retest = independentSource("r2");
+  return {
+    schema: "qa-independent-retest-archive.v1",
+    scope: "same_benchmark_independent_comparison",
+    id,
+    project_id: "p1",
+    project_name: "Synthetic project",
+    component_id: "c1",
+    component_name: baseline.component_name,
+    created_at_ms: 1800000000000,
+    baseline,
+    retest,
+    benchmark: {
+      schema: "qa-json-plan.v2",
+      acceptance_criteria: baseline.criteria_evaluation!.criteria,
+      project_id: "p1",
+      component_id: "c1",
+      dataset_id: "qa1",
+      dataset_revision: 1,
+      dataset_hash: "a".repeat(64),
+      dataset_purpose: "baseline",
+      binding: {
+        schema: "qa-json-binding.v1",
+        input_pointer: "/input",
+        output_pointer: "/output",
+      },
+      limits: {
+        mode: "effectiveness",
+        concurrency: 1,
+        request_count: 2,
+        timeout_ms: 1000,
+        wall_time_ms: 2000,
+        max_total_body_bytes: 1000,
+      },
+      response_mode: "json_text",
+      sample_order: "sample_id_ascending_cycle.v1",
+      evaluation_policy: "human_review_required.v1",
+      preflight: { sample_count: 2, request_count: 2, total_body_bytes: 20 },
+      run_response_budgets: {
+        max_response_bytes: 100,
+        max_total_response_bytes: 200,
+        lease_grace_ms: 1000,
+      },
+      independent_policy: baseline.policy,
+    },
+    benchmark_hash: "c".repeat(64),
+    request_definition_changed: true,
+    transitions: {
+      pass_to_pass: 1,
+      fail_to_fail: 1,
+      pass_to_fail: 0,
+      fail_to_pass: 0,
+    },
+    cases: baseline.cases.map((c, i) => ({
+      ordinal: c.ordinal,
+      sample_id: "s" + (i + 1),
+      transition: c.outcome + "_to_" + c.outcome,
+      baseline_decision: c.outcome,
+      retest_decision: c.outcome,
+      baseline_case_hash: c.case_hash,
+      retest_case_hash: c.case_hash,
+      baseline_tasks: c.tasks,
+      retest_tasks: c.tasks,
+    })),
+    pass_rate_delta: { numerator: 0, denominator: 2, value: 0 },
+    acceptance: "not_approved",
+    archive_hash: "c".repeat(64),
+  };
+};

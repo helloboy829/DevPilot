@@ -2,8 +2,11 @@
 
 This change connects frozen plans to an independently authorized execution queue,
 DB-fenced Worker, encrypted evidence and the existing human-review page. It is
-**locally regression-tested but not deployed**. Linux full-suite results must be
-confirmed against the exact pushed commit, not the prior deployment SHA.
+part of the verified local `0fd689da83a4ac7646250447fb6d044599a823c5` deployment
+(App head `eval_0009`), with execution still operator-disabled. See the
+[current matrix](DevPilot_Delivery_Status.md) and [deployment evidence](DevPilot_Local_Recovery_and_Upgrade.md).
+Linux full-suite/CI evidence must be tied to each exact revision, not borrowed
+from a prior SHA. The original implementation scope below remains unchanged.
 
 ## User flow
 
