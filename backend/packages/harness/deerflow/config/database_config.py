@@ -34,6 +34,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any, Literal
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -290,6 +291,20 @@ class DatabaseConfig(BaseModel):
             elif url.startswith("postgres://"):
                 # libpq's short alias: accepted by the psycopg checkpointer, but not a SQLAlchemy dialect.
                 url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+            if url.startswith("postgresql+asyncpg://"):
+                # asyncpg accepts the libpq modes as ``ssl``, not ``sslmode``.
+                # Translate only this derived URL: psycopg still needs sslmode.
+                try:
+                    parts = urlsplit(url)
+                    query = parse_qsl(parts.query, keep_blank_values=True)
+                except ValueError:
+                    raise ValueError("Invalid PostgreSQL TLS configuration") from None
+                modes = [value for key, value in query if key == "sslmode"]
+                if modes:
+                    if len(modes) != 1 or modes[0] not in {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"} or any(key == "ssl" for key, _ in query):
+                        raise ValueError("Invalid PostgreSQL TLS configuration")
+                    query = [("ssl" if key == "sslmode" else key, value) for key, value in query]
+                    return urlunsplit(parts._replace(query=urlencode(query)))
             return url
         raise ValueError(f"No SQLAlchemy URL for backend={self.backend!r}")
 

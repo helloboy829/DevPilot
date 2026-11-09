@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## PostgreSQL TLS URL compatibility (2026-11-09)
+
+Only `DatabaseConfig.app_sqlalchemy_url` translates a single explicit libpq `sslmode` to asyncpg's `ssl`, preserving the mode, encoded credentials and other query values. The original DSN and synchronous psycopg path are unchanged. Duplicate/invalid modes or simultaneous `ssl`/`sslmode` fail closed with a generic error; never drop TLS policy or default to disabled TLS. Regression: `tests/test_postgres_url_sslmode.py`; dedicated PostgreSQL schema checks use an owned temporary test database. No dependency, migration, production configuration, deployment or target/model calls.
+
 ## Static-scan failures and deterministic regressions (2026-11-08)
 
 With skill scanning enabled, `enforce_static_scan` rejects reported `scanner_errors` with a generic `StaticScannerError`; critical findings keep precedence and their existing details, and the explicit operator switch remains unchanged. An incomplete scan is not a clean scan. The native scanner tests build deep ASTs iteratively to exercise the analyzer independently of CPython parser limits, while separate injected parser/read failures prove rejection. Run ordering tests use distinct frozen timestamps; the equal-timestamp insertion-order contract is unchanged. Tests: `tests/test_skillscan_native.py`, `tests/test_run_manager.py` plus existing installer/router/tool rejection tests. No model/target calls, migration or Docker changes. MCP task retry tests freeze scan-start and completion independently, including a same-tick completion; assert exact retry timestamps rather than requiring the wall clock to advance. Runtime retry behavior is unchanged.
