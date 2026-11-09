@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Read-only execution diagnostics workspace candidate (2026-11-10)
+
+`/workspace/operations` is explicit human-admin aggregate GET only. Keep strict 16 KiB streamed JSON, all five held states/total coherence, no occupancy clamp to serving policy, synchronous locks and account/role/auth-refresh/unmount late-response fences. No mount fetch, polling, retries, persistent cache, sensitive reads, release/reclaim/dispatch controls or execution enablement. Backend admin + separate permission remains authoritative; deadline is not death, policy is process-local and observation is not a heartbeat. [Contract](docs/DevPilot_Execution_Diagnostics_Workspace.md).
+
 ## Read-only execution reservation diagnostics candidate (2026-11-10)
 
 `GET /api/evaluation/operations/reservations` requires a human administrator plus separate `evaluation_operations:read`. One aggregate SELECT over held execution metadata only; no IDs/claim material/evidence, guard initialization/write/expiry, released quota or resend authority. Deadline reached is not Worker-death proof; local process policy is not global agreement. Keep private generic errors, no-store, deny-wins and literal false release/reclaim/retry/dispatch flags. No migration/dependency/UI/deployment/real calls; safe operational release remains unfinished. [Contract](docs/DevPilot_Execution_Reservation_Diagnostics.md).

@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+[执行诊断工作区](DevPilot_Execution_Diagnostics_Workspace.md)：管理员显式只读加载、严格有界响应与账号隔离，不释放/回收/重试或执行。
+
 [执行占用只读诊断](DevPilot_Execution_Reservation_Diagnostics.md)：人类管理员独立权限、仅技术合计、不证明 Worker 已死亡，不释放/回收/重试或执行。
 
 [真实登录的合成多账号 QA 回归](DevPilot_Authenticated_QA_Regression.md)：真实密码/JWT/CSRF/RBAC 与独立 cookie 的离线主链，不是真实用户、浏览器或部署验收。

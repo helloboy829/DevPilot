@@ -11,6 +11,7 @@ import {
   Settings2,
   GitCompareArrows,
   ClipboardCheck,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,11 +24,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useAgentsApiEnabled } from "@/core/agents";
+import { useAuth } from "@/core/auth/AuthProvider";
 import { useI18n } from "@/core/i18n/hooks";
 
 export function WorkspaceNavChatList() {
   const { t, locale } = useI18n();
   const pathname = usePathname();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { enabled: agentsEnabled, isLoading: agentsLoading } =
     useAgentsApiEnabled();
   const zh = locale === "zh-CN";
@@ -66,6 +69,15 @@ export function WorkspaceNavChatList() {
           icon: ClipboardCheck,
         },
         { path: "reports", label: t.sidebar.reports, icon: FileText },
+        ...(!isLoading && isAuthenticated && user?.system_role === "admin"
+          ? [
+              {
+                path: "operations",
+                label: zh ? "执行预留诊断" : "Execution diagnostics",
+                icon: Activity,
+              },
+            ]
+          : []),
         {
           path: "models",
           label: zh ? "模型与分工" : "Models & roles",

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Read-only execution diagnostics workspace candidate (2026-11-10)
+
+`/workspace/operations` and its role-only stable sidebar entry manually read the fixed aggregate GET via authenticated no-store fetch. Reject unknown fields, unsafe/incoherent counts, authority changes and oversized/invalid streams; retain all held states and occupancy above local policy. Account-keyed child state, layout abort and post-await fences clear snapshots on identity/role/auth-refresh/unmount changes; no polling, retry, cache/export, release/reclaim/dispatch controls or real calls. UI gates never replace server admin + permission. [Contract](../docs/DevPilot_Execution_Diagnostics_Workspace.md).
+
 ## Independent historical PDF candidate (2026-11-09)
 
 `independent-qa-pdf-v1` / `independent-retest-pdf-v1` consume only pinned internal Word-v1 historical public projections, never client XML/HTML or current sources. Keep human owner read/review + viewed hash, off-loop checks/rendering, ALL frozen populations, literal bounded whole-document rejection, fixed engine/embedded OFL font and frontend no-store/ref locks/late-response fences. Unsupported glyph/complex direction fails closed; no system-font/network fallback. Preserve legacy archives/Word/hash. Font rebuild is build-only; the Tenki source override retains the exact old official wheel/hash, not a new SDK. No migration/deployment/execution/model/approval authority. [Contract](../docs/DevPilot_Independent_PDF_Drafts.md).
