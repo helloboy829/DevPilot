@@ -2,7 +2,19 @@
 
 > 核对日期：2026-11-10。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-10：QA 生命周期重复取消排空候选
+
+[关闭排空修复](DevPilot_QA_Shutdown_Drain.md)在有序 Gateway 关闭中仅取消原 Worker 一次，重复外层取消等待同一 shield waiter，排空后再传播取消并清除 repository。原 finish/配额/dispatch-before-send/未知结果不重发语义不变；不增加排空超时、重试、forced-release 或执行启用。
+
+- 旧运行基线先复现 **7 failed / 4 passed，6.75s**，含原 Worker 的双 collector/临时迁移 DB；不是仅凭理论改实现。新增 **8 项**事件屏障/异常保留/真实 Worker 测试，修复后联合主链定向 **82 passed，114.54s**。
+- 修正专用 PostgreSQL/Redis 未启动的环境问题后，同一完整后端 **12,462 passed / 18 skipped / 11 deselected / 40 warnings，730.48s**；原首轮 **3 failed / 7 errors** 及旧代码红灯日志均保留，不弱化断言。Blocking IO **72 passed，5.49s**、Ruff 全目录 **1,252 文件**及离线 lock 检查通过。
+- 完整前端 **152 files / 1,293 passed，14.9s**、整个 `pnpm format` 与七份模块 Markdown 格式通过；本机不重跑 build/浏览器/性能预算，不借用前一模块结果。公开 Python **1,362**、Node/说明 **857** 份源码逐项核对；成功/失败证据导出验 hash 后按精确 ID 收尾本模块四个专用容器，不改业务服务/镜像/卷。
+- 本地门禁不等于 push 或 CI；本模块需独立推送 SHA 和所有实际 Actions 收据，后续开发不得携带可归因的失败。
+- 无 API/权限、依赖、迁移、运营配置或部署变更，候选 head 仍 `eval_0012`。本地有序关闭不是丢失 Worker 死亡证明、远端取消或强制释放授权；安全自动恢复仍未完成。
+
 ## 2026-11-10：原路由资源预算修复候选
+
+预算模块已推送 `6142029b921319e33c8819713f750ebbc3a497f9`，五项实际 Actions 均 completed/success：E2E `42687421415`、Frontend Unit Tests `42687421466`、Unit Tests `42687421868`、Replay E2E `42687421198`、Lint Check `42687421271`。未触发的 Backend Blocking IO / Skill Review 不记为通过；全部 **856** 份前端/模块说明与实际容器、提交归档逐项核对无缺失/不符，**42** 份证据与 archive/member hash 核验后清理本模块精确临时文件并停止唯一 CI 容器，业务服务未操作。
 
 新增[路由预算与加载边界](DevPilot_Route_Resource_Budgets.md)：精确构建期 page-map AST 投影避免 docs/blog 导入工作台运行页面；原有完整 raw HTML palette 移到真正 Markdown/memory 懒加载边界，完整 Streamdown chunks/runtime/public sources 保留。无新依赖、迁移、后端行为、配置或部署，不改预算/路由/测量。
 
@@ -173,7 +185,7 @@ English: the continuation baseline and its four successful runs are explicitly p
 | ------ | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | P0     | 当前修复/独立复核候选的 CI 与部署闭环 | 前轮 Linux/前端门禁通过；新增 API→Worker 回归及独立复核后端/共享界面候选，但须按每次推送 SHA 单独核验远端 CI，尚未部署；部署前另备份、保留数据与回退 |
 | 维护   | Docker 资源收尾（每轮持续执行）       | 两个旧验证容器及无引用旧镜像已精确退役；每轮测试完停止该轮启动的 CI 容器、精确清临时快照并复查业务健康；保留卷与缓存                                 |
-| P1     | 现有前端路由资源预算修复              | 六条基准路由 CSS、docs/blog JS 的同环境基线和本轮均超额；独立减小真实资源，保留预算/全部测量路由，不以成功 Actions 掩盖本地失败                      |
+| 维护   | 前端路由资源预算持续防回归            | `6142029` 的原六路由预算已通过且实际 Actions 成功；chat CSS 仅 609 bytes 余量，继续保留全部路由/阈值与真实测量，不冒用前轮结果证明新改动             |
 | P1     | 独立档案的正式批准与验收              | 独立复核中心/内联 UI 及全量独立评估 API/修订 UI 已有候选；已有显式历史来源绑定后端/API，已有独立选择 UI；仍须版本化审批，不能把 case pass 当批准     |
 | P1     | 失联 Worker 安全运维及 QA 调度准入    | 证明旧进程不再能发送后才考虑运维释放；不按超时盲目回收、不重发未知交付、不借用旧调度绕过准入                                                         |
 | P1     | 统一执行适配器与可复现独立导出        | 共用版本化语义、授权/限额/出站边界，导出不泄漏 key/金标且不是模型自由生成 runner                                                                     |

@@ -147,3 +147,7 @@ and preservation checks remain mandatory before deploying this candidate.
 ## Read-only reservation diagnostics / 只读占用诊断（2026-11-10）
 
 新增候选 [管理员技术合计 GET](DevPilot_Execution_Reservation_Diagnostics.md)，单独 `evaluation_operations:read`，只观察仍占用的运行/并发/字节和截止状态，不返回身份/claim/来源，不初始化 guard、不执行 expire、不改审计或配额。deadline 到达不证明旧 Worker 或远端处理已停止，所有释放/回收/重试/发送授权字段固定 false；安全人工对账/永久 fencing 与释放仍是未完成工作。原 claim 的取消/排空/收尾语义和默认禁用不变，不增加部署/迁移/依赖或真实调用。
+
+## Gateway 重复关闭取消 / Repeated shutdown cancellation（2026-11-10）
+
+候选[关闭排空修复](DevPilot_QA_Shutdown_Drain.md)阻止重复 Gateway 取消通过 gather 二次打断原 Worker 清理：取消 Worker 一次，shield 同一等待器，排空后传播外层取消并清除 repository。既有 monitor DB drain、finish/配额、不重派/不重发语义不变；不增加超时、重试、强制释放或死亡证明。未修改运行代码的基线先由事件屏障与真实 Worker 合成用例复现失败，不把有序本地关闭改名为安全自动恢复。

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## QA shutdown repeated-cancellation drain candidate (2026-11-10)
+
+`qa_execution_runtime` cancels its original Worker once, shields one shared gather waiter through repeated Gateway shutdown cancellation, and propagates cancellation only after that Worker drains. Clear the repository after drain even on cancellation; never retry/restart tasks or add a drain timeout. Keep dispatch/no-resend and original finish/reservation rules; hard process death still retains quota. Event barriers must cover normal/cancelled/error bodies and the real Worker with synthetic collectors/temporary DB. No API, migration, dependency, operator enablement or deployment. [Contract](docs/DevPilot_QA_Shutdown_Drain.md).
+
 ## Route resource budget candidate (2026-11-10)
 
 `frontend/scripts/content-page-map-*` projects only Nextra-generated App namespace imports in its exact build placeholder; content metadata/map topology and real App routes stay unchanged. Unknown generator/config shapes fail closed; verify Turbopack and Webpack builds. `globals.css` scans explicit runtime/public and full Streamdown plugin chunks only. Preserve ALL historical raw-HTML safelist directives in lazy `rich-html.css`; source-free theme tokens prevent duplicate app utilities. Only Markdown artifacts/lazy memory settings own this palette, not iframe/editor entry paths. Never raise budgets, drop routes or change measurement to hide regressions. Six original route budgets pass, but chat CSS has only 609 bytes headroom. No dependency, migration, backend behavior, deployment or real calls. [Contract](docs/DevPilot_Route_Resource_Budgets.md).

@@ -6,6 +6,24 @@ from contextlib import asynccontextmanager
 from app.evaluation.execution import ExecutionPolicy, ExecutionRepository, QAExecutionWorker
 
 
+async def _stop_and_drain_worker(task):
+    # Cancel the original Worker once. Repeated cancellation of Gateway shutdown
+    # must not cancel its in-flight network/DB cleanup or permit DB teardown.
+    task.cancel()
+    waiter = asyncio.gather(task, return_exceptions=True)
+    cancelled = False
+    while True:
+        try:
+            await asyncio.shield(waiter)
+            break
+        except asyncio.CancelledError:
+            cancelled = True
+    # Do not swallow shutdown cancellation; propagate only after the same Worker
+    # has finished draining. A dead process still retains unresolved quota.
+    if cancelled:
+        raise asyncio.CancelledError
+
+
 @asynccontextmanager
 async def qa_execution_runtime(app, session_factory, config, config_getter):
     # Operator-owned and restart-required. Never synthesize an encryption key,
@@ -18,9 +36,8 @@ async def qa_execution_runtime(app, session_factory, config, config_getter):
     try:
         yield
     finally:
-        if task is not None:
-            task.cancel()
-            # The original worker drains its transaction/network tasks before
-            # releasing quota. Hard process death deliberately retains quota.
-            await asyncio.gather(task, return_exceptions=True)
-        app.state.evaluation_execution_repo = None
+        try:
+            if task is not None:
+                await _stop_and_drain_worker(task)
+        finally:
+            app.state.evaluation_execution_repo = None

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## QA lifecycle shutdown drain candidate (2026-11-10)
+
+`execution_lifecycle._stop_and_drain_worker` cancels the original Worker once and shields a single gather waiter. Repeated outer cancellation must wait for network/DB cleanup, then propagate; repository clearing and DB teardown follow drain. Never restart a Worker, retry a claim/send, add a drain timeout or treat local orderly shutdown as death proof/forced-release authority. Keep original execution cancellation/finish/quota semantics; hard-dead Workers retain reservations. Event-barrier and real Worker synthetic regressions live in `test_qa_execution_lifecycle.py`. [Contract](../docs/DevPilot_QA_Shutdown_Drain.md).
+
 ## Read-only execution reservation diagnostics candidate (2026-11-10)
 
 `GET /api/evaluation/operations/reservations` requires a human administrator plus separate `evaluation_operations:read`. One aggregate SELECT over held execution metadata only; no IDs/claim material/evidence, guard initialization/write/expiry, released quota or resend authority. Deadline reached is not Worker-death proof; local process policy is not global agreement. Keep private generic errors, no-store, deny-wins and literal false release/reclaim/retry/dispatch flags. No migration/dependency/UI/deployment/real calls; safe operational release remains unfinished. [Contract](../docs/DevPilot_Execution_Reservation_Diagnostics.md).

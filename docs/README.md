@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+[QA 关闭重复取消排空](DevPilot_QA_Shutdown_Drain.md)：唯一 Worker 取消、同一 shield waiter、排空后传播取消与清理状态；不回收丢失 Worker 或重发。
+
 [路由资源预算与加载边界](DevPilot_Route_Resource_Budgets.md)：保留六条原预算，隔离文档导航对工作台的构建依赖，完整动态 HTML 样式按真实预览懒加载；不部署、不改变执行或批准边界。
 
 [执行诊断工作区](DevPilot_Execution_Diagnostics_Workspace.md)：管理员显式只读加载、严格有界响应与账号隔离，不释放/回收/重试或执行。
