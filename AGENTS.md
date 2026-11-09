@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Route resource budget candidate (2026-11-10)
+
+`frontend/scripts/content-page-map-*` projects only Nextra-generated App namespace imports in its exact build placeholder; content metadata/map topology and real App routes stay unchanged. Unknown generator/config shapes fail closed; verify Turbopack and Webpack builds. `globals.css` scans explicit runtime/public and full Streamdown plugin chunks only. Preserve ALL historical raw-HTML safelist directives in lazy `rich-html.css`; source-free theme tokens prevent duplicate app utilities. Only Markdown artifacts/lazy memory settings own this palette, not iframe/editor entry paths. Never raise budgets, drop routes or change measurement to hide regressions. Six original route budgets pass, but chat CSS has only 609 bytes headroom. No dependency, migration, backend behavior, deployment or real calls. [Contract](docs/DevPilot_Route_Resource_Budgets.md).
+
 ## Read-only execution diagnostics workspace candidate (2026-11-10)
 
 `/workspace/operations` is explicit human-admin aggregate GET only. Keep strict 16 KiB streamed JSON, all five held states/total coherence, no occupancy clamp to serving policy, synchronous locks and account/role/auth-refresh/unmount late-response fences. No mount fetch, polling, retries, persistent cache, sensitive reads, release/reclaim/dispatch controls or execution enablement. Backend admin + separate permission remains authoritative; deadline is not death, policy is process-local and observation is not a heartbeat. [Contract](docs/DevPilot_Execution_Diagnostics_Workspace.md).

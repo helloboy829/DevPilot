@@ -2,7 +2,19 @@
 
 > 核对日期：2026-11-10。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-10：原路由资源预算修复候选
+
+新增[路由预算与加载边界](DevPilot_Route_Resource_Budgets.md)：精确构建期 page-map AST 投影避免 docs/blog 导入工作台运行页面；原有完整 raw HTML palette 移到真正 Markdown/memory 懒加载边界，完整 Streamdown chunks/runtime/public sources 保留。无新依赖、迁移、后端行为、配置或部署，不改预算/路由/测量。
+
+- 原 `pnpm perf:check` 六条路由均通过：CSS login/root **164719**、chat/list **189391**、docs/blog **267689** bytes；docs/blog JS **4436096 → 1013381** bytes。chat CSS 仅 **609 bytes** 余量；指标是既有入口原始字节，不是全量 lazy assets/交互延迟或真实认证验收。
+- 新 loader/config **28 项**及样式编译/完整历史 palette **3 项**通过；完整 frontend **152 files / 1293 passed**。完整格式、ESLint、typecheck、Webpack 和 Turbopack 实际生产 build 均通过；完整模拟 Chromium **231 passed / 2.5m**、独立认证恢复 **2 passed / 1.2m**，均明确 `retries=0`。本模块不改后端，未在本机重跑整个后端。
+- 无效包导入优化与第一候选重复 CSS（thread **360187** bytes，失败）均保留；通过 source-free theme tokens 和进一步 Markdown lazy child 修复，不隐藏失败，不删断言/路由或提高预算。
+
+本机 ignored 证据 `.deer-flow/ci/20261110-route-resource-budgets/`；源码/导出 hash、资源收尾和精确 SHA 的实际 Actions 单独核验。本模块不改后端，不借用历史全量成绩，不等于部署或整个平台完成。
+
 ## 2026-11-10：管理员执行诊断工作区候选
+
+该工作区已推送 `833897a367ea8ef0a1a030f4e1e93dc098caec11`，五项实际 Actions completed/success：E2E `42678402551`、Frontend Unit Tests `42678402624`、Lint Check `42678402195`、Replay E2E `42678402254`、Unit Tests `42678402516`。Backend Blocking IO / Skill Review 未触发，不记为通过；下面保留该提交本地性能失败，后续预算模块的通过不改写其原始回执。
 
 新增[执行诊断工作区](DevPilot_Execution_Diagnostics_Workspace.md)：显式管理员只读入口、16 KiB 严格流式 JSON、五态/全局合计校验、超策略占用不截断、同步锁与账号/角色/卸载迟到响应屏障。仅手动 GET，无轮询/重试、敏感读取、持久化缓存、释放/回收/执行控件。无后端运行行为、依赖、迁移、配置或部署变更；安全释放和平台其余能力不因此完成。
 

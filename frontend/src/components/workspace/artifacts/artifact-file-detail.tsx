@@ -13,6 +13,7 @@ import {
   SquareArrowOutUpRightIcon,
   XIcon,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -53,15 +54,10 @@ import {
 } from "@/core/artifacts/preview";
 import { urlOfArtifact } from "@/core/artifacts/utils";
 import { useAuth } from "@/core/auth/AuthProvider";
-import { extractCitationSources } from "@/core/citations/sources";
 import { writeTextToClipboard } from "@/core/clipboard";
 import { useI18n } from "@/core/i18n/hooks";
 import { findToolCallResult } from "@/core/messages/utils";
 import { installSkill, SkillRequestError } from "@/core/skills/api";
-import {
-  SafeStreamdown,
-  toStreamdownComponents,
-} from "@/core/streamdown/components";
 import {
   canBrowserPreviewFile,
   checkCodeFile,
@@ -72,13 +68,14 @@ import {
 import { env } from "@/env";
 import { cn } from "@/lib/utils";
 
-import { ArtifactLink } from "../citations/artifact-link";
-import { CitationSourcesPanel } from "../citations/citation-sources-panel";
 import { useThread } from "../messages/context";
 import { Tooltip } from "../tooltip";
 
 import { useArtifacts } from "./context";
-import { artifactMarkdownPlugins } from "./markdown-preview-plugins";
+// Raw HTML utilities belong only to the Markdown preview, not HTML iframes or editors.
+const ArtifactMarkdownPreview = dynamic(
+  () => import("./artifact-markdown-preview"),
+);
 
 const WRITE_FILE_PREVIEW_REFRESH_INTERVAL_MS = 3000;
 
@@ -814,11 +811,6 @@ export function ArtifactFilePreview({
     [scrollKey],
   );
   const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string>();
-  const citationSources = useMemo(
-    () =>
-      language === "markdown" ? extractCitationSources(content ?? "") : [],
-    [content, language],
-  );
 
   useEffect(() => {
     scrollPositionRef.current = { x: 0, y: 0 };
@@ -885,18 +877,7 @@ export function ArtifactFilePreview({
   }, [content, language, scrollKey, url]);
 
   if (language === "markdown") {
-    return (
-      <div className="size-full overflow-auto px-4 py-3">
-        <SafeStreamdown
-          className="min-w-0"
-          {...artifactMarkdownPlugins}
-          components={toStreamdownComponents({ a: ArtifactLink })}
-        >
-          {content ?? ""}
-        </SafeStreamdown>
-        <CitationSourcesPanel sources={citationSources} className="mb-4" />
-      </div>
-    );
+    return <ArtifactMarkdownPreview content={content ?? ""} />;
   }
   if (language === "html") {
     return (

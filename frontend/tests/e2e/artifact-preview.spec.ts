@@ -175,6 +175,40 @@ test.describe("Artifact preview stability", () => {
     await expect(artifactsPanel.getByText("测试内容 1")).toBeVisible();
   });
 
+  test("loads complete dynamic HTML utilities only with the Markdown preview", async ({
+    page,
+  }) => {
+    mockLangGraphAPI(page, {
+      threads: [
+        {
+          thread_id: MARKDOWN_THREAD_ID,
+          title: "Raw HTML utilities preview",
+          messages: writeFileMessages({
+            path: MARKDOWN_ARTIFACT_PATH,
+            content:
+              '<p class="px-24 text-6xl leading-loose text-stone-950">Preserved raw HTML palette</p>',
+          }),
+        },
+      ],
+    });
+    await page.goto(`/workspace/chats/${MARKDOWN_THREAD_ID}`);
+    await expect(page.getByText(MARKDOWN_ARTIFACT_PATH)).toBeVisible();
+    await page.getByText(MARKDOWN_ARTIFACT_PATH).click();
+    const preview = page
+      .locator("#artifacts")
+      .getByText("Preserved raw HTML palette", { exact: true });
+    await expect(preview).toBeVisible();
+    await expect(preview).toHaveCSS("padding-left", "96px");
+    await expect(preview).toHaveCSS("padding-right", "96px");
+    await expect(preview).toHaveCSS("font-size", "60px");
+    await expect(preview).toHaveCSS("line-height", "120px");
+    expect(
+      await preview.evaluate((node) =>
+        getComputedStyle(node).getPropertyValue("--color-stone-950"),
+      ),
+    ).not.toBe("");
+  });
+
   test("scrolls markdown artifact preview to heading anchors", async ({
     page,
   }) => {

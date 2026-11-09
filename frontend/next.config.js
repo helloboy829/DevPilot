@@ -13,6 +13,8 @@ function getInternalServiceURL(envKey, fallbackURL) {
 }
 import nextra from "nextra";
 
+import { withContentPageMapIsolation } from "./scripts/content-page-map-config.mjs";
+
 const withNextra = nextra({});
 
 /** @type {import("next").NextConfig} */
@@ -80,4 +82,4 @@ const config = {
   },
 };
 
-export default withNextra(config);
+export default withContentPageMapIsolation(withNextra(config));

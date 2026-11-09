@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+[路由资源预算与加载边界](DevPilot_Route_Resource_Budgets.md)：保留六条原预算，隔离文档导航对工作台的构建依赖，完整动态 HTML 样式按真实预览懒加载；不部署、不改变执行或批准边界。
+
 [执行诊断工作区](DevPilot_Execution_Diagnostics_Workspace.md)：管理员显式只读加载、严格有界响应与账号隔离，不释放/回收/重试或执行。
 
 [执行占用只读诊断](DevPilot_Execution_Reservation_Diagnostics.md)：人类管理员独立权限、仅技术合计、不证明 Worker 已死亡，不释放/回收/重试或执行。

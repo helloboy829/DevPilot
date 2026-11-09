@@ -1,5 +1,7 @@
 "use client";
 
+import "@/styles/rich-html.css";
+
 import {
   DownloadIcon,
   PenLineIcon,
