@@ -60,6 +60,7 @@ class Permissions:
     EVALUATION_PROJECTS_READ = "evaluation_projects:read"
     EVALUATION_PROJECTS_WRITE = "evaluation_projects:write"
     EVALUATION_PROJECTS_REVIEW = "evaluation_projects:review"
+    EVALUATION_OPERATIONS_READ = "evaluation_operations:read"
 
     # Threads
     THREADS_READ = "threads:read"
@@ -132,6 +133,7 @@ _ALL_PERMISSIONS: list[str] = [
     Permissions.EVALUATION_PROJECTS_READ,
     Permissions.EVALUATION_PROJECTS_WRITE,
     Permissions.EVALUATION_PROJECTS_REVIEW,
+    Permissions.EVALUATION_OPERATIONS_READ,
 ]
 
 

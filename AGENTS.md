@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Read-only execution reservation diagnostics candidate (2026-11-10)
+
+`GET /api/evaluation/operations/reservations` requires a human administrator plus separate `evaluation_operations:read`. One aggregate SELECT over held execution metadata only; no IDs/claim material/evidence, guard initialization/write/expiry, released quota or resend authority. Deadline reached is not Worker-death proof; local process policy is not global agreement. Keep private generic errors, no-store, deny-wins and literal false release/reclaim/retry/dispatch flags. No migration/dependency/UI/deployment/real calls; safe operational release remains unfinished. [Contract](docs/DevPilot_Execution_Reservation_Diagnostics.md).
+
 ## Authenticated synthetic multi-account QA regression (2026-11-10)
 
 `backend/tests/test_qa_authenticated_workflow_api.py` overrides only the old workflow's API fixture: real temporary-DB password users, local login/JWT/token-version, CSRF and enabled fail-closed RBAC; independent cookie jars, never identity middleware/state actor switches. Keep synthetic secrets/config isolated, socket fail-closed, blind-review narrow grants, ALL denominators, historical immutability and no approval authority. This is offline ASGI/Worker integration, not real-user/browser/deployment acceptance; no runtime, migration, dependency or real calls. [Scope](docs/DevPilot_Authenticated_QA_Regression.md).

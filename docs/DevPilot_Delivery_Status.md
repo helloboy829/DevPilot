@@ -2,7 +2,19 @@
 
 > 核对日期：2026-11-10。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-10：执行占用只读诊断候选
+
+新增[只读运维诊断](DevPilot_Execution_Reservation_Diagnostics.md)：人类管理员 + 独立 `evaluation_operations:read`，一条 SELECT 聚合仍占用的配额/状态/deadline，显式不证明 Worker 死亡、不是可用槽位或全局策略一致性。不读 IDs/claim/敏感证据，不写 guard/审计/运行、不释放/回收/重发或执行；无迁移/依赖/前端运行变更。安全释放、调度准入和正式批准仍未完成。
+
+- 新模块 **22 项**，连同既有授权清单/执行/真实登录主链联合定向 **82 passed / 1 warning，98.00s**。标准 `make test` **12,454 passed / 18 skipped / 11 deselected / 40 warnings，681.81s**；含纯领域 **15 / 58 passed**，不与定向重复叠加。
+- `make test-blocking-io` **72 passed / 2 warnings，5.60s**；`make lint` Ruff check/format **1,252 文件**、`uv lock --check --offline`、完整 frontend Prettier 和七份模块 Markdown 检查通过。**1,313** 份后端/领域实际源码及 **827** 份前端格式快照逐项核对，缺失/不符均为 **0**。
+- 专用 PostgreSQL 会话 TEMP 表通过空集/跨 owner 合计/deadline 相等/interrupted 保留/已释放排除/无敏感投影六项检查；无持久 DDL/数据变更，不冒称生产 PostgreSQL 验收。首次夹具缓存断言和全量固定权限清单失败日志均保留；同步新权限的精确列表及逐项 provider 请求断言，不改运行授权、不放宽断言、不增加超时或重试。
+
+没有前端运行变更，本模块不冒称再次运行前端单测/typecheck/build/浏览器；新提交的精确 SHA 与实际 Actions 单独核实，不能借用前一提交的成功。本机 ignored 证据目录 `.deer-flow/ci/20261110-execution-diagnostics/`；所有进程结束和导出逐项 hash 核实后，仅停止本模块启动的四个专用 CI 容器，保留业务服务、缓存和卷。
+
 ## 2026-11-10：真实登录的合成多账号 QA 回归候选
+
+真实认证回归已实际推送 `55cf3a80d3026f15b0e80399ab8fb9b52f032cc6`，四项实际 Actions 均 **completed / success**：Unit Tests `42659502653`、Frontend Unit Tests `42659502573`、Backend Blocking IO `42659502602`、Lint Check `42659502551`。该测试/文档提交未触发 E2E/Replay/Skill Review，不将未触发当成功；不是部署或真实用户验收。
 
 新增[真实认证离线主链回归](DevPilot_Authenticated_QA_Regression.md)：临时 DB 五个独立合成账号，真实密码登录、JWT/数据库/token-version、CSRF 和启用的 fail-closed RBAC，接通双盲/仲裁、历史评估/报告/复测及 Word/PDF。不挂载旧合成身份中间件，不改运行权限/依赖/迁移。真实账号/浏览器/部署验收与正式批准仍未完成。
 
@@ -10,7 +22,7 @@
 - `make test-blocking-io` **72 passed / 2 warnings，5.61s**；`make lint` Ruff check/format **1,248 文件**与 `uv lock --check --offline` 通过。实际测试的 **1,309** 份后端/领域公开源码逐项核对，缺失/不符均为 **0**。
 - 完整 frontend Prettier 与六份变更 Markdown 格式检查通过；本模块不改前端源码，不冒称再次运行前端单测/类型检查/构建/浏览器，也不借用上一提交的 Actions。编写阶段 cookie/路由夹具错误与最终日志均保留，未改运行 cookie、放宽断言、增超时或重试。
 
-本模块仅新增测试/说明，不改运行权限、配置、依赖、迁移或默认禁用执行；候选 head `eval_0012`、历史部署收据 `eval_0009` 不变。推送后须按新精确 SHA 核实全部实际触发的 Actions；本地门禁不等于远端成功。ignored 本机证据在 `.deer-flow/ci/20261110-authenticated-qa/`，测试全部结束、日志导出验 hash 后仅停止本轮启动的四个专用 CI 容器，保留依赖缓存/业务服务/卷，无部署、真实调用或正式批准。
+本模块仅新增测试/说明，不改运行权限、配置、依赖、迁移或默认禁用执行；候选 head `eval_0012`、历史部署收据 `eval_0009` 不变。本模块上列精确 SHA 的四项实际 Actions 已核实成功，不能冒用为后续提交的 CI。ignored 本机证据在 `.deer-flow/ci/20261110-authenticated-qa/`，测试全部结束、日志导出验 hash 后仅停止本轮启动的四个专用 CI 容器，保留依赖缓存/业务服务/卷，无部署、真实调用或正式批准。
 
 ## 2026-11-09 开发 / 2026-11-10 收尾：独立历史报告/重测 PDF 候选
 

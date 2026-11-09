@@ -51,3 +51,11 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 下一测试切片见[真实认证回归](DevPilot_Authenticated_QA_Regression.md)：隔离数据库五个普通账号，真实密码登录/JWT/CSRF/RBAC，接入既有离线 Worker/独立任务/历史档案。不改变运行权力或启用执行；仍缺少另行授权的真实用户浏览器联调/保留数据部署和正式批准政策。
 
 最终本地门禁：新增 18 项，联合定向 **63 passed**；标准后端 **12,432 passed / 18 skipped / 11 deselected**、纯领域 **15 / 58 passed**、Blocking IO **72 passed**；Ruff check/format **1,248 文件**、离线锁检查、完整 frontend Prettier 与六份模块 Markdown 检查通过。1,309 份实际后端/领域源码缺失/不符均为零。无前端运行源码变更，本模块没有重跑前端单测/build/浏览器，不以 PDF 提交的 CI 替代本次推送 SHA 的实际 Actions；最终统计、排除项与本机证据目录见交付矩阵。该测试补齐真实认证的离线主链，不等于真实用户、部署或正式批准。
+
+## 2026-11-10 接续：执行占用只读诊断
+
+真实认证回归已实际推送 `55cf3a80d3026f15b0e80399ab8fb9b52f032cc6`，四项实际 Actions 均 **completed / success**：Unit Tests `42659502653`、Frontend Unit Tests `42659502573`、Backend Blocking IO `42659502602`、Lint Check `42659502551`。该测试/文档提交未触发 E2E/Replay/Skill Review，不将未触发当成功；不是部署或真实用户验收。
+
+下一候选为[执行占用只读诊断](DevPilot_Execution_Reservation_Diagnostics.md)，先补全局占用合计观察面，不发明失联进程已死亡的证据、不释放配额、不重发未知请求、不改变执行/调度授权。人类管理员与独立路由权限、一条 SELECT、不读敏感来源/不写状态；正式运维释放仍须独立 fencing/对账合同。本模块没有前端运行变更、迁移或依赖，完整后端/领域与格式门禁、精确 SHA Actions 单独核实。
+
+本模块最终本地门禁：新增 22 项、联合定向 **82 passed / 1 warning**，完整后端 **12,454 passed / 18 skipped / 11 deselected**、纯领域 **15 / 58 passed**、Blocking IO **72 passed**；Ruff check/format **1,252 文件**、离线锁、完整 frontend Prettier 与七份 Markdown 检查通过。1,313 份后端/领域源码与 827 份前端格式快照均零缺失/不符；PostgreSQL 专属 TEMP 表六项合计兼容性通过，不是生产/迁移验收。首次授权固定清单失败已同步新权限的精确断言并完整重跑；无运行授权修改或重试掩盖。每次推送仍须自己的精确 SHA Actions；安全运维释放和平台其余 P1/P2 不因此完成。

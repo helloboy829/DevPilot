@@ -143,3 +143,7 @@ existing local login page returns HTTP 200. Local App deployment remains
 account, real configuration, key or volume was modified for these validations.
 No real target, paid model or automatic run was enabled. A new consistent backup
 and preservation checks remain mandatory before deploying this candidate.
+
+## Read-only reservation diagnostics / 只读占用诊断（2026-11-10）
+
+新增候选 [管理员技术合计 GET](DevPilot_Execution_Reservation_Diagnostics.md)，单独 `evaluation_operations:read`，只观察仍占用的运行/并发/字节和截止状态，不返回身份/claim/来源，不初始化 guard、不执行 expire、不改审计或配额。deadline 到达不证明旧 Worker 或远端处理已停止，所有释放/回收/重试/发送授权字段固定 false；安全人工对账/永久 fencing 与释放仍是未完成工作。原 claim 的取消/排空/收尾语义和默认禁用不变，不增加部署/迁移/依赖或真实调用。
