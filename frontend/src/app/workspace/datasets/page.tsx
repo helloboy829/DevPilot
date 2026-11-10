@@ -9,6 +9,7 @@ import { AuthorizedExportPanel } from "@/components/workspace/authorized-export-
 import { EvaluationExecutionPanel } from "@/components/workspace/evaluation-execution-panel";
 import { EvaluationPlanPanel } from "@/components/workspace/evaluation-plan-panel";
 import { EvaluationReviewPanel } from "@/components/workspace/evaluation-review-panel";
+import { ExternalQAPanel } from "@/components/workspace/external-qa-panel";
 import { IndependentAssessmentPanel } from "@/components/workspace/independent-assessment-panel";
 import { ProjectRegistryPanel } from "@/components/workspace/project-registry-panel";
 import {
@@ -25,6 +26,7 @@ import type {
 import { evaluationApi } from "@/core/evaluation/api";
 import type { PendingAssessments } from "@/core/evaluation/assessment-policy";
 import type { PendingExports } from "@/core/evaluation/export-policy";
+import type { PendingIntakes } from "@/core/evaluation/external-qa-policy";
 import type { PendingReviewTasks } from "@/core/evaluation/task-types";
 import { useI18n } from "@/core/i18n/hooks";
 
@@ -57,6 +59,8 @@ export default function DatasetsPage() {
   const [notice, setNotice] = useState("");
   const pendingExports = useRef<PendingExports>(new Map());
   const exportWriteLock = useRef(false);
+  const pendingIntakes = useRef<PendingIntakes>(new Map());
+  const intakeWriteLock = useRef(false);
   const pendingReviewTasks = useRef<PendingReviewTasks>(new Map());
   const pendingAssessments = useRef<PendingAssessments>(new Map());
   const epoch = useRef(0);
@@ -683,6 +687,15 @@ export default function DatasetsPage() {
               zh={zh}
               pendingExports={pendingExports.current}
               writeLock={exportWriteLock}
+            />
+          )}
+          {projectId && (
+            <ExternalQAPanel
+              key={`external-qa:${projectId}:${zh}`}
+              projectId={projectId}
+              zh={zh}
+              pendingIntakes={pendingIntakes.current}
+              writeLock={intakeWriteLock}
             />
           )}
           {projectId && (

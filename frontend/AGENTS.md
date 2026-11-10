@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## External QA technical quarantine workspace candidate (2026-11-11)
+
+`ExternalQAPanel` explicitly opens an exact historical complete-baseline export and frozen plan, then two bounded UTF-8 technical files and three separate consents. Keep ALL source/count/budget/hash bindings, parent page-memory metadata-only pending IDs, cross-project write refs, unmount/file/hash fences and same-ID GET-only reconciliation including GET404. Unknown writes never resend or replace IDs. Historical receipts/audit are explicit literal text, never latest/policy/bundle/gold/output lookup or evidence/approval/send authority. Backend-generated synthetic fixtures and desktop/mobile regressions must verify the same contract. No dependency/migration/deployment/execution change. Local gates passed: frontend 1,359; backend 13,334; zero-retry Chromium 242 and auth recovery 2. Verify new-SHA CI separately. [Contract](../docs/DevPilot_External_QA_Quarantine_Workspace.md).
+
 ## Authorized QA configuration export workspace (2026-11-10)
 
 `AuthorizedExportPanel` on datasets requires explicit scoped policy/grant/source loads, three independent creation consents and another download consent. Parent page-memory pending IDs/ref write lock, same-ID GET-only after unknown PUT or GET404, strict source/schema/ALL-count/software binding, expiry checks at click/before/after binary await and unmount fences must remain. No automatic fetch/retry/polling/software retrieval, persistent sensitive cache or target/model calls. Keep authenticated no-store bounded ZIP response pins, transient Blob/URL cleanup, explicit historical reads and sequence-ordered audit. Synthetic browser fixture uses real API ZIP bytes with backend contract verification; no deployment or approval authority. [Contract](../docs/DevPilot_Authorized_QA_Export_Workspace.md).

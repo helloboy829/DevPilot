@@ -66,7 +66,7 @@ ALL 冻结样本始终保留；不会把成功或已观测子集当分母。
 ## 未完成与禁止外推
 
 本模块不改变平台 run/review/assessment/report/dispatch/reservation/quota；无执行启用、部署、真实模型/目标调用或新增运行依赖。
-外部敏感输出/证据治理、workspace UI、本地输出加密/保留、冻结 QA 调度、失联 Worker 安全、正式批准和授权部署/真实用户验收仍待完成。
+独立 [workspace UI 候选](DevPilot_External_QA_Quarantine_Workspace.md) 已通过本轮本地专项/完整门禁，提交与精确 SHA CI 单独核验；外部敏感输出/证据治理、本地输出加密/保留、冻结 QA 调度、失联 Worker 安全、正式批准和授权部署/真实用户验收仍待完成。
 
 ## English contract
 

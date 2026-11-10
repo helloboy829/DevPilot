@@ -1,5 +1,15 @@
 # 开发接续分析与模块计划 / Development continuation plan
 
+## 当前接续：外部 QA 技术隔离接收工作台本地验证（2026-11-11）
+
+上一后端隔离接收提交 `179b944a2f47bd0eef011d395b17f2823a91991a` 的五项实际 push Actions 已逐项核验成功：Blocking `42864729700`、Unit `42864728140`、Frontend `42864727845`、Lint `42864727835`、Replay `42864727910`，共 10 个 jobs。不是本轮尚未提交 UI 的 CI。
+
+[独立技术接收面板](DevPilot_External_QA_Quarantine_Workspace.md)已完成本轮本地验证。只存技术元数据、ALL 分母和预算、父页 metadata-only pending 与跨项目锁、未知写入仅原 ID GET、迟到文件/网络/hash fence 和字面审计保持。无新增依赖/迁移或后端运行时改动，无部署、执行启用、真实调用或正式批准。
+
+最终本地门禁：专项前端 **47 passed**，完整 **158 files / 1,359 passed**，ESLint/typecheck/整个 frontend Prettier 通过；真实合成 API fixture **2 passed**，后端联合 **257 passed**，标准全量 **13,334 passed / 19 skipped / 11 deselected / 40 warnings，1391.03s**，领域 **15 / 58**、Blocking IO **72 passed**、Ruff **1,277 files** 和 offline lock 通过。生产构建、原六路由性能预算、零重试专项 Chromium **6 passed**、完整 Chromium **242 passed** 及独立 auth recovery **2 passed** 通过；专项/完整门禁重叠，不相加。
+
+原始类型/import/格式诊断保留。首轮性能命令误用 auth-disabled 导致 login307，改正测试环境后原六路由与原预算全部通过；首轮浏览器因并发构建超过原 webServer120s 未启动场景，随后单独构建成功、独占回环服务和固定 build ID 完成零重试浏览器门禁，不提高超时或放宽断言。九份公开指南、受测源码、证据 hash、精确资源收尾、独立提交推送和新 SHA 实际 Actions 必须分别核验；不由本地成功或前轮 CI 推断交付。后续敏感外部输出/证据治理、本地加密保留、QA 调度/lost Worker、正式批准和授权升级/真实用户验收仍未完成。
+
 ## 当前接续：外部技术声明持久隔离接收（2026-11-11）
 
 上一导出工作台提交 `aed6e70b9ddb1e275af7744e20507a43df67f699` 的六项实际 push Actions 已逐项核验成功：Frontend `42849578268`、Blocking `42849578229`、Replay `42849578274`、Lint `42849578137`、E2E `42849578311`、Unit `42849578289`。这不是新模块的 CI。

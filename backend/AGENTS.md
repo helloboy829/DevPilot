@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## External QA workspace fixture contract (2026-11-11)
+
+`test_external_qa_workspace_contract.py` independently verifies the committed public browser fixture through the real source receipt/plan, strict technical parser, ALL population and archive hashes. A separate synthetic API PUT/GET/audit produces the actual fixture; no private configuration or socket send, and coherent forgery remains NOT_EVALUATED. Keep required fixture checks (no silent skip), immutable duplicate rejection and all false authority flags. Existing backend runtime and eval_0014 are unchanged. Both fixture tests and final 13,334-test backend gate passed locally; do not infer deployment or new-SHA CI. [Workspace contract](../docs/DevPilot_External_QA_Quarantine_Workspace.md).
+
 ## External quarantine API and migrations candidate (2026-11-11)
 
 `test_external_qa_quarantine*` covers bounded pre-buffer HTTP envelopes, exact independent permissions/consents, historical complete-baseline source binding, ALL frozen counts/budget checks, coherent forgery, canonical/original-hash distinction, immutable duplicate/race gates, repeated cancellation drain and source CAS with atomic audit. SQLite FK-ON and owned temporary PostgreSQL verify all previous rows/Harness ledger and full schema/index parity through additive `eval_0014` up/down cycles. Keep export migration tests frozen at their original `eval_0013` population; the new full-head test covers every current App table. Never relax unknown-write GET-only reconciliation, source/denominator gates or false authority flags; no sensitive evidence reads, execution, deployment or real calls. [Contract](../docs/DevPilot_External_QA_Quarantine.md).

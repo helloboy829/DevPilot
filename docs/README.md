@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+[外部 QA 技术隔离接收工作台 / External QA quarantine workspace](DevPilot_External_QA_Quarantine_Workspace.md)：显式历史来源、两份有界技术文件、三确认、原 ID GET-only 对账与字面审计；本轮本地门禁通过（前端 1,359 / 后端 13,334 / Chromium 242 / auth recovery 2），源码/资源/提交/精确 SHA CI 分别核验；不接纳敏感证据、不授予执行或批准。
+
 ## 当前追加：外部 QA 技术元数据持久隔离接收（2026-11-11）
 
 [独立授权、历史来源与不可变技术档案](DevPilot_External_QA_Quarantine.md)：两份有界声明、三项精确确认、完整 baseline 历史导出与冻结 plan 对齐、ALL 总体/预算、canonical 与原始声明 hash 区分、重复取消排空、原子审计和同 ID GET-only。完全一致的伪造也不是可信证据或批准；无敏感输出导入/UI/执行/部署。候选 `eval_0014` 本地最终门禁通过：专项 68、后端全量 13,332、前端 1,312 passed；受测源码、资源收尾、独立提交与精确 SHA CI 分别核验，不能冒用前轮 CI 或推断部署。
