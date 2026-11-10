@@ -1,0 +1,8 @@
+{
+  "schema": "local-qa-values.v1",
+  "bindings": {
+    "DEVPILOT_REQUEST_URL": "https://example.test/synthetic",
+    "DEVPILOT_REQUEST_BODY": "{\"q\":\"\",\"secret\":\"SYNTHETIC_BODY\"}",
+    "DEVPILOT_REQUEST_HEADER_1": "Bearer SYNTHETIC_TOKEN"
+  }
+}

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Hash-locked local QA software distribution candidate (2026-11-10)
+
+The offline software-only builder validates nine original runtime wheels against the tracked backend lock and ALL 35 allowlisted first-party source members plus metadata/RECORD; no injected extras/entrypoints or repacked dependency hashes. Six hash-locked build tools remain separate. Exclusive deterministic archive contains only software/licenses/synthetic examples; declared SHA/hashes are not authenticated provenance or execution authority. Require separately trusted archive hash and fresh Python 3.12 no-system-site venv with full no-index/hash-locked dependency install, actual installed mock CLI/receipt/same-ID reconciliation. No source/editable fallback, real calls, platform data export/import, App API/migration/config/deployment or approval; Linux verification is not Windows acceptance. [Contract](docs/DevPilot_Local_QA_Distribution.md).
+
 ## Pre-dispatch local QA identity receipt candidate (2026-11-10)
 
 Local execution writes exclusive metadata-only run-receipt.json after journal creation and before start/reserve/DNS/send. One full write, fsync and close must succeed; uncertainty aborts without repair/retry. Repeated cancellation drains creation before closing both resources. Receipt preserves original ID without opening sensitive output, never current state/provenance/send authority; missing receipt is not proof of no delivery. Keep explicit same-ID reconciliation, ALL frozen denominators, final single-JSON stdout and no resend/resume. No App/API/dependency/migration/deployment/enablement/real calls. [Contract](docs/DevPilot_Local_QA_Run_Receipt.md).

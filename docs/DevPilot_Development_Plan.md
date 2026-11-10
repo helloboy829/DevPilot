@@ -1,6 +1,18 @@
 # 开发接续分析与模块计划 / Development continuation plan
 
+## 独立软件分发缺口推进（2026-11-10）
+
+上一模块 `9fe951fbb7e4f4c0a9af29436618379b13ef672b` 已独立核对远端与四项实际全绿 Actions（Unit `42791646112`、Frontend `42791645774`、Blocking `42791646131`、Lint `42791645950`），不以 push 代替 CI。
+
+本模块实现[hash-locked software-only 分发](DevPilot_Local_QA_Distribution.md)，把“后端依赖环境中的 wheel 自检”推进为新 venv 完整离线安装与实际已安装命令验收。全第一方 35 成员检查、九项 runtime 原始 wheel、六项独立 build 锁、许可/纯合成示例和独立 CI gate，不复制环境、不引入第二 runner。没有平台数据/来源授权或形式批准。
+
+下一模块必须独立处理平台 exporter 的源 revision/数据 tiers/接收方同意/原 ID receipt/atomic audit，或先完成敏感本地输出加密/保留合同；不得把此软件 manifest 当平台来源证明。外部结果隔离导入、冻结 QA 调度、Lost Worker fencing、正式批准和另行授权升级/真实用户验收继续开放。按每个模块测试/说明/提交/push/exact-SHA CI 闭环，不把模块数量或测试总数作为整个平台完成依据。
+
 > 核对日期：2026-11-10。本计划记录代码/CI/运行的差别，不声称整个平台完成，也不以功能数估计完成百分比。
+
+Final module-local gates: new **61 passed / 9.85s**, joint **873 passed / 152.69s**; standard backend **13,069 passed / 18 skipped / 11 deselected / 40 warnings / 753.49s**, domain **15 / 58 passed**, Blocking IO **72 passed / 5.56s**, Ruff **1,262 files** and offline lock passed. Frontend runtime source is unchanged: full **152 files / 1,293 passed / 12.5s** and entire Prettier passed; final module documentation is checked separately. A fresh six-tool hash-locked build venv produced real sdist/wheel; a fresh nine-dependency offline runtime venv passed default-offline, five mock sends, every pre-dispatch receipt and original-ID reconciliation. Missing/tampered wheels were rejected and two same-input archives were byte-identical. Final archive SHA256: `2dd2964219f5ed8b1186b1a6fd2ded4921f81566b212045c011f9c7d0e27f21e` (declared baseline revision, not this commit's authenticated provenance). Intermediate and fixture/static-check diagnostics are retained; no retry, weaker assertion or longer timeout hides failures.
+
+No local browser, frontend build/lint/typecheck, performance, Windows or real-user acceptance was rerun, and previous module results are not borrowed. The new commit's Actions run their existing gates independently. Public source/evidence hashes, exact resource shutdown, commit/push and exact-SHA Actions have separate module receipts; local success and push are not CI success.
 
 ## 接手基线
 

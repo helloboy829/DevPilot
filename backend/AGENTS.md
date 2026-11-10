@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Local QA distribution verification candidate (2026-11-10)
+
+`test_local_qa_distribution.py` covers exact Python 3.12 runtime closure, whole-package source allowlist, every first-party member/metadata/RECORD, original artifact hashes, no extras/traversal/nonregular files, exclusive output and uncertainty. CI independently builds using six hash-locked build tools, then checks a new no-system-site venv: missing/tampered wheels rejected, full dependencies installed offline (never --no-deps), actual installed default-offline/mock execution/identity receipt/original-ID reconciliation, origins in new venv and no business imports/real sockets. Software-only hashes are integrity, not signatures or platform export authority; runtime dependencies and existing App execution remain unchanged. [Contract](../docs/DevPilot_Local_QA_Distribution.md).
+
 ## Pre-dispatch local identity receipt candidate (2026-11-10)
 
 Test local-qa-run-receipt.v1 against real journal/shared mock run: exclusive metadata-only write/fsync/close before start/reserve/wire, every I/O failure stops without retry, repeated cancellation drains before resource close, actual hard death preserves original ID. Receipt is identity only, not current state/provenance/approval; missing file never proves no delivery. Do not open sensitive outputs for same-ID reconciliation, alter final stdout or introduce resume. No App API/dependency/migration/runtime config or real calls. [Contract](../docs/DevPilot_Local_QA_Run_Receipt.md).

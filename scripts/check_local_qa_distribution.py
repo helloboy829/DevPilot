@@ -1,0 +1,154 @@
+"""CI-only fresh offline install and actual installed synthetic CLI verification.
+
+Explicitly installs software in a NEW directory. Never sends a real request.
+Not an end-user auto-installer or an untrusted-archive execution service.
+"""
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+from build_local_qa_distribution import archive_entries, read_regular, sha256
+
+_INSTALLED_CHECK = r"""
+import asyncio, contextlib, importlib.abc, importlib.util, io, json, runpy, socket, sys
+from pathlib import Path
+assert sys.version_info[:2] == (3,12) and sys.prefix != sys.base_prefix
+root, directory = Path(sys.argv[1]), Path(sys.argv[2])
+for name in ('devpilot.local_qa_cli','devpilot.local_qa_reconcile','httpx','httpcore','h11','certifi','anyio','idna','typing_extensions','openpyxl','et_xmlfile'):
+ origin = Path(importlib.util.find_spec(name).origin).resolve()
+ assert origin.is_relative_to(Path(sys.prefix).resolve()), (name,str(origin))
+class Deny(importlib.abc.MetaPathFinder):
+ def find_spec(self,fullname,*args):
+  if fullname.split('.')[0] in {'app','deerflow','sqlalchemy','fastapi','langchain','langgraph'}: raise AssertionError('business import')
+sys.meta_path.insert(0,Deny())
+def denied(*args,**kwargs): raise AssertionError('real network forbidden')
+socket.getaddrinfo=denied
+for name in ('connect','connect_ex','sendto'): setattr(socket.socket,name,denied)
+import httpx
+from devpilot.pinned_http import PinnedHTTPTransport
+from devpilot.local_json_run import LocalJSONJournal
+sent=[]
+original=PinnedHTTPTransport.__init__
+class Body(httpx.AsyncByteStream):
+ async def __aiter__(self): yield b'{"a":"SYNTHETIC_OUTPUT"}'
+ async def aclose(self): pass
+def snapshot():
+ handle=LocalJSONJournal.open(directory/'journal.sqlite')
+ try: return handle.snapshot()
+ finally: handle.close()
+def init(self,*args,**kwargs):
+ original(self,*args,**kwargs)
+ async def wire(request):
+  identity=json.loads((directory/'run-receipt.json').read_text())
+  state=snapshot()
+  assert identity['run_id']==state.definition.run_id and not identity['resend_permitted']
+  assert len(state.attempts)>len(sent)
+  assert request.url.host=='93.184.216.34'
+  assert request.headers['host']=='example.test' and request.extensions['sni_hostname']=='example.test'
+  sent.append(request.content)
+  return httpx.Response(200,headers={'content-type':'application/json'},stream=Body())
+ self.inner=httpx.MockTransport(wire)
+PinnedHTTPTransport.__init__=init
+async def lookup(self,host,port,**kwargs):
+ assert host=='example.test'
+ return [(socket.AF_INET,socket.SOCK_STREAM,6,'',('93.184.216.34',port))]
+asyncio.BaseEventLoop.getaddrinfo=lookup
+def command(module,args):
+ output=io.StringIO()
+ sys.argv=[module,*args]
+ with contextlib.redirect_stdout(output):
+  try: runpy.run_module(module,run_name='__main__')
+  except SystemExit as result: assert result.code==0
+ return json.loads(output.getvalue())
+arguments=[part for name in ('manifest','values','inputs') for part in ('--'+name,str(root/'examples'/(name+'.json')))]
+preflight=command('devpilot.local_qa_cli',arguments)
+assert preflight['schema']=='local-qa-preflight.v1' and preflight['network_performed'] is False
+assert preflight['input_count']==2 and preflight['request_count']==5 and not sent and not directory.exists()
+manifest=json.loads((root/'examples/manifest.json').read_text())
+result=command('devpilot.local_qa_cli',arguments+['--execute','--results',str(directory),'--allow-host','example.test','--confirm-send',manifest['fingerprint'],'--confirm-input-use','--confirm-plaintext-output'])
+assert result['state']=='collected' and result['verdict']=='NOT_EVALUATED'
+assert len(sent)==5 and sent.count(b'{"q":"SYNTHETIC_FIRST","secret":"SYNTHETIC_BODY"}')==3
+identity=json.loads((directory/'run-receipt.json').read_text())
+assert identity['run_id']==result['run_id'] and not identity['resume_permitted']
+receipt=command('devpilot.local_qa_reconcile',['--journal',str(directory/'journal.sqlite'),'--run-id',result['run_id']])
+assert receipt['state']=='collected' and receipt['verdict']=='NOT_EVALUATED' and receipt['run_id']==result['run_id']
+assert receipt['reserved_attempt_count']==receipt['frozen_request_count']==5 and receipt['frozen_input_count']==2
+assert receipt['observation_kinds']['output_collected']==5 and not receipt['output_content_verified']
+assert not receipt['resend_permitted'] and not receipt['resume_permitted'] and len(sent)==5
+assert not any(name.split('.')[0] in {'app','deerflow','sqlalchemy','fastapi'} for name in sys.modules)
+print(json.dumps({'fresh_venv_origins_verified':True,'all_runtime_dependencies_present':True,'real_dns_and_socket_sends_denied':True,'default_offline':True,'actual_installed_cli_mock_attempts':5,'pre_dispatch_receipt_at_every_wire':True,'actual_installed_same_id_reconciliation':True,'platform_provenance_verified':False,'verdict':'NOT_EVALUATED'},sort_keys=True))
+"""
+
+
+def run(command, *, cwd, expected_success=True):
+    result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=120, check=False)
+    print(result.stdout, end="")
+    print(result.stderr, end="", file=sys.stderr)
+    if (result.returncode == 0) != expected_success:
+        raise RuntimeError("Offline distribution verification failed")
+    return result
+
+
+def verify(archive, expected_hash, work):
+    if sys.version_info[:2] != (3, 12) or not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
+        raise ValueError("Python 3.12 and a separately trusted archive hash are required")
+    data = read_regular(archive, 64 * 1024 * 1024)
+    if sha256(data) != expected_hash:
+        raise ValueError("Archive hash mismatch")
+    files = archive_entries(data)
+    manifest = json.loads(files.pop("distribution.json"))
+    if manifest["schema"] != "local-qa-distribution.v1" or manifest["python"] != "3.12" or set(files) != set(manifest["files"]):
+        raise ValueError("Archive manifest mismatch")
+    for name, value in files.items():
+        if manifest["files"][name] != {"sha256": sha256(value), "size": len(value)}:
+            raise ValueError("Archive member hash mismatch")
+    work.mkdir(mode=0o700)
+    unpacked = work / "unpacked"
+    unpacked.mkdir()
+    for name, value in files.items():
+        target = unpacked / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(value)
+    venv = work / "venv"
+    run([sys.executable, "-I", "-m", "venv", str(venv)], cwd=work)
+    python = venv / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    install = [str(python), "-I", "-m", "pip", "--isolated", "install", "--no-index", "--find-links", str(unpacked / "wheels"), "--require-hashes", "--only-binary=:all:", "-r", str(unpacked / "requirements.lock")]
+    # Prove actual installer rejection in the initially fresh venv, without
+    # allowing a partial install; then restore the original trusted test bytes.
+    dependency = unpacked / "wheels" / manifest["dependencies"]["httpx"]["filename"]
+    saved = dependency.read_bytes()
+    dependency.unlink()
+    try:
+        run([*install, "--dry-run"], cwd=work, expected_success=False)
+    finally:
+        dependency.write_bytes(saved)
+    dependency.write_bytes(saved[:-1] + bytes([saved[-1] ^ 1]))
+    try:
+        failed_hash = run([*install, "--dry-run"], cwd=work, expected_success=False)
+        if "HASHES" not in failed_hash.stderr.upper():
+            raise RuntimeError("Expected actual hash rejection")
+    finally:
+        dependency.write_bytes(saved)
+    run(install, cwd=work)
+    run([str(python), "-I", "-m", "pip", "--isolated", "check"], cwd=work)
+    result = run([str(python), "-I", "-c", _INSTALLED_CHECK, str(unpacked), str(work / "synthetic-run")], cwd=work)
+    receipt = {"archive_sha256": expected_hash, "python": "3.12", "verification_platform": sys.platform, "missing_dependency_rejected": True, "tampered_dependency_rejected": True, **json.loads(result.stdout)}
+    (work / "verification.json").write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
+    return receipt
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--archive", type=Path, required=True)
+    parser.add_argument("--sha256", required=True)
+    parser.add_argument("--work-directory", type=Path, required=True)
+    args = parser.parse_args()
+    print(json.dumps(verify(args.archive.resolve(), args.sha256, args.work_directory.resolve()), sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()

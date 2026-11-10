@@ -1,5 +1,17 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## 2026-11-10：独立本地 QA 锁定软件分发候选
+
+前序发送前身份回执模块的精确远端 SHA 为 `9fe951fbb7e4f4c0a9af29436618379b13ef672b`，四项实际 push Actions 均 completed/success（attempt 1）：Unit Tests `42791646112`、Frontend Unit Tests `42791645774`、Backend Blocking IO `42791646131`、Lint Check `42791645950`。其源码/证据和四个专用容器已闭环，无部署。
+
+新增[software-only 锁定分发](DevPilot_Local_QA_Distribution.md)：九项运行依赖按现有 backend lock 的原始 wheel hash/大小核验，六项构建工具独立 hash 锁定，第一方全部 35 个源码成员与 metadata/RECORD 检查，拒绝额外代码/entrypoints。独占 ZIP 只含软件/许可/合成示例；外部可信 archive hash 后在新无系统依赖 venv 离线完整安装，实际已安装入口默认离线、mock 执行和原 ID 对账。内部 hash/声明 SHA 不是签名或平台来源认证。
+
+这是软件交付，不是平台授权数据导出/导入、输出加密保留、冻结 QA 调度、Lost Worker fencing、正式批准或部署验收；这些仍未完成。App/head 仍 eval_0012，旧 eval_0009 部署收据不能代表本机运行时。新模块完整测试、源码/证据、专用资源、提交 push 与 exact-SHA Actions 分别闭环；不提前宣称 CI 或平台完成。
+
+Final module-local gates: new **61 passed / 9.85s**, joint **873 passed / 152.69s**; standard backend **13,069 passed / 18 skipped / 11 deselected / 40 warnings / 753.49s**, domain **15 / 58 passed**, Blocking IO **72 passed / 5.56s**, Ruff **1,262 files** and offline lock passed. Frontend runtime source is unchanged: full **152 files / 1,293 passed / 12.5s** and entire Prettier passed; final module documentation is checked separately. A fresh six-tool hash-locked build venv produced real sdist/wheel; a fresh nine-dependency offline runtime venv passed default-offline, five mock sends, every pre-dispatch receipt and original-ID reconciliation. Missing/tampered wheels were rejected and two same-input archives were byte-identical. Final archive SHA256: `2dd2964219f5ed8b1186b1a6fd2ded4921f81566b212045c011f9c7d0e27f21e` (declared baseline revision, not this commit's authenticated provenance). Intermediate and fixture/static-check diagnostics are retained; no retry, weaker assertion or longer timeout hides failures.
+
+No local browser, frontend build/lint/typecheck, performance, Windows or real-user acceptance was rerun, and previous module results are not borrowed. The new commit's Actions run their existing gates independently. Public source/evidence hashes, exact resource shutdown, commit/push and exact-SHA Actions have separate module receipts; local success and push are not CI success.
+
 ## 2026-11-10：本地发送前身份回执候选
 
 前序原 ID 只读对账模块已推送并独立核对为 `a60a6ee1de83d67ebf1c5a72432a05f6d1ea89a7`；该精确 SHA 四项实际 push Actions 均 completed/success：Unit Tests `42783637102`、Frontend Unit Tests `42783637233`、Backend Blocking IO `42783637338`、Lint Check `42783637573`。源码/证据/四个专用容器均已闭环，无部署。

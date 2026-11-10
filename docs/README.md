@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：独立本地 QA 锁定软件分发（2026-11-10）
+
+[完整成员/hash 闭包与新环境安装合同](DevPilot_Local_QA_Distribution.md)：九个固定 runtime wheel、独立六项构建锁、全部 35 源码成员/metadata/RECORD、许可和纯合成示例；新 venv 无网络完整安装、实际已安装命令 mock run/receipt/原 ID 对账。软件 integrity 不等于平台来源/导出权限，数据授权/输出治理/隔离导入仍待完成。无部署或真实调用。
+
 ## 当前追加：本地发送前身份回执（2026-11-10）
 
 [独立身份回执](DevPilot_Local_QA_Run_Receipt.md)在 journal 创建后、start/reserve/DNS/send 前独占写入并确认文件 fsync，失败不重试。异常后可不打开敏感输出而取得原 ID；不证明当前状态/交付/来源/批准，缺失也不是未发送证明，不续跑或重发。

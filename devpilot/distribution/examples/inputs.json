@@ -1,0 +1,4 @@
+{
+  "schema": "local-qa-inputs.v1",
+  "inputs": ["SYNTHETIC_FIRST", "SYNTHETIC_SECOND"]
+}

@@ -1,5 +1,9 @@
 # DevPilot 领域定制层
 
+## 独立锁定软件分发 / Hash-locked software distribution
+
+[离线构建器与真实新 venv 验收](../docs/DevPilot_Local_QA_Distribution.md)补齐 Python 3.12 软件交付：九个原始运行依赖 wheel、全部 35 个第一方源码成员及 metadata/RECORD、hash-locked requirements、许可和纯合成示例。六个构建工具另行 hash 锁定，不加入 runtime。默认离线/no-resend 不变，明确检查已安装入口与依赖来自新 venv。软件包不是平台授权 exporter、来源签名、数据同意或批准；本地输出仍私有明文，Linux 验证不代替 Windows 验收。下文早期“不是完整锁定分发”的陈述保留其历史模块范围，不代表本模块未实现。
+
 ## Local pre-dispatch identity receipt
 
 New explicit executions write private metadata-only run-receipt.json before any run start/reservation/send. Use its original run ID with the explicit read-only reconciliation command without opening sensitive observations. I/O uncertainty stops execution; no retry, replacement or resume. The unauthenticated receipt is not current state, delivery/provenance or approval; absence never proves no delivery. [Contract and limits](../docs/DevPilot_Local_QA_Run_Receipt.md).
