@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Shared QA JSON request preparation core candidate (2026-11-10)
+
+`devpilot.qa_json_request.QAJSONRequest` pins `qa-json-request.v1`; App attempts delegate literal URL/method/body/headers and conditional identity preparation. Freeze headers; preserve explicit/duplicate encodings and historical 64 original → 65 derived headers, exact UTF-8 body limit and lazy content encoding within the original deadline. Values remain sensitive internal data, not an export DTO/authorization. Keep Worker render → durable dispatch → collect, transport and unknown/no-resend App-owned; no plan/hash migration. Verify old/new actual requests plus isolated source/wheel. No dependency/deployment/enablement/real calls. [Contract](../docs/DevPilot_Shared_QA_JSON_Request_Core.md).
+
 ## Shared pure QA JSON response core (2026-11-10)
 
 `qa_attempts._read` delegates to `devpilot.qa_json_response.QAJSONResponseBuffer` (`qa-json-response.v1`). Preserve old metadata precedence, max+1 yielded-byte accounting and strict binding. Only finish a normally completed stream; even complete JSON followed by failure/cancellation is not collected. Offload decode and extract together. App retains transport, deadline, dispatch, uncertain-delivery and no-resend authority. Pure source and built wheel must run without App/Harness/site packages; this is not a complete export runner. [Contract](../docs/DevPilot_Shared_QA_JSON_Response_Core.md).

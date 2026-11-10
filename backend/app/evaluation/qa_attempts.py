@@ -16,6 +16,7 @@ from typing import Literal
 
 import httpx
 from devpilot.qa_json_binding import QAJSONBinding
+from devpilot.qa_json_request import QAJSONRequest
 from devpilot.qa_json_response import QAJSONResponseBuffer
 from devpilot.request_versions import FrozenRequest
 
@@ -85,19 +86,16 @@ async def collect_json_attempt(request: FrozenRequest, binding: QAJSONBinding, c
     if not isinstance(request, FrozenRequest) or not isinstance(binding, QAJSONBinding) or not isinstance(limits, AttemptLimits):
         raise ValueError("Invalid attempt input")
     # Defensive validation happens before any client is created; no gold is accepted.
-    spec = request.to_request()
+    spec = QAJSONRequest(request)
     checked = QAJSONBinding.from_dict(binding.to_dict())
     checked_limits = AttemptLimits(limits.timeout_ms, limits.max_response_bytes)
     started = time.perf_counter()
     status, output = None, None
     progress = _Progress()
-    headers = list(map(tuple, spec.headers))
-    if not any(name.lower() == "accept-encoding" for name, _ in headers):
-        headers.append(("Accept-Encoding", "identity"))
     try:
         async with asyncio.timeout(checked_limits.timeout_ms / 1000):
             async with evaluation_client(config, spec.url, timeout_seconds=checked_limits.timeout_ms / 1000) as client:
-                async with client.stream(spec.method, spec.url, headers=headers, content=spec.body.encode("utf-8")) as response:
+                async with client.stream(spec.method, spec.url, headers=spec.headers, content=spec.content) as response:
                     status = response.status_code
                     kind, _, output = await _read(response, checked, checked_limits.max_response_bytes, progress)
     except EvaluationPolicyError:

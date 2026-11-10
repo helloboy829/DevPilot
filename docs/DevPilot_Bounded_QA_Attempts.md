@@ -31,3 +31,7 @@
 ## 2026-11-10：共享响应子组件
 
 当前 `qa_attempts._read` 调用[固定纯响应核心](DevPilot_Shared_QA_JSON_Response_Core.md)，头部优先级、max+1 和输出提取结果不变；解码与提取一起 off-loop。仅正常 end-of-body finalize；完整 JSON 后的失败/取消也不收集。App 继续独立持有 dispatch/transport/timeout/unknown/no-resend，不切换旧执行入口，不改变历史计划/hash；不是完整独立 runner 或新增执行权。
+
+## 2026-11-10 请求准备共用更新
+
+当前采集器使用[固定纯请求投影](DevPilot_Shared_QA_JSON_Request_Core.md)，原样保留请求及条件 identity header；包含原 64 headers 派生 65 的兼容边界。UTF-8 content 仍在原 client/attempt deadline 内编码；验证不增加发送权、公开 DTO 或历史版本改写。响应核心与 dispatch/unknown/no-resend 合同不变。

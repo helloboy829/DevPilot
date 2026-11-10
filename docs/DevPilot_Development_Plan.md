@@ -89,3 +89,9 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 本切片采用[共享响应核心](DevPilot_Shared_QA_JSON_Response_Core.md)，先提取纯版本化 JSON 响应 buffer/parser 并让 App 实际共用，验证边界和合成等价、独立解释器/真实 wheel，不复制第二套 runner。其余请求准备/执行适配器、导出数据授权、独立 CLI 出站/预算、结果隔离导入仍须后续独立模块；没有完整 exporter 就不开放导出能力。每次新推送仍须自己的实际 SHA CI，正式批准/运营 fencing/调度/部署边界不变。
 
 本子模块最终验证：90 项新回归、291 项联合主链、49 场景旧版/当前实现对比；修复扩展对比发现的状态 600 兼容性差异后，完整后端 12,552、Blocking IO 72、前端 1,293 passed，Ruff/离线锁文件通过。纯源码与实际 wheel 均在无 site packages 的隔离解释器自检。首候选门禁通过不代替最终源码重跑；新 SHA 推送后仍独立等待实际 Actions，未运行的 build/browser/performance 不借用旧成绩。
+
+## 共享请求准备核心（2026-11-10）
+
+上一响应核心已推送 `e32cb3d81b64ed8f79411f22a049a3f0669c37e2`，四项 push Actions 实际成功：Unit `42731902942`、Frontend Unit `42731902497`、Blocking IO `42731902510`、Lint `42731902918`；未触发 E2E/Replay/Skill Review。证据、最终源码和资源收尾已核验，不推断部署。
+
+本切片[请求准备核心](DevPilot_Shared_QA_JSON_Request_Core.md)冻结已有已渲染请求的 literal projection 与条件 identity policy，App 共用实现，保留原 body 编码时点与 64→65 headers 兼容边界。119 个旧/新实际 HTTPX 请求与响应场景全部等价，源码/真实 wheel 无 site packages 自检通过；新增 58 项回归，349 项联合主链通过；完整后端 12,610 passed、领域 15/58、Blocking IO 72、Ruff 1,254 files、离线锁及完整前端 1,293 项/格式通过。未重跑本地 build/浏览器/性能，实际新 SHA CI 继续独立核验。该子组件不读取数据/凭据、不发送，不提前开放导出；余下共享执行适配/出站/预算/结果隔离、失联 Worker fencing/对账、冻结 QA 调度、正式批准及授权部署仍未完成。

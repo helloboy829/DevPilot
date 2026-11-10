@@ -6,6 +6,10 @@
 
 `qa_json_response.py` 固定 `qa-json-response.v1` 的纯 bounded HTTP JSON 响应分类/缓冲/提取；App 有界 QA 采集已共用此实现，保留 transport、准入、派发和未知结果不重发语义。只在正常响应结束后提取，结果仍为敏感内部值，不是 verdict 或公共 DTO。标准库隔离解释器及实际 wheel 验证不意味着完整包零依赖或独立执行工程已完成；没有新 API、依赖/迁移、执行开启或部署。见[合同与验证](../docs/DevPilot_Shared_QA_JSON_Response_Core.md)。
 
+## 共享请求准备核心（2026-11-10）
+
+`qa_json_request.py` 固定 `qa-json-request.v1` 的不可变发送值投影；App 已共用原样请求/条件 identity header 准备。保留重复/显式 headers 与 64→65 派生边界，body 编码仍在原 attempt deadline 内。无渲染、发送、授权或凭据解析；不是公共导出 DTO/完整 runner。见[合同与验证](../docs/DevPilot_Shared_QA_JSON_Request_Core.md)。
+
 ## 当前结构
 
 ```text

@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：共享 QA JSON 请求准备核心（2026-11-10）
+
+[固定版本请求投影](DevPilot_Shared_QA_JSON_Request_Core.md)让 App 共用 literal URL/method/body/headers 准备，保留条件 identity、重复编码和历史 64→65 边界。无数据读取/发送/导出权限，纯源码及 wheel 自检不是完整 runner；准入、dispatch/no-resend 仍属 App。
+
 ## 当前追加：共享 QA JSON 响应核心（2026-11-10）
 
 [固定版本响应核心](DevPilot_Shared_QA_JSON_Response_Core.md)将现有采集的单次 JSON 响应语义提到纯 devpilot，App 共用同一实现。无实发/部署或完整脚本导出；取消、unknown/no-resend 与历史 hash 不变。

@@ -2,7 +2,13 @@
 
 > 核对日期：2026-11-10。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-10：共享 QA JSON 请求准备核心候选
+
+[固定纯请求投影](DevPilot_Shared_QA_JSON_Request_Core.md)将已渲染 FrozenRequest 的原样 URL/method/body/headers、条件 identity 准备提到纯版本 `qa-json-request.v1`，App 已实际共用。保留原 64 headers 派生 65 边界、显式编码及原 deadline 内 content 编码；不增执行/导出/批准权限，不改历史 hash，无依赖/迁移/部署/真实调用。新增 58 项回归；349 项联合主链、119 个旧/新实际请求与响应对照、隔离源码/实际 wheel 自检通过。完整后端 **12,610 passed / 18 skipped / 11 deselected / 40 warnings**，领域 **15/58**、Blocking IO **72**、Ruff **1,254 files** 和离线锁通过；完整前端 **152 files / 1,293 passed**、完整格式通过。未重跑本地 build/浏览器/性能；源码/证据与实际新 SHA Actions 单独核对。完整 runner/exporter、冻结 QA 调度与失联 Worker 安全运维仍未完成。
+
 ## 2026-11-10：共享 QA JSON 响应核心候选
+
+响应核心已推送 `e32cb3d81b64ed8f79411f22a049a3f0669c37e2`，该 SHA 四项 push Actions 均 completed/success：Unit Tests `42731902942`、Frontend Unit Tests `42731902497`、Backend Blocking IO `42731902510`、Lint Check `42731902918`。E2E/Replay/Skill Review 未触发；59 份证据及 1,364 后端/领域和 858 前端/模块文档源码与提交归档核验通过，四个专用测试容器已停止，未部署。
 
 [纯响应核心](DevPilot_Shared_QA_JSON_Response_Core.md)固定单次 HTTP JSON 的头部优先级、max+1 缓冲和严格 binding 输出提取；App 改为共用这一实现，解码与提取一起 off-loop。正常 end-of-body 才 finalize，失败/取消不收集且不重发。无新依赖、迁移、API/权限、部署或执行启用；不更改历史计划/hash，不等于完整 runnable exporter 或正式批准。
 
