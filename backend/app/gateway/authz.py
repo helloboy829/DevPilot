@@ -64,6 +64,8 @@ class Permissions:
     EVALUATION_EXPORTS_READ = "evaluation_exports:read"
     EVALUATION_EXPORTS_CREATE = "evaluation_exports:create"
     EVALUATION_EXPORTS_DOWNLOAD = "evaluation_exports:download"
+    EVALUATION_EXTERNAL_QA_READ = "evaluation_external_qa:read"
+    EVALUATION_EXTERNAL_QA_CREATE = "evaluation_external_qa:create"
 
     # Threads
     THREADS_READ = "threads:read"
@@ -140,6 +142,8 @@ _ALL_PERMISSIONS: list[str] = [
     Permissions.EVALUATION_EXPORTS_READ,
     Permissions.EVALUATION_EXPORTS_CREATE,
     Permissions.EVALUATION_EXPORTS_DOWNLOAD,
+    Permissions.EVALUATION_EXTERNAL_QA_READ,
+    Permissions.EVALUATION_EXTERNAL_QA_CREATE,
 ]
 
 

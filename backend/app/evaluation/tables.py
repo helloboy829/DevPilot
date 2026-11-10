@@ -544,3 +544,43 @@ export_audit = Table(
     CheckConstraint("action IN ('export_created', 'bundle_opened') AND at_ms > 0", name="ck_evaluation_export_audit"),
 )
 Index("ix_evaluation_export_audit_export", export_audit.c.project_id, export_audit.c.export_id)
+
+# Technical-only quarantine: no platform-run/evidence/review/approval foreign key.
+external_qa_intakes = Table(
+    "evaluation_external_qa_intakes",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", String(64), nullable=False),
+    Column("export_id", String(32), nullable=False),
+    Column("original_run_id", String(36), nullable=False),
+    Column("snapshot_hash", String(64), nullable=False),
+    Column("request_hash", String(64), nullable=False),
+    Column("archive_hash", String(64), nullable=False),
+    Column("document", JSON, nullable=False),
+    Column("canonical_receipt", Text, nullable=False),
+    Column("canonical_reconciliation", Text, nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "export_id"], ["evaluation_authorized_exports.project_id", "evaluation_authorized_exports.id"]),
+    UniqueConstraint("project_id", "id", name="uq_evaluation_external_intake_project_id"),
+    UniqueConstraint("export_id", "original_run_id", "snapshot_hash", name="uq_evaluation_external_intake_snapshot"),
+    CheckConstraint("created_at_ms > 0 AND created_at_ms <= 253402300799000", name="ck_evaluation_external_intake_time"),
+    CheckConstraint("length(canonical_receipt) BETWEEN 1 AND 8192 AND length(canonical_reconciliation) BETWEEN 1 AND 8192", name="ck_evaluation_external_intake_size"),
+)
+Index("ix_evaluation_external_intake_project_time", external_qa_intakes.c.project_id, external_qa_intakes.c.created_at_ms)
+external_qa_intake_audit = Table(
+    "evaluation_external_qa_intake_audit",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("intake_id", String(32), nullable=False),
+    Column("actor", String(64), nullable=False),
+    Column("action", String(32), nullable=False),
+    Column("sequence", Integer, nullable=False),
+    Column("at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "intake_id"], ["evaluation_external_qa_intakes.project_id", "evaluation_external_qa_intakes.id"]),
+    UniqueConstraint("intake_id", "sequence", name="uq_evaluation_external_intake_audit_sequence"),
+    CheckConstraint("sequence > 0", name="ck_evaluation_external_intake_audit_sequence"),
+    CheckConstraint("action = 'metadata_quarantined' AND at_ms > 0", name="ck_evaluation_external_intake_audit"),
+)
+Index("ix_evaluation_external_intake_audit_intake", external_qa_intake_audit.c.project_id, external_qa_intake_audit.c.intake_id)

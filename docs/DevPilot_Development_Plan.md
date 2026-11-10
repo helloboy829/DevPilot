@@ -1,5 +1,11 @@
 # 开发接续分析与模块计划 / Development continuation plan
 
+## 当前接续：外部技术声明持久隔离接收（2026-11-11）
+
+上一导出工作台提交 `aed6e70b9ddb1e275af7744e20507a43df67f699` 的六项实际 push Actions 已逐项核验成功：Frontend `42849578268`、Blocking `42849578229`、Replay `42849578274`、Lint `42849578137`、E2E `42849578311`、Unit `42849578289`。这不是新模块的 CI。
+
+当前实现[外部技术元数据隔离](DevPilot_External_QA_Quarantine.md)，不是把上传声明直接当结果证据。后端/API、两表两索引 additive eval_0014 已实现。本轮最终专项 **68 passed**、联合 **317 passed**，标准后端 **13,332 passed / 19 skipped / 11 deselected / 40 warnings**，领域 **15 / 58**、Blocking IO **72**、Ruff **1,276 files** 与 offline lock 通过；前端 **155 files / 1,312 passed**、lint/typecheck/整个 frontend Prettier 通过。补强来源 fingerprint/body budget 与 read 权限，保留原始失败；最终源码 **1,396 / 852** 与宿主一致。接续证据复制 hash、精确资源收尾和独立 commit/push/exact-SHA Actions；未本地重跑 build/browser/性能，不借用历史结果。不自动部署或调用真实目标。之后仍须提供相应 UI、敏感外部输出/证据治理、本地加密保留、冻结 QA 调度/lost-worker 安全、正式批准及授权升级/真实验收，不能将单模块交付缩减为平台完成。
+
 ## 当前接续：授权配置导出工作台（2026-11-10）
 
 上一后端模块 `8b43028c8f1faa062ebd789e40241931a02bde76` 五项实际 Actions 全绿（Unit `42834487025`、Frontend `42834486900`、Blocking `42834486912`、Lint `42834487249`、Replay `42834487162`），不以 push 代替 CI。

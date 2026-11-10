@@ -25,7 +25,10 @@ from deerflow.persistence.component_tests.model import ComponentRow
 from deerflow.persistence.user.model import UserRow
 
 NEW = {t.exports.name, t.export_audit.name}
-OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name not in NEW]]
+# Freeze this revision's historical table population; eval_0014 has its own
+# full-head parity/preservation regression and must not be queried after downgrade.
+APP_TABLES = [table for table in t.metadata.sorted_tables if table.name not in {t.external_qa_intakes.name, t.external_qa_intake_audit.name}]
+OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in APP_TABLES if table.name not in NEW]]
 
 
 def migrate(url, target):
@@ -64,10 +67,13 @@ async def seed(api, monkeypatch):
 
 async def cycle(engine):
     before = await rows(engine)
+    historical = MetaData()
+    for table in APP_TABLES:
+        table.to_metadata(historical)
     legacy = MetaData()
     for table in (ComponentRow.__table__, UserRow.__table__):
         table.to_metadata(legacy)
-    for target in ("head", "head", "eval_0012", "head"):
+    for target in ("eval_0013", "eval_0013", "eval_0012", "eval_0013"):
         await asyncio.to_thread(migrate, engine.url, target)
         assert await rows(engine) == before
         async with engine.connect() as conn:
@@ -75,11 +81,11 @@ async def cycle(engine):
             assert NEW.isdisjoint(names) if target == "eval_0012" else NEW.issubset(names)
             assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0012" if target == "eval_0012" else "eval_0013")
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
-            if target == "head":
+            if target == "eval_0013":
 
                 def parity(c):
                     ctx = MigrationContext.configure(c, opts={"version_table": "devpilot_alembic_version", "include_object": lambda obj, name, kind, reflected, compared: not (kind == "table" and name == "alembic_version")})
-                    return compare_metadata(ctx, [t.metadata, legacy])
+                    return compare_metadata(ctx, [historical, legacy])
 
                 assert await conn.run_sync(parity) == []
                 for table in (t.exports, t.export_audit):
@@ -118,7 +124,7 @@ async def test_sqlite_additive_migration_real_frozen_rows_constraints_and_parity
         assert (await conn.execute(text("PRAGMA foreign_key_check"))).all() == []
     await asyncio.to_thread(migrate, engine.url, "eval_0012")
     assert await rows(engine) == before
-    await asyncio.to_thread(migrate, engine.url, "head")
+    await asyncio.to_thread(migrate, engine.url, "eval_0013")
     assert await rows(engine) == before
 
 
@@ -163,7 +169,7 @@ async def test_postgres_owned_database_preserves_all_previous_rows_and_real_expo
         assert await rows(engine) == before
         await asyncio.to_thread(migrate, engine.url, "eval_0012")
         assert await rows(engine) == before
-        await asyncio.to_thread(migrate, engine.url, "head")
+        await asyncio.to_thread(migrate, engine.url, "eval_0013")
         assert await rows(engine) == before
     finally:
         await engine.dispose()

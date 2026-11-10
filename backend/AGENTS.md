@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## External quarantine API and migrations candidate (2026-11-11)
+
+`test_external_qa_quarantine*` covers bounded pre-buffer HTTP envelopes, exact independent permissions/consents, historical complete-baseline source binding, ALL frozen counts/budget checks, coherent forgery, canonical/original-hash distinction, immutable duplicate/race gates, repeated cancellation drain and source CAS with atomic audit. SQLite FK-ON and owned temporary PostgreSQL verify all previous rows/Harness ledger and full schema/index parity through additive `eval_0014` up/down cycles. Keep export migration tests frozen at their original `eval_0013` population; the new full-head test covers every current App table. Never relax unknown-write GET-only reconciliation, source/denominator gates or false authority flags; no sensitive evidence reads, execution, deployment or real calls. [Contract](../docs/DevPilot_External_QA_Quarantine.md).
+
 ## Export workspace policy discovery (2026-11-10)
 
 `test_authorized_qa_export_capabilities.py` covers exact human/owner/read gates, scoped unexpired process-policy metadata, disabled hiding, no key or sensitive SQL and repeated-cancellation read drain. Bundle headers pin the exporter and verified viewed receipt. The synthetic API-generated browser ZIP fixture is independently checked for request/receipt fingerprint, exact members and member hashes; do not relabel binary IDs. Existing export permissions, immutable archives/no-resend and candidate `eval_0013` remain unchanged; no execution/deployment/real calls. [Workspace contract](../docs/DevPilot_Authorized_QA_Export_Workspace.md).

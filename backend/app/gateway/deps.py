@@ -430,6 +430,7 @@ async def langgraph_runtime(app: FastAPI, startup_config: AppConfig) -> AsyncGen
         app.state.evaluation_repo = None
         app.state.evaluation_execution_repo = None
         app.state.evaluation_export_repo = None
+        app.state.evaluation_external_qa_repo = None
         if sf is not None:
             from app.evaluation.repository import EvaluationRepository
             from app.evaluation.schema import upgrade_evaluation_schema
@@ -441,6 +442,9 @@ async def langgraph_runtime(app: FastAPI, startup_config: AppConfig) -> AsyncGen
 
             export_policy = ExportPolicy.model_validate(getattr(config, "evaluation_exports", {}))
             app.state.evaluation_export_repo = ExportRepository(sf, policy=export_policy)
+            from app.evaluation.external_qa_quarantine import ExternalQAIntakeRepository
+
+            app.state.evaluation_external_qa_repo = ExternalQAIntakeRepository(sf)
             from app.evaluation.execution_lifecycle import qa_execution_runtime
 
             await stack.enter_async_context(qa_execution_runtime(app, sf, config, get_config))

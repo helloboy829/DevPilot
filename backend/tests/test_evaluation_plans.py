@@ -286,7 +286,7 @@ async def test_database_rejects_cross_component_request_and_audit(prepared):
         with pytest.raises(IntegrityError):
             await conn.execute(insert(t.plan_audit).values(id="forged", project_id=other_project["id"], plan_id=result["id"], actor="owner", action="plan_frozen", at="now"))
         await conn.rollback()
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0013"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0014"
 
 
 @pytest.mark.asyncio
@@ -371,7 +371,7 @@ async def test_upgrade_from_deployed_eval_0003_preserves_both_ledgers_and_cipher
         async with engine.connect() as conn:
             assert dict((await conn.execute(select(t.request_versions))).mappings().one()) == before
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "synthetic_harness"
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0013"
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0014"
             assert not (await conn.execute(select(t.plans))).all()
         assert (await repository.open_request_version("owner", project["id"], version["id"])).body == request.request["body"]
     finally:

@@ -1,5 +1,13 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## External QA technical quarantine local verification (2026-11-11)
+
+上一导出工作台提交 `aed6e70b9ddb1e275af7744e20507a43df67f699` 的六项实际 push Actions 已逐项核验成功：Frontend `42849578268`、Blocking `42849578229`、Replay `42849578274`、Lint `42849578137`、E2E `42849578311`、Unit `42849578289`。这不是新模块的 CI。
+
+[持久隔离接收](DevPilot_External_QA_Quarantine.md)新增单独 human/owner/create/read 授权的技术声明 API，显式绑定完整 baseline 历史导出和冻结 plan。ALL 总体/预算、canonical 与原始声明 SHA 区分、off-loop 重检、project/export/plan 锁与原子审计、不重发和重复取消排空均保持；一致伪造仍为 NOT_EVALUATED。候选 `eval_0014` 新增两表两索引，未部署。本轮最终专项 **68 passed**（含 foreign-keys ON SQLite/独占临时 PostgreSQL），联合 **317 passed / 1 warning**；标准后端 **13,332 passed / 19 skipped / 11 deselected / 40 warnings，863.98s**，领域 **15 / 58**、Blocking IO **72 passed**、Ruff **1,276 files** 和 offline lock 通过。前端运行时未变：完整 **155 files / 1,312 passed**、ESLint/typecheck/整个 frontend Prettier 通过，七份公开模块指南另行格式核验。本轮没有本地重跑 build/browser/性能，不冒用前轮结果。
+
+原始 API404 红灯、首轮分母夹具失败及 `tables.py` 格式诊断保留；仅修正夹具 coherence 和格式，不放宽断言/总体。格式修正后重新同步、核对最终源码并运行完整门禁，**1,396 / 852** 份受测公开源码与宿主一致。证据复制/验 hash、精确四个专用 CI 资源收尾、独立提交/推送与新 SHA 实际 Actions 分别闭环；此时尚未提交，不以本地成功或前轮 CI 代表交付。无部署、执行启用、真实调用或正式批准。
+
 ## Authorized configuration export workspace local verification (2026-11-10)
 
 [工作台合同 / Workspace contract](DevPilot_Authorized_QA_Export_Workspace.md)接通已交付 exporter：显式 policy/grant/冻结来源、三份创建确认、独立下载确认、原 ID GET-only 对账、跨项目 pending/锁和有界 ZIP pin 校验。新增 owner/human/read-only policy metadata，无敏感 SQL/key；候选仍为 eval_0013，无新增依赖/迁移/权限 action、部署或真实调用。本模块最终本地门禁已通过；资源、提交和新 SHA CI 分别核验，不由本地成功推断已交付。
@@ -270,7 +278,7 @@ English: the continuation baseline and its four successful runs are explicitly p
 - 本轮复用既有 Docker Python 3.12 / Node 22 隔离依赖；只导出 Git 源码与显式变更，不复制私有配置/数据库。测试结束停止本次启动的 CI 容器，缓存不等于过期垃圾。
 - 本轮工作区新增 PostgreSQL `sslmode` → asyncpg `ssl` 兼容修复及回归；保留原 TLS 模式和同步 DSN，冲突/无效参数明确拒绝。当前运行部署不包含这项修改；没有改依赖、迁移、生产配置或调用真实目标。
 
-当前工作区新增独立逐条复核后端/API、`/workspace/reviews` 中心及项目内联分配/详情，以及独立全样本评估预览/不可变修订 API 候选，当前候选 App head `eval_0013`（独立档案至 `eval_0012`，授权配置导出追加 `eval_0013`）；未升级现有 `eval_0009` 运行库。两名盲审人及独立仲裁只获具体冻结 case 的授权，共用同一任务服务；评估修订 UI 已有候选；报告/复测已有显式历史来源绑定后端/API 及独立选择 UI 候选，正式批准尚未交付。[合同与范围](DevPilot_Independent_Case_Review.md)。
+当前工作区新增独立逐条复核后端/API、`/workspace/reviews` 中心及项目内联分配/详情，以及独立全样本评估预览/不可变修订 API 候选，已交付源码的 App head 为 `eval_0013`（独立档案至 `eval_0012`，授权配置导出追加 `eval_0013`）；本轮外部技术隔离接收候选追加 `eval_0014`，本地最终门禁通过，独立提交及精确 SHA CI 仍须单独核验。没有升级历史 `eval_0009` 部署；旧运行收据不能证明本机当前运行状态。两名盲审人及独立仲裁只获具体冻结 case 的授权，共用同一任务服务；评估修订 UI 已有候选；报告/复测已有显式历史来源绑定后端/API 及独立选择 UI 候选，正式批准尚未交付。[合同与范围](DevPilot_Independent_Case_Review.md)。
 
 ## 2. 已实现的评测主链
 

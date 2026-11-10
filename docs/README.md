@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：外部 QA 技术元数据持久隔离接收（2026-11-11）
+
+[独立授权、历史来源与不可变技术档案](DevPilot_External_QA_Quarantine.md)：两份有界声明、三项精确确认、完整 baseline 历史导出与冻结 plan 对齐、ALL 总体/预算、canonical 与原始声明 hash 区分、重复取消排空、原子审计和同 ID GET-only。完全一致的伪造也不是可信证据或批准；无敏感输出导入/UI/执行/部署。候选 `eval_0014` 本地最终门禁通过：专项 68、后端全量 13,332、前端 1,312 passed；受测源码、资源收尾、独立提交与精确 SHA CI 分别核验，不能冒用前轮 CI 或推断部署。
+
 ## 当前追加：授权配置导出工作台（2026-11-10）
 
 [显式导出、原 ID 对账与有界下载](DevPilot_Authorized_QA_Export_Workspace.md)：datasets 界面加载精确 policy/grant/冻结来源，三份创建同意、单独下载同意、page-memory pending 和跨项目锁；未知 PUT/GET404 只查询原 ID。metadata discovery 不读敏感数据，下载核 exporter/receipt pin 与大小；不启用执行、不自动取软件/传输接收方或部署。候选仍为 eval_0013，门禁/提交/精确 SHA CI 分别记录。

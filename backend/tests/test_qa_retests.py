@@ -221,7 +221,7 @@ async def test_additive_upgrade_preserves_reports_all_prior_rows_and_harness(cap
     await upgrade_evaluation_schema(engine)
     async with engine.connect() as conn:
         assert {table.name: [dict(row) for row in (await conn.execute(select(table))).mappings()] for table in preserved} == before
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0013"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0014"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "synthetic_harness"
     assert await archives(repo).get_archive("owner", project, saved["id"]) == saved
 

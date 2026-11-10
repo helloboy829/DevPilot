@@ -133,7 +133,7 @@ async def test_migration_adds_only_app_tables_and_preserves_old_data(repo):
     await upgrade_evaluation_schema(engine)
     assert await repository.list_project_components("owner", project) == before
     async with engine.connect() as connection:
-        assert (await connection.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0013"
+        assert (await connection.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0014"
         assert (await connection.execute(text("SELECT value FROM foreign_fixture"))).scalar() == "synthetic"
 
 

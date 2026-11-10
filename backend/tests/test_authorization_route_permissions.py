@@ -97,6 +97,8 @@ async def test_route_permissions_disabled_preserves_all_permissions(monkeypatch)
         Permissions.EVALUATION_EXPORTS_READ,
         Permissions.EVALUATION_EXPORTS_CREATE,
         Permissions.EVALUATION_EXPORTS_DOWNLOAD,
+        Permissions.EVALUATION_EXTERNAL_QA_READ,
+        Permissions.EVALUATION_EXTERNAL_QA_CREATE,
     ]
     cached.assert_not_called()
 
@@ -120,6 +122,8 @@ async def test_route_permissions_use_async_provider_and_trusted_principal(monkey
         Permissions.EVALUATION_EXPORTS_READ,
         Permissions.EVALUATION_EXPORTS_CREATE,
         Permissions.EVALUATION_EXPORTS_DOWNLOAD,
+        Permissions.EVALUATION_EXTERNAL_QA_READ,
+        Permissions.EVALUATION_EXTERNAL_QA_CREATE,
     ]
     assert [(request.resource, request.action, request.target) for request in provider.requests] == [
         ("route", "read", Permissions.THREADS_READ),
@@ -135,6 +139,8 @@ async def test_route_permissions_use_async_provider_and_trusted_principal(monkey
         ("route", "read", Permissions.EVALUATION_EXPORTS_READ),
         ("route", "create", Permissions.EVALUATION_EXPORTS_CREATE),
         ("route", "download", Permissions.EVALUATION_EXPORTS_DOWNLOAD),
+        ("route", "read", Permissions.EVALUATION_EXTERNAL_QA_READ),
+        ("route", "create", Permissions.EVALUATION_EXTERNAL_QA_CREATE),
     ]
     principal = provider.requests[0].principal
     assert principal.user_id == "user-123"
@@ -164,6 +170,8 @@ async def test_route_permissions_fail_closed_denies_only_the_failed_permission(m
         Permissions.EVALUATION_EXPORTS_READ,
         Permissions.EVALUATION_EXPORTS_CREATE,
         Permissions.EVALUATION_EXPORTS_DOWNLOAD,
+        Permissions.EVALUATION_EXTERNAL_QA_READ,
+        Permissions.EVALUATION_EXTERNAL_QA_CREATE,
     ]
 
 
@@ -188,6 +196,8 @@ async def test_route_permissions_fail_open_allows_the_failed_permission(monkeypa
         Permissions.EVALUATION_EXPORTS_READ,
         Permissions.EVALUATION_EXPORTS_CREATE,
         Permissions.EVALUATION_EXPORTS_DOWNLOAD,
+        Permissions.EVALUATION_EXTERNAL_QA_READ,
+        Permissions.EVALUATION_EXTERNAL_QA_CREATE,
     ]
 
 
@@ -212,6 +222,8 @@ async def test_route_permissions_fail_open_allows_the_failed_permission(monkeypa
                 Permissions.EVALUATION_EXPORTS_READ,
                 Permissions.EVALUATION_EXPORTS_CREATE,
                 Permissions.EVALUATION_EXPORTS_DOWNLOAD,
+                Permissions.EVALUATION_EXTERNAL_QA_READ,
+                Permissions.EVALUATION_EXTERNAL_QA_CREATE,
             ],
         ),
     ],
@@ -233,9 +245,11 @@ async def test_route_permissions_apply_failure_mode_to_provider_resolution(monke
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("permission", [Permissions.EVALUATION_EXPORTS_READ, Permissions.EVALUATION_EXPORTS_CREATE, Permissions.EVALUATION_EXPORTS_DOWNLOAD])
+@pytest.mark.parametrize(
+    "permission", [Permissions.EVALUATION_EXPORTS_READ, Permissions.EVALUATION_EXPORTS_CREATE, Permissions.EVALUATION_EXPORTS_DOWNLOAD, Permissions.EVALUATION_EXTERNAL_QA_READ, Permissions.EVALUATION_EXTERNAL_QA_CREATE]
+)
 @pytest.mark.parametrize("fail_closed", [True, False])
-async def test_export_permissions_apply_provider_failure_only_to_exact_action(monkeypatch, permission, fail_closed):
+async def test_evaluation_transfer_permissions_apply_provider_failure_only_to_exact_action(monkeypatch, permission, fail_closed):
     provider = _RecordingProvider(errors={permission})
     _enable_authorization(monkeypatch, provider, fail_closed=fail_closed)
 
@@ -255,6 +269,8 @@ async def test_export_permissions_apply_provider_failure_only_to_exact_action(mo
         Permissions.EVALUATION_EXPORTS_READ,
         Permissions.EVALUATION_EXPORTS_CREATE,
         Permissions.EVALUATION_EXPORTS_DOWNLOAD,
+        Permissions.EVALUATION_EXTERNAL_QA_READ,
+        Permissions.EVALUATION_EXTERNAL_QA_CREATE,
     ]
     if fail_closed:
         expected.remove(permission)
@@ -273,6 +289,8 @@ async def test_export_permissions_apply_provider_failure_only_to_exact_action(mo
         Permissions.EVALUATION_EXPORTS_READ,
         Permissions.EVALUATION_EXPORTS_CREATE,
         Permissions.EVALUATION_EXPORTS_DOWNLOAD,
+        Permissions.EVALUATION_EXTERNAL_QA_READ,
+        Permissions.EVALUATION_EXTERNAL_QA_CREATE,
     ]
 
 
