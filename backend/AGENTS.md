@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## Local execute-only command candidate (2026-11-10)
+
+Same-path in-process journal handles now share a canonical-path weak lock registry (including read-only reconciliation); retain idle WAL anchor, zero SQLite busy timeout and cross-process fail-closed. No retry or resume authority.
+
+`test_local_qa_cli.py` exercises the actual module entry, shared collector/run, pinned mock wire and local SQLite journal; real sockets/DNS fail closed. The command defaults offline and requires separate explicit input/send/private-plaintext consent to run. Keep policy rejection distinct from uncertain delivery; both stop later ordinals locally, without changing App semantics or resending. Drain resource creation, output fsync, DB and closes on cancellation; preserve partial directories for read-only reconciliation, never repair/resume. Strict files/budgets, fresh ALL-answer DNS, HTTPS/TLS, no env/redirect/retry are required. Results remain external/unverified NOT_EVALUATED; no platform export authority, evidence import, API, migration or dependency. [Contract](../docs/DevPilot_Local_QA_Command.md).
+
 ## One-shot local run adapter candidate (2026-11-10)
 
 `devpilot.local_json_run` is tested here but does not replace App persistence/admission. It delegates the actual shared run loop, with private SQLite WAL/FULL commits, per-ordinal CAS and cancellation-drained reads/writes. Keep an idle WAL anchor without a transaction to prevent last-connection cleanup/read races; drain finalization, then close and revoke the claim. Unknown commits do not grant tickets; reopen is read-only, never resume/retry/reclaim. Test real commit-ACK loss, hard process death, repeated cancellation and actual mock sends/wheel. Source hashes are declarations, collected is external/unverified technical state, not PASS/platform provenance. No new API, dependency or migration. [Contract](../docs/DevPilot_Local_QA_Run_Journal.md).

@@ -741,3 +741,48 @@ def test_concurrent_read_reconciliation_and_writes_keep_idle_wal_anchor(tmp_path
         assert reader.result(timeout=5)
     assert owned._anchor is not None and not owned._anchor.in_transaction
     assert owned.finish(completed=True).state == "collected"
+
+
+def test_same_path_reconciliation_handles_share_owner_lock_and_aliases(tmp_path):
+    owned = journal(tmp_path)
+    opened = LocalJSONJournal.open(tmp_path / "run.sqlite")
+    aliased = LocalJSONJournal.open(tmp_path / "unused" / ".." / "run.sqlite")
+    unrelated = LocalJSONJournal.open(tmp_path / "different.sqlite")
+    assert opened._lock is owned._lock and aliased._lock is owned._lock
+    assert unrelated._lock is not owned._lock
+
+
+def test_readonly_reconciliation_waits_for_same_process_writer_lock_without_sqlite_retry(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    import devpilot.local_json_run as module
+
+    owned = journal(tmp_path)
+    reader = LocalJSONJournal.open(tmp_path / "run.sqlite")
+    started, connected = threading.Event(), threading.Event()
+    real_connect = module.sqlite3.connect
+
+    def connect(*args, **kwargs):
+        connected.set()
+        return real_connect(*args, **kwargs)
+
+    def read():
+        started.set()
+        return reader.snapshot()
+
+    monkeypatch.setattr(module.sqlite3, "connect", connect)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with owned._lock:
+            future = pool.submit(read)
+            assert started.wait(3)
+            assert not connected.is_set() and not future.done()
+        assert future.result(3).state == "ready" and connected.is_set()
+
+
+def test_process_path_lock_registry_does_not_retain_inactive_handles(tmp_path):
+    import weakref
+
+    opened = LocalJSONJournal.open(tmp_path / "not_created.sqlite")
+    reference = weakref.ref(opened._lock)
+    del opened
+    assert reference() is None

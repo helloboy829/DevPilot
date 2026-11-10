@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from uuid import UUID
+from weakref import WeakValueDictionary
 
 from devpilot.qa_json_attempt import AttemptObservation
 from devpilot.qa_json_binding import QAJSONBinding
@@ -29,6 +30,20 @@ from devpilot.request_versions import FrozenRequest
 
 _SCHEMA = "local-qa-json-journal.v1"
 _MAX_TOTAL = 67_108_864
+_PATH_LOCKS = WeakValueDictionary()
+_PATH_LOCKS_GUARD = threading.Lock()
+
+
+def _path_lock(path):
+    # All in-process handles (including read-only reconciliation) serialize.
+    # This is not a cross-process lease or SQLite retry; external locks fail closed.
+    key = os.path.normcase(os.path.realpath(path))
+    with _PATH_LOCKS_GUARD:
+        lock = _PATH_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _PATH_LOCKS[key] = lock
+        return lock
 
 
 class LocalJournalConflict(Exception):
@@ -120,7 +135,7 @@ class LocalJSONJournal:
     def __init__(self, path, *, _token=None):
         self._path = Path(path).absolute()
         self._token = _token
-        self._lock = threading.Lock()
+        self._lock = _path_lock(self._path)
         self._anchor = None
 
     @classmethod
@@ -170,8 +185,8 @@ class LocalJSONJournal:
 
     @contextmanager
     def _connection(self, *, write=False, initialize=False):
-        # Serialize this owner's off-loop reads AND writes without DB retries.
-        # Separate processes/readers get immediate generic SQLite lock failure.
+        # Serialize all same-path in-process reads AND writes without DB retries.
+        # Separate processes get immediate generic SQLite lock failure.
         with self._lock:
             if write and self._token is None:
                 raise LocalJournalConflict("Local run unavailable")

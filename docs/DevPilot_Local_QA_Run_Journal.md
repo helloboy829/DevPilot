@@ -1,5 +1,9 @@
 # 独立本地 QA run 耐久适配器 / One-shot local QA run journal
 
+## 2026-11-10 后续修正 / Follow-up
+
+[显式本地命令](DevPilot_Local_QA_Command.md)的联合回归暴露同路径只读 handle 未共享 owner lock 的并发失败。现以 canonical-path 进程内弱引用 lock registry 串行所有同路径读写，保留 idle WAL anchor、SQLite timeout=0、跨进程 fail-closed、原断言与未知不重发；新增三项确定性回归，无 retry/更长超时或恢复权限。原模块的测试计数/Actions 是其历史证据，新修复门禁与 SHA 由后续模块单独闭环。
+
 日期：2026-11-10。候选代码；不是已授权 exporter/CLI、平台证据、正式批准或部署。
 
 ## 目标与调用边界

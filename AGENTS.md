@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## Explicit local QA command candidate (2026-11-10)
+
+Same-path in-process journal handles now share a canonical-path weak lock registry (including read-only reconciliation); retain idle WAL anchor, zero SQLite busy timeout and cross-process fail-closed. No retry or resume authority.
+
+The local command `devpilot.local_qa_cli` defaults to bounded OFFLINE preflight with separate value-free manifest, explicit secret bindings and input-only files. Real sends require exact structural fingerprint plus input-use/plaintext-output consent, a fresh private result directory and explicit host policy. Reuse the real shared collector/run/pinned TLS transport and one-shot journal; check ALL DNS answers for every send, stop on policy rejection, never redirect/retry/resume. Drain create/output/DB/finalization and close both resources under repeated cancellation. Private plaintext outputs are external_unverified_technical_only / NOT_EVALUATED, not encrypted platform evidence or approval. Fingerprints do not bind secret/input values or prove provenance. No App/API/migration/dependency/deployment/enablement or real calls in verification. This is not the platform-authorized exporter or a complete pinned distribution. See [contract](docs/DevPilot_Local_QA_Command.md).
+
 ## 独立本地 run 耐久适配候选（2026-11-10）
 
 `devpilot.local_json_run` 用私有单 run SQLite WAL/FULL journal 实际复用共享 run 核心，无第二套 runner。O_EXCL/首次进程内 claim、每 ordinal 一次 CAS、累计 max+1 响应/请求预算、dispatch commit before collect、未知结果不重发与 ALL 输入数必须保留。重开只有只读核对，deadline/硬退出不能授予续跑；所有 DB 读写和重复取消排空后才 finish；仅保留无事务的 idle WAL anchor，最终排空后 close 并撤销 claim。source SHA 仅声明，不证明请求相等/平台 provenance；技术 collected 不是 PASS/批准。无敏感值/明文 hash 持久化、默认客户端、App/API/迁移/依赖/部署/启用。见[合同](docs/DevPilot_Local_QA_Run_Journal.md)。

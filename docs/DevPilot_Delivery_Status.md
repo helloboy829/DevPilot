@@ -1,5 +1,15 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## 2026-11-10：显式独立本地 QA 命令候选
+
+前序本地 journal 模块已在远端 main 独立核对为 `95ddbbacb3c051db471d877b8ec6227e47ef10b6`；该精确 SHA 的四项实际 push Actions 全部 completed/success：Unit Tests `42765155874`、Frontend Unit Tests `42765155959`、Backend Blocking IO `42765156239`、Lint Check `42765155889`。先前未执行的 push 权限超时不作为成功证据；本次以远端状态与实际 Actions 关闭上模块交付，不推断是谁完成推送。无部署。
+
+新增[独立本地命令](DevPilot_Local_QA_Command.md)：默认离线预检，分离结构 manifest、显式敏感 bindings、input-only 数据；三重实发/输入/私有明文输出确认、精确 host 与 ALL-answer DNS/TLS、独占目录、共享完整 run/collector 和 one-shot journal。输出为 external_unverified_technical_only / NOT_EVALUATED，失败/取消保留原目录、未知不重发；不是加密平台证据、批准、平台授权 exporter 或完整依赖发行。无 App/API/迁移/依赖/配置/部署变更。本模块门禁、源/证据核验、资源收尾及新 SHA Actions 单独记录。
+
+本模块最终本地门禁：CLI 新增 **83 passed**，journal 专项 **82 passed**（含新增三项确定性锁回归），联合 **722 passed**（141.92s）；标准 `make test` **12,918 passed / 18 skipped / 11 deselected / 40 warnings**（761.90s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.72s）；Ruff **1,259 files**、两份领域源独立 lint/format、offline lock 全通过。前端完整 **152 files / 1,293 passed**（13.3s），完整 Prettier 与八份模块文档格式独立核验。实际 sdist→wheel 十二个公开成员逐 bytes 相等，`-I` 实际模块离线/完整 mock run 均通过，真实 DNS/socket 与 business imports 禁止。最终源码、证据、提交归档、专用资源收尾与新 SHA 的实际 Actions 另行闭环；未重跑本地 frontend build/browser/performance，无部署/执行启用/真实调用。
+
+候选迁移仍 `eval_0012`；历史部署收据 `eval_0009` 不代表本机已重新核验。完整授权导出/数据交付合同、外部结果隔离/导入、冻结 QA 独立调度、Lost Worker 对账、正式批准和另行授权的升级/真实用户验收仍未完成。
+
 ## 2026-11-10：独立本地 QA run 耐久适配候选
 
 共享完整 run 模块已推送 `f8cd909db191949a69e3fb04d0339a6bea6aae96`，该 SHA 四项 push Actions 实际 completed/success：Unit Tests `42756807606`、Frontend Unit Tests `42756807999`、Backend Blocking IO `42756807779`、Lint Check `42756807505`。47 份证据与 1,372 Python/858 Node/文档源和提交归档核验通过，四个专用 CI 容器已停止；E2E/Replay/Skill Review 未触发，未部署。

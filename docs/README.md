@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 2026-11-10：显式独立本地 QA 命令候选
+
+[本地命令 / Local QA command](DevPilot_Local_QA_Command.md)：离线默认、分离输入/凭据、显式实发与私有明文输出同意，复用共享 run 和耐久 journal；精确 host、ALL DNS answers、TLS、不重发，结果仅外部未核验技术状态。不等于授权平台导出、受控依赖发行、证据导入或批准。
+
 ## 独立本地 QA run 耐久适配候选（2026-11-10）
 
 [单次本地 journal 与共享核心适配](DevPilot_Local_QA_Run_Journal.md)：发送前 commit、每 ordinal 一次、累计预算不回收、未知结果不重发、读写取消排空；无默认网络客户端/API/CLI，重开只读，外部技术记录不是平台证据/批准。

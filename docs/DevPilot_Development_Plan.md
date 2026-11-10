@@ -129,3 +129,13 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 本模块最终本地验证：新增 **79 passed**（最终源码复核 5.58s）；联合 **636 passed**（130.45s）；标准 `make test` **12,832 passed / 18 skipped / 11 deselected / 40 warnings**（756.54s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.57s）；Ruff **1,258 files**、新领域模块单独 lint/format 和 offline lock 通过。前端完整 **152 files / 1,293 passed**（11.4s），完整 Prettier 与七份模块文档格式独立核验。真实 sdist→wheel 的十个公开成员逐 bytes 相等，实际 wheel 在 `-I` 解释器中使用锁定 HTTPX 完整 mock run，禁止 business imports、真实 DNS/socket；不是无 site packages/零依赖或授权 exporter。联合开始后的最后源码编辑仅纠正文档字符串；最终新增回归、wheel 和完整后端均覆盖该最终源码。
 
 本模块修复真实 WAL 读写/最后连接清理竞争，保留失败、实际 commit 后 ACK 丢失和硬进程退出证据；无事务 anchor 仅为连接生命周期，不授予恢复，全部 DB/任务/finish 排空后 close 撤销 claim。最终源码/证据/专用资源与新 SHA Actions 分开闭环。无本地 build/browser/performance 重跑或部署/真实调用。
+
+## 显式独立本地命令（2026-11-10）
+
+前序 journal 的远端 SHA `95ddbbacb3c051db471d877b8ec6227e47ef10b6` 已独立核对，实际四项 push Actions 全绿（Unit `42765155874`、Frontend `42765155959`、Blocking `42765156239`、Lint `42765155889`）；不把先前权限超时视为实际推送。
+
+本模块新增[实际本地 execute-only 命令](DevPilot_Local_QA_Command.md)，而非再写一个 DTO 或第二套 runner。默认离线、分离显式 files、无环境凭据 fallback；实发需结构 fingerprint/输入/私有明文输出同意、host policy 和新私有目录。共享 collector/run/transport/journal 实际 mock sends 覆盖 dispatch-before-wire、完整冻结分母、一次性预算和未知不重发；DNS policy rejection 被记录后停止本地 run，不冒充未知交付，不更改 App 语义。文件/落盘失败、重复取消、创建期取消、隔离实际模块/wheel 属门禁；失败证据保留。
+
+本命令是独立执行能力的前置模块，**不是**平台授权 exporter、锁定依赖交付或外部结果导入。下一步应明确导出来源/数据授权和依赖 pin、输出保密/结果隔离合同，再增加平台入口；不能把自建 manifest 或声明 hash 当作平台 provenance。正式批准/冻结 QA 调度/lost Worker 对账/授权升级继续独立规划。无真实模型/目标调用或部署。
+
+本模块最终本地门禁：CLI 新增 **83 passed**，journal 专项 **82 passed**（含新增三项确定性锁回归），联合 **722 passed**（141.92s）；标准 `make test` **12,918 passed / 18 skipped / 11 deselected / 40 warnings**（761.90s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.72s）；Ruff **1,259 files**、两份领域源独立 lint/format、offline lock 全通过。前端完整 **152 files / 1,293 passed**（13.3s），完整 Prettier 与八份模块文档格式独立核验。实际 sdist→wheel 十二个公开成员逐 bytes 相等，`-I` 实际模块离线/完整 mock run 均通过，真实 DNS/socket 与 business imports 禁止。最终源码、证据、提交归档、专用资源收尾与新 SHA 的实际 Actions 另行闭环；未重跑本地 frontend build/browser/performance，无部署/执行启用/真实调用。
