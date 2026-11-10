@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：共享 QA JSON 响应核心（2026-11-10）
+
+[固定版本响应核心](DevPilot_Shared_QA_JSON_Response_Core.md)将现有采集的单次 JSON 响应语义提到纯 devpilot，App 共用同一实现。无实发/部署或完整脚本导出；取消、unknown/no-resend 与历史 hash 不变。
+
 [QA 关闭重复取消排空](DevPilot_QA_Shutdown_Drain.md)：唯一 Worker 取消、同一 shield waiter、排空后传播取消与清理状态；不回收丢失 Worker 或重发。
 
 [路由资源预算与加载边界](DevPilot_Route_Resource_Budgets.md)：保留六条原预算，隔离文档导航对工作台的构建依赖，完整动态 HTML 样式按真实预览懒加载；不部署、不改变执行或批准边界。

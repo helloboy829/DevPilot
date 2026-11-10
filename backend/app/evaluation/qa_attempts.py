@@ -10,13 +10,13 @@ Outputs are sensitive internal values, not a log/public DTO.
 from __future__ import annotations
 
 import asyncio
-import re
 import time
 from dataclasses import dataclass, field
 from typing import Literal
 
 import httpx
 from devpilot.qa_json_binding import QAJSONBinding
+from devpilot.qa_json_response import QAJSONResponseBuffer
 from devpilot.request_versions import FrozenRequest
 
 from app.evaluation.http import EvaluationPolicyError, evaluation_client
@@ -50,30 +50,27 @@ class _Progress:
 
 async def _read(response, binding, maximum, progress):
     """Retain at most limit+1 yielded raw bytes; transport may read ahead."""
-    if not 200 <= response.status_code < 300:
-        return "http_error", 0, None
-    media = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
-    encoding = response.headers.get("content-encoding", "identity").strip().lower()
-    if not re.fullmatch(r"application/(?:json|[a-z0-9!#$&^_.+-]+\+json)", media) or encoding != "identity":
-        return "unsupported_response", 0, None
-    length = response.headers.get("content-length", "")
-    if length.isascii() and length.isdecimal() and (len(length) > 20 or int(length) > maximum):
-        return "response_limit", 0, None
-    body = bytearray()
+    buffer = QAJSONResponseBuffer(
+        binding,
+        http_status=response.status_code,
+        content_type=response.headers.get("content-type", ""),
+        content_encoding=response.headers.get("content-encoding", "identity"),
+        content_length=response.headers.get("content-length", ""),
+        max_response_bytes=maximum,
+    )
+    if buffer.terminal:
+        result = buffer.finish()
+        return result.kind, result.body_bytes, result.output
     async for chunk in response.aiter_raw(chunk_size=min(16_384, maximum + 1)):
-        remaining = maximum + 1 - len(body)
-        body.extend(chunk[:remaining])
-        progress.body_bytes = len(body)
-        if len(body) > maximum:
-            return "response_limit", len(body), None
-    try:
-        # No replacement decoding, number coercion, duplicate JSON keys or SSE.
-        output = await asyncio.to_thread(binding.extract, body.decode("utf-8", errors="strict"))
-        if not output.strip():
-            raise ValueError
-    except (ValueError, UnicodeError):
-        return "invalid_output", len(body), None
-    return "output_collected", len(body), output
+        buffer.feed(chunk)
+        progress.body_bytes = buffer.body_bytes
+        if buffer.terminal:
+            result = buffer.finish()
+            return result.kind, result.body_bytes, result.output
+    # Decode AND extract off-loop, only after normal end-of-body. Transport
+    # failure/cancellation leaves the buffer unfinalized and cannot yield output.
+    result = await asyncio.to_thread(buffer.finish)
+    return result.kind, result.body_bytes, result.output
 
 
 async def collect_json_attempt(request: FrozenRequest, binding: QAJSONBinding, config, limits: AttemptLimits) -> AttemptObservation:

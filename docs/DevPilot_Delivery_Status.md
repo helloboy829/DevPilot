@@ -2,7 +2,15 @@
 
 > 核对日期：2026-11-10。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-10：共享 QA JSON 响应核心候选
+
+[纯响应核心](DevPilot_Shared_QA_JSON_Response_Core.md)固定单次 HTTP JSON 的头部优先级、max+1 缓冲和严格 binding 输出提取；App 改为共用这一实现，解码与提取一起 off-loop。正常 end-of-body 才 finalize，失败/取消不收集且不重发。无新依赖、迁移、API/权限、部署或执行启用；不更改历史计划/hash，不等于完整 runnable exporter 或正式批准。
+
+本模块新增 90 项回归，联合定向 291 passed；最终后端 12,552 passed / 18 skipped / 11 deselected，分层 15 / 58、Blocking IO 72、前端 1,293 passed，Ruff/锁文件通过。旧版对比发现并修复状态 600 分类差异后，49 个合成场景全部等价，再完整重跑最终源码门禁，保留初次失败。实际 wheel/隔离解释器、公开源码与证据 hash、精确资源收尾和新 SHA Actions 另行核对；前端无运行时代码改动，不借用前一模块 build/browser/performance 成绩。完整共享执行导出、失联 Worker 安全运维、调度与正式批准仍未完成。
+
 ## 2026-11-10：QA 生命周期重复取消排空候选
+
+该模块已推送 `d7f61efe8dc17fe13e5cb464303a084d3fd9ed92`，四项 **push** Actions 均 completed/success：Unit Tests `42723748642`、Frontend Unit Tests `42723748670`、Backend Blocking IO `42723748656`、Lint Check `42723748676`。同 SHA 的定时 Nightly Build `42725168993` 因仅上游仓库可运行而 skipped，另列且不算通过；E2E/Replay/Skill Review 未触发。37 份原始证据 archive/member hash 及源码/提交归档核验通过，四个专用 CI 容器已精确停止；没有部署或业务服务改动。
 
 [关闭排空修复](DevPilot_QA_Shutdown_Drain.md)在有序 Gateway 关闭中仅取消原 Worker 一次，重复外层取消等待同一 shield waiter，排空后再传播取消并清除 repository。原 finish/配额/dispatch-before-send/未知结果不重发语义不变；不增加排空超时、重试、forced-release 或执行启用。
 

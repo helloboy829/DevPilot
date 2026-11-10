@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Shared QA JSON response core candidate (2026-11-10)
+
+`devpilot.qa_json_response` pins `qa-json-response.v1` as the single pure buffer/framing/output parser used by App attempts. Preserve head precedence, max+1 yielded-byte limits, strict binding and normal-end-only finish; errors/cancellation never finalize or resend. Decode/extract off-loop, keep sensitive output out of repr/public DTOs and test isolated source/wheel imports. Transport/admission/journal remain App-owned; no historical plan hashes change. This is not a full versioned runner/exporter or approval. No dependency/migration/deployment/enablement/real calls. [Contract](docs/DevPilot_Shared_QA_JSON_Response_Core.md).
+
 ## QA shutdown repeated-cancellation drain candidate (2026-11-10)
 
 `qa_execution_runtime` cancels its original Worker once, shields one shared gather waiter through repeated Gateway shutdown cancellation, and propagates cancellation only after that Worker drains. Clear the repository after drain even on cancellation; never retry/restart tasks or add a drain timeout. Keep dispatch/no-resend and original finish/reservation rules; hard process death still retains quota. Event barriers must cover normal/cancelled/error bodies and the real Worker with synthetic collectors/temporary DB. No API, migration, dependency, operator enablement or deployment. [Contract](docs/DevPilot_QA_Shutdown_Drain.md).

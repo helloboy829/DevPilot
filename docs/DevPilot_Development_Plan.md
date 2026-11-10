@@ -81,3 +81,11 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 性能模块 `6142029b921319e33c8819713f750ebbc3a497f9` 的五项实际 Actions 全部 completed/success（逐项 ID 见交付矩阵），原六路由本地预算亦通过，未借用上一提交结果。
 
 继续分析安全 Lost Worker 操作之前，先实证修复[重复 Gateway 关闭取消](DevPilot_QA_Shutdown_Drain.md)：原 gather 会二次取消排空中的 Worker。先测旧代码 7 项失败，再只取消一次并 shield 同一等待器；新增 8 项，联合主链 82 项通过。原 Worker 排空前保留配额，硬崩溃仍不回收，不增加重发/释放能力。完整后端 12,462 / Blocking IO 72 / 前端 1,293 passed，Ruff/锁文件/完整格式通过；首轮隔离数据库未启动的失败保留并修正环境后原命令全量重跑。源码/证据和本提交实际 Actions 分别核对，不是安全自动恢复、正式批准或平台完成。
+
+## 共享执行核心第一子模块（2026-11-10）
+
+关闭排空模块已推送 `d7f61efe8dc17fe13e5cb464303a084d3fd9ed92`，四项 push Actions 均成功（Unit `42723748642`、Frontend Unit `42723748670`、Blocking IO `42723748656`、Lint `42723748676`）；同 SHA 的定时 Nightly `42725168993` 为 upstream-only skipped，不能记为通过。原始观察器因合并不同事件而报非全成功，保留原始 JSON，按 event 分类记录，不修改 CI 或把 skipped 改成 success。
+
+本切片采用[共享响应核心](DevPilot_Shared_QA_JSON_Response_Core.md)，先提取纯版本化 JSON 响应 buffer/parser 并让 App 实际共用，验证边界和合成等价、独立解释器/真实 wheel，不复制第二套 runner。其余请求准备/执行适配器、导出数据授权、独立 CLI 出站/预算、结果隔离导入仍须后续独立模块；没有完整 exporter 就不开放导出能力。每次新推送仍须自己的实际 SHA CI，正式批准/运营 fencing/调度/部署边界不变。
+
+本子模块最终验证：90 项新回归、291 项联合主链、49 场景旧版/当前实现对比；修复扩展对比发现的状态 600 兼容性差异后，完整后端 12,552、Blocking IO 72、前端 1,293 passed，Ruff/离线锁文件通过。纯源码与实际 wheel 均在无 site packages 的隔离解释器自检。首候选门禁通过不代替最终源码重跑；新 SHA 推送后仍独立等待实际 Actions，未运行的 build/browser/performance 不借用旧成绩。
