@@ -1,5 +1,9 @@
 # DevPilot API 接口设计 v3.0
 
+## 平台授权 QA 导出 API 候选（2026-11-10）
+
+新增 `/api/evaluation/projects/{project_id}/exports/{export_id}` 一次 PUT、原 ID 元数据 GET、viewed receipt/显式确认的 `/bundle` GET 与顺序游标 `/audit` GET。默认关闭；精确 operator grant、人类 owner、项目/export 权限共同限制。unknown/404 只同 ID GET，不重发。仅骨架/获准 baseline 输入，无凭据/金标/验收输入/执行许可/结果导入/批准。[实际合同](DevPilot_Authorized_QA_Exports.md)优先于下方目标接口；无 UI、部署或真实调用。
+
 ## 2026-11-08 实现校准
 
 已交付的当前范围见[加密输出证据与人工复核](DevPilot_QA_Evidence_Review.md)：App 增量迁移 eval_0006，输出与技术观测原子落库、owner 自复核、敏感详情审计和追加修订。项目 API 的 review-runs 元数据、cases 分页、单条详情与 reviews 追加已实现；没有执行/上传输出路由。下文的团队分配、领取、仲裁、自动裁判、报告正式证据引用等仍是目标设计，不应据此认为已经贯通。独立执行准入与 Worker 仍待接入。

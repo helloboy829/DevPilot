@@ -129,3 +129,50 @@ jobs:
         run: |
           archive_hash=$(sha256sum "$RUNNER_TEMP/local-qa-distribution.zip" | cut -d' ' -f1)
           python scripts/check_local_qa_distribution.py --archive "$RUNNER_TEMP/local-qa-distribution.zip" --sha256 "$archive_hash" --work-directory "$RUNNER_TEMP/local-qa-verification"
+      - name: Hash software-only artifact for the separate API verifier
+        run: |
+          cd "$RUNNER_TEMP"
+          sha256sum local-qa-distribution.zip > local-qa-distribution.zip.sha256
+      - name: Retain software-only archive for independent API verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-qa-software-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/local-qa-distribution.zip
+            ${{ runner.temp }}/local-qa-distribution.zip.sha256
+          if-no-files-found: error
+          retention-days: 1
+
+  authorized-export-installed:
+    if: github.event.pull_request.draft == false
+    needs: local-qa-distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Retrieve independently verified software-only archive
+        uses: actions/download-artifact@v4
+        with:
+          name: local-qa-software-${{ github.sha }}
+          path: ${{ runner.temp }}/local-qa-software
+      - name: Verify the declared artifact hash before API use
+        working-directory: ${{ runner.temp }}/local-qa-software
+        run: sha256sum --check local-qa-distribution.zip.sha256
+      - name: Install backend verifier dependencies from frozen lock
+        working-directory: backend
+        run: uv sync --frozen --group dev
+      - name: Verify synthetic API export with fresh installed offline software
+        working-directory: backend
+        env:
+          PYTHONPATH: .
+          TEST_QA_SOFTWARE_ARCHIVE: ${{ runner.temp }}/local-qa-software/local-qa-distribution.zip
+        run: |
+          export TEST_QA_SOFTWARE_SHA256=$(cut -d' ' -f1 "$TEST_QA_SOFTWARE_ARCHIVE.sha256")
+          uv run pytest tests/test_authorized_qa_exports_installed.py -q --tb=short

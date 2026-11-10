@@ -56,7 +56,7 @@ async def test_additive_upgrade_repeat_downgrade_preserve_all_previous_tables(ta
         await asyncio.to_thread(migrate, engine.url, down)
         assert await snapshot() == before
         async with engine.connect() as conn:
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0010" if down else "eval_0012")
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0010" if down else "eval_0013")
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
             tables = await conn.run_sync(lambda c: inspect(c).get_table_names())
             assert (t.run_assessments.name in tables) != down
@@ -114,7 +114,7 @@ async def test_postgresql_additive_upgrade_preserves_real_review_rows_and_constr
                 for table in [ComponentRow.__table__, *old]:
                     assert [dict(r) for r in (await conn.execute(select(table).order_by(*table.primary_key.columns))).mappings()] == before[table.name]
                 assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
-                assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0010" if down else "eval_0012")
+                assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0010" if down else "eval_0013")
         row = {"id": "c" * 32, "owner_id": "owner", "project_id": project, "run_id": run["id"], "revision": 1, "created_at_ms": 1, "request_hash": "a" * 64, "summary_hash": "b" * 64, "document": {}, "assessment_hash": "d" * 64}
         async with engine.begin() as conn:
             await conn.execute(insert(t.run_assessments).values(**row))

@@ -1,5 +1,34 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## Authorized QA configuration export candidate (2026-11-10)
+
+The [recipient/grant-bound exporter](DevPilot_Authorized_QA_Exports.md) adds default-disabled human/owner API creation, immutable encrypted configuration ZIPs and ordered audit. Existing CLI plus separately pinned software; skeleton or explicitly authorized ALL baseline inputs never include request values, acceptance/gold or historic outputs. ALL request values must be rebound. Candidate head is `eval_0013`; no UI, runtime deployment, execution permission, result import or approval.
+
+Previous exact SHA `26d4592734bf8939175d7fa26499814eb556050c` has all four actual push Actions successful: Unit `42812024806`, Lint `42812024235`, Blocking `42812024532`, Frontend `42812024282`. Not this module CI. Focused 67 passed included SQLite/owned PostgreSQL and API export → fresh offline full install → installed CLI mock send/receipt/same-ID reconciliation. Template corruption regressions failed before the private validation fix. Joint testing then caught a pure-distribution CI isolation violation; fix separates installed API verification without weakening the existing check. Final full/source/evidence/resource and new exact-SHA Actions remain required. No deployment/real calls.
+
+Final module-local verification: focused **88 passed / 1 warning** (including
+actual fresh offline installed CLI and SQLite/owned PostgreSQL migrations), joint
+**397 passed / 1 warning**; standard backend **13,254 passed / 19 skipped /
+11 deselected / 40 warnings / 841.65s**, domain **15 / 58 passed**,
+Blocking IO **72 passed**, Ruff **1,270 files** and offline lock passed.
+Frontend runtime source is unchanged: full **152 files / 1,293 passed**, entire
+frontend Prettier, ESLint and TypeScript passed in this module. No local build,
+browser/Windows/real-user acceptance, deployment or real calls are claimed.
+
+The first full run retained **5 failed / 13,242 passed**: its independent exact
+permission inventories lacked the three new export actions. Explicit inventories
+and ordered provider requests were extended, with six action/failure-mode cases;
+no wildcard assertion, authorization policy change or failure suppression.
+A separate red regression exposed expiry between grant checking and receipt time;
+creation now fails privately without an archive/audit. Template-corruption and
+pure-distribution isolation failures also remain in the retained diagnostics.
+The second full run passed, but its following format check found a stale
+container copy of `deps.py`; that file was synchronized and the exact final
+source was fully retested. No source mismatch is waived by a green test count.
+Successful local gates do not prove push or CI: final source/evidence/resource
+receipts and the new exact-SHA Actions, including the separate installed-export
+job, require independent verification. The whole platform remains incomplete.
+
 ## External technical metadata inspection candidate (2026-11-10)
 
 The [App-owned strict parser](DevPilot_External_QA_Metadata_Inspection.md) adds original-ID pairing, bounded exact JSON schemas, caller-declared raw hash checks and ALL frozen denominator/aggregate coherence for existing local receipt/reconciliation documents. Output remains NOT_EVALUATED/unverified even for a coherent forged pair; no evidence/output/provenance/approval/dispatch authority is granted. No upload route, persistent quarantine, database mutation, migration, dependency, deployment or real calls. This is a prerequisite, not completed platform result import or authorized data export.
@@ -233,7 +262,7 @@ English: the continuation baseline and its four successful runs are explicitly p
 - 本轮复用既有 Docker Python 3.12 / Node 22 隔离依赖；只导出 Git 源码与显式变更，不复制私有配置/数据库。测试结束停止本次启动的 CI 容器，缓存不等于过期垃圾。
 - 本轮工作区新增 PostgreSQL `sslmode` → asyncpg `ssl` 兼容修复及回归；保留原 TLS 模式和同步 DSN，冲突/无效参数明确拒绝。当前运行部署不包含这项修改；没有改依赖、迁移、生产配置或调用真实目标。
 
-当前工作区新增独立逐条复核后端/API、`/workspace/reviews` 中心及项目内联分配/详情，以及独立全样本评估预览/不可变修订 API 候选，App head `eval_0012`（独立档案追加迁移）；未升级现有 `eval_0009` 运行库。两名盲审人及独立仲裁只获具体冻结 case 的授权，共用同一任务服务；评估修订 UI 已有候选；报告/复测已有显式历史来源绑定后端/API 及独立选择 UI 候选，正式批准尚未交付。[合同与范围](DevPilot_Independent_Case_Review.md)。
+当前工作区新增独立逐条复核后端/API、`/workspace/reviews` 中心及项目内联分配/详情，以及独立全样本评估预览/不可变修订 API 候选，当前候选 App head `eval_0013`（独立档案至 `eval_0012`，授权配置导出追加 `eval_0013`）；未升级现有 `eval_0009` 运行库。两名盲审人及独立仲裁只获具体冻结 case 的授权，共用同一任务服务；评估修订 UI 已有候选；报告/复测已有显式历史来源绑定后端/API 及独立选择 UI 候选，正式批准尚未交付。[合同与范围](DevPilot_Independent_Case_Review.md)。
 
 ## 2. 已实现的评测主链
 
@@ -258,7 +287,7 @@ English: the continuation baseline and its four successful runs are explicitly p
 
 - 旧组件效果/性能原型及定时评测已有入口；并不等于冻结 QA 新链路的独立调度准入、持久队列恢复或正式验收。
 - cURL 调试、手工/Agent 报告草稿、管理员模型管理、私有助手可用。配置助手不等于存在已配置模型，也不授予 Agent 人工确认/批准权限。
-- 出站共享 DNS-pinned transport 已覆盖调试/手工/旧调度，但所有遗留适配器、完整版本化 RequestSpec 与独立 runner 还未统一交付。
+- 出站共享 DNS-pinned transport 已覆盖调试/手工/旧调度；共享 QA 核心、独立本地命令、软件分发与授权配置导出已有候选。所有遗留适配器及外部结果/输出保护闭环仍未统一交付，不能把软件分发当成平台结果导入。
 - Docker 健康信号、只读诊断、账号页面 smoke 证明各自检查范围，不是质量效果、完整数据库验收、长期稳定性或真实目标调用授权。
 
 ## 4. 尚未完成与下一阶段门禁

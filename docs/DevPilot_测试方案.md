@@ -1,5 +1,9 @@
 # DevPilot 测试方案 v3.0
 
+## 授权 QA 配置导出回归候选（2026-11-10）
+
+`test_authorized_qa_exports*` 用合成数据/账号/key覆盖精确授权、数据 tier、全冻结源/预算、隐私、并发、重复取消读写排空、审计原子性/游标、损坏/体积；SQLite 外键 ON 和独占 PostgreSQL 迁移证明原表不变。独立 job 将纯分发 artifact/hash 交给 API 配置→新无系统依赖 venv 完整离线安装→实际已安装 `-I` CLI mock send/receipt/原 ID 对账，真实 socket/业务 imports 禁止。默认 skip 不是安装成功；完整门禁与精确 SHA CI 单独记录。[合同](DevPilot_Authorized_QA_Exports.md)。
+
 ## 报告 Agent 增补（2026-11-07）
 
 新增报告助手测试使用完全合成资料：假模型运行真实无工具 graph；配置失败关闭、名称/自由文本/证据不外发、无重试/超时/并发槽、关闭 LangSmith tracing、坏 JSON/额外字段/工具调用/超长拒绝、权限与显式授权、事实/模板绑定、附录转义和事实不变。浏览器验证每次外发授权、人工确认附入和编辑失效。无外部真实模型、客户接口或客户报告验收，不将模拟回归当作模型质量评测。

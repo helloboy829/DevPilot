@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：平台授权 QA 配置导出候选（2026-11-10）
+
+[授权、分级、API 与安装验证](DevPilot_Authorized_QA_Exports.md)：默认关闭、精确 operator grant、人类 owner 与分离同意；骨架或获准 baseline 全量输入，ALL 请求值需重新绑定。加密不可变 ZIP、源快照复核、原 ID GET 对账与顺序审计。候选 eval_0013；无 UI/执行许可/金标或验收集输入/结果导入/正式批准/部署。
+
 - [External QA technical metadata inspection / 外部 QA 技术元数据检查](DevPilot_External_QA_Metadata_Inspection.md)
 
 ## 当前追加：独立本地 QA 锁定软件分发（2026-11-10）

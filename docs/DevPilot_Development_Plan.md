@@ -1,5 +1,34 @@
 # 开发接续分析与模块计划 / Development continuation plan
 
+## 当前接续：平台授权 QA 配置导出（2026-11-10）
+
+前序元数据检查已推送 `26d4592734bf8939175d7fa26499814eb556050c`，四项实际 Actions 全绿（Unit `42812024806`、Frontend `42812024282`、Blocking `42812024532`、Lint `42812024235`）。不是完整结果导入。
+
+本轮[授权导出](DevPilot_Authorized_QA_Exports.md)接通冻结来源、精确 operator grant、baseline 数据分级、加密不可变配置和真实已安装 CLI；默认关闭/无 UI/ALL 请求值重新绑定。候选 eval_0013；专项及联合/完整门禁和提交/CI分开记录。联合回归发现软件构建与 backend 验证混杂，拆为独立 job，不放宽原断言。后续输出加密/保留、结果隔离导入、冻结 QA 调度/lost Worker 安全、正式批准、授权部署/真实用户验收仍未完成。
+
+Final module-local verification: focused **88 passed / 1 warning** (including
+actual fresh offline installed CLI and SQLite/owned PostgreSQL migrations), joint
+**397 passed / 1 warning**; standard backend **13,254 passed / 19 skipped /
+11 deselected / 40 warnings / 841.65s**, domain **15 / 58 passed**,
+Blocking IO **72 passed**, Ruff **1,270 files** and offline lock passed.
+Frontend runtime source is unchanged: full **152 files / 1,293 passed**, entire
+frontend Prettier, ESLint and TypeScript passed in this module. No local build,
+browser/Windows/real-user acceptance, deployment or real calls are claimed.
+
+The first full run retained **5 failed / 13,242 passed**: its independent exact
+permission inventories lacked the three new export actions. Explicit inventories
+and ordered provider requests were extended, with six action/failure-mode cases;
+no wildcard assertion, authorization policy change or failure suppression.
+A separate red regression exposed expiry between grant checking and receipt time;
+creation now fails privately without an archive/audit. Template-corruption and
+pure-distribution isolation failures also remain in the retained diagnostics.
+The second full run passed, but its following format check found a stale
+container copy of `deps.py`; that file was synchronized and the exact final
+source was fully retested. No source mismatch is waived by a green test count.
+Successful local gates do not prove push or CI: final source/evidence/resource
+receipts and the new exact-SHA Actions, including the separate installed-export
+job, require independent verification. The whole platform remains incomplete.
+
 ## External technical metadata isolation prerequisite (2026-11-10)
 
 Previous software-distribution module is independently delivered as `5484861e18d530b4dac83d96dff3f00342f28b40`, with four actual push Actions successful: Unit `42805147759`, Lint `42805147543`, Blocking `42805147771`, Frontend `42805147653`. Its dedicated distribution and default-install jobs also succeeded. No deployment is inferred.
@@ -39,7 +68,7 @@ No local browser, frontend build/lint/typecheck, performance, Windows or real-us
 
 1. App/FastAPI 负责项目、冻结数据/请求/计划、授权、耐久 dispatch、有界 Worker、加密证据和审计；纯 `devpilot` 领域逻辑与 Harness 保持单向依赖边界。
 2. 既有 owner 人工复核链已连接 verified summary、冻结标准、不可变报告/Word 与同基准复测，不等于独立批准。
-3. 独立任务提供两名盲审人/第三名仲裁人，独立评估修订和历史报告/复测及显式工作区已进入候选代码。候选迁移 head `eval_0012`；历史部署收据是 `eval_0009`，不能因已拉取最新代码而认定新版已部署。
+3. 独立任务提供两名盲审人/第三名仲裁人，独立评估修订和历史报告/复测及显式工作区已进入候选代码。独立档案迁移至 `eval_0012`，当前授权配置导出候选追加 head `eval_0013`；历史部署收据是 `eval_0009`，不能因已拉取最新代码而认定新版已部署。
 4. 本轮补齐独立历史报告/重测 Word 与 PDF 候选及合成独立主链回归；新增真实登录的合成多账号离线回归，仍不替代真实用户/浏览器联调；正式批准、保留数据升级/最终验收仍有缺口。旧设计文档里“待开发”的切片以当前交付矩阵为准，不重复重写已实现模块。
 
 ## 接续顺序与退出条件

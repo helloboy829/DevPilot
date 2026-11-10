@@ -509,3 +509,38 @@ independent_retest_archives = Table(
     CheckConstraint("baseline_run_id <> retest_run_id AND created_at_ms > 0", name="ck_evaluation_ind_retest_bounds"),
 )
 Index("ix_evaluation_ind_retest_project_time", independent_retest_archives.c.project_id, independent_retest_archives.c.created_at_ms)
+
+# Explicit recipient-bound external configuration; ciphertext never metadata.
+exports = Table(
+    "evaluation_authorized_exports",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", String(64), nullable=False),
+    Column("plan_id", String(64), nullable=False),
+    Column("request_hash", String(64), nullable=False),
+    Column("receipt_hash", String(64), nullable=False),
+    Column("document", JSON, nullable=False),
+    Column("encrypted_bundle", Text, nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "plan_id"], ["evaluation_plans.project_id", "evaluation_plans.id"]),
+    UniqueConstraint("project_id", "id", name="uq_evaluation_export_project_id"),
+    CheckConstraint("created_at_ms > 0", name="ck_evaluation_export_time"),
+)
+Index("ix_evaluation_export_project_time", exports.c.project_id, exports.c.created_at_ms)
+export_audit = Table(
+    "evaluation_export_audit",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("export_id", String(32), nullable=False),
+    Column("actor", String(64), nullable=False),
+    Column("action", String(32), nullable=False),
+    Column("sequence", Integer, nullable=False),
+    Column("at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "export_id"], ["evaluation_authorized_exports.project_id", "evaluation_authorized_exports.id"]),
+    UniqueConstraint("export_id", "sequence", name="uq_evaluation_export_audit_sequence"),
+    CheckConstraint("sequence > 0", name="ck_evaluation_export_audit_sequence"),
+    CheckConstraint("action IN ('export_created', 'bundle_opened') AND at_ms > 0", name="ck_evaluation_export_audit"),
+)
+Index("ix_evaluation_export_audit_export", export_audit.c.project_id, export_audit.c.export_id)

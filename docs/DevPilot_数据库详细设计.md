@@ -1,5 +1,9 @@
 # DevPilot 数据库详细设计 v3.0
 
+## 授权导出追加账本候选（2026-11-10）
+
+App `eval_0013` 仅追加 `evaluation_authorized_exports`、`evaluation_export_audit` 和两个索引：项目/plan 复合外键、加密 ZIP/不可变收据、项目/export 复合外键、每 export 正顺序唯一审计。旧 App revisions、Harness ledger 和来源表不改写；SQLite/独占临时 PostgreSQL 检查升级/降级、约束、metadata parity 与原表快照。测试降级不授权运行库删表回滚。候选未部署；[字段与原子性](DevPilot_Authorized_QA_Exports.md)为实际合同。
+
 ## 2026-11-08 实现校准
 
 已交付的当前范围见[加密输出证据与人工复核](DevPilot_QA_Evidence_Review.md)：App 增量迁移 eval_0006，输出与技术观测原子落库、owner 自复核、敏感详情审计和追加修订。项目 API 的 review-runs 元数据、cases 分页、单条详情与 reviews 追加已实现；没有执行/上传输出路由。下文的团队分配、领取、仲裁、自动裁判、报告正式证据引用等仍是目标设计，不应据此认为已经贯通。独立执行准入与 Worker 仍待接入。

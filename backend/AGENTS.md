@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Authorized QA export regressions (2026-11-10)
+
+`test_authorized_qa_exports*` covers exact default-off grants, human/owner/export permissions, private bounded streamed DTOs, encrypted immutable configuration and sequence-ordered audit. No request ciphertext decryption or acceptance/gold export; skeleton must not SELECT samples/references. ALL frozen sources/budgets, off-loop work, final project locks and atomic audit remain. Drain reads/writes across repeated cancellation; unknown PUT including 404 only same-ID GET, never resend. Additive `eval_0013` is checked on SQLite (foreign keys ON) and owned temporary PostgreSQL. A separate installed-export CI job consumes the pure distribution artifact/hash and runs API-to-actual-installed `-I` verification; default skip is not success. Keep original distribution independent of backend dependencies. No UI, config enablement, deployment or real calls. [Contract](../docs/DevPilot_Authorized_QA_Exports.md).
+
 ## External metadata inspection regressions (2026-11-10)
 
 `test_external_qa_metadata.py` consumes real synthetic pre-dispatch receipts/journal reconciliation but parses only explicitly supplied bounded JSON bytes. Reject duplicate/missing/extra fields, type/nesting/hash/identity/count incoherence and authority claims. ALL frozen denominators remain; coherent fabricated claims never become evidence/PASS. No sensitive file opens, SQLite uploads, App route/persistence/quarantine, mutation, dependency or real calls. Future HTTP integration needs pre-buffer limits/off-loop parsing and separately authorized immutable source/audit gates. [Contract](../docs/DevPilot_External_QA_Metadata_Inspection.md).

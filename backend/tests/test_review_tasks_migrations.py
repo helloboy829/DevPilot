@@ -60,7 +60,7 @@ async def test_additive_upgrade_downgrade_and_repeat_preserve_every_previous_tab
         assert await snapshot() == before
         async with engine.connect() as conn:
             tables = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
-            expected = "eval_0009" if revision == "eval_0009" else "eval_0012"
+            expected = "eval_0009" if revision == "eval_0009" else "eval_0013"
             assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == expected
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
             assert TASK_TABLES.isdisjoint(tables) if revision == "eval_0009" else TASK_TABLES.issubset(tables)
@@ -102,7 +102,7 @@ async def test_postgresql_owned_database_schema_parity_and_harness_ledger():
                 return compare_metadata(context, t.metadata)
 
             assert await conn.run_sync(compare) == []
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0012"
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0013"
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
         await asyncio.to_thread(migrate, engine.url, "eval_0009")
         async with engine.connect() as conn:

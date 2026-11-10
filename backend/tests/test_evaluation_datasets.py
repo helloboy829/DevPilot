@@ -182,7 +182,7 @@ async def test_app_migrations_coexist_with_harness_restart(tmp_path):
         await upgrade_evaluation_schema(get_engine())
         assert (await EvaluationRepository(get_session_factory()).list_projects("owner"))[0]["id"] == created["id"]
         async with get_engine().connect() as conn:
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0012"
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0013"
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar() != "eval_0001"
     finally:
         await close_engine()

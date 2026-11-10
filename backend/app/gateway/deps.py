@@ -429,6 +429,7 @@ async def langgraph_runtime(app: FastAPI, startup_config: AppConfig) -> AsyncGen
         sf = get_session_factory()
         app.state.evaluation_repo = None
         app.state.evaluation_execution_repo = None
+        app.state.evaluation_export_repo = None
         if sf is not None:
             from app.evaluation.repository import EvaluationRepository
             from app.evaluation.schema import upgrade_evaluation_schema
@@ -436,6 +437,10 @@ async def langgraph_runtime(app: FastAPI, startup_config: AppConfig) -> AsyncGen
 
             await upgrade_evaluation_schema(get_engine(), postgres_schema=config.database.postgres_schema if config.database.backend == "postgres" else "")
             app.state.evaluation_repo = EvaluationRepository(sf)
+            from app.evaluation.authorized_exports import ExportPolicy, ExportRepository
+
+            export_policy = ExportPolicy.model_validate(getattr(config, "evaluation_exports", {}))
+            app.state.evaluation_export_repo = ExportRepository(sf, policy=export_policy)
             from app.evaluation.execution_lifecycle import qa_execution_runtime
 
             await stack.enter_async_context(qa_execution_runtime(app, sf, config, get_config))

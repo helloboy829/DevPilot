@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Authorized external QA configuration candidate (2026-11-10)
+
+`app.evaluation.authorized_exports` requires default-off exact operator grants, human/owner API permissions and separate data-use/external-control consent. Skeleton reads no samples/references; baseline exports ALL verified inputs only, never acceptance/gold/request ciphertext. Existing CLI schema and separately pinned software remain; ALL request values must be rebound. Additive `eval_0013` stores domain-separated encrypted immutable ZIPs and monotonic per-export audit. Off-loop work precedes final project/source/grant checks and atomic archive/audit; drain DB reads/writes across repeated cancellation. Unknown PUT including 404 only same-ID GET, never resend. No UI, deployment, real calls, result import or formal approval. [Contract](docs/DevPilot_Authorized_QA_Exports.md).
+
 ## External QA technical metadata inspection candidate (2026-11-10)
 
 App-owned `external_qa_metadata` accepts only two explicitly selected bounded JSON byte documents with original run ID/fingerprint/raw hashes. Strict schemas, ALL frozen denominators and aggregate coherence never establish platform provenance, output/evidence, transfer consent or approval; a coherent forgery remains unverified/NOT_EVALUATED. No filesystem/DB/network, upload/API, persistent quarantine, migration or dispatch capability; no retry/resume/resend. See [contract](docs/DevPilot_External_QA_Metadata_Inspection.md).

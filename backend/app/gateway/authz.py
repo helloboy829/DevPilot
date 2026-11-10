@@ -61,6 +61,9 @@ class Permissions:
     EVALUATION_PROJECTS_WRITE = "evaluation_projects:write"
     EVALUATION_PROJECTS_REVIEW = "evaluation_projects:review"
     EVALUATION_OPERATIONS_READ = "evaluation_operations:read"
+    EVALUATION_EXPORTS_READ = "evaluation_exports:read"
+    EVALUATION_EXPORTS_CREATE = "evaluation_exports:create"
+    EVALUATION_EXPORTS_DOWNLOAD = "evaluation_exports:download"
 
     # Threads
     THREADS_READ = "threads:read"
@@ -134,6 +137,9 @@ _ALL_PERMISSIONS: list[str] = [
     Permissions.EVALUATION_PROJECTS_WRITE,
     Permissions.EVALUATION_PROJECTS_REVIEW,
     Permissions.EVALUATION_OPERATIONS_READ,
+    Permissions.EVALUATION_EXPORTS_READ,
+    Permissions.EVALUATION_EXPORTS_CREATE,
+    Permissions.EVALUATION_EXPORTS_DOWNLOAD,
 ]
 
 
