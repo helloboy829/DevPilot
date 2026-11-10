@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## External metadata inspection regressions (2026-11-10)
+
+`test_external_qa_metadata.py` consumes real synthetic pre-dispatch receipts/journal reconciliation but parses only explicitly supplied bounded JSON bytes. Reject duplicate/missing/extra fields, type/nesting/hash/identity/count incoherence and authority claims. ALL frozen denominators remain; coherent fabricated claims never become evidence/PASS. No sensitive file opens, SQLite uploads, App route/persistence/quarantine, mutation, dependency or real calls. Future HTTP integration needs pre-buffer limits/off-loop parsing and separately authorized immutable source/audit gates. [Contract](../docs/DevPilot_External_QA_Metadata_Inspection.md).
+
 ## Local QA distribution verification candidate (2026-11-10)
 
 `test_local_qa_distribution.py` covers exact Python 3.12 runtime closure, whole-package source allowlist, every first-party member/metadata/RECORD, original artifact hashes, no extras/traversal/nonregular files, exclusive output and uncertainty. CI independently builds using six hash-locked build tools, then checks a new no-system-site venv: missing/tampered wheels rejected, full dependencies installed offline (never --no-deps), actual installed default-offline/mock execution/identity receipt/original-ID reconciliation, origins in new venv and no business imports/real sockets. Software-only hashes are integrity, not signatures or platform export authority; runtime dependencies and existing App execution remain unchanged. [Contract](../docs/DevPilot_Local_QA_Distribution.md).

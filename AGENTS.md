@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## External QA technical metadata inspection candidate (2026-11-10)
+
+App-owned `external_qa_metadata` accepts only two explicitly selected bounded JSON byte documents with original run ID/fingerprint/raw hashes. Strict schemas, ALL frozen denominators and aggregate coherence never establish platform provenance, output/evidence, transfer consent or approval; a coherent forgery remains unverified/NOT_EVALUATED. No filesystem/DB/network, upload/API, persistent quarantine, migration or dispatch capability; no retry/resume/resend. See [contract](docs/DevPilot_External_QA_Metadata_Inspection.md).
+
 ## Hash-locked local QA software distribution candidate (2026-11-10)
 
 The offline software-only builder validates nine original runtime wheels against the tracked backend lock and ALL 35 allowlisted first-party source members plus metadata/RECORD; no injected extras/entrypoints or repacked dependency hashes. Six hash-locked build tools remain separate. Exclusive deterministic archive contains only software/licenses/synthetic examples; declared SHA/hashes are not authenticated provenance or execution authority. Require separately trusted archive hash and fresh Python 3.12 no-system-site venv with full no-index/hash-locked dependency install, actual installed mock CLI/receipt/same-ID reconciliation. No source/editable fallback, real calls, platform data export/import, App API/migration/config/deployment or approval; Linux verification is not Windows acceptance. [Contract](docs/DevPilot_Local_QA_Distribution.md).

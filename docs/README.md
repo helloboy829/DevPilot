@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+- [External QA technical metadata inspection / 外部 QA 技术元数据检查](DevPilot_External_QA_Metadata_Inspection.md)
+
 ## 当前追加：独立本地 QA 锁定软件分发（2026-11-10）
 
 [完整成员/hash 闭包与新环境安装合同](DevPilot_Local_QA_Distribution.md)：九个固定 runtime wheel、独立六项构建锁、全部 35 源码成员/metadata/RECORD、许可和纯合成示例；新 venv 无网络完整安装、实际已安装命令 mock run/receipt/原 ID 对账。软件 integrity 不等于平台来源/导出权限，数据授权/输出治理/隔离导入仍待完成。无部署或真实调用。

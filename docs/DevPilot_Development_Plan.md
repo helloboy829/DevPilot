@@ -1,5 +1,19 @@
 # 开发接续分析与模块计划 / Development continuation plan
 
+## External technical metadata isolation prerequisite (2026-11-10)
+
+Previous software-distribution module is independently delivered as `5484861e18d530b4dac83d96dff3f00342f28b40`, with four actual push Actions successful: Unit `42805147759`, Lint `42805147543`, Blocking `42805147771`, Frontend `42805147653`. Its dedicated distribution and default-install jobs also succeeded. No deployment is inferred.
+
+This next module adds [strict original-ID external metadata inspection](DevPilot_External_QA_Metadata_Inspection.md), not platform result admission. Raw-hash/schema/aggregate checks leave all provenance/evidence/output/approval/send permissions false, including coherent forgeries. There is no upload/API/persistent quarantine or sensitive output read. Platform source/data-tier authorization, bounded storage/import, encrypted local output/retention, frozen QA scheduling, Lost Worker fencing, formal approval and separately authorized upgrade/real-user acceptance remain open.
+
+Parser module-local gates: **111 new / 984 joint**, standard backend
+**13,180 passed** (774.85s), Blocking IO **72**, Ruff/format **1,264 files**,
+offline lock, frontend **152 files / 1,293 tests** and full Prettier passed.
+Source/evidence/resource closure and exact new-SHA Actions remain independently
+recorded. The next integration must add actual bounded authenticated isolation
+and immutable owner-scoped receipts/audits without treating metadata inspection
+as trusted evidence; authorized export/source association stays separate.
+
 ## 独立软件分发缺口推进（2026-11-10）
 
 上一模块 `9fe951fbb7e4f4c0a9af29436618379b13ef672b` 已独立核对远端与四项实际全绿 Actions（Unit `42791646112`、Frontend `42791645774`、Blocking `42791646131`、Lint `42791645950`），不以 push 代替 CI。

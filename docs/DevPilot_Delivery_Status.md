@@ -1,5 +1,19 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## External technical metadata inspection candidate (2026-11-10)
+
+The [App-owned strict parser](DevPilot_External_QA_Metadata_Inspection.md) adds original-ID pairing, bounded exact JSON schemas, caller-declared raw hash checks and ALL frozen denominator/aggregate coherence for existing local receipt/reconciliation documents. Output remains NOT_EVALUATED/unverified even for a coherent forged pair; no evidence/output/provenance/approval/dispatch authority is granted. No upload route, persistent quarantine, database mutation, migration, dependency, deployment or real calls. This is a prerequisite, not completed platform result import or authorized data export.
+
+Previous module exact SHA `5484861e18d530b4dac83d96dff3f00342f28b40` has all four actual push Actions successful (Unit `42805147759`, Lint `42805147543`, Blocking `42805147771`, Frontend `42805147653`), including its distribution job. Those results are not the new module CI. Candidate App head stays `eval_0012`; prior runtime receipts are historical, not new-machine acceptance.
+
+Module-local gates are now terminal: new **111 passed**, joint **984 passed**;
+standard backend **13,180 passed / 18 skipped / 11 deselected / 40 warnings /
+774.85s**, Blocking IO **72 passed**, Ruff **1,264 files** and offline lock.
+Frontend **152 files / 1,293 passed** and entire Prettier passed; frontend
+runtime source is unchanged. Final documentation/source/evidence/resource and
+new exact-SHA Actions closure are separate receipts, not inherited CI. No new
+browser/Windows/real-user acceptance, deployment or real target/model calls.
+
 ## 2026-11-10：独立本地 QA 锁定软件分发候选
 
 前序发送前身份回执模块的精确远端 SHA 为 `9fe951fbb7e4f4c0a9af29436618379b13ef672b`，四项实际 push Actions 均 completed/success（attempt 1）：Unit Tests `42791646112`、Frontend Unit Tests `42791645774`、Backend Blocking IO `42791646131`、Lint Check `42791645950`。其源码/证据和四个专用容器已闭环，无部署。
