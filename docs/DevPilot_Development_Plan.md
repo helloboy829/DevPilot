@@ -95,3 +95,11 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 上一响应核心已推送 `e32cb3d81b64ed8f79411f22a049a3f0669c37e2`，四项 push Actions 实际成功：Unit `42731902942`、Frontend Unit `42731902497`、Blocking IO `42731902510`、Lint `42731902918`；未触发 E2E/Replay/Skill Review。证据、最终源码和资源收尾已核验，不推断部署。
 
 本切片[请求准备核心](DevPilot_Shared_QA_JSON_Request_Core.md)冻结已有已渲染请求的 literal projection 与条件 identity policy，App 共用实现，保留原 body 编码时点与 64→65 headers 兼容边界。119 个旧/新实际 HTTPX 请求与响应场景全部等价，源码/真实 wheel 无 site packages 自检通过；新增 58 项回归，349 项联合主链通过；完整后端 12,610 passed、领域 15/58、Blocking IO 72、Ruff 1,254 files、离线锁及完整前端 1,293 项/格式通过。未重跑本地 build/浏览器/性能，实际新 SHA CI 继续独立核验。该子组件不读取数据/凭据、不发送，不提前开放导出；余下共享执行适配/出站/预算/结果隔离、失联 Worker fencing/对账、冻结 QA 调度、正式批准及授权部署仍未完成。
+
+## 共享执行传输适配（2026-11-10）
+
+请求核心 `ec9c37b262666a80e2083f472ae41b626d510ee1` 的四项实际 push Actions 全部成功：Unit `42737409116`、Frontend Unit `42737409596`、Blocking IO `42737409159`、Lint `42737409240`；源码/证据与四个专用资源收尾已核验。
+
+本切片[共享 pinned HTTP](DevPilot_Shared_Pinned_HTTP_Core.md)继续提取实际传输而非复制第二套 runner：由显式 callback 保持 App 的动态 allowed_hosts/ALL DNS answers 策略，共用 origin/Host/SNI/TLS/不重试机制并拒绝会二次 DNS 的非 literal 返回。原授权、耐久派发、预算、未知结果及取消关闭不变，完整门禁和新 SHA CI 独立核验。完整执行/导出、CLI 约束与结果隔离导入、失联 Worker 安全对账、冻结 QA 调度、正式批准及授权升级仍未完成。
+
+本模块本地最终门禁：新增 37 项；联合 443 / 后端全量 12,647 / 领域 15、58 / Blocking IO 72 / 前端 1,293 passed，Ruff 1,255 files、离线锁与完整格式通过。188 个实际旧/新传输对照和真实 wheel 隔离 mock-send 验证通过；源码/证据 hash、精确资源收尾和新 SHA 的 Actions 分别核验，不借用上一提交，也不宣称独立执行/导出或平台完成。

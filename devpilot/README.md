@@ -10,6 +10,10 @@
 
 `qa_json_request.py` 固定 `qa-json-request.v1` 的不可变发送值投影；App 已共用原样请求/条件 identity header 准备。保留重复/显式 headers 与 64→65 派生边界，body 编码仍在原 attempt deadline 内。无渲染、发送、授权或凭据解析；不是公共导出 DTO/完整 runner。见[合同与验证](../docs/DevPilot_Shared_QA_JSON_Request_Core.md)。
 
+## 共享固定目的地传输（2026-11-10）
+
+`pinned_http.py` 固定 `pinned-http.v1` 的实际 HTTPX origin/Host/SNI/TLS/零重试机制，App 已共用；显式 resolver callback 仍由 App 执行 allowlist 与 ALL DNS answers 检查。拒绝会触发二次 DNS 的非 literal/scoped 返回值；错误/取消/关闭不重试。此层需要已存在的 HTTPX 依赖，不是无 site packages 的纯核心，也不是独立执行/导出授权。见[合同与验证](../docs/DevPilot_Shared_Pinned_HTTP_Core.md)。
+
 ## 当前结构
 
 ```text

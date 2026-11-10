@@ -2,7 +2,13 @@
 
 > 核对日期：2026-11-10。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-10：共享固定目的地 HTTP 传输候选
+
+[共享传输](DevPilot_Shared_Pinned_HTTP_Core.md)提取现有 origin/Host/SNI/TLS/零重试实际机制，原 App 接口委托且每次按动态 operator policy 审核 ALL DNS answers；callback 结果必须是 literal 无 scope IP。保留原 client、准入/预算/dispatch/no-resend/取消关闭语义。首次原出站/调试/调度/采集联合 139 passed，最终完整门禁和新提交实际 Actions 独立核验；无依赖/迁移/部署/真实调用，不是完整独立 runner/exporter。
+
 ## 2026-11-10：共享 QA JSON 请求准备核心候选
+
+请求准备核心已推送 `ec9c37b262666a80e2083f472ae41b626d510ee1`，四项 push Actions 实际 completed/success：Unit Tests `42737409116`、Frontend Unit Tests `42737409596`、Backend Blocking IO `42737409159`、Lint Check `42737409240`。E2E/Replay/Skill Review 未触发。38 份证据及 1,366 后端/领域与 858 前端/模块说明源码和提交归档核验通过，四个专用 CI 容器已停止，未部署。
 
 [固定纯请求投影](DevPilot_Shared_QA_JSON_Request_Core.md)将已渲染 FrozenRequest 的原样 URL/method/body/headers、条件 identity 准备提到纯版本 `qa-json-request.v1`，App 已实际共用。保留原 64 headers 派生 65 边界、显式编码及原 deadline 内 content 编码；不增执行/导出/批准权限，不改历史 hash，无依赖/迁移/部署/真实调用。新增 58 项回归；349 项联合主链、119 个旧/新实际请求与响应对照、隔离源码/实际 wheel 自检通过。完整后端 **12,610 passed / 18 skipped / 11 deselected / 40 warnings**，领域 **15/58**、Blocking IO **72**、Ruff **1,254 files** 和离线锁通过；完整前端 **152 files / 1,293 passed**、完整格式通过。未重跑本地 build/浏览器/性能；源码/证据与实际新 SHA Actions 单独核对。完整 runner/exporter、冻结 QA 调度与失联 Worker 安全运维仍未完成。
 
@@ -300,3 +306,5 @@ Reports/Retests 新增独立区块：明确打开历史 assessment ID/修订/has
 - 按用户要求，完成模块并通过测试后提交/推送，按精确 SHA 核对 Actions；若仍运行，下一模块推送前先检查上轮并修复归因失败。成功推送不等于 CI 成功，不自动部署。
 
 本轮 UI 资源收尾已于 **2026-11-09 08:50（Asia/Shanghai）** 独立核验：840 份公共源码/指南与快照逐项一致，34 份日志/JSON/artifact 先导出并验 hash，再精确清理本轮快照、八份临时辅助文件、结果副本及宿主 staging。只停止本轮启动的 Node CI，另三个 CI 全程停止；14 容器签名及9行镜像标签清单恢复原状，业务四服务 healthy、诊断 ok。共享缓存/卷/其他项目保留；镜像、容器、卷零删除，无安全可删的无引用 DevPilot 镜像。详情见[运维收据](DevPilot_Docker_Diagnostics.md)。收尾后仅文档更新和格式核验，不冒称重跑完整套件或已部署。
+
+本模块本地最终门禁：新增 37 项；联合 443 / 后端全量 12,647 / 领域 15、58 / Blocking IO 72 / 前端 1,293 passed，Ruff 1,255 files、离线锁与完整格式通过。188 个实际旧/新传输对照和真实 wheel 隔离 mock-send 验证通过；源码/证据 hash、精确资源收尾和新 SHA 的 Actions 分别核验，不借用上一提交，也不宣称独立执行/导出或平台完成。

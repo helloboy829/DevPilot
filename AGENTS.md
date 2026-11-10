@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Shared pinned HTTP transport candidate (2026-11-10)
+
+`devpilot.pinned_http` pins `pinned-http.v1`; the existing App transport delegates the real origin/Host/SNI/TLS/no-retry mechanism with a fresh explicit resolver callback. App keeps dynamic allowlists and ALL-answer DNS policy. Callback results must be literal unscoped IPs, never second-DNS hostnames. Keep errors/cancellation/close, client no-redirect/no-env and admitted dispatch-before-I/O/no-resend; no standalone runner/export permission. Uses existing HTTPX, not a no-site pure core. Verify actual wire parity and built wheel without business imports. No dependency/migration/deployment/enablement/real calls. [Contract](docs/DevPilot_Shared_Pinned_HTTP_Core.md).
+
 ## Shared QA JSON request preparation core candidate (2026-11-10)
 
 `devpilot.qa_json_request.QAJSONRequest` pins `qa-json-request.v1`; App attempts delegate literal URL/method/body/headers and conditional identity preparation. Freeze headers; preserve explicit/duplicate encodings and historical 64 original → 65 derived headers, exact UTF-8 body limit and lazy content encoding within the original deadline. Values remain sensitive internal data, not an export DTO/authorization. Keep Worker render → durable dispatch → collect, transport and unknown/no-resend App-owned; no plan/hash migration. Verify old/new actual requests plus isolated source/wheel. No dependency/deployment/enablement/real calls. [Contract](docs/DevPilot_Shared_QA_JSON_Request_Core.md).

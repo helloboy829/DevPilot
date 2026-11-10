@@ -48,3 +48,7 @@ API 校验错误不回显提交值；组件接口响应使用 private, no-store�
 部署边界：新本地镜像已构建且数据库在线备份已通过完整性检查；切换服务的执行审批连续两次超时，因此尚未激活。当前 `127.0.0.1:2026` 仍是上一轮版本，不能以本轮隔离测试通过宣称用户界面已经更新。
 
 最终离线回归：后端 11,451 passed / 73 skipped，纯领域 73 passed；前端单测 988 passed、普通 E2E 166 passed、独立认证 2 passed，检查与生产构建通过。过程失败及部署未激活状态详见[CI 记录](DevPilot_CI修复与隔离开发环境.md)。这些是合成测试，不是真实模型/客户接口验收。
+
+## 共享传输核心接续（2026-11-10）
+
+既有 App 接口改为委托固定 `pinned-http.v1` 的实际传输机制，动态目的地策略和 ALL DNS answers 检查仍在 App；client 禁重定向、授权/预算/耐久派发/取消和未知结果不重发不变。新 callback 结果必须是 literal 无 scope IP，避免二次未经检查的 DNS。使用原 HTTPX，不新增依赖或执行/导出许可，旧 toolkit client 未切换。见[合同与验证](DevPilot_Shared_Pinned_HTTP_Core.md)。

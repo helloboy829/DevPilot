@@ -152,3 +152,7 @@ See [DevPilot evaluation workspace delivery and configuration](DevPilot_Evaluati
 - [导航与统一出站基线](DevPilot_导航与统一出站基线.md)：单一组件入口、可选自定义助手及调试/手动/定时统一出站策略；不代表完整评测流水线。
 
 - [独立历史评估报告与复测档案 / Independent assessment archives](DevPilot_Independent_Report_Retest_Archives.md)：`eval_0012` 后端/API 与显式选择 UI 候选；独立来源与旧 owner 档案分离，非正式批准，尚未部署。
+
+## 共享固定目的地传输（2026-11-10）
+
+[共享 pinned HTTP 核心](DevPilot_Shared_Pinned_HTTP_Core.md)：原 App 通过显式动态策略 callback 共用固定 origin/Host/SNI/TLS/零重试机制，literal IP 围栏防止二次 DNS；保留准入/dispatch/no-resend/取消边界。不是完整 runner/exporter，无依赖/迁移/部署或真实调用。

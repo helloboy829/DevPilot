@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Shared pinned HTTP transport candidate (2026-11-10)
+
+`app.evaluation.http.PinnedEvaluationTransport` is a thin `devpilot.pinned_http` adapter. Retain config identity and late `resolve_destination` lookup for EVERY send; keep ALL DNS answers, explicit allowlists and metadata denial. Shared mechanism validates literal unscoped resolver output, fences origin before DNS, preserves Host/SNI and sends at most once with TLS/no env/no retries. Original factory and error import remain compatible; no admission/journal/budget changes. Cancellation and close still propagate. No standalone capability, dependency/migration/deployment/real calls. [Contract](../docs/DevPilot_Shared_Pinned_HTTP_Core.md).
+
 ## Shared QA JSON request preparation core candidate (2026-11-10)
 
 `devpilot.qa_json_request.QAJSONRequest` pins `qa-json-request.v1`; App attempts delegate literal URL/method/body/headers and conditional identity preparation. Freeze headers; preserve explicit/duplicate encodings and historical 64 original → 65 derived headers, exact UTF-8 body limit and lazy content encoding within the original deadline. Values remain sensitive internal data, not an export DTO/authorization. Keep Worker render → durable dispatch → collect, transport and unknown/no-resend App-owned; no plan/hash migration. Verify old/new actual requests plus isolated source/wheel. No dependency/deployment/enablement/real calls. [Contract](../docs/DevPilot_Shared_QA_JSON_Request_Core.md).

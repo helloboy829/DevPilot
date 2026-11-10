@@ -10,10 +10,7 @@ from urllib.parse import urlsplit
 
 import httpx
 from devpilot.http import RequestSpec
-
-
-class EvaluationPolicyError(ValueError):
-    """Request denied by outbound policy before transport dispatch."""
+from devpilot.pinned_http import EvaluationPolicyError, PinnedHTTPTransport
 
 
 async def resolve_destination(spec: RequestSpec, config) -> str:
@@ -41,26 +38,15 @@ def component_request_spec(component: dict, params: dict) -> RequestSpec:
     return RequestSpec(url=component["api_url"], method="POST", headers=[[name, value] for name, value in headers.items()])
 
 
-class PinnedEvaluationTransport(httpx.AsyncBaseTransport):
-    """One origin per client; re-resolve and pin every outbound request, including queued runs."""
+class PinnedEvaluationTransport(PinnedHTTPTransport):
+    """Shared wire mechanism with the App's live, per-request operator policy."""
 
     def __init__(self, config, url: str):
-        RequestSpec(url=url)
-        self.config, self.url = config, httpx.URL(url)
-        self.inner = httpx.AsyncHTTPTransport(verify=True, trust_env=False, retries=0)
+        self.config = config
+        super().__init__(url, self._resolve_destination)
 
-    async def handle_async_request(self, request):
-        spec = RequestSpec(url=str(request.url))
-        if (request.url.scheme, request.url.host, request.url.port) != (self.url.scheme, self.url.host, self.url.port):
-            raise EvaluationPolicyError("Evaluation request changed destination")
-        ip = await resolve_destination(spec, self.config)
-        request.headers["host"] = request.url.netloc.decode("ascii")
-        request.extensions["sni_hostname"] = request.url.host
-        request.url = request.url.copy_with(host=ip)
-        return await self.inner.handle_async_request(request)
-
-    async def aclose(self):
-        await self.inner.aclose()
+    async def _resolve_destination(self, spec: RequestSpec) -> str:
+        return await resolve_destination(spec, self.config)
 
 
 def evaluation_client(config, url: str, *, timeout_seconds: float = 30) -> httpx.AsyncClient:
