@@ -53,3 +53,7 @@ collected 只证明 journal 中所有技术观察已记录；不能证明 observ
 回退仅移除新命令/测试/文档入口，不回滚数据库、不改 journal schema、不删除结果或撤销原 owner；未知仍不重发。既有 CLI 默认离线与明文同意合同完全不变。
 
 本模块最终本地门禁：新增 **64 passed**（4.00s），联合 **786 passed**（157.99s）；标准 `make test` **12,982 passed / 18 skipped / 11 deselected / 40 warnings**（756.47s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.60s）；Ruff **1,260 files**、新领域模块独立 lint/format 和 offline lock 通过。前端完整 **152 files / 1,293 passed**（13.0s），完整 Prettier 与八份模块文档格式核验。真实 sdist→wheel 十三个公开成员逐 bytes 相等，隔离 `-I` 实际 wheel 的执行 CLI mock sends → 对账 CLI 成功，并显式确认模块 import origin 位于 wheel；真实 DNS/socket 和业务层 imports 禁止。源码/证据/专用资源与新 SHA 实际 Actions 独立闭环。未本地重跑 frontend build/browser/performance；无部署/执行启用/真实调用。
+
+## 原 ID 的非敏感来源 / Non-sensitive original identity
+
+后续本地执行命令在发送前创建[独立身份回执](DevPilot_Local_QA_Run_Receipt.md)。用户可在原显式目录取得 run ID 而不打开敏感 output；本对账命令不会自动加载 receipt、扫描目录、选 latest 或改变 ID 规则。receipt 是未经认证的身份声明，不是实时状态或恢复权限；缺失/损坏不证明未发送。

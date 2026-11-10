@@ -1,5 +1,13 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## 2026-11-10：本地发送前身份回执候选
+
+前序原 ID 只读对账模块已推送并独立核对为 `a60a6ee1de83d67ebf1c5a72432a05f6d1ea89a7`；该精确 SHA 四项实际 push Actions 均 completed/success：Unit Tests `42783637102`、Frontend Unit Tests `42783637233`、Backend Blocking IO `42783637338`、Lint Check `42783637573`。源码/证据/四个专用容器均已闭环，无部署。
+
+新增[独立 run 身份回执](DevPilot_Local_QA_Run_Receipt.md)，避免异常后为取得原 ID 而打开敏感输出。独占 write/fsync/close 必须先于 start/reserve/DNS/send；未知即停、重复取消排空、原 ID 只读且不恢复。仅固定技术字段，不声明当前状态、provenance、成功或批准；缺失不能证明未发送。现有单一最终 stdout、ALL 冻结分母和不重发合同不变。候选 head 仍 eval_0012，历史部署收据 eval_0009 不代表本机验收。完整授权导出/锁定发行/输出治理/隔离导入/调度/Lost Worker/正式批准与授权升级仍未完成。
+
+本模块最终本地门禁：新增 **26 passed**（3.85s），执行/对账/共享核心/平台主链联合 **812 passed**（150.88s）；标准 `make test` **13,008 passed / 18 skipped / 11 deselected / 40 warnings**（758.55s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.62s）；Ruff **1,261 files**、变更领域源独立 lint/format 和 offline lock 通过。前端完整 **152 files / 1,293 passed**（11.2s），完整 Prettier 与九份模块说明核验。真实 sdist→wheel 十三个公开成员逐 bytes 相等，隔离 `-I` 实际 wheel 每次 mock wire 均先验证回执，再由实际 wheel 原 ID 对账，显式检查两个入口的 wheel import origin；真实 DNS/socket 与业务 imports 禁止。未重跑本地 frontend build/browser/performance，不把 wheel 当完整锁定发行。源码/证据/专用资源与新 SHA 的实际 Actions 分别闭环；无部署、执行启用或真实调用。
+
 ## 2026-11-10：显式独立本地 QA 命令候选
 
 前序本地 journal 模块已在远端 main 独立核对为 `95ddbbacb3c051db471d877b8ec6227e47ef10b6`；该精确 SHA 的四项实际 push Actions 全部 completed/success：Unit Tests `42765155874`、Frontend Unit Tests `42765155959`、Backend Blocking IO `42765156239`、Lint Check `42765155889`。先前未执行的 push 权限超时不作为成功证据；本次以远端状态与实际 Actions 关闭上模块交付，不推断是谁完成推送。无部署。

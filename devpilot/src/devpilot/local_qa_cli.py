@@ -283,6 +283,31 @@ class _OutputStore:
                 os.close(descriptor)
 
 
+def _write_run_receipt(directory, run_id, manifest):
+    """Fsync one identity-only receipt before dispatch; never repair or retry it."""
+    payload = {
+        "schema": "local-qa-run-receipt.v1",
+        "scope": _SCOPE,
+        "verdict": "NOT_EVALUATED",
+        "receipt_kind": "pre_dispatch_identity_only",
+        "run_id": run_id,
+        "manifest_fingerprint": manifest.fingerprint,
+        "frozen_input_count": manifest.input_count,
+        "frozen_request_count": manifest.request_count,
+        "platform_provenance_verified": False,
+        "resend_permitted": False,
+        "resume_permitted": False,
+    }
+    encoded = (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+    descriptor = os.open(Path(directory) / "run-receipt.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    try:
+        if os.write(descriptor, encoded) != len(encoded):
+            raise OSError("Local identity receipt write unconfirmed")
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 async def execute_local(prepared, directory, *, policy, confirm_send, confirm_input_use, confirm_plaintext_output):
     """Read-once preflight values, explicit local consent; no platform authority."""
     if not isinstance(prepared, LocalPreflight) or not isinstance(policy, LocalOutboundPolicy) or confirm_send != prepared.manifest.fingerprint or confirm_input_use is not True or confirm_plaintext_output is not True:
@@ -297,6 +322,7 @@ async def execute_local(prepared, directory, *, policy, confirm_send, confirm_in
         run_id = str(uuid4())
         holder["output"] = _OutputStore(directory, run_id, prepared.manifest)
         holder["journal"] = LocalJSONJournal.create(Path(directory) / "journal.sqlite", prepared.manifest.definition(run_id, now_ms()))
+        _write_run_receipt(directory, run_id, prepared.manifest)
 
     try:
         await _drained_database(create)
@@ -369,10 +395,10 @@ def main(argv=None):
         print(json.dumps({"scope": _SCOPE, "run_id": snapshot.definition.run_id, "state": snapshot.state, "verdict": "NOT_EVALUATED"}, sort_keys=True))
         return 0 if snapshot.state == "collected" else 1
     except KeyboardInterrupt:
-        print("Local QA cancelled; retain the same result directory. Never auto-resend.", file=sys.stderr)
+        print("Local QA cancelled; retain the same result directory and run-receipt.json for same-ID read-only reconciliation. Never auto-resend.", file=sys.stderr)
         return 130
     except Exception:
-        print("Local QA rejected or interrupted. Retain any result directory; no automatic retry or resend.", file=sys.stderr)
+        print("Local QA rejected or interrupted. Retain any result directory and run-receipt.json for same-ID read-only reconciliation; no automatic retry or resend.", file=sys.stderr)
         return 1
 
 

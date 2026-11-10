@@ -111,3 +111,7 @@ JSONL header/ordinal/final summary 均带 scope、run_id、NOT_EVALUATED；ordin
 ## 9. 原 ID 只读对账入口
 
 后续[只读对账命令](DevPilot_Local_QA_Reconciliation.md)显式接收原 journal 与 run ID，仅显示技术元数据、ALL 冻结分母和累计预算。不读取此处明文输出、不验证输出 fsync、不续跑/修复/重发，也不修改现有执行同意或 journal schema。
+
+## 10. 发送前原 ID 回执 / Pre-dispatch identity
+
+后续[独立身份回执](DevPilot_Local_QA_Run_Receipt.md)在新 journal 创建后、start/reserve/DNS/send 前写入 run-receipt.json；写/fsync/close 不确定则停止且不重试。异常后读取此技术文件即可取得原 ID，不需打开敏感 observations；最终 stdout 仍一个 JSON。receipt 不表示当前状态、来源或交付，缺失也不证明未发送；既有同意、输出保密边界和 no-resend 不变。

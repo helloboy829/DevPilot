@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Pre-dispatch local QA identity receipt candidate (2026-11-10)
+
+Local execution writes exclusive metadata-only run-receipt.json after journal creation and before start/reserve/DNS/send. One full write, fsync and close must succeed; uncertainty aborts without repair/retry. Repeated cancellation drains creation before closing both resources. Receipt preserves original ID without opening sensitive output, never current state/provenance/send authority; missing receipt is not proof of no delivery. Keep explicit same-ID reconciliation, ALL frozen denominators, final single-JSON stdout and no resend/resume. No App/API/dependency/migration/deployment/enablement/real calls. [Contract](docs/DevPilot_Local_QA_Run_Receipt.md).
+
 ## Read-only local QA reconciliation candidate (2026-11-10)
 
 `devpilot.local_qa_reconcile` explicitly reads one trusted local journal with its original canonical run ID, using the real read-only snapshot and shared same-path lock. No sensitive output reads, latest selection, owner claim, mutation, repair, retry, resend, resume or platform import. Validate ALL frozen denominators, ordinal/observation/budget coherence; state and declared hash are technical/unverified, never provenance or approval. Hard-exit running/dispatched remains unresolved; collected does not verify output fsync. Trusted filesystem required, not a hostile-SQLite sandbox; read-only WAL may maintain sidecars. No App/API/dependency/migration/deployment/enablement/real calls. [Contract](docs/DevPilot_Local_QA_Reconciliation.md).

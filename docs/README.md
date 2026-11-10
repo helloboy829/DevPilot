@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：本地发送前身份回执（2026-11-10）
+
+[独立身份回执](DevPilot_Local_QA_Run_Receipt.md)在 journal 创建后、start/reserve/DNS/send 前独占写入并确认文件 fsync，失败不重试。异常后可不打开敏感输出而取得原 ID；不证明当前状态/交付/来源/批准，缺失也不是未发送证明，不续跑或重发。
+
 [本地 QA 只读对账命令](DevPilot_Local_QA_Reconciliation.md)：实际离线 CLI，原 ID 技术快照、ALL 分母、未知不重发；不读输出、不恢复运行、不导入平台证据。
 
 ## 2026-11-10：显式独立本地 QA 命令候选

@@ -1,5 +1,9 @@
 # DevPilot 领域定制层
 
+## Local pre-dispatch identity receipt
+
+New explicit executions write private metadata-only run-receipt.json before any run start/reservation/send. Use its original run ID with the explicit read-only reconciliation command without opening sensitive observations. I/O uncertainty stops execution; no retry, replacement or resume. The unauthenticated receipt is not current state, delivery/provenance or approval; absence never proves no delivery. [Contract and limits](../docs/DevPilot_Local_QA_Run_Receipt.md).
+
 [本地 QA 只读对账命令](../docs/DevPilot_Local_QA_Reconciliation.md)：显式原 journal + run ID、ALL 冻结分母和技术状态；不读取明文输出、不续跑/重发、不证明平台来源或批准。
 
 ## 显式本地执行命令（2026-11-10）

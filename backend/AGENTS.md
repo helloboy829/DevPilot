@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Pre-dispatch local identity receipt candidate (2026-11-10)
+
+Test local-qa-run-receipt.v1 against real journal/shared mock run: exclusive metadata-only write/fsync/close before start/reserve/wire, every I/O failure stops without retry, repeated cancellation drains before resource close, actual hard death preserves original ID. Receipt is identity only, not current state/provenance/approval; missing file never proves no delivery. Do not open sensitive outputs for same-ID reconciliation, alter final stdout or introduce resume. No App API/dependency/migration/runtime config or real calls. [Contract](../docs/DevPilot_Local_QA_Run_Receipt.md).
+
 ## Read-only local QA reconciliation candidate (2026-11-10)
 
 `test_local_qa_reconcile.py` uses real SQLite, original-ID read-only snapshots and actual isolated CLI/wheel entry. Keep ALL frozen denominators, same-path lock, no owner-claim revocation and no write SQL; failures/locks never authorize retries/resend/resume. Hard-death WAL, collected-with-missing-output and technical failures remain NOT_EVALUATED/external-unverified. Do not read sensitive output or import platform evidence. Trusted local DB only, not a hostile-file sandbox; sidecar bookkeeping is not business mutation. No dependency/migration/runtime config or real calls. [Contract](../docs/DevPilot_Local_QA_Reconciliation.md).
