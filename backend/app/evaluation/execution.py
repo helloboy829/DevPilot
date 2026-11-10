@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from devpilot.qa_json_binding import QAJSONBinding
+from devpilot.qa_json_run import JSONRunLimits, run_json_attempts
 from devpilot.request_versions import FrozenRequest
 from pydantic import Field, field_validator
 from sqlalchemy import func, insert, select, update
@@ -25,7 +26,7 @@ from app.evaluation.datasets import StrictDTO
 from app.evaluation.dispatch_journal import JournalLimits, _positive_int
 from app.evaluation.plan_repository import _preflight, _verified_inputs
 from app.evaluation.plans import PlanCreate
-from app.evaluation.qa_attempts import AttemptLimits, collect_json_attempt
+from app.evaluation.qa_attempts import collect_json_attempt
 from app.evaluation.qa_evidence import EvidenceRepository
 from app.evaluation.registry import fingerprint
 from app.evaluation.repository import Conflict, NotFound
@@ -340,10 +341,6 @@ class ExecutionRepository(EvidenceRepository):
             await self._journal_event(session, run, "execution_drained", self._time())
 
 
-class _RunStopped(Exception):
-    pass
-
-
 async def _drained_database(awaitable):
     """Drain database reads and writes before cancellation or finalization.
 
@@ -372,8 +369,6 @@ class QAExecutionWorker:
 
     async def run_once(self):
         claim = None
-        tasks = []
-        group = None
         completed = False
 
         async def claim_and_remember():
@@ -386,64 +381,38 @@ class QAExecutionWorker:
                 return False
             prepared, run = await _drained_database(self.repo.load_claim(claim))
             binding = QAJSONBinding.from_dict(prepared.plan["definition"]["binding"])
-            ordinals = iter(range(1, run["request_count"] + 1))
-            stopped = asyncio.Event()
 
-            async def consume():
-                try:
-                    await consume_available()
-                except BaseException:
-                    stopped.set()
-                    raise
+            async def reserve(ordinal, body_bytes):
+                return await _drained_database(self.repo.reserve_attempt(claim, ordinal, body_bytes=body_bytes))
 
-            async def consume_available():
-                for ordinal in ordinals:
-                    if stopped.is_set():
-                        raise _RunStopped
-                    spec = await asyncio.to_thread(binding.render, prepared.request, prepared.inputs[(ordinal - 1) % len(prepared.inputs)])
-                    ticket = await _drained_database(self.repo.reserve_attempt(claim, ordinal, body_bytes=len(spec.body.encode("utf-8"))))
-                    remaining = min(run["timeout_ms"], run["deadline_ms"] - self.repo._time())
-                    if remaining < 100 or stopped.is_set():
-                        raise _RunStopped
-                    observation = await collect_json_attempt(spec, binding, self.config_getter(), AttemptLimits(timeout_ms=remaining, max_response_bytes=run["max_response_bytes"]))
-                    # Fence new sends immediately, not after the unknown-delivery
-                    # observation's durable write finishes. Already sent tasks
-                    # still drain; their unknown outcomes are never retried.
-                    if observation.kind == "delivery_unknown":
-                        stopped.set()
-                    await _drained_database(self.repo.record_attempt(claim.owner, claim.project_id, run["id"], ticket, observation))
-                    if observation.kind == "delivery_unknown":
-                        raise _RunStopped
+            async def collect(spec, checked_binding, attempt_limits):
+                return await collect_json_attempt(spec, checked_binding, self.config_getter(), attempt_limits)
 
-            async def monitor():
-                while True:
-                    await asyncio.sleep(0.2)
-                    row = await _drained_database(self.repo.get_execution(claim.owner, claim.project_id, claim.execution_id))
-                    if row["state"] != "running" or self.repo._time() >= row["deadline_ms"]:
-                        raise _RunStopped
+            async def record(ticket, observation):
+                await _drained_database(self.repo.record_attempt(claim.owner, claim.project_id, run["id"], ticket, observation))
 
-            async with asyncio.timeout(max(0.001, (run["deadline_ms"] - self.repo._time()) / 1000)):
-                tasks = [asyncio.create_task(consume()) for _ in range(run["concurrency"])]
-                monitor_task = asyncio.create_task(monitor())
-                tasks.append(monitor_task)
-                group = asyncio.gather(*tasks[:-1])
-                await asyncio.wait([group, monitor_task], return_when=asyncio.FIRST_COMPLETED)
-                if monitor_task.done():
-                    monitor_task.result()
-                await group
-                completed = True
+            async def check_active():
+                row = await _drained_database(self.repo.get_execution(claim.owner, claim.project_id, claim.execution_id))
+                return row["state"] == "running" and self.repo._time() < row["deadline_ms"]
+
+            await run_json_attempts(
+                prepared.request,
+                binding,
+                prepared.inputs,
+                JSONRunLimits(request_count=run["request_count"], concurrency=run["concurrency"], timeout_ms=run["timeout_ms"], deadline_ms=run["deadline_ms"], max_response_bytes=run["max_response_bytes"]),
+                now_ms=self.repo._time,
+                reserve_attempt=reserve,
+                collect_attempt=collect,
+                record_attempt=record,
+                check_active=check_active,
+            )
+            completed = True
         except asyncio.CancelledError:
             raise
         except Exception:
             # No request text, target URL, output, gold or exception payload in logs.
             completed = False
         finally:
-            for task in tasks:
-                task.cancel()
-            if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
-            if group is not None:
-                await asyncio.gather(group, return_exceptions=True)
             if claim is not None:
                 await _drained_database(self.repo.finish(claim, completed=completed))
         return True

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## 共享完整有界 QA run 候选（2026-11-10）
+
+`devpilot.qa_json_run` 固定 `qa-json-run.v1`，由平台真实 Worker 共用 ordinal/输入循环、并发、原 absolute deadline、未知交付先停发及任务关闭。必须显式提供 clock/reserve/collect/record/check-active 能力；callback 本身不是准入或耐久证明。App 保留授权、全局/整 run 字节配额、动态出站、加密证据与 claim/load/finish，所有 DB 读写仍经 `_drained_database`；finish 在共用核心排空后执行。无默认客户端/配置/凭据、重试、API、依赖或迁移，不是授权 exporter/CLI 或正式批准。见[合同和验证](../docs/DevPilot_Shared_QA_JSON_Run_Core.md)。
+
 ## Shared bounded JSON attempt collector candidate (2026-11-10)
 
 `qa_attempts.collect_json_attempt` preserves the App signature and dynamically provides the original `evaluation_client(config, url, timeout_seconds=...)` to `devpilot.qa_json_attempt`. Re-export the exact shared limit/observation classes; evidence type checks remain compatible. Request test injection follows the new `QAJSONRequest` owner without weakening prepare-once/wire/deadline assertions. Keep Worker admission/dispatch/evidence/drain/no-resend unchanged; explicit factory is not proof of policy or authorization. Cooperative timeout cannot kill synchronous callbacks/threads; cancellation never publishes their output. No route/dependency/migration/deployment/real calls. [Contract](../docs/DevPilot_Shared_QA_JSON_Attempt_Core.md).

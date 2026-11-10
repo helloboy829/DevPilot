@@ -160,3 +160,7 @@ See [DevPilot evaluation workspace delivery and configuration](DevPilot_Evaluati
 ## 共享固定目的地传输（2026-11-10）
 
 [共享 pinned HTTP 核心](DevPilot_Shared_Pinned_HTTP_Core.md)：原 App 通过显式动态策略 callback 共用固定 origin/Host/SNI/TLS/零重试机制，literal IP 围栏防止二次 DNS；保留准入/dispatch/no-resend/取消边界。不是完整 runner/exporter，无依赖/迁移/部署或真实调用。
+
+## 共享完整有界 QA run（2026-11-10）
+
+[完整编排合同](DevPilot_Shared_QA_JSON_Run_Core.md)：平台实际共用版本化 consumer/monitor/group，保留 dispatch-before-send、未知结果即停发、原 deadline/取消和 App DB 读写排空。完整回归/旧新实际 Worker 对照/实际 wheel 与源码证据分别核验；不是授权 exporter、实发 CLI、部署或正式批准。

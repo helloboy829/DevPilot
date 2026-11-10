@@ -200,6 +200,19 @@ async def test_real_collector_path_uses_rendered_json_and_never_sends_gold(prepa
     await repo.initialize()
     row = await admit(repo, prepared)
     sent = []
+    delegated = []
+    from devpilot.qa_json_run import JSONRunLimits, run_json_attempts
+
+    async def shared_run(request, binding, inputs, limits, **capabilities):
+        assert isinstance(limits, JSONRunLimits)
+        assert limits.request_count == 2 and limits.concurrency == 2
+        assert inputs == ("SYNTHETIC_INPUT", "SYNTHETIC_INPUT")
+        assert set(capabilities) == {"now_ms", "reserve_attempt", "collect_attempt", "record_attempt", "check_active"}
+        delegated.append(limits)
+        # Execute the REAL shared core, App DB callbacks and shared collector.
+        return await run_json_attempts(request, binding, inputs, limits, **capabilities)
+
+    monkeypatch.setattr("app.evaluation.execution.run_json_attempts", shared_run)
 
     def respond(request):
         sent.append(request.content)
@@ -210,6 +223,7 @@ async def test_real_collector_path_uses_rendered_json_and_never_sends_gold(prepa
     monkeypatch.setattr("app.evaluation.qa_attempts.evaluation_client", lambda *args, **kwargs: httpx.AsyncClient(transport=httpx.MockTransport(respond), follow_redirects=False))
     await QAExecutionWorker(repo, repo.config_getter).run_once()
     state = await repo.get_execution("owner", prepared[2], row["id"])
+    assert len(delegated) == 1
     assert state["state"] == "collected" and len(sent) == 2
     assert (await repo.open_case("owner", prepared[2], state["run_id"], 1))["output"] == "SYNTHETIC_REAL_COLLECTOR"
 

@@ -59,3 +59,7 @@ python -B -X utf8 -m unittest discover -s devpilot/src/devpilot/toolkit/tests -v
 - 性能无请求/无成功/无有效时间窗不能 PASS；配置的 p95/TTFT 门槛必须存在且覆盖所有成功请求，未配置 TTFT 不要求其有值。`check_reasons` 说明失败原因。非有限/负阈值拒绝，成功率用准确计数判定。
 - 新 JSON 报告和摘要带 `assessment_version=component-test.i0.v1`；旧 JSON 不改写。缺报告为 REVIEW，已知 FAIL 优先，其余待审不会被摘要改成 PASS。
 - `latency_sample_count`/`ttft_sample_count` 仅是有效观测数，不等同于已经验证的流式能力/缓冲检测；不能据此声称满足全部目标 TTFT 规范。当前最高并发档验收、总 token 吞吐及仅聚合落盘仍属原型限制。
+
+## 共享完整 run 编排 / Complete bounded run orchestration（2026-11-10）
+
+`devpilot.qa_json_run` 的 `qa-json-run.v1` 由平台 Worker 实际共用，显式传入 clock/reserve/collect/record/check-active 能力。顺序为 input-only off-loop render → durable dispatch ACK → 余量检查 → 单次 collect → record；unknown 先停发，consumer/monitor/group 排空后 App finish。严格次数/并发/deadline 不替代 App 的授权/全局和整 run 字节预算。无默认客户端/凭据/DB/金标读取，无重试，不是授权 exporter/CLI。见[合同与门禁](../docs/DevPilot_Shared_QA_JSON_Run_Core.md)。

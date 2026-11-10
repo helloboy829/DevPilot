@@ -151,3 +151,7 @@ and preservation checks remain mandatory before deploying this candidate.
 ## Gateway 重复关闭取消 / Repeated shutdown cancellation（2026-11-10）
 
 候选[关闭排空修复](DevPilot_QA_Shutdown_Drain.md)阻止重复 Gateway 取消通过 gather 二次打断原 Worker 清理：取消 Worker 一次，shield 同一等待器，排空后传播外层取消并清除 repository。既有 monitor DB drain、finish/配额、不重派/不重发语义不变；不增加超时、重试、强制释放或死亡证明。未修改运行代码的基线先由事件屏障与真实 Worker 合成用例复现失败，不把有序本地关闭改名为安全自动恢复。
+
+## 共享运行编排接续（2026-11-10）
+
+`QAExecutionWorker.run_once` 现在真实委托 [qa-json-run.v1](DevPilot_Shared_QA_JSON_Run_Core.md)。claim/load/finish、显式授权、全局/整 run 预算、动态目标政策、证据及所有 `_drained_database`（尤其 monitor read）仍在 App；核心收敛原 consumer/ordinal/monitor/deadline/unknown/cleanup。不增加执行权限、丢失 Worker 回收、重试/重发或部署。既有 execution/lifecycle/三个 workflow 主链保留，真实 collector 回归同时证明实际委托。完整模块门禁和排除项见链接，不将共享循环当作审批或外部 runner 认证。

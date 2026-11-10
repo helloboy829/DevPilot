@@ -111,3 +111,11 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 接续[完整单次采集核心](DevPilot_Shared_QA_JSON_Attempt_Core.md)，共享现有 deadline/流生命周期/分类/观测与关闭，App 保留动态 client 政策、准入、耐久派发及预算。先前隔离审批超时/502 的两次命令未执行；后续经单独只读核验与显式启动审批恢复验证。已完成联合、全量后端/领域/前端和实际旧新对照/wheel 门禁；最终资源/提交/精确 SHA CI 另行核验，未借用上轮结果。不提前开放独立 runner/export；正式批准、lost-Worker 安全对账、冻结 QA 调度及授权升级仍未完成。
 
 本模块本地最终门禁：新增 **44 passed**；联合 **487 passed**；后端全量 **12,691 passed / 18 skipped / 11 deselected / 40 warnings**；领域 **15 / 58 passed**；Blocking IO **72 passed**；后端 Ruff **1,256 files**、共享核心 lint/format 与离线锁通过；前端 **152 files / 1,293 passed**、完整 Prettier 和八份模块文档格式通过。399 个旧/新实际行为对照及实际 wheel 的隔离 mock-send 通过。最终源码/提交归档、证据 hash、精确资源收尾及新 SHA Actions 独立核验；本轮没有重跑本地前端 build/浏览器/性能，不借用历史结果，不部署/启用执行或调用真实模型/目标。
+
+## 共享完整有界 run 编排（2026-11-10）
+
+共享单次采集模块已推送 `5d070b3f4d000c09366bf0ac628c76a2fa6973ae`，该 SHA 四项 push Actions 实际 completed/success：Unit Tests `42750837938`、Frontend Unit Tests `42750837894`、Backend Blocking IO `42750837936`、Lint Check `42750837889`。E2E/Replay/Skill Review 未触发；46 份导出证据、1,370 Python/858 Node/文档源与提交归档核对通过，四个专用 CI 容器已停止，未部署。
+
+接续[完整 run 核心](DevPilot_Shared_QA_JSON_Run_Core.md)，一次性提取原 Worker 的 ordinal/并发/monitor/deadline/unknown/关闭流程并让平台实际共用；不再以孤立 DTO 或下载按钮充当完整 exporter。App 数据库排空和最终释放、动态政策/准入/配额/加密证据不移动。先做旧实现失败和 barrier/真实 DB/实际 wheel 验证，再做完整门禁与独立提交/精确 SHA CI。
+
+本模块本地最终门禁：新增 **62 passed**；最终联合 **549 passed**；完整后端 **12,753 passed / 18 skipped / 11 deselected / 40 warnings**，领域 **15 / 58 passed**，Blocking IO **72 passed**；后端 Ruff **1,257 files**、共享 run/attempt lint/format 与离线锁通过。前端 **152 files / 1,293 passed**、完整 Prettier 和八份模块文档格式通过。28 组旧/新真实 Worker 数据库/HTTP 行为逐字段对照及实际 wheel 完整 mock run 通过；静态 AST 另证原 DB-drain/serve、consumer/timeout/cleanup 保留。最终源码/提交归档、证据 hash、专用资源收尾及新 SHA Actions 分别核验。未重跑本地 frontend build/browser/performance，无部署、执行启用或真实模型/目标调用。下一阶段才讨论授权 exporter/manifest 的来源与数据交付合同、显式实发 CLI 和 external/unverified 结果隔离；不可隐式启用或部署。冻结 QA 的独立调度、Lost Worker fencing/不重发对账、正式批准和授权用户验收仍需独立模块，不因共用核心可 import 而完成。

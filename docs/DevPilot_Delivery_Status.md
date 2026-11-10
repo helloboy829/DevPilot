@@ -2,6 +2,14 @@
 
 > 核对日期：2026-11-10。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
+## 2026-11-10：共享完整有界 QA JSON run 候选
+
+共享单次采集模块已推送 `5d070b3f4d000c09366bf0ac628c76a2fa6973ae`，该 SHA 四项 push Actions 实际 completed/success：Unit Tests `42750837938`、Frontend Unit Tests `42750837894`、Backend Blocking IO `42750837936`、Lint Check `42750837889`。E2E/Replay/Skill Review 未触发；46 份导出证据、1,370 Python/858 Node/文档源与提交归档核对通过，四个专用 CI 容器已停止，未部署。
+
+[本模块完整 run 核心](DevPilot_Shared_QA_JSON_Run_Core.md)共享真实 Worker 的 consumer/monitor/group，而非再复制 runner。显式 clock/reserve/collect/record/check-active，App 保留授权、全局和整 run 配额、动态出站、加密证据及所有 DB 读写排空，finish 在核心返回后执行。dispatch ACK 先于发送、未知结果先停发再记录、deadline/取消和全量分母不变；无默认客户端/凭据、迁移/依赖/新 API、部署或执行启用。
+
+本模块本地最终门禁：新增 **62 passed**；最终联合 **549 passed**；完整后端 **12,753 passed / 18 skipped / 11 deselected / 40 warnings**，领域 **15 / 58 passed**，Blocking IO **72 passed**；后端 Ruff **1,257 files**、共享 run/attempt lint/format 与离线锁通过。前端 **152 files / 1,293 passed**、完整 Prettier 和八份模块文档格式通过。28 组旧/新真实 Worker 数据库/HTTP 行为逐字段对照及实际 wheel 完整 mock run 通过；静态 AST 另证原 DB-drain/serve、consumer/timeout/cleanup 保留。最终源码/提交归档、证据 hash、专用资源收尾及新 SHA Actions 分别核验。未重跑本地 frontend build/browser/performance，无部署、执行启用或真实模型/目标调用。其余授权导出/CLI/结果隔离、失联 Worker fencing/对账、冻结 QA 调度、正式批准及经授权的部署/真实用户验收仍未完成。新提交仍独立核对实际精确 SHA Actions，不借用上一轮成功。
+
 ## 2026-11-10：共享固定目的地 HTTP 传输候选
 
 [共享传输](DevPilot_Shared_Pinned_HTTP_Core.md)提取现有 origin/Host/SNI/TLS/零重试实际机制，原 App 接口委托且每次按动态 operator policy 审核 ALL DNS answers；callback 结果必须是 literal 无 scope IP。保留原 client、准入/预算/dispatch/no-resend/取消关闭语义。首次原出站/调试/调度/采集联合 139 passed，最终完整门禁和新提交实际 Actions 独立核验；无依赖/迁移/部署/真实调用，不是完整独立 runner/exporter。
