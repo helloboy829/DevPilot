@@ -1,8 +1,8 @@
 """Explicit local execute-only QA command; never a platform export or approval.
 
 Default preflight is offline. File bindings and input-only data are sensitive;
-never log them or hash their plaintext. Results are private PLAINTEXT and require
-separate explicit consent. No environment configuration, plugins or auto-resume.
+never log them or hash their plaintext. Output mode requires separate explicit
+consent: operator-key encryption with retention, or legacy private plaintext. No environment configuration, plugins or auto-resume.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from uuid import uuid4
 import httpx
 
 from devpilot.local_json_run import LocalJSONJournal, LocalRunDefinition, _drained_database, run_local_json_attempts
+from devpilot.local_qa_output import EncryptedOutputStore, LocalOutputProtection, _sync_directory
 from devpilot.pinned_http import EvaluationPolicyError, PinnedHTTPTransport
 from devpilot.qa_json_attempt import collect_json_attempt
 from devpilot.qa_json_binding import QAJSONBinding
@@ -308,9 +309,22 @@ def _write_run_receipt(directory, run_id, manifest):
         os.close(descriptor)
 
 
-async def execute_local(prepared, directory, *, policy, confirm_send, confirm_input_use, confirm_plaintext_output):
+async def execute_local(prepared, directory, *, policy, confirm_send, confirm_input_use, confirm_plaintext_output=False, output_protection=None, confirm_encrypted_output=False):
     """Read-once preflight values, explicit local consent; no platform authority."""
-    if not isinstance(prepared, LocalPreflight) or not isinstance(policy, LocalOutboundPolicy) or confirm_send != prepared.manifest.fingerprint or confirm_input_use is not True or confirm_plaintext_output is not True:
+    if (
+        not isinstance(prepared, LocalPreflight)
+        or not isinstance(policy, LocalOutboundPolicy)
+        or confirm_send != prepared.manifest.fingerprint
+        or confirm_input_use is not True
+        or (confirm_plaintext_output is not False and confirm_plaintext_output is not True)
+        or (confirm_encrypted_output is not False and confirm_encrypted_output is not True)
+    ):
+        raise ValueError("Explicit local QA consent required")
+    plaintext = confirm_plaintext_output is True and confirm_encrypted_output is False and output_protection is None
+    encrypted = confirm_plaintext_output is False and confirm_encrypted_output is True and type(output_protection) is LocalOutputProtection
+    if encrypted and output_protection.retention_seconds * 1000 < prepared.manifest.duration_ms:
+        raise ValueError("Explicit local QA retention must cover the frozen run duration")
+    if not plaintext and not encrypted:
         raise ValueError("Explicit local QA consent required")
     policy.check_host(prepared.request)
     holder = {}
@@ -320,9 +334,11 @@ async def execute_local(prepared, directory, *, policy, confirm_send, confirm_in
 
     def create():
         run_id = str(uuid4())
-        holder["output"] = _OutputStore(directory, run_id, prepared.manifest)
+        holder["output"] = EncryptedOutputStore(directory, run_id, prepared.manifest, output_protection) if encrypted else _OutputStore(directory, run_id, prepared.manifest)
         holder["journal"] = LocalJSONJournal.create(Path(directory) / "journal.sqlite", prepared.manifest.definition(run_id, now_ms()))
         _write_run_receipt(directory, run_id, prepared.manifest)
+        if encrypted:
+            _sync_directory(Path(directory))
 
     try:
         await _drained_database(create)
@@ -372,7 +388,7 @@ class _Parser(argparse.ArgumentParser):
 
 
 def main(argv=None):
-    parser = _Parser(description="Local execute-only QA. Default: OFFLINE preflight. Not platform export/approval. Sensitive outputs are private PLAINTEXT.")
+    parser = _Parser(description="Local execute-only QA. Default: OFFLINE preflight. Not platform export/approval. Choose explicit operator-key encrypted retention or legacy private plaintext; no default key.")
     for name in ("manifest", "values", "inputs"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--execute", action="store_true")
@@ -382,6 +398,9 @@ def main(argv=None):
     parser.add_argument("--confirm-send")
     parser.add_argument("--confirm-input-use", action="store_true")
     parser.add_argument("--confirm-plaintext-output", action="store_true")
+    parser.add_argument("--confirm-encrypted-output", action="store_true")
+    parser.add_argument("--output-key-file")
+    parser.add_argument("--output-retention-seconds", type=int)
     try:
         args = parser.parse_args(argv)
         prepared = preflight(args.manifest, args.values, args.inputs)
@@ -391,7 +410,27 @@ def main(argv=None):
         if not args.results:
             raise ValueError
         policy = LocalOutboundPolicy(tuple(args.allow_host), args.allow_private_addresses)
-        snapshot = asyncio.run(execute_local(prepared, args.results, policy=policy, confirm_send=args.confirm_send, confirm_input_use=args.confirm_input_use, confirm_plaintext_output=args.confirm_plaintext_output))
+        protection = None
+        if args.confirm_encrypted_output:
+            if args.confirm_plaintext_output or not args.output_key_file or args.output_retention_seconds is None:
+                raise ValueError
+            protection = LocalOutputProtection.from_key_file(args.output_key_file, retention_seconds=args.output_retention_seconds)
+            if Path(args.output_key_file).resolve().is_relative_to(Path(args.results).resolve()):
+                raise ValueError
+        elif args.output_key_file is not None or args.output_retention_seconds is not None:
+            raise ValueError
+        snapshot = asyncio.run(
+            execute_local(
+                prepared,
+                args.results,
+                policy=policy,
+                confirm_send=args.confirm_send,
+                confirm_input_use=args.confirm_input_use,
+                confirm_plaintext_output=args.confirm_plaintext_output,
+                output_protection=protection,
+                confirm_encrypted_output=args.confirm_encrypted_output,
+            )
+        )
         print(json.dumps({"scope": _SCOPE, "run_id": snapshot.definition.run_id, "state": snapshot.state, "verdict": "NOT_EVALUATED"}, sort_keys=True))
         return 0 if snapshot.state == "collected" else 1
     except KeyboardInterrupt:

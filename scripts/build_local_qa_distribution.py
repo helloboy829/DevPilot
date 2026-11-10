@@ -13,6 +13,7 @@ import hashlib
 import io
 import json
 import os
+import platform
 import re
 import stat
 import sys
@@ -24,6 +25,9 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
 _GRAPH = {
+    "cryptography": {"cffi"},
+    "cffi": {"pycparser"},
+    "pycparser": set(),
     "httpx": {"anyio", "certifi", "httpcore", "idna"},
     "httpcore": {"certifi", "h11"},
     "anyio": {"idna", "typing-extensions"},
@@ -34,7 +38,7 @@ _GRAPH = {
     "typing-extensions": set(),
     "et-xmlfile": set(),
 }
-_LIMIT = 4 * 1024 * 1024
+_LIMIT = 8 * 1024 * 1024
 _ERROR = "Invalid local QA distribution source or artifact"
 
 
@@ -57,11 +61,39 @@ def read_regular(file, limit=_LIMIT, *, allow_empty=False):
     return data
 
 
-def dependency_artifacts(root):
+_NATIVE_TAGS = {
+    "linux-x86_64-glibc": ("cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64", "cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64"),
+    "linux-aarch64-glibc": ("cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64", "cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64"),
+    "windows-amd64": ("cp311-abi3-win_amd64", "cp312-cp312-win_amd64"),
+    "macos-arm64": ("cp311-abi3-macosx_11_0_arm64", "cp312-cp312-macosx_11_0_arm64"),
+}
+
+
+def native_target():
+    machine = platform.machine().lower()
+    if sys.implementation.name != "cpython":
+        raise ValueError(_ERROR)
+    if sys.platform == "linux" and platform.libc_ver()[0] == "glibc":
+        result = {"x86_64": "linux-x86_64-glibc", "aarch64": "linux-aarch64-glibc"}.get(machine)
+    elif sys.platform == "win32":
+        result = "windows-amd64" if machine in {"amd64", "x86_64"} else None
+    elif sys.platform == "darwin":
+        result = "macos-arm64" if machine == "arm64" else None
+    else:
+        result = None
+    if result not in _NATIVE_TAGS:
+        raise ValueError(_ERROR)
+    return result
+
+
+def dependency_artifacts(root, *, target=None):
     """Fail on closure/marker drift instead of silently resolving a new graph."""
     raw = read_regular(root / "backend/uv.lock")
     packages = tomllib.loads(raw.decode())["package"]
     selected = {}
+    target = native_target() if target is None else target
+    if target not in _NATIVE_TAGS:
+        raise ValueError(_ERROR)
     for name, dependencies in _GRAPH.items():
         matches = [item for item in packages if item["name"] == name]
         if len(matches) != 1:
@@ -70,12 +102,24 @@ def dependency_artifacts(root):
         if item["source"] != {"registry": "https://pypi.org/simple"}:
             raise ValueError(_ERROR)
         rows = item.get("dependencies", [])
-        expected = [{"name": child, **({"marker": "python_full_version < '3.13'"} if child == "typing-extensions" else {})} for child in sorted(dependencies)]
+        markers = {"typing-extensions": "python_full_version < '3.13'", "cffi": "platform_python_implementation != 'PyPy'", "pycparser": "implementation_name != 'PyPy'"}
+        expected = [{"name": child, **({"marker": markers[child]} if child in markers else {})} for child in sorted(dependencies)]
         if sorted(rows, key=lambda row: row["name"]) != expected:
             raise ValueError(_ERROR)
-        if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)+", item["version"]) or len(item["wheels"]) != 1:
+        if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)+", item["version"]):
             raise ValueError(_ERROR)
-        artifact = item["wheels"][0]
+        prefix = name.replace("-", "_") + "-" + item["version"]
+        if name in {"cryptography", "cffi"}:
+            tag = _NATIVE_TAGS[target][0 if name == "cryptography" else 1]
+            accepted = {prefix + "-" + tag + ".whl"}
+        else:
+            accepted = {prefix + "-py3-none-any.whl", prefix + "-py2.py3-none-any.whl"}
+            if len(item["wheels"]) != 1:
+                raise ValueError(_ERROR)
+        wheels = [row for row in item["wheels"] if PurePosixPath(urlsplit(row["url"]).path).name in accepted]
+        if len(wheels) != 1:
+            raise ValueError(_ERROR)
+        artifact = wheels[0]
         url = urlsplit(artifact["url"])
         filename = PurePosixPath(url.path).name
         prefix = name.replace("-", "_") + "-" + item["version"]
@@ -84,7 +128,7 @@ def dependency_artifacts(root):
             or url.netloc != "files.pythonhosted.org"
             or url.query
             or url.fragment
-            or filename not in {prefix + "-py3-none-any.whl", prefix + "-py2.py3-none-any.whl"}
+            or filename not in accepted
             or not re.fullmatch(r"sha256:[0-9a-f]{64}", artifact["hash"])
             or type(artifact["size"]) is not int
             or not 0 < artifact["size"] < _LIMIT
@@ -163,7 +207,7 @@ def source_members(root):
 
 def validate_first_party(root, file, data):
     project = tomllib.loads(read_regular(root / "devpilot/pyproject.toml").decode())["project"]
-    if project["name"] != "devpilot" or project["dependencies"] != ["httpx", "openpyxl"] or project["requires-python"] != ">=3.12":
+    if project["name"] != "devpilot" or project["dependencies"] != ["cryptography", "httpx", "openpyxl"] or project["requires-python"] != ">=3.12":
         raise ValueError(_ERROR)
     version = project["version"]
     if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)+", version) or file.name != f"devpilot-{version}-py3-none-any.whl":
@@ -182,7 +226,7 @@ def validate_first_party(root, file, data):
         or metadata["Summary"] != project["description"]
         or metadata["Version"] != version
         or metadata["Requires-Python"] != ">=3.12"
-        or sorted(metadata.get_all("Requires-Dist")) != ["httpx", "openpyxl"]
+        or sorted(metadata.get_all("Requires-Dist")) != ["cryptography", "httpx", "openpyxl"]
     ):
         raise ValueError(_ERROR)
     wheel = _headers(files[prefix + "WHEEL"], ("Wheel-Version", "Generator", "Root-Is-Purelib", "Tag"))
@@ -227,7 +271,8 @@ def build_distribution(root, wheelhouse, wheel, output, revision):
     for name in ("manifest.json", "values.json", "inputs.json"):
         files["examples/" + name] = read_regular(root / "devpilot/distribution/examples" / name)
     manifest = {
-        "schema": "local-qa-distribution.v1",
+        "schema": "local-qa-distribution.v2",
+        "platform": native_target(),
         "scope": "software_only_not_platform_export",
         "python": "3.12",
         "declared_source_revision": revision,

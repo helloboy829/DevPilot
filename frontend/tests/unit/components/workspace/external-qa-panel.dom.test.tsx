@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 
 import { ExternalQAPanel } from "@/components/workspace/external-qa-panel";
+import * as externalQAPolicy from "@/core/evaluation/external-qa-policy";
 import type { PendingIntakes } from "@/core/evaluation/external-qa-policy";
 
 import fixture from "../../../fixtures/synthetic-external-qa.json";
@@ -92,17 +93,29 @@ async function prepare() {
   fireEvent.change(screen.getByLabelText("Original external run UUID"), {
     target: { value: fixture.request.original_run_id },
   });
-  fireEvent.change(screen.getByLabelText("Receipt JSON file"), {
-    target: { files: [file(fixture.request.receipt_json)] },
-  });
-  fireEvent.change(screen.getByLabelText("Reconciliation JSON file"), {
-    target: { files: [file(fixture.request.reconciliation_json)] },
-  });
-  await waitFor(() =>
-    expect(
-      screen.getByText(fixture.request.reconciliation_sha256, { exact: false }),
-    ).toBeTruthy(),
-  );
+  // Native WebCrypto completes outside React. Drain the actual file/hash
+  // promises inside act instead of racing their display against waitFor's
+  // wall-clock polling limit. The spy calls through; no hashes are stubbed.
+  const reads = rs.spyOn(externalQAPolicy, "readTechnicalFile");
+  try {
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Receipt JSON file"), {
+        target: { files: [file(fixture.request.receipt_json)] },
+      });
+      fireEvent.change(screen.getByLabelText("Reconciliation JSON file"), {
+        target: { files: [file(fixture.request.reconciliation_json)] },
+      });
+      expect(reads).toHaveBeenCalledTimes(2);
+      await Promise.all(reads.mock.results.map((result) => result.value));
+    });
+  } finally {
+    reads.mockRestore();
+  }
+  for (const hash of [
+    fixture.request.receipt_sha256,
+    fixture.request.reconciliation_sha256,
+  ])
+    expect(screen.getByText(hash, { exact: false })).toBeTruthy();
   await click("Inspect selected technical documents");
   await waitFor(() =>
     expect(
@@ -310,6 +323,61 @@ it("late file reads cannot restore replaced documents or confirmation", async ()
     screen.getByText(fixture.request.receipt_sha256, { exact: false }),
   ).toBeTruthy();
   expect(screen.queryByRole("alert")).toBeNull();
+});
+it("keeps inspection disabled until both real file hashes have completed", async () => {
+  mount();
+  await source();
+  fireEvent.change(screen.getByLabelText("Original external run UUID"), {
+    target: { value: fixture.request.original_run_id },
+  });
+  const receiptBytes = new TextEncoder().encode(fixture.request.receipt_json);
+  const receiptRead = deferred<ArrayBuffer>();
+  const reads = rs.spyOn(externalQAPolicy, "readTechnicalFile");
+  try {
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Receipt JSON file"), {
+        target: {
+          files: [
+            {
+              size: receiptBytes.byteLength,
+              arrayBuffer: () => receiptRead.promise,
+            },
+          ],
+        },
+      });
+      fireEvent.change(screen.getByLabelText("Reconciliation JSON file"), {
+        target: { files: [file(fixture.request.reconciliation_json)] },
+      });
+      expect(reads).toHaveBeenCalledTimes(2);
+      await reads.mock.results[1]!.value;
+    });
+    expect(
+      screen.getByText(fixture.request.reconciliation_sha256, { exact: false }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(fixture.request.receipt_sha256, { exact: false }),
+    ).toBeNull();
+    const inspect = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Inspect selected technical documents",
+    });
+    expect(inspect.disabled).toBe(true);
+    await click("Inspect selected technical documents");
+    expect(
+      screen.queryByText("Technical inspection only — NOT_EVALUATED"),
+    ).toBeNull();
+    expect(writeCalls()).toHaveLength(0);
+    await act(async () => {
+      receiptRead.resolve(receiptBytes.buffer);
+      await reads.mock.results[0]!.value;
+    });
+    expect(
+      screen.getByText(fixture.request.receipt_sha256, { exact: false }),
+    ).toBeTruthy();
+    expect(inspect.disabled).toBe(false);
+    expect(state.api).toHaveBeenCalledTimes(2);
+  } finally {
+    reads.mockRestore();
+  }
 });
 it("oversized files are rejected before reading, with generic errors and no writes", async () => {
   mount();

@@ -29,7 +29,7 @@ def make_wheel(sources, *, metadata=None, wheel=None, extra=None):
     summary = builder.tomllib.loads((ROOT / "devpilot/pyproject.toml").read_text())["project"]["description"]
     files = {
         **sources,
-        prefix + "METADATA": metadata or f"Metadata-Version: 2.5\nName: devpilot\nVersion: 0.1.0\nSummary: {summary}\nRequires-Python: >=3.12\nRequires-Dist: httpx\nRequires-Dist: openpyxl\n\n".encode(),
+        prefix + "METADATA": metadata or f"Metadata-Version: 2.5\nName: devpilot\nVersion: 0.1.0\nSummary: {summary}\nRequires-Python: >=3.12\nRequires-Dist: cryptography\nRequires-Dist: httpx\nRequires-Dist: openpyxl\n\n".encode(),
         prefix + "WHEEL": wheel or b"Wheel-Version: 1.0\nGenerator: hatchling 1.33.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n\n",
         **(extra or {}),
     }
@@ -92,10 +92,10 @@ def inputs(tmp_path):
 
 def test_real_tracked_closure_is_complete_and_exactly_pinned():
     raw, artifacts = builder.dependency_artifacts(ROOT)
-    assert set(artifacts) == set(builder._GRAPH) and len(artifacts) == 9
+    assert set(artifacts) == set(builder._GRAPH) and len(artifacts) == 12
     assert builder.sha256(raw) == digest((ROOT / "backend/uv.lock").read_bytes())
     requirements = builder.dependency_requirements(artifacts)
-    assert len(requirements.splitlines()) == 9
+    assert len(requirements.splitlines()) == 12
     assert all("==" in line and " --hash=sha256:" in line for line in requirements.splitlines())
     assert not any(token in requirements for token in ("http:", "https:", ";", "--extra-index", ">="))
 
@@ -106,7 +106,7 @@ def test_all_members_hash_lock_not_source_authority_and_reproducible(inputs, tmp
     data = args["output"].read_bytes()
     files = builder.archive_entries(data)
     manifest = json.loads(files.pop("distribution.json"))
-    assert result == {"schema": "local-qa-distribution.v1", "sha256": digest(data), "file_count": 17, "platform_provenance_verified": False}
+    assert result == {"schema": "local-qa-distribution.v2", "sha256": digest(data), "file_count": 20, "platform_provenance_verified": False}
     assert manifest["scope"] == "software_only_not_platform_export" and manifest["python"] == "3.12"
     assert manifest["declared_source_revision"] == "a" * 40 and manifest["source_revision_authenticated"] is False
     assert manifest["platform_provenance_verified"] is manifest["execution_authorized"] is False
@@ -114,7 +114,7 @@ def test_all_members_hash_lock_not_source_authority_and_reproducible(inputs, tmp
     assert set(manifest["files"]) == set(files)
     for name, value in files.items():
         assert manifest["files"][name] == {"sha256": digest(value), "size": len(value)}
-    assert len(files["requirements.lock"].splitlines()) == 10
+    assert len(files["requirements.lock"].splitlines()) == 13
     assert "LICENSE" in files and set(name for name in files if name.startswith("examples/")) == {"examples/manifest.json", "examples/values.json", "examples/inputs.json"}
     again = tmp_path / "second.zip"
     builder.build_distribution(**{**args, "output": again})
@@ -303,9 +303,9 @@ def test_cli_error_is_generic_no_sensitive_paths_or_implicit_actions(inputs, mon
     assert builder.main(["--dependency-lock", "--describe-dependencies"]) == 2
     capsys.readouterr()
     assert builder.main(["--dependency-lock"]) == 0
-    assert len(capsys.readouterr().out.splitlines()) == 9
+    assert len(capsys.readouterr().out.splitlines()) == 12
     assert builder.main(["--describe-dependencies"]) == 0
-    assert len(json.loads(capsys.readouterr().out)) == 9
+    assert len(json.loads(capsys.readouterr().out)) == 12
     monkeypatch.setattr(builder.sys, "version_info", (3, 13))
     assert builder.main(["--dependency-lock"]) == 2
 
@@ -402,3 +402,39 @@ def test_workflow_independently_builds_and_installs_with_hashes_without_backend_
     assert commands.count("--require-hashes --only-binary=:all:") == 2
     assert "--dependency-lock" in commands and "check_local_qa_distribution.py" in commands
     assert "--no-deps" not in commands and "uv sync" not in commands and "--system-site-packages" not in commands
+
+
+@pytest.mark.parametrize("target", sorted(builder._NATIVE_TAGS))
+def test_native_crypto_wheels_are_exact_locked_cpython312_profiles(target):
+    _, artifacts = builder.dependency_artifacts(ROOT, target=target)
+    crypto, ffi = builder._NATIVE_TAGS[target]
+    assert len(artifacts) == 12
+    assert artifacts["cryptography"]["filename"].endswith("-" + crypto + ".whl")
+    assert artifacts["cffi"]["filename"].endswith("-" + ffi + ".whl")
+    assert artifacts["pycparser"]["filename"].endswith("-py3-none-any.whl")
+    assert all(len(item["sha256"]) == 64 and item["size"] > 0 for item in artifacts.values())
+
+
+@pytest.mark.parametrize("target", ["linux-musl", "windows-arm64", "macos-x86_64", "", True])
+def test_unknown_native_profile_never_falls_back_to_any_wheel(target):
+    with pytest.raises(ValueError):
+        builder.dependency_artifacts(ROOT, target=target)
+
+
+def test_native_target_rejects_pypy_instead_of_dropping_crypto_closure(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(builder.sys, "implementation", SimpleNamespace(name="pypy"))
+    with pytest.raises(ValueError):
+        builder.native_target()
+
+
+def test_checker_runs_isolated_without_script_path_import_fallback(tmp_path):
+    import subprocess
+    import sys
+
+    # A namesake in cwd must never be imported, even without script-dir sys.path.
+    (tmp_path / "build_local_qa_distribution.py").write_text("raise AssertionError('untrusted cwd import')")
+    result = subprocess.run([sys.executable, "-I", str(ROOT / "scripts/check_local_qa_distribution.py"), "--help"], cwd=tmp_path, capture_output=True, text=True, timeout=30, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "--archive" in result.stdout

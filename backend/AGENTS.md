@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Local encrypted-output regressions (2026-11-11)
+
+`test_local_qa_protected_output.py` must exercise the actual shared collector/run/journal, pre-dispatch identity, ALL counts, tampering, separate consent, expiry, no-wait descriptor locks, uncertain writes/deletes and repeated-cancellation draining with synthetic DNS/wire and socket sends denied. Keep legacy explicit plaintext behavior. Runtime now directly declares cryptography at existing locked versions; v2 native-qualified distribution verifies 12 original wheels/36 source members and fresh full offline installs, not no-deps/source fallback. Actual installed CLI must cover encrypted output/open/purge and same-ID reconciliation; skipped artifact-dependent tests do not establish installed acceptance. No production key, migration, deployment, real calls or approval. [Contract](../docs/DevPilot_Local_QA_Protected_Output.md).
+
 ## External QA workspace fixture contract (2026-11-11)
 
 `test_external_qa_workspace_contract.py` independently verifies the committed public browser fixture through the real source receipt/plan, strict technical parser, ALL population and archive hashes. A separate synthetic API PUT/GET/audit produces the actual fixture; no private configuration or socket send, and coherent forgery remains NOT_EVALUATED. Keep required fixture checks (no silent skip), immutable duplicate rejection and all false authority flags. Existing backend runtime and eval_0014 are unchanged. Both fixture tests and final 13,334-test backend gate passed locally; do not infer deployment or new-SHA CI. [Workspace contract](../docs/DevPilot_External_QA_Quarantine_Workspace.md).

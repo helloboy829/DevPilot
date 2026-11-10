@@ -12,6 +12,7 @@ devpilot/evaluation/tests/test_judge_metrics.py
 devpilot/http.py
 devpilot/local_json_run.py
 devpilot/local_qa_cli.py
+devpilot/local_qa_output.py
 devpilot/local_qa_reconcile.py
 devpilot/pinned_http.py
 devpilot/qa_json_attempt.py

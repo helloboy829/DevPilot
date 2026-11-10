@@ -5,20 +5,26 @@ Not an end-user auto-installer or an untrusted-archive execution service.
 """
 
 import argparse
+import importlib.util
 import json
 import re
 import subprocess
 import sys
 from pathlib import Path
 
-from build_local_qa_distribution import archive_entries, read_regular, sha256
+# Resolve only the reviewed sibling source, including under python -I.
+# Never add the working directory to sys.path or accept an installed namesake.
+_builder_spec = importlib.util.spec_from_file_location("local_qa_distribution_builder", Path(__file__).resolve().with_name("build_local_qa_distribution.py"))
+_builder = importlib.util.module_from_spec(_builder_spec)
+_builder_spec.loader.exec_module(_builder)
+archive_entries, native_target, read_regular, sha256 = _builder.archive_entries, _builder.native_target, _builder.read_regular, _builder.sha256
 
 _INSTALLED_CHECK = r"""
 import asyncio, contextlib, importlib.abc, importlib.util, io, json, runpy, socket, sys
 from pathlib import Path
 assert sys.version_info[:2] == (3,12) and sys.prefix != sys.base_prefix
 root, directory = Path(sys.argv[1]), Path(sys.argv[2])
-for name in ('devpilot.local_qa_cli','devpilot.local_qa_reconcile','httpx','httpcore','h11','certifi','anyio','idna','typing_extensions','openpyxl','et_xmlfile'):
+for name in ('devpilot.local_qa_cli','devpilot.local_qa_reconcile','devpilot.local_qa_output','cryptography','cffi','pycparser','httpx','httpcore','h11','certifi','anyio','idna','typing_extensions','openpyxl','et_xmlfile'):
  origin = Path(importlib.util.find_spec(name).origin).resolve()
  assert origin.is_relative_to(Path(sys.prefix).resolve()), (name,str(origin))
 class Deny(importlib.abc.MetaPathFinder):
@@ -79,8 +85,29 @@ assert receipt['state']=='collected' and receipt['verdict']=='NOT_EVALUATED' and
 assert receipt['reserved_attempt_count']==receipt['frozen_request_count']==5 and receipt['frozen_input_count']==2
 assert receipt['observation_kinds']['output_collected']==5 and not receipt['output_content_verified']
 assert not receipt['resend_permitted'] and not receipt['resume_permitted'] and len(sent)==5
+# The actual installed encrypted mode uses the SAME shared runner, not a fixture DTO.
+legacy_directory=directory
+directory=directory.parent/'encrypted-results'
+sent.clear()
+from cryptography.fernet import Fernet
+key=directory.parent/'synthetic-output-key'
+key.write_bytes(Fernet.generate_key()); key.chmod(0o600)
+result=command('devpilot.local_qa_cli',arguments+['--execute','--results',str(directory),'--allow-host','example.test','--confirm-send',manifest['fingerprint'],'--confirm-input-use','--output-key-file',str(key),'--output-retention-seconds','300','--confirm-encrypted-output'])
+assert result['state']=='collected' and len(sent)==5
+assert not (directory/'observations.jsonl').exists()
+assert all(b'SYNTHETIC_OUTPUT' not in p.read_bytes() for p in directory.iterdir() if p.is_file())
+inspected=command('devpilot.local_qa_output',['inspect','--directory',str(directory),'--run-id',result['run_id'],'--manifest-fingerprint',manifest['fingerprint'],'--key-file',str(key)])
+assert inspected['recorded_attempt_count']==5 and inspected['output_integrity_verified'] and not inspected['resend_permitted']
+opened=directory.parent/'explicit-plaintext-open'
+opened_result=command('devpilot.local_qa_output',['open','--directory',str(directory),'--run-id',result['run_id'],'--manifest-fingerprint',manifest['fingerprint'],'--key-file',str(key),'--destination',str(opened),'--confirm-sensitive-open'])
+assert opened_result['sensitive_plaintext_created'] and b'SYNTHETIC_OUTPUT' in (opened/'observations.jsonl').read_bytes()
+from devpilot.local_qa_output import purge_output
+purged=purge_output(directory,key_file=key,expected_run_id=result['run_id'],expected_manifest_fingerprint=manifest['fingerprint'],confirm_ciphertext_sha256=inspected['ciphertext_sha256'],now_ms=lambda:inspected['expires_at_ms'])
+assert purged['encrypted_file_removed'] and not purged['secure_erasure_proven']
+reconciled=command('devpilot.local_qa_output',['reconcile-purge','--directory',str(directory),'--run-id',result['run_id'],'--manifest-fingerprint',manifest['fingerprint']])
+assert reconciled['encrypted_file_absent'] and reconciled['completion_receipt_present'] and len(sent)==5
 assert not any(name.split('.')[0] in {'app','deerflow','sqlalchemy','fastapi'} for name in sys.modules)
-print(json.dumps({'fresh_venv_origins_verified':True,'all_runtime_dependencies_present':True,'real_dns_and_socket_sends_denied':True,'default_offline':True,'actual_installed_cli_mock_attempts':5,'pre_dispatch_receipt_at_every_wire':True,'actual_installed_same_id_reconciliation':True,'platform_provenance_verified':False,'verdict':'NOT_EVALUATED'},sort_keys=True))
+print(json.dumps({'fresh_venv_origins_verified':True,'all_runtime_dependencies_present':True,'real_dns_and_socket_sends_denied':True,'default_offline':True,'actual_installed_cli_mock_attempts':5,'actual_installed_encrypted_mock_attempts':5,'actual_installed_sensitive_open_and_expired_purge':True,'pre_dispatch_receipt_at_every_wire':True,'actual_installed_same_id_reconciliation':True,'platform_provenance_verified':False,'verdict':'NOT_EVALUATED'},sort_keys=True))
 """
 
 
@@ -101,7 +128,7 @@ def verify(archive, expected_hash, work):
         raise ValueError("Archive hash mismatch")
     files = archive_entries(data)
     manifest = json.loads(files.pop("distribution.json"))
-    if manifest["schema"] != "local-qa-distribution.v1" or manifest["python"] != "3.12" or set(files) != set(manifest["files"]):
+    if manifest["schema"] != "local-qa-distribution.v2" or manifest["python"] != "3.12" or manifest["platform"] != native_target() or set(files) != set(manifest["files"]):
         raise ValueError("Archive manifest mismatch")
     for name, value in files.items():
         if manifest["files"][name] != {"sha256": sha256(value), "size": len(value)}:

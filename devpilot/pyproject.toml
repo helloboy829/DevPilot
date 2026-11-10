@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "DevPilot 研发场景垂直化定制层（基于 DeerFlow 2.0）：研发 Skills + 7 字段评测 + AI 组件测试工具包"
 requires-python = ">=3.12"
 dependencies = [
+    "cryptography",  # Explicit local QA output protection; independent of App keys.
     "httpx",      # 工具包出站 HTTP（直接依赖，不引入 requests/aiohttp）
     "openpyxl",   # M7 Excel 多 sheet 报告
 ]

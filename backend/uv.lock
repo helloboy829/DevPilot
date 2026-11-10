@@ -1062,12 +1062,14 @@ name = "devpilot"
 version = "0.1.0"
 source = { editable = "../devpilot" }
 dependencies = [
+    { name = "cryptography" },
     { name = "httpx" },
     { name = "openpyxl" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography" },
     { name = "httpx" },
     { name = "openpyxl" },
 ]

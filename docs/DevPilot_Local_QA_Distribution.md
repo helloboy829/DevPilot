@@ -1,5 +1,11 @@
 # 独立本地 QA 锁定软件分发 / Hash-locked local QA software distribution
 
+## 2026-11-11 接续：native-qualified v2
+
+[加密输出模块](DevPilot_Local_QA_Protected_Output.md)使 cryptography 成为 devpilot 直接依赖，复用已锁定的 cryptography/cffi/pycparser，闭包从九项增加到 **12**，第一方源码 **36** 项。新 `local-qa-distribution.v2` 明确 CPython 3.12 native platform；支持 profile 静态校验不等于该平台实际安装验收。旧 v1/35-member/pure-wheel 验证记录保留为历史，不改写原档案或以其证明 v2。六项 build-lock 工具不变。
+
+English: v2 pins native crypto wheels and the full 12-package closure. Both exact wheel bytes and fresh no-system-site offline installs are required; declared archive hashes do not establish provenance, data-export consent or execution authority. Legacy plaintext remains separately explicit.
+
 日期 / Date：2026-11-10。状态 / Status：候选代码，未部署。
 
 ## 1. 解决的缺口 / Scope

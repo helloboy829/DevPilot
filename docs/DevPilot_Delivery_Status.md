@@ -1,5 +1,25 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## 本地 QA 加密输出与保留候选（2026-11-11）
+
+上一模块 `e5af8fd44faa0e2726e87fae11d1e002dc33ef3f` 已推送，六项实际 Actions / 11 jobs 全部核验成功：Lint `42882229689`、Blocking `42882229556`、E2E `42882229676`、Unit `42882229441`、Replay `42882229263`、Frontend `42882229324`。这些结果只属于该 SHA，不代表当前未提交改动或部署。
+
+[当前模块](DevPilot_Local_QA_Protected_Output.md)复用同一 shared run/collector/pinned transport，为本地输出增加独立 operator key、分离同意、有界认证链、保留期、同 descriptor 持锁受控打开、到期原 hash 确认的一次精确删除与原 ID 只读对账。旧 plaintext 只显式兼容；默认离线不读 key/不发送。未知写入/删除不修复、不重试、不重发。
+
+crypto 是直接依赖，复用既有锁定版本；新分发 v2 明确 native platform，12 个运行依赖、36 个第一方源码成员和六项独立 build tools。已真实验证全新 hash-locked build → sdist → wheel → 完整 offline install、实际 plaintext/encrypted CLI、打开/到期清理与 API 导出消费；两次同输入 archive byte-identical。最终全量/格式/源码收尾、独立提交推送及新 SHA Actions 仍须分别核验。
+
+取消/硬退出/半写输出的独立保留处置、敏感外部证据治理、QA 调度/lost Worker、正式批准和另行授权部署/真实用户验收仍未完成。候选 head 仍为 eval_0014，未部署、不启用执行、不生成生产 key、不调用真实模型/目标。旧 eval_0009 收据不是本机运行证明。
+
+English: Explicit operator-key protected output reuses one execution chain. Unknown writes/deletes never retry or resend; expiry is an application gate, not secure erasure. Fresh locked software installation has been exercised; final module gates and exact-SHA CI remain separate, and incomplete-output governance/formal approval/deployment remain unfinished.
+
+## 本轮验证 / Verification (2026-11-11)
+
+- 后端标准 `make test`：**13,394 passed / 19 skipped / 11 deselected / 40 warnings**（1310.96s）；同时运行纯领域 **15 / 58 passed**。专项 protected output + distribution **121 passed**（16.73s），Blocking IO **72 passed**（5.90s）。Ruff check 和完整 format check **1,282 files** 通过，两份 offline lock check 通过。
+- 前端完整 **158 files / 1,360 passed**（14.6s），其中文件/hash 同步专项 **20 passed**。首轮完整回归曾有 **1 failed / 1,358 passed**：真实文件/hash Promise 的展示断言未完成；原失败和调用真实 WebCrypto 的诊断日志保留。测试改为在 React act 内显式排空真实读取/hash Promise、核对两份原始 hash，并追加任一文件未完成时禁止 inspection 的回归；没有替换 hash、放宽断言、提高 timeout 或改业务逻辑。
+- 最终输入已完成新鲜 hash-locked build → sdist → wheel → 全依赖 offline install；实际已安装 plaintext/encrypted CLI 各 5 次 mock attempts、受控打开/到期删除/原 ID 对账、缺失/篡改依赖拒绝通过。API-export-installed **2 passed**（9.75s）。两次同输入 archive byte-identical，SHA256 为 `9d70a60db1fe5470e48021202f6a4960fcc1f6884463626f662d54341dba7008`；声明 source revision 是基线，不是 dirty 工作区的来源认证。ESLint/typecheck 和整个 frontend Prettier 通过；源码/证据核对、资源收尾及新提交精确 SHA 的远端 CI 仍独立核验。未重跑生产 frontend build/browser/performance，不冒用旧结果。
+
+English: Final backend and frontend regressions passed after explicitly draining real file/hash promises in the test, without retries or weaker assertions. Original failures remain evidence. Final packaging/format/source/resource and exact-commit CI gates are separate; no deployment or real calls.
+
 ## External QA quarantine workspace local verification (2026-11-11)
 
 上一后端隔离接收提交 `179b944a2f47bd0eef011d395b17f2823a91991a` 的五项实际 push Actions 已逐项核验成功：Blocking `42864729700`、Unit `42864728140`、Frontend `42864727845`、Lint `42864727835`、Replay `42864727910`，共 10 个 jobs。不是本轮尚未提交 UI 的 CI。

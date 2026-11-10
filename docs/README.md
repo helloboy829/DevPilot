@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 2026-11-11：本地 QA 加密输出与保留候选
+
+[独立输出保护 / Protected local output](DevPilot_Local_QA_Protected_Output.md)：显式 operator key、分离同意、完整认证链、同 descriptor 持锁打开、到期精确一次删除和原 ID 只读对账。v2 软件分发含 12 个锁定运行依赖；不等于平台证据、正式批准或部署，半写输出保留治理仍待完成。
+
 [外部 QA 技术隔离接收工作台 / External QA quarantine workspace](DevPilot_External_QA_Quarantine_Workspace.md)：显式历史来源、两份有界技术文件、三确认、原 ID GET-only 对账与字面审计；本轮本地门禁通过（前端 1,359 / 后端 13,334 / Chromium 242 / auth recovery 2），源码/资源/提交/精确 SHA CI 分别核验；不接纳敏感证据、不授予执行或批准。
 
 ## 当前追加：外部 QA 技术元数据持久隔离接收（2026-11-11）

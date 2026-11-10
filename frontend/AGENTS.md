@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Explicit real file/hash test synchronization (2026-11-11)
+
+The external QA DOM setup must call through to the real bounded file reader/WebCrypto and drain both returned promises inside React `act`, then assert both fixture hashes. A delayed-file regression must keep inspection disabled until both reads finish. Preserve the original failed full-run log; do not substitute hashes, weaken assertions, add retries or increase timeouts. The final full suite has 1,360 passing tests; business UI behavior is unchanged. [Module verification](../docs/DevPilot_Local_QA_Protected_Output.md).
+
 ## External QA technical quarantine workspace candidate (2026-11-11)
 
 `ExternalQAPanel` explicitly opens an exact historical complete-baseline export and frozen plan, then two bounded UTF-8 technical files and three separate consents. Keep ALL source/count/budget/hash bindings, parent page-memory metadata-only pending IDs, cross-project write refs, unmount/file/hash fences and same-ID GET-only reconciliation including GET404. Unknown writes never resend or replace IDs. Historical receipts/audit are explicit literal text, never latest/policy/bundle/gold/output lookup or evidence/approval/send authority. Backend-generated synthetic fixtures and desktop/mobile regressions must verify the same contract. No dependency/migration/deployment/execution change. Local gates passed: frontend 1,359; backend 13,334; zero-retry Chromium 242 and auth recovery 2. Verify new-SHA CI separately. [Contract](../docs/DevPilot_External_QA_Quarantine_Workspace.md).

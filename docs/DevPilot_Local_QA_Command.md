@@ -1,5 +1,11 @@
 # 显式本地 QA 命令 / Explicit local QA command
 
+## 2026-11-11 接续 / Protected output follow-up
+
+[本地输出保护](DevPilot_Local_QA_Protected_Output.md)增加独立 key、分离加密同意和保留期；旧 `--confirm-plaintext-output` 只显式兼容，默认 preflight 不打开 key。加密命令仍走同一 shared run/journal/collector/pinned transport，没有重试、续跑或平台证据授权。以下 plaintext 说明保留其原历史模式边界，不代表新默认。
+
+English: Explicit operator-key encryption is now available as a separately consented mode; legacy plaintext is opt-in only. Expiry/open/one-shot deletion are described in the linked contract, not a new runner or approval.
+
 > 2026-11-10。独立 execute-only 候选；默认离线，结果外部未核验。不是平台授权 exporter、正式批准或完整依赖发行包。历史部署收据不是本机运行验收。
 
 ## 1. 范围与依赖方向
