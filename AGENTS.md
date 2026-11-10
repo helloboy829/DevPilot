@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## 独立本地 run 耐久适配候选（2026-11-10）
+
+`devpilot.local_json_run` 用私有单 run SQLite WAL/FULL journal 实际复用共享 run 核心，无第二套 runner。O_EXCL/首次进程内 claim、每 ordinal 一次 CAS、累计 max+1 响应/请求预算、dispatch commit before collect、未知结果不重发与 ALL 输入数必须保留。重开只有只读核对，deadline/硬退出不能授予续跑；所有 DB 读写和重复取消排空后才 finish；仅保留无事务的 idle WAL anchor，最终排空后 close 并撤销 claim。source SHA 仅声明，不证明请求相等/平台 provenance；技术 collected 不是 PASS/批准。无敏感值/明文 hash 持久化、默认客户端、App/API/迁移/依赖/部署/启用。见[合同](docs/DevPilot_Local_QA_Run_Journal.md)。
+
 ## 共享完整有界 QA run 候选（2026-11-10）
 
 `devpilot.qa_json_run` 固定 `qa-json-run.v1`，由平台真实 Worker 共用 ordinal/输入循环、并发、原 absolute deadline、未知交付先停发及任务关闭。必须显式提供 clock/reserve/collect/record/check-active 能力；callback 本身不是准入或耐久证明。App 保留授权、全局/整 run 字节配额、动态出站、加密证据与 claim/load/finish，所有 DB 读写仍经 `_drained_database`；finish 在共用核心排空后执行。无默认客户端/配置/凭据、重试、API、依赖或迁移，不是授权 exporter/CLI 或正式批准。见[合同和验证](docs/DevPilot_Shared_QA_JSON_Run_Core.md)。

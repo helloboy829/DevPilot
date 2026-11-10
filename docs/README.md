@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 独立本地 QA run 耐久适配候选（2026-11-10）
+
+[单次本地 journal 与共享核心适配](DevPilot_Local_QA_Run_Journal.md)：发送前 commit、每 ordinal 一次、累计预算不回收、未知结果不重发、读写取消排空；无默认网络客户端/API/CLI，重开只读，外部技术记录不是平台证据/批准。
+
 ## 当前追加：共享有界单次 QA JSON 采集（2026-11-10）
 
 [固定版本单次采集核心](DevPilot_Shared_QA_JSON_Attempt_Core.md)共享现有完整 deadline/流处理/分类/关闭流程，App 通过显式 factory 保留动态出站 policy 和准入/dispatch/no-resend；不是第二套 runner、执行/导出授权或批准。

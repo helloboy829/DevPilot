@@ -1,5 +1,15 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## 2026-11-10：独立本地 QA run 耐久适配候选
+
+共享完整 run 模块已推送 `f8cd909db191949a69e3fb04d0339a6bea6aae96`，该 SHA 四项 push Actions 实际 completed/success：Unit Tests `42756807606`、Frontend Unit Tests `42756807999`、Backend Blocking IO `42756807779`、Lint Check `42756807505`。47 份证据与 1,372 Python/858 Node/文档源和提交归档核验通过，四个专用 CI 容器已停止；E2E/Replay/Skill Review 未触发，未部署。
+
+[本地耐久适配器](DevPilot_Local_QA_Run_Journal.md)实际复用共享完整 run，不复制 runner；增加私有 SQLite WAL/FULL、独占新建、每 ordinal 一次与累计预算、未知不重发、重开只读和完整读写取消排空。源 hash 不证明来源/值相等，collected 仅外部未核验技术状态；无 App API/迁移/依赖/部署/执行启用。授权 exporter/CLI、输出治理和结果隔离仍须后续闭环，不能把本模块当作整个平台完成。本模块最终门禁与精确新 SHA Actions 另行核验。
+
+本模块最终本地验证：新增 **79 passed**（最终源码复核 5.58s）；联合 **636 passed**（130.45s）；标准 `make test` **12,832 passed / 18 skipped / 11 deselected / 40 warnings**（756.54s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.57s）；Ruff **1,258 files**、新领域模块单独 lint/format 和 offline lock 通过。前端完整 **152 files / 1,293 passed**（11.4s），完整 Prettier 与七份模块文档格式独立核验。真实 sdist→wheel 的十个公开成员逐 bytes 相等，实际 wheel 在 `-I` 解释器中使用锁定 HTTPX 完整 mock run，禁止 business imports、真实 DNS/socket；不是无 site packages/零依赖或授权 exporter。联合开始后的最后源码编辑仅纠正文档字符串；最终新增回归、wheel 和完整后端均覆盖该最终源码。
+
+首轮 rollback journal、ordinal 完成顺序和后续 WAL 最后连接清理竞争的失败均保留；修正 WAL/逐 ordinal CAS/无事务 idle anchor，并以 drained close 撤销 claim，不加入重试或放宽断言。最终源文件/提交、证据 hash 与专用资源收尾分别核验；无本地 frontend build/browser/performance 重跑、部署或真实模型/目标调用。
+
 > 核对日期：2026-11-10。此页区分**代码已实现、运行已部署、测试证据与未完成范围**，不以功能数量估算完成百分比，也不替代最终用户验收。各切片文档记录当时边界；旧文中的“未部署 / Worker pending / report pending”不是此后的当前状态。
 
 ## 2026-11-10：共享完整有界 QA JSON run 候选

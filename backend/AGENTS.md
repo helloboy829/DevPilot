@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## One-shot local run adapter candidate (2026-11-10)
+
+`devpilot.local_json_run` is tested here but does not replace App persistence/admission. It delegates the actual shared run loop, with private SQLite WAL/FULL commits, per-ordinal CAS and cancellation-drained reads/writes. Keep an idle WAL anchor without a transaction to prevent last-connection cleanup/read races; drain finalization, then close and revoke the claim. Unknown commits do not grant tickets; reopen is read-only, never resume/retry/reclaim. Test real commit-ACK loss, hard process death, repeated cancellation and actual mock sends/wheel. Source hashes are declarations, collected is external/unverified technical state, not PASS/platform provenance. No new API, dependency or migration. [Contract](../docs/DevPilot_Local_QA_Run_Journal.md).
+
 ## 共享完整有界 QA run 候选（2026-11-10）
 
 `devpilot.qa_json_run` 固定 `qa-json-run.v1`，由平台真实 Worker 共用 ordinal/输入循环、并发、原 absolute deadline、未知交付先停发及任务关闭。必须显式提供 clock/reserve/collect/record/check-active 能力；callback 本身不是准入或耐久证明。App 保留授权、全局/整 run 字节配额、动态出站、加密证据与 claim/load/finish，所有 DB 读写仍经 `_drained_database`；finish 在共用核心排空后执行。无默认客户端/配置/凭据、重试、API、依赖或迁移，不是授权 exporter/CLI 或正式批准。见[合同和验证](../docs/DevPilot_Shared_QA_JSON_Run_Core.md)。

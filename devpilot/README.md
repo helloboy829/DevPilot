@@ -63,3 +63,7 @@ python -B -X utf8 -m unittest discover -s devpilot/src/devpilot/toolkit/tests -v
 ## 共享完整 run 编排 / Complete bounded run orchestration（2026-11-10）
 
 `devpilot.qa_json_run` 的 `qa-json-run.v1` 由平台 Worker 实际共用，显式传入 clock/reserve/collect/record/check-active 能力。顺序为 input-only off-loop render → durable dispatch ACK → 余量检查 → 单次 collect → record；unknown 先停发，consumer/monitor/group 排空后 App finish。严格次数/并发/deadline 不替代 App 的授权/全局和整 run 字节预算。无默认客户端/凭据/DB/金标读取，无重试，不是授权 exporter/CLI。见[合同与门禁](../docs/DevPilot_Shared_QA_JSON_Run_Core.md)。
+
+## 独立本地 run 耐久适配（2026-11-10）
+
+`local_json_run` 复用真实 `qa_json_run`，为未来独立 CLI 提供私有 WAL/FULL SQLite 单 run journal、commit-before-collect、每 ordinal 一次、累计预算不回收与取消读写排空。仅保留无事务 idle WAL anchor，最终排空后 close/撤销 claim；重开只读，不续跑/重发；显式 collector/output/policy capabilities，不提供默认客户端或平台证据。source hash 仅声明，不是值/来源认证，collected 不是 PASS。见[合同与门禁](../docs/DevPilot_Local_QA_Run_Journal.md)。

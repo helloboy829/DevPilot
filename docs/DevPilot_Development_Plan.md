@@ -119,3 +119,13 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 接续[完整 run 核心](DevPilot_Shared_QA_JSON_Run_Core.md)，一次性提取原 Worker 的 ordinal/并发/monitor/deadline/unknown/关闭流程并让平台实际共用；不再以孤立 DTO 或下载按钮充当完整 exporter。App 数据库排空和最终释放、动态政策/准入/配额/加密证据不移动。先做旧实现失败和 barrier/真实 DB/实际 wheel 验证，再做完整门禁与独立提交/精确 SHA CI。
 
 本模块本地最终门禁：新增 **62 passed**；最终联合 **549 passed**；完整后端 **12,753 passed / 18 skipped / 11 deselected / 40 warnings**，领域 **15 / 58 passed**，Blocking IO **72 passed**；后端 Ruff **1,257 files**、共享 run/attempt lint/format 与离线锁通过。前端 **152 files / 1,293 passed**、完整 Prettier 和八份模块文档格式通过。28 组旧/新真实 Worker 数据库/HTTP 行为逐字段对照及实际 wheel 完整 mock run 通过；静态 AST 另证原 DB-drain/serve、consumer/timeout/cleanup 保留。最终源码/提交归档、证据 hash、专用资源收尾及新 SHA Actions 分别核验。未重跑本地 frontend build/browser/performance，无部署、执行启用或真实模型/目标调用。下一阶段才讨论授权 exporter/manifest 的来源与数据交付合同、显式实发 CLI 和 external/unverified 结果隔离；不可隐式启用或部署。冻结 QA 的独立调度、Lost Worker fencing/不重发对账、正式批准和授权用户验收仍需独立模块，不因共用核心可 import 而完成。
+
+## 独立本地 run 的耐久适配（2026-11-10）
+
+共享完整 run 模块已推送 `f8cd909db191949a69e3fb04d0339a6bea6aae96`，该 SHA 四项 push Actions 实际 completed/success：Unit Tests `42756807606`、Frontend Unit Tests `42756807999`、Backend Blocking IO `42756807779`、Lint Check `42756807505`。47 份证据与 1,372 Python/858 Node/文档源和提交归档核验通过，四个专用 CI 容器已停止；E2E/Replay/Skill Review 未触发，未部署。
+
+接续[本地 journal/实际共享核心适配](DevPilot_Local_QA_Run_Journal.md)，补齐独立运行的发送前耐久确认、未知不重发、累计字节预算及重复取消下全部 DB 读写排空，不新建第二套 runner，不提前开放 API/CLI。严格区分声明 source hash、实际请求值相等和平台 provenance；未来 manifest/数据交付授权/依赖 pin、动态出站与显式实发、敏感结果保存/隔离仍独立未完成。正式批准/冻结 QA 调度/lost Worker 对账/授权升级不因本地适配可运行而完成。本模块最终门禁、资源收尾与新 SHA Actions 独立核验。
+
+本模块最终本地验证：新增 **79 passed**（最终源码复核 5.58s）；联合 **636 passed**（130.45s）；标准 `make test` **12,832 passed / 18 skipped / 11 deselected / 40 warnings**（756.54s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.57s）；Ruff **1,258 files**、新领域模块单独 lint/format 和 offline lock 通过。前端完整 **152 files / 1,293 passed**（11.4s），完整 Prettier 与七份模块文档格式独立核验。真实 sdist→wheel 的十个公开成员逐 bytes 相等，实际 wheel 在 `-I` 解释器中使用锁定 HTTPX 完整 mock run，禁止 business imports、真实 DNS/socket；不是无 site packages/零依赖或授权 exporter。联合开始后的最后源码编辑仅纠正文档字符串；最终新增回归、wheel 和完整后端均覆盖该最终源码。
+
+本模块修复真实 WAL 读写/最后连接清理竞争，保留失败、实际 commit 后 ACK 丢失和硬进程退出证据；无事务 anchor 仅为连接生命周期，不授予恢复，全部 DB/任务/finish 排空后 close 撤销 claim。最终源码/证据/专用资源与新 SHA Actions 分开闭环。无本地 build/browser/performance 重跑或部署/真实调用。
