@@ -344,3 +344,11 @@ Reports/Retests 新增独立区块：明确打开历史 assessment ID/修订/has
 接续[完整单次采集核心](DevPilot_Shared_QA_JSON_Attempt_Core.md)，共享现有 deadline/流生命周期/分类/观测与关闭，App 保留动态 client 政策、准入、耐久派发及预算。先前隔离审批超时/502 的两次命令未执行；后续经单独只读核验与显式启动审批恢复验证。已完成联合、全量后端/领域/前端和实际旧新对照/wheel 门禁；最终资源/提交/精确 SHA CI 另行核验，未借用上轮结果。不提前开放独立 runner/export；正式批准、lost-Worker 安全对账、冻结 QA 调度及授权升级仍未完成。
 
 本模块本地最终门禁：新增 **44 passed**；联合 **487 passed**；后端全量 **12,691 passed / 18 skipped / 11 deselected / 40 warnings**；领域 **15 / 58 passed**；Blocking IO **72 passed**；后端 Ruff **1,256 files**、共享核心 lint/format 与离线锁通过；前端 **152 files / 1,293 passed**、完整 Prettier 和八份模块文档格式通过。399 个旧/新实际行为对照及实际 wheel 的隔离 mock-send 通过。最终源码/提交归档、证据 hash、精确资源收尾及新 SHA Actions 独立核验；本轮没有重跑本地前端 build/浏览器/性能，不借用历史结果，不部署/启用执行或调用真实模型/目标。
+
+## 本地 QA 只读对账候选（2026-11-10）
+
+前序本地命令已推送 `bdd3ba10b47f6473c59109f04736df7535f154de`；实际四项 push Actions 全部 completed/success：Unit `42776213688`、Frontend `42776213624`、Blocking `42776214029`、Lint `42776213627`，独立核对原 SHA，专用容器已停止。
+
+新增[只读原 ID 对账命令](DevPilot_Local_QA_Reconciliation.md)，真实复用 journal snapshot，不读取敏感输出或更改 owner claim。全冻结分母、技术分类/预算一致性、hard-exit WAL 和实际 CLI → 对账链作为门禁。仍为 external/unverified / NOT_EVALUATED；不是输出完整性/平台 provenance、retry/resume/重发、平台导入或批准。无 App/API/依赖/迁移/部署/执行启用或真实调用。新 SHA 的 Actions/资源收尾另行核验，整个平台未完成。
+
+本模块最终本地门禁：新增 **64 passed**（4.00s），联合 **786 passed**（157.99s）；标准 `make test` **12,982 passed / 18 skipped / 11 deselected / 40 warnings**（756.47s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.60s）；Ruff **1,260 files**、新领域模块独立 lint/format 和 offline lock 通过。前端完整 **152 files / 1,293 passed**（13.0s），完整 Prettier 与八份模块文档格式核验。真实 sdist→wheel 十三个公开成员逐 bytes 相等，隔离 `-I` 实际 wheel 的执行 CLI mock sends → 对账 CLI 成功，并显式确认模块 import origin 位于 wheel；真实 DNS/socket 和业务层 imports 禁止。源码/证据/专用资源与新 SHA 实际 Actions 独立闭环。未本地重跑 frontend build/browser/performance；无部署/执行启用/真实调用。

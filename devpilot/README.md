@@ -1,5 +1,7 @@
 # DevPilot 领域定制层
 
+[本地 QA 只读对账命令](../docs/DevPilot_Local_QA_Reconciliation.md)：显式原 journal + run ID、ALL 冻结分母和技术状态；不读取明文输出、不续跑/重发、不证明平台来源或批准。
+
 ## 显式本地执行命令（2026-11-10）
 
 `python -m devpilot.local_qa_cli` 默认仅离线预检，使用独立 manifest、敏感 bindings 和 input-only 文件。实发必须单独确认结构 fingerprint、输入使用及**私有明文输出**，并显式配置 host allowlist、新目录；完整复用共享 run/collector/TLS 固定传输和一次性 SQLite journal。每次发送前检查全部 DNS answers，未知结果/策略拒绝停止后续 ordinal，不恢复或重发。结果仅 external/unverified technical / NOT_EVALUATED，不是平台证据/批准；不是平台授权 exporter 或完整锁定依赖发行包。合成验证无真实目标调用，无 App/API/依赖/迁移/部署或配置改变。见[合同与离线示例](../docs/DevPilot_Local_QA_Command.md)。

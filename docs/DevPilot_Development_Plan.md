@@ -139,3 +139,13 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 本命令是独立执行能力的前置模块，**不是**平台授权 exporter、锁定依赖交付或外部结果导入。下一步应明确导出来源/数据授权和依赖 pin、输出保密/结果隔离合同，再增加平台入口；不能把自建 manifest 或声明 hash 当作平台 provenance。正式批准/冻结 QA 调度/lost Worker 对账/授权升级继续独立规划。无真实模型/目标调用或部署。
 
 本模块最终本地门禁：CLI 新增 **83 passed**，journal 专项 **82 passed**（含新增三项确定性锁回归），联合 **722 passed**（141.92s）；标准 `make test` **12,918 passed / 18 skipped / 11 deselected / 40 warnings**（761.90s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.72s）；Ruff **1,259 files**、两份领域源独立 lint/format、offline lock 全通过。前端完整 **152 files / 1,293 passed**（13.3s），完整 Prettier 与八份模块文档格式独立核验。实际 sdist→wheel 十二个公开成员逐 bytes 相等，`-I` 实际模块离线/完整 mock run 均通过，真实 DNS/socket 与 business imports 禁止。最终源码、证据、提交归档、专用资源收尾与新 SHA 的实际 Actions 另行闭环；未重跑本地 frontend build/browser/performance，无部署/执行启用/真实调用。
+
+## 原 ID 本地运行只读对账（2026-11-10）
+
+前序实际本地 QA 命令已推送 `bdd3ba10b47f6473c59109f04736df7535f154de`；四项实际 push Actions 全绿：Unit `42776213688`、Frontend `42776213624`、Blocking `42776214029`、Lint `42776213627`。其交付证据与专用资源均闭环，无部署。
+
+接续[显式原 journal/run ID 只读命令](DevPilot_Local_QA_Reconciliation.md)，补齐未知后人工技术对账操作，不引入第二 runner、敏感输出读取、claim/recover/repair/retry/resend 或平台结果导入。读取成功不等于运行成功，collected 不证明最终输出 fsync；原 running/dispatched 不因硬退出而改写。全分母/累计 reservation 和技术一致性严格核对，真实 CLI/wheel/SQLite/WAL 与无网络门禁独立验证。
+
+平台授权 exporter/数据 tiers/来源合同、完整锁定分发、输出加密/保留与隔离导入、冻结 QA 独立调度、Lost Worker fencing、正式批准和授权升级/真实用户验收继续未完成，不把模块数或测试通过当平台完成。新模块按独立测试/说明/提交/push/exact-SHA Actions 闭环。
+
+本模块最终本地门禁：新增 **64 passed**（4.00s），联合 **786 passed**（157.99s）；标准 `make test` **12,982 passed / 18 skipped / 11 deselected / 40 warnings**（756.47s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.60s）；Ruff **1,260 files**、新领域模块独立 lint/format 和 offline lock 通过。前端完整 **152 files / 1,293 passed**（13.0s），完整 Prettier 与八份模块文档格式核验。真实 sdist→wheel 十三个公开成员逐 bytes 相等，隔离 `-I` 实际 wheel 的执行 CLI mock sends → 对账 CLI 成功，并显式确认模块 import origin 位于 wheel；真实 DNS/socket 和业务层 imports 禁止。源码/证据/专用资源与新 SHA 实际 Actions 独立闭环。未本地重跑 frontend build/browser/performance；无部署/执行启用/真实调用。

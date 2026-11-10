@@ -1,5 +1,7 @@
 # DevPilot 文档导航与设计基线
 
+[本地 QA 只读对账命令](DevPilot_Local_QA_Reconciliation.md)：实际离线 CLI，原 ID 技术快照、ALL 分母、未知不重发；不读输出、不恢复运行、不导入平台证据。
+
 ## 2026-11-10：显式独立本地 QA 命令候选
 
 [本地命令 / Local QA command](DevPilot_Local_QA_Command.md)：离线默认、分离输入/凭据、显式实发与私有明文输出同意，复用共享 run 和耐久 journal；精确 host、ALL DNS answers、TLS、不重发，结果仅外部未核验技术状态。不等于授权平台导出、受控依赖发行、证据导入或批准。

@@ -107,3 +107,7 @@ JSONL header/ordinal/final summary 均带 scope、run_id、NOT_EVALUATED；ordin
 本模块最终本地门禁：CLI 新增 **83 passed**，journal 专项 **82 passed**（含新增三项确定性锁回归），联合 **722 passed**（141.92s）；标准 `make test` **12,918 passed / 18 skipped / 11 deselected / 40 warnings**（761.90s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.72s）；Ruff **1,259 files**、两份领域源独立 lint/format、offline lock 全通过。前端完整 **152 files / 1,293 passed**（13.3s），完整 Prettier 与八份模块文档格式独立核验。实际 sdist→wheel 十二个公开成员逐 bytes 相等，`-I` 实际模块离线/完整 mock run 均通过，真实 DNS/socket 与 business imports 禁止。最终源码、证据、提交归档、专用资源收尾与新 SHA 的实际 Actions 另行闭环；未重跑本地 frontend build/browser/performance，无部署/执行启用/真实调用。
 
 没有把失败日志删掉或仅采用重跑结果：DNS policy 行为经实际 callback 修复、同路径读锁通过确定性新增门禁；wheel 首次助手因测试目录非 package 导入失败，改为显式 runpy helper 后核验同一实际 wheel，源码未为助手修改。
+
+## 9. 原 ID 只读对账入口
+
+后续[只读对账命令](DevPilot_Local_QA_Reconciliation.md)显式接收原 journal 与 run ID，仅显示技术元数据、ALL 冻结分母和累计预算。不读取此处明文输出、不验证输出 fsync、不续跑/修复/重发，也不修改现有执行同意或 journal schema。

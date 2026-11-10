@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Read-only local QA reconciliation candidate (2026-11-10)
+
+`devpilot.local_qa_reconcile` explicitly reads one trusted local journal with its original canonical run ID, using the real read-only snapshot and shared same-path lock. No sensitive output reads, latest selection, owner claim, mutation, repair, retry, resend, resume or platform import. Validate ALL frozen denominators, ordinal/observation/budget coherence; state and declared hash are technical/unverified, never provenance or approval. Hard-exit running/dispatched remains unresolved; collected does not verify output fsync. Trusted filesystem required, not a hostile-SQLite sandbox; read-only WAL may maintain sidecars. No App/API/dependency/migration/deployment/enablement/real calls. [Contract](docs/DevPilot_Local_QA_Reconciliation.md).
+
 ## Explicit local QA command candidate (2026-11-10)
 
 Same-path in-process journal handles now share a canonical-path weak lock registry (including read-only reconciliation); retain idle WAL anchor, zero SQLite busy timeout and cross-process fail-closed. No retry or resume authority.
