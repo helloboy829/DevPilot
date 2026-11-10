@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from devpilot import qa_json_attempt
 from devpilot.http import RequestSpec
 from devpilot.qa_json_binding import QAJSONBinding
 from devpilot.qa_json_request import QAJSONRequest
@@ -149,7 +150,7 @@ async def test_app_delegates_to_pinned_preparation_once_and_encodes_inside_clien
     prepared = []
     encoded = []
     entered_client = False
-    prepare = qa_attempts.QAJSONRequest
+    prepare = qa_json_attempt.QAJSONRequest
     get_content = QAJSONRequest.content.fget
 
     def projection(request):
@@ -162,7 +163,7 @@ async def test_app_delegates_to_pinned_preparation_once_and_encodes_inside_clien
         encoded.append(self)
         return get_content(self)
 
-    monkeypatch.setattr(qa_attempts, "QAJSONRequest", projection)
+    monkeypatch.setattr(qa_json_attempt, "QAJSONRequest", projection)
     monkeypatch.setattr(QAJSONRequest, "content", property(content))
 
     async def handle(sent):

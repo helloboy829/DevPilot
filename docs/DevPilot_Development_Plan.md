@@ -103,3 +103,11 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 本切片[共享 pinned HTTP](DevPilot_Shared_Pinned_HTTP_Core.md)继续提取实际传输而非复制第二套 runner：由显式 callback 保持 App 的动态 allowed_hosts/ALL DNS answers 策略，共用 origin/Host/SNI/TLS/不重试机制并拒绝会二次 DNS 的非 literal 返回。原授权、耐久派发、预算、未知结果及取消关闭不变，完整门禁和新 SHA CI 独立核验。完整执行/导出、CLI 约束与结果隔离导入、失联 Worker 安全对账、冻结 QA 调度、正式批准及授权升级仍未完成。
 
 本模块本地最终门禁：新增 37 项；联合 443 / 后端全量 12,647 / 领域 15、58 / Blocking IO 72 / 前端 1,293 passed，Ruff 1,255 files、离线锁与完整格式通过。188 个实际旧/新传输对照和真实 wheel 隔离 mock-send 验证通过；源码/证据 hash、精确资源收尾和新 SHA 的 Actions 分别核验，不借用上一提交，也不宣称独立执行/导出或平台完成。
+
+## 共享有界单次采集候选（2026-11-10）
+
+共享 pinned HTTP 模块 `3b193d69007c097a71aad16135617775f09a6949` 的四项精确 SHA push Actions 均 completed/success：Unit `42743465228`、Frontend Unit `42743465248`、Blocking IO `42743465295`、Lint `42743465225`；源码/证据与四个专用资源收尾已核验。
+
+接续[完整单次采集核心](DevPilot_Shared_QA_JSON_Attempt_Core.md)，共享现有 deadline/流生命周期/分类/观测与关闭，App 保留动态 client 政策、准入、耐久派发及预算。先前隔离审批超时/502 的两次命令未执行；后续经单独只读核验与显式启动审批恢复验证。已完成联合、全量后端/领域/前端和实际旧新对照/wheel 门禁；最终资源/提交/精确 SHA CI 另行核验，未借用上轮结果。不提前开放独立 runner/export；正式批准、lost-Worker 安全对账、冻结 QA 调度及授权升级仍未完成。
+
+本模块本地最终门禁：新增 **44 passed**；联合 **487 passed**；后端全量 **12,691 passed / 18 skipped / 11 deselected / 40 warnings**；领域 **15 / 58 passed**；Blocking IO **72 passed**；后端 Ruff **1,256 files**、共享核心 lint/format 与离线锁通过；前端 **152 files / 1,293 passed**、完整 Prettier 和八份模块文档格式通过。399 个旧/新实际行为对照及实际 wheel 的隔离 mock-send 通过。最终源码/提交归档、证据 hash、精确资源收尾及新 SHA Actions 独立核验；本轮没有重跑本地前端 build/浏览器/性能，不借用历史结果，不部署/启用执行或调用真实模型/目标。

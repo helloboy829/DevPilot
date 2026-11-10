@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：共享有界单次 QA JSON 采集（2026-11-10）
+
+[固定版本单次采集核心](DevPilot_Shared_QA_JSON_Attempt_Core.md)共享现有完整 deadline/流处理/分类/关闭流程，App 通过显式 factory 保留动态出站 policy 和准入/dispatch/no-resend；不是第二套 runner、执行/导出授权或批准。
+
 ## 当前追加：共享 QA JSON 请求准备核心（2026-11-10）
 
 [固定版本请求投影](DevPilot_Shared_QA_JSON_Request_Core.md)让 App 共用 literal URL/method/body/headers 准备，保留条件 identity、重复编码和历史 64→65 边界。无数据读取/发送/导出权限，纯源码及 wheel 自检不是完整 runner；准入、dispatch/no-resend 仍属 App。

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Shared bounded JSON attempt collector candidate (2026-11-10)
+
+`devpilot.qa_json_attempt` pins `qa-json-attempt.v1` and shares the existing complete single-attempt collector, not a second runner. Require an explicit client factory; App retains dynamic outbound policy, admission, durable dispatch, budgets and no-resend. Preserve cooperative deadline, max+1 yielded bytes, normal-end-only off-loop decode, original errors/cancellation/close and re-exported observation type identity. Cancellation cannot kill parser threads or synchronous callbacks; never claim hard-death or release authority. Sensitive output is not a public result/verdict. Verify actual old/new behavior and built-wheel mock sends with existing HTTPX. No dependency/migration/deployment/enablement/real calls. [Contract](docs/DevPilot_Shared_QA_JSON_Attempt_Core.md).
+
 ## Shared pinned HTTP transport candidate (2026-11-10)
 
 `devpilot.pinned_http` pins `pinned-http.v1`; the existing App transport delegates the real origin/Host/SNI/TLS/no-retry mechanism with a fresh explicit resolver callback. App keeps dynamic allowlists and ALL-answer DNS policy. Callback results must be literal unscoped IPs, never second-DNS hostnames. Keep errors/cancellation/close, client no-redirect/no-env and admitted dispatch-before-I/O/no-resend; no standalone runner/export permission. Uses existing HTTPX, not a no-site pure core. Verify actual wire parity and built wheel without business imports. No dependency/migration/deployment/enablement/real calls. [Contract](docs/DevPilot_Shared_Pinned_HTTP_Core.md).

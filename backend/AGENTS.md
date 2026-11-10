@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Shared bounded JSON attempt collector candidate (2026-11-10)
+
+`qa_attempts.collect_json_attempt` preserves the App signature and dynamically provides the original `evaluation_client(config, url, timeout_seconds=...)` to `devpilot.qa_json_attempt`. Re-export the exact shared limit/observation classes; evidence type checks remain compatible. Request test injection follows the new `QAJSONRequest` owner without weakening prepare-once/wire/deadline assertions. Keep Worker admission/dispatch/evidence/drain/no-resend unchanged; explicit factory is not proof of policy or authorization. Cooperative timeout cannot kill synchronous callbacks/threads; cancellation never publishes their output. No route/dependency/migration/deployment/real calls. [Contract](../docs/DevPilot_Shared_QA_JSON_Attempt_Core.md).
+
 ## Shared pinned HTTP transport candidate (2026-11-10)
 
 `app.evaluation.http.PinnedEvaluationTransport` is a thin `devpilot.pinned_http` adapter. Retain config identity and late `resolve_destination` lookup for EVERY send; keep ALL DNS answers, explicit allowlists and metadata denial. Shared mechanism validates literal unscoped resolver output, fences origin before DNS, preserves Host/SNI and sends at most once with TLS/no env/no retries. Original factory and error import remain compatible; no admission/journal/budget changes. Cancellation and close still propagate. No standalone capability, dependency/migration/deployment/real calls. [Contract](../docs/DevPilot_Shared_Pinned_HTTP_Core.md).

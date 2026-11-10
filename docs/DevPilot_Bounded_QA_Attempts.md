@@ -2,6 +2,10 @@
 
 更新：2026-11-08。实现位于 `backend/app/evaluation/qa_attempts.py`。这是内部执行原语，不是新的执行 HTTP API、后台 Worker 或可用的完整评测任务。
 
+## 2026-11-10 共享核心接续
+
+实际单次采集已提取到 `devpilot.qa_json_attempt`（`qa-json-attempt.v1`），原 App 路径是保留签名的薄适配器，仍提供原动态 `evaluation_client`。共享层必传显式 factory，不默认发送或解析凭据；限额/观测类型由 App 重导出同一类型。旧限额、正常流终止/错误分类、取消关闭和不重发保持不变。异步 deadline 是协作式取消，不能承诺杀死同步 callback、read-ahead 或 `to_thread`；解析线程不发布取消后的输出/证据。[当前合同与门禁](DevPilot_Shared_QA_JSON_Attempt_Core.md)补充最新边界，以下旧切片日期/测试/“未来 Worker”说明仅保留历史语境，不代表当前主链缺失或已经独立批准。
+
 ## 已实现
 
 - 接收已经渲染好的不可变请求、严格 JSON 输出映射、有限单次参数与运维配置；不接收预期答案或样本标签，不负责判分。调用方必须先进行独立运行准入，不能凭一个冻结计划就发送请求。

@@ -2,6 +2,10 @@
 
 > 2026-11-06。定位从通用研发定制调整为 AI 组件评测；以下严格区分当前代码与目标。
 
+## 共享有界单次采集（2026-11-10）
+
+`qa_json_attempt.py` 固定 `qa-json-attempt.v1`，共享实际单次收集的 deadline、流读取、分类、敏感内部观测与关闭流程。必传 client factory，无默认网络/凭据能力；App 仍提供动态 policy，并持有准入、dispatch-before-I/O、运行预算、证据与未知结果不重发权。复用已有 HTTPX，不是无 site packages 核心；单次可导入不等于完整独立 runner/export、执行许可或批准。见[合同与验证](../docs/DevPilot_Shared_QA_JSON_Attempt_Core.md)。
+
 ## 共享响应核心（2026-11-10）
 
 `qa_json_response.py` 固定 `qa-json-response.v1` 的纯 bounded HTTP JSON 响应分类/缓冲/提取；App 有界 QA 采集已共用此实现，保留 transport、准入、派发和未知结果不重发语义。只在正常响应结束后提取，结果仍为敏感内部值，不是 verdict 或公共 DTO。标准库隔离解释器及实际 wheel 验证不意味着完整包零依赖或独立执行工程已完成；没有新 API、依赖/迁移、执行开启或部署。见[合同与验证](../docs/DevPilot_Shared_QA_JSON_Response_Core.md)。
