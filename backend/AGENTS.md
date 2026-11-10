@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Export workspace policy discovery (2026-11-10)
+
+`test_authorized_qa_export_capabilities.py` covers exact human/owner/read gates, scoped unexpired process-policy metadata, disabled hiding, no key or sensitive SQL and repeated-cancellation read drain. Bundle headers pin the exporter and verified viewed receipt. The synthetic API-generated browser ZIP fixture is independently checked for request/receipt fingerprint, exact members and member hashes; do not relabel binary IDs. Existing export permissions, immutable archives/no-resend and candidate `eval_0013` remain unchanged; no execution/deployment/real calls. [Workspace contract](../docs/DevPilot_Authorized_QA_Export_Workspace.md).
+
 ## Authorized QA export regressions (2026-11-10)
 
 `test_authorized_qa_exports*` covers exact default-off grants, human/owner/export permissions, private bounded streamed DTOs, encrypted immutable configuration and sequence-ordered audit. No request ciphertext decryption or acceptance/gold export; skeleton must not SELECT samples/references. ALL frozen sources/budgets, off-loop work, final project locks and atomic audit remain. Drain reads/writes across repeated cancellation; unknown PUT including 404 only same-ID GET, never resend. Additive `eval_0013` is checked on SQLite (foreign keys ON) and owned temporary PostgreSQL. A separate installed-export CI job consumes the pure distribution artifact/hash and runs API-to-actual-installed `-I` verification; default skip is not success. Keep original distribution independent of backend dependencies. No UI, config enablement, deployment or real calls. [Contract](../docs/DevPilot_Authorized_QA_Exports.md).

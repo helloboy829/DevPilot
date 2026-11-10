@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Authorized export workspace candidate (2026-11-10)
+
+The datasets workspace explicitly loads scoped export policy/grants and the exact frozen plan; three separate creation consents and a separate download consent remain mandatory. Parent page-memory pending IDs and cross-project write locks survive project switches; unknown PUT/GET404 reconcile by same-ID GET only, never resend. Recheck expiry at click and after awaiting binary, fence unmount/locale/scope responses, validate strict receipt/source/schema/ALL-count/software binding and bounded ZIP response pins, and release ephemeral URLs. Policy discovery reads project ownership only, never keys/samples/references/ciphertext. No new migration/dependency/action, execution enablement, software retrieval, deployment or real calls. Candidate head remains `eval_0013`; verification/push/exact-SHA CI are separate gates. [Contract](docs/DevPilot_Authorized_QA_Export_Workspace.md).
+
 ## Authorized external QA configuration candidate (2026-11-10)
 
 `app.evaluation.authorized_exports` requires default-off exact operator grants, human/owner API permissions and separate data-use/external-control consent. Skeleton reads no samples/references; baseline exports ALL verified inputs only, never acceptance/gold/request ciphertext. Existing CLI schema and separately pinned software remain; ALL request values must be rebound. Additive `eval_0013` stores domain-separated encrypted immutable ZIPs and monotonic per-export audit. Off-loop work precedes final project/source/grant checks and atomic archive/audit; drain DB reads/writes across repeated cancellation. Unknown PUT including 404 only same-ID GET, never resend. No UI, deployment, real calls, result import or formal approval. [Contract](docs/DevPilot_Authorized_QA_Exports.md).

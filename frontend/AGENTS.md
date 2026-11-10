@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Authorized QA configuration export workspace (2026-11-10)
+
+`AuthorizedExportPanel` on datasets requires explicit scoped policy/grant/source loads, three independent creation consents and another download consent. Parent page-memory pending IDs/ref write lock, same-ID GET-only after unknown PUT or GET404, strict source/schema/ALL-count/software binding, expiry checks at click/before/after binary await and unmount fences must remain. No automatic fetch/retry/polling/software retrieval, persistent sensitive cache or target/model calls. Keep authenticated no-store bounded ZIP response pins, transient Blob/URL cleanup, explicit historical reads and sequence-ordered audit. Synthetic browser fixture uses real API ZIP bytes with backend contract verification; no deployment or approval authority. [Contract](../docs/DevPilot_Authorized_QA_Export_Workspace.md).
+
 ## Route asset ownership and content page-map builds (2026-11-10)
 
 Keep the unchanged six-route `pnpm perf:check` gate. Nextra content page maps must not import unrelated App runtimes: the narrow AST post-loader applies only to the exact generated placeholder in Turbopack/Webpack, preserves MDX metadata/topology and fails closed on unknown shapes. Check both actual production builds after upgrades. Tailwind sources are explicit runtime/public plus complete Streamdown/code/mermaid chunks, not tests/build output. Do not delete the historical raw-HTML safelist: it belongs to lazy Markdown artifact/memory previews with source-free shared theme tokens, never an unconditional iframe/editor import or a reference back to source-bearing globals. Preserve raw-HTML sanitization, citations, code/math, locales and auth. [Contract and evidence limits](../docs/DevPilot_Route_Resource_Budgets.md).

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AuthorizedExportPanel } from "@/components/workspace/authorized-export-panel";
 import { EvaluationExecutionPanel } from "@/components/workspace/evaluation-execution-panel";
 import { EvaluationPlanPanel } from "@/components/workspace/evaluation-plan-panel";
 import { EvaluationReviewPanel } from "@/components/workspace/evaluation-review-panel";
@@ -23,6 +24,7 @@ import type {
 } from "@/core/datasets/types";
 import { evaluationApi } from "@/core/evaluation/api";
 import type { PendingAssessments } from "@/core/evaluation/assessment-policy";
+import type { PendingExports } from "@/core/evaluation/export-policy";
 import type { PendingReviewTasks } from "@/core/evaluation/task-types";
 import { useI18n } from "@/core/i18n/hooks";
 
@@ -53,6 +55,8 @@ export default function DatasetsPage() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const pendingExports = useRef<PendingExports>(new Map());
+  const exportWriteLock = useRef(false);
   const pendingReviewTasks = useRef<PendingReviewTasks>(new Map());
   const pendingAssessments = useRef<PendingAssessments>(new Map());
   const epoch = useRef(0);
@@ -670,6 +674,15 @@ export default function DatasetsPage() {
               key={`plan:${projectId}`}
               projectId={projectId}
               zh={zh}
+            />
+          )}
+          {projectId && (
+            <AuthorizedExportPanel
+              key={`export:${projectId}:${zh}`}
+              projectId={projectId}
+              zh={zh}
+              pendingExports={pendingExports.current}
+              writeLock={exportWriteLock}
             />
           )}
           {projectId && (

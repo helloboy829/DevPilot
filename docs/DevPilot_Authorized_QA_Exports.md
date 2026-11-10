@@ -1,5 +1,7 @@
 # Authorized QA configuration exports / 平台授权 QA 配置导出
 
+> 后续工作台切片 / Subsequent workspace slice: [explicit policy, source, same-ID recovery and ZIP download](DevPilot_Authorized_QA_Export_Workspace.md). The original no-UI scope below describes this backend slice only.
+
 > 2026-11-10. Candidate backend/API; default disabled and undeployed. No UI,
 > target/model calls, execution enablement, result import or formal approval.
 

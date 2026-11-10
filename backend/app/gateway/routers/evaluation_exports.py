@@ -51,6 +51,14 @@ async def _repository(request):
     return owner, repo
 
 
+@router.get("/{project_id}/export-capabilities")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_exports", "read")
+async def export_capabilities(project_id: str, request: Request):
+    owner, repo = await _repository(request)
+    return await repo.capabilities(owner, project_id)
+
+
 @router.put("/{project_id}/exports/{export_id}")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "review")
@@ -82,7 +90,11 @@ async def download_export(project_id: str, export_id: str, request: Request, vie
     if len(export_id) != 32 or any(c not in "0123456789abcdef" for c in export_id):
         raise HTTPException(422, "Invalid export identifier")
     data = await repo.open_bundle(owner, project_id, export_id, viewed_receipt_hash)
-    return Response(data, media_type="application/zip", headers={"Content-Disposition": 'attachment; filename="qa-config-' + export_id + '.zip"', "X-Content-Type-Options": "nosniff"})
+    return Response(
+        data,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="qa-config-' + export_id + '.zip"', "X-Content-Type-Options": "nosniff", "X-DevPilot-Exporter": "platform-local-qa-config.v1", "X-DevPilot-Receipt-Hash": viewed_receipt_hash},
+    )
 
 
 @router.get("/{project_id}/exports/{export_id}/audit")

@@ -460,6 +460,29 @@ class ExportRepository(PlanRepository):
             raise RequestProtectionError("Export receipt failed integrity checks")
         return {**doc, "receipt_hash": row["receipt_hash"]}
 
+    async def capabilities(self, owner, project_id):
+        """Explicit owner-scoped policy snapshot, not source validation or authority."""
+        return await _drain(self._capabilities(owner, project_id))
+
+    async def _capabilities(self, owner, project_id):
+        async with self.sf() as session:
+            await self._project(session, owner, project_id)
+        now = self.clock_ms()
+        policy = self._policy
+        return {
+            "schema": "platform-qa-export-capabilities.v1",
+            "project_id": project_id,
+            "checked_at_ms": now,
+            "enabled": policy.enabled,
+            "software_archive_sha256": policy.software_archive_sha256 if policy.enabled else None,
+            "max_response_bytes": policy.max_response_bytes,
+            "max_total_response_bytes": policy.max_total_response_bytes,
+            "grants": [g.model_dump() for g in policy.grants if policy.enabled and g.owner_id == owner and g.project_id == project_id and now < g.expires_at_ms],
+            "execution_authorized": False,
+            "approval": False,
+            "verdict": "NOT_EVALUATED",
+        }
+
     async def create(self, owner, project_id, export_id, payload):
         _identifier(export_id)
         payload = ExportCreate.model_validate(payload.model_dump())

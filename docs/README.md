@@ -1,5 +1,9 @@
 # DevPilot 文档导航与设计基线
 
+## 当前追加：授权配置导出工作台（2026-11-10）
+
+[显式导出、原 ID 对账与有界下载](DevPilot_Authorized_QA_Export_Workspace.md)：datasets 界面加载精确 policy/grant/冻结来源，三份创建同意、单独下载同意、page-memory pending 和跨项目锁；未知 PUT/GET404 只查询原 ID。metadata discovery 不读敏感数据，下载核 exporter/receipt pin 与大小；不启用执行、不自动取软件/传输接收方或部署。候选仍为 eval_0013，门禁/提交/精确 SHA CI 分别记录。
+
 ## 当前追加：平台授权 QA 配置导出候选（2026-11-10）
 
 [授权、分级、API 与安装验证](DevPilot_Authorized_QA_Exports.md)：默认关闭、精确 operator grant、人类 owner 与分离同意；骨架或获准 baseline 全量输入，ALL 请求值需重新绑定。加密不可变 ZIP、源快照复核、原 ID GET 对账与顺序审计。候选 eval_0013；无 UI/执行许可/金标或验收集输入/结果导入/正式批准/部署。

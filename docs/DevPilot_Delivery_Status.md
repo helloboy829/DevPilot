@@ -1,5 +1,13 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## Authorized configuration export workspace local verification (2026-11-10)
+
+[工作台合同 / Workspace contract](DevPilot_Authorized_QA_Export_Workspace.md)接通已交付 exporter：显式 policy/grant/冻结来源、三份创建确认、独立下载确认、原 ID GET-only 对账、跨项目 pending/锁和有界 ZIP pin 校验。新增 owner/human/read-only policy metadata，无敏感 SQL/key；候选仍为 eval_0013，无新增依赖/迁移/权限 action、部署或真实调用。本模块最终本地门禁已通过；资源、提交和新 SHA CI 分别核验，不由本地成功推断已交付。
+
+上一模块精确 SHA `8b43028c8f1faa062ebd789e40241931a02bde76` 的五项实际 push Actions 已核验全成功：Unit `42834487025`、Frontend `42834486900`、Blocking `42834486912`、Lint `42834487249`、Replay `42834487162`。独立 installed-export/distribution/default-install jobs 亦成功；这是上一模块，不是本轮 UI 的 CI。
+
+本轮最终本地结果：后端专项 **71 passed**，标准后端 **13,260 passed / 19 skipped / 11 deselected / 40 warnings**，领域 **15 / 58 passed**，Blocking IO **72 passed**；Ruff **1,271 files** 和离线锁通过。前端专项 **19 passed**、完整 **155 files / 1,312 passed**，lint/typecheck/整个 frontend Prettier、production build 及原六路由性能预算通过；真实合成 API ZIP 浏览器专项 **5 passed**、完整 Chromium **236 passed**、认证恢复 **2 passed**，浏览器零重试。原接口/expiry/schema/type/format 红灯保留，不弱化断言或跳过原门禁。1,391 / 852 份受测公开源码与宿主一致，初始 72 份证据导出验 hash；最终文档、专用资源、提交归档和 exact-SHA Actions 独立核验。不是 Windows、真实用户/目标、部署或正式批准验收。
+
 ## Authorized QA configuration export candidate (2026-11-10)
 
 The [recipient/grant-bound exporter](DevPilot_Authorized_QA_Exports.md) adds default-disabled human/owner API creation, immutable encrypted configuration ZIPs and ordered audit. Existing CLI plus separately pinned software; skeleton or explicitly authorized ALL baseline inputs never include request values, acceptance/gold or historic outputs. ALL request values must be rebound. Candidate head is `eval_0013`; no UI, runtime deployment, execution permission, result import or approval.
