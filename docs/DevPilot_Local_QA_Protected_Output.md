@@ -64,7 +64,9 @@ python -I -m devpilot.local_qa_output reconcile-purge --directory ORIGINAL_RESUL
 
 顺序为独占锁验证 → 独占写/fsync `output-purge-request.json` → 再核文件 identity → **一次精确 unlink** → directory fsync → 独占完成 receipt。无递归或 glob，不删 journal、身份 receipt、key、明文副本或其他文件。不确定删除仅对原 ID 只读对账，不能再写 intent、再删或修复。`reconcile-purge` 不需要 key，仅检查静态 receipt 与存在性；absent 不证明 secure erasure。
 
-**尚未完成：取消、硬退出或半写输出的独立授权保留处置。** 不为清理放宽完整性，不把未认证 partial 宣称清理成功。备份、文件系统快照、SSD、swap/进程内存及已打开明文副本均不在安全擦除证明范围内。
+`devpilot.local_qa_retention` 现在提供一个独立的 receipt-first 基础模块：它在输出文件出现前持久化冻结身份，检查只返回未认证技术 metadata，到期后要求原 ID、receipt hash、ciphertext hash 和单独同意，并对 unlink/fsync/完成回执不确定结果提供同 ID 只读对账。它不读取或认证半写内容，不修复、不续跑、不重发，也不声明安全擦除。
+
+**仍未完成：** 取消、硬退出或半写输出的更广泛运行时编排和 CLI 自动接入。备份、文件系统快照、SSD、swap/进程内存及已打开明文副本均不在安全擦除证明范围内。
 
 ## 6. 锁定软件分发 / Locked distribution
 

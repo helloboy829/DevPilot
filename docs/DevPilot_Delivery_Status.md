@@ -1,5 +1,13 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+## 未完成本地输出保留治理基础模块（2026-11-14）
+
+新增 `devpilot.local_qa_retention` 纯本地治理模块，为尚未完成或崩溃的本地 QA 输出建立先 receipt、后输出的固定身份记录，并提供不认证内容的只读检查、到期后一次性显式清理和同 ID 只读对账。未知 unlink/fsync/完成回执结果不会重试、再次删除、修复、续跑或重发；清理不是安全擦除证明，也不授予平台 provenance、PASS 或批准。
+
+本轮使用 Docker 中 Python 3.12.16 环境完成专项 **14 passed**、本地 QA 联合回归 **236 passed**，Ruff 通过。该模块目前是可复用纯 API，尚未接入 CLI 的崩溃恢复自动流程；取消/硬退出后更广泛的运行时编排、平台批准、QA 调度和部署验收仍未完成。新提交的精确 SHA Actions 需独立核验。
+
+English: `devpilot.local_qa_retention` adds receipt-first, content-unverified inspection, explicit one-shot expired disposal and same-ID read-only reconciliation for incomplete local output. Unknown filesystem outcomes never retry, delete again, repair, resume or resend. The primitive is tested but is not a platform evidence, PASS, approval or secure-erasure mechanism; broader runtime integration and exact-SHA CI remain separate gates.
+
 ## 本地 QA 加密输出与保留候选（2026-11-11）
 
 上一模块 `e5af8fd44faa0e2726e87fae11d1e002dc33ef3f` 已推送，六项实际 Actions / 11 jobs 全部核验成功：Lint `42882229689`、Blocking `42882229556`、E2E `42882229676`、Unit `42882229441`、Replay `42882229263`、Frontend `42882229324`。这些结果只属于该 SHA，不代表当前未提交改动或部署。
