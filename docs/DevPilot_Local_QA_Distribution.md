@@ -2,7 +2,7 @@
 
 ## 2026-11-11 接续：native-qualified v2
 
-[加密输出模块](DevPilot_Local_QA_Protected_Output.md)使 cryptography 成为 devpilot 直接依赖，复用已锁定的 cryptography/cffi/pycparser，闭包从九项增加到 **12**，第一方源码 **36** 项。新 `local-qa-distribution.v2` 明确 CPython 3.12 native platform；支持 profile 静态校验不等于该平台实际安装验收。旧 v1/35-member/pure-wheel 验证记录保留为历史，不改写原档案或以其证明 v2。六项 build-lock 工具不变。
+[加密输出模块](DevPilot_Local_QA_Protected_Output.md)使 cryptography 成为 devpilot 直接依赖，复用已锁定的 cryptography/cffi/pycparser，闭包从九项增加到 **12**，第一方源码 **37** 项。新 `local-qa-distribution.v2` 明确 CPython 3.12 native platform；支持 profile 静态校验不等于该平台实际安装验收。旧 v1/35-member/pure-wheel 验证记录保留为历史，不改写原档案或以其证明 v2。六项 build-lock 工具不变。
 
 English: v2 pins native crypto wheels and the full 12-package closure. Both exact wheel bytes and fresh no-system-site offline installs are required; declared archive hashes do not establish provenance, data-export consent or execution authority. Legacy plaintext remains separately explicit.
 
@@ -13,7 +13,7 @@ English: v2 pins native crypto wheels and the full 12-package closure. Both exac
 此前实际 wheel/CLI 验证依赖后端已安装的 HTTPX 环境，只证明代码可以独立导入，**不能证明新环境能够完整安装**。本模块补齐独立软件的依赖锁定、完整第一方成员核验和真实新 venv 安装，不提供平台数据导出权限或第二套 runner。
 
 - `scripts/build_local_qa_distribution.py`：标准库、显式输入、无网络的构建器，仅支持 Python **3.12**。
-- `devpilot/distribution/source-members.txt`：完整公开包成员 allowlist，目前 **35** 项，包含旧 toolkit/evaluation/reporting，而不只核验 QA 的十三个入口/核心。测试检查清单覆盖整个源码包。新成员必须显式审阅更新，untracked/额外 wheel 成员不自动入包。
+- `devpilot/distribution/source-members.txt`：完整公开包成员 allowlist，目前 **37** 项，包含旧 toolkit/evaluation/reporting 与 local QA retention，而不只核验 QA 的入口/核心。测试检查清单覆盖整个源码包。新成员必须显式审阅更新，untracked/额外 wheel 成员不自动入包。
 - 运行依赖取自已有 `backend/uv.lock`：HTTPX/HTTPCore/h11/certifi/AnyIO/idna/typing-extensions/openpyxl/et-xmlfile，共九项。版本、原始 wheel SHA256、大小、官方 URL 和 Python 3.12 的依赖/marker 图必须一致；不调用 resolver 升级、增加 runtime 依赖或重打包第三方 wheel。
 - 第一方 wheel 来自显式选定的可信源；全部源码逐 bytes 一致，METADATA/WHEEL/RECORD 逐项检查，拒绝额外模块、entry_points、`.pth`、路径逃逸、重复/大小写冲突和非 regular 成员。
 - 六项构建工具另由 `build-requirements.lock` 固定版本及官方原始 wheel hash；只用于新建构建 venv，不放入运行软件包，也不改变后端/runtime 依赖。Python 3.12 不需要条件构建依赖 tomli。
