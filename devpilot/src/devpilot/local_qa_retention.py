@@ -312,7 +312,17 @@ def _validate_disposal(value: dict, *, run_id: str, manifest_fingerprint: str, d
     return value
 
 
-def dispose_incomplete_output(directory, *, expected_run_id: str, expected_manifest_fingerprint: str, source_ciphertext_sha256: str, retention_receipt_sha256: str, disposal_id: str, confirm_incomplete_output_disposal: bool, now_ms=None) -> dict:
+def dispose_incomplete_output(
+    directory,
+    *,
+    expected_run_id: str,
+    expected_manifest_fingerprint: str,
+    source_ciphertext_sha256: str,
+    retention_receipt_sha256: str,
+    disposal_id: str,
+    confirm_incomplete_output_disposal: bool,
+    now_ms=None,
+) -> dict:
     if confirm_incomplete_output_disposal is not True or not _uuid(disposal_id) or not _hash(source_ciphertext_sha256) or not _hash(retention_receipt_sha256):
         raise ValueError(_ERROR)
     try:
