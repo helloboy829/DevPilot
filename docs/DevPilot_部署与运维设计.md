@@ -19,8 +19,7 @@ Compose 入口默认发布到 127.0.0.1；Gateway 的容器内 0.0.0.0 不是对
 
 ## 2. 当前部署阻断
 
-backend 依赖 ../devpilot，而当前 Dockerfile 未完整拷贝该包；先修 builder、runtime、editable 安装路径与开发挂载，再声称容器可用。本轮未执行 Docker build。
-本机缺完整依赖/正式配置，未启动服务；纯工具测试通过不替代镜像健康检查。
+**已修复（2026-11-12）**：backend 依赖 ../devpilot，早期 Dockerfile 未拷贝该包，`uv sync` 以 `Distribution not found at: file:///app/devpilot` 失败。现 builder 在同步依赖前拷贝 `devpilot`，runtime 从 builder 复制 `/app/devpilot`，开发 Compose 挂载 `../devpilot` 到同一路径；回归见 `backend/tests/test_backend_image_devpilot.py`。本地已完成干净构建、四容器 healthy 与 `eval_0014` 迁移核验，异机/Linux CI 构建仍需单独确认。
 
 ## 3. 目标部署形态
 

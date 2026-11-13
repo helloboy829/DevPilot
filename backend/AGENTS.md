@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Backend image ships the sibling toolkit (2026-11-12)
+
+`backend/pyproject.toml` resolves `devpilot` as an editable sibling path, so the image must contain `/app/devpilot` before `uv sync` and after the builder stage; the runtime stage copies it from the builder because the editable install points at source, not a wheel. Development Compose mounts `../devpilot` at the same path. A clean build previously failed with `Distribution not found at: file:///app/devpilot`. `test_backend_image_devpilot.py` pins builder ordering, the runtime copy and the dev mount; keep all three consistent rather than working around the failure in a local override. No runtime semantics, dependencies or migrations change.
+
 ## Local encrypted-output regressions (2026-11-11)
 
 `test_local_qa_protected_output.py` must exercise the actual shared collector/run/journal, pre-dispatch identity, ALL counts, tampering, separate consent, expiry, no-wait descriptor locks, uncertain writes/deletes and repeated-cancellation draining with synthetic DNS/wire and socket sends denied. Keep legacy explicit plaintext behavior. Runtime now directly declares cryptography at existing locked versions; v2 native-qualified distribution verifies 12 original wheels/36 source members and fresh full offline installs, not no-deps/source fallback. Actual installed CLI must cover encrypted output/open/purge and same-ID reconciliation; skipped artifact-dependent tests do not establish installed acceptance. No production key, migration, deployment, real calls or approval. [Contract](../docs/DevPilot_Local_QA_Protected_Output.md).

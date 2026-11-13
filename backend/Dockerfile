@@ -52,6 +52,12 @@ WORKDIR /app
 # Copy backend source code
 COPY backend ./backend
 
+# backend/pyproject.toml depends on the sibling toolkit via an editable path
+# source (`devpilot = { path = "../devpilot", editable = true }`), so the
+# package must exist at /app/devpilot before `uv sync` resolves the workspace.
+# Without it the build fails with "Distribution not found at: file:///app/devpilot".
+COPY devpilot ./devpilot
+
 # Install dependencies with cache mount
 # `redis` is always installed because Docker Compose defaults the stream bridge
 # to Redis (DEER_FLOW_STREAM_BRIDGE_REDIS_URL); it is an optional extra elsewhere
@@ -118,6 +124,10 @@ WORKDIR /app
 
 # Copy backend with pre-built virtualenv from builder
 COPY --from=builder /app/backend ./backend
+
+# The builder's editable `devpilot` install resolves to /app/devpilot/src, so the
+# package source must ship with the runtime image even though it is not a wheel.
+COPY --from=builder /app/devpilot ./devpilot
 
 # Expose Gateway API port.
 EXPOSE 8001

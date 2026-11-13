@@ -23,7 +23,7 @@
 | F01 / P0 | **核心已修复（2026-11-07）**：全失败/零请求/无有效窗口不能 PASS，必需 p95 缺失不再跳过；见新增回归 | Gateway/真实负载与更完整有效性验收仍待完成 |
 | F02 / P0 | **缺证据门禁已修复（2026-11-07）**：必需 TTFT 缺失、无效或覆盖成功请求不全时 FAIL；无阈值不要求 TTFT | 能力适用性、NOT_APPLICABLE/UNAVAILABLE 状态、缓冲检测与方案阶段拒绝仍待实现 |
 | F03 / P0 | **已复现**：API/前端接收 structure/reference_values/field_completeness，effect_eval 不支持 | 实现并测试或入口 422/隐藏；能力声明一致 |
-| F04 / P0 | **静态发现**：backend 依赖 ../devpilot；Dockerfile 构建/运行未拷贝包 | builder/runtime/开发挂载一致；干净构建和容器 import；本轮未实际构建 |
+| F04 / P0 | **已修复（2026-11-12）**：镜像构建曾在 `uv sync` 失败（`Distribution not found at: file:///app/devpilot`）；builder 先 `COPY devpilot ./devpilot`，runtime 从 builder 复制 `/app/devpilot`，开发 Compose 挂载同一路径；测试见 `backend/tests/test_backend_image_devpilot.py` | 已完成干净构建、四容器 healthy、`eval_0014` 迁移到最新 head 的本地核验；仍需 Linux CI 与异机构建复核 |
 | F05 / P0 | **统一出站基线已补强（2026-11-07）**：调试/手动/定时共享固定 DNS/IP、origin/Host/SNI 与 TLS 校验；手动准入先校验，standalone 不再关闭 TLS | 见[本轮边界](DevPilot_导航与统一出站基线.md)；精确主机白名单、私网单独批准、禁止重定向/代理环境，内部 CA 由管理员信任；完整请求版本、凭据引用和真实环境验收仍待实现 |
 | F06 / P0 | **静态发现**：ORM api_token 为明文 Text，通用 to_dict 返回映射字段 | credential_ref、存储加密、DTO 排除；所有响应/日志/报告泄密回归；未声称跨用户攻击已证实 |
 | F07 / P0 | **静态发现**：params 任意字典无统一上限，create_task 无界排队 | 强类型限额、全局/用户配额、429、负载许可；拒绝 NaN/负值/超大值 |

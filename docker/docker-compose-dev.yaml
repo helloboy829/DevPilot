@@ -192,6 +192,11 @@ services:
       # take effect on `make docker-restart` without requiring an image rebuild.
       - ./dev-entrypoint.sh:/usr/local/bin/dev-entrypoint.sh:ro
       - ../backend/:/app/backend/
+      # backend depends on the sibling toolkit as an editable path source
+      # (`devpilot = { path = "../devpilot" }`). The image bakes it in at
+      # /app/devpilot; bind-mounting the host copy keeps dev edits visible and
+      # keeps the resolved path identical to the builder/runtime images.
+      - ../devpilot/:/app/devpilot/
       # Preserve the .venv built during Docker image build — mounting the full backend/
       # directory above would otherwise shadow it with the (empty) host directory.
       - gateway-venv:/app/backend/.venv
