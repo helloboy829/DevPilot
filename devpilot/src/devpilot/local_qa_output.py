@@ -223,10 +223,13 @@ class EncryptedOutputStore:
     """Exclusive descriptor, authenticated sequence/chain, no write retry."""
 
     def __init__(self, directory, run_id, manifest, protection):
+        from .local_qa_retention import create_retention_receipt
+
         if type(protection) is not LocalOutputProtection:
             raise ValueError(_ERROR)
         self.lock = threading.Lock()
         self.descriptor = None
+        self.retention = None
         self.sequence = 0
         self.previous = "0" * 64
         self.size = 0
@@ -245,10 +248,11 @@ class EncryptedOutputStore:
         }
         _binding(self.binding, run_id, manifest.fingerprint)
         path = Path(directory).absolute()
-        path.mkdir(mode=0o700)
-        _directory(path)
-        self.descriptor = os.open(path / _FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
         try:
+            # Identity must survive a hard exit before even the header exists.
+            # The same lease excludes disposal through creation and final close.
+            self.retention = create_retention_receipt(path, run_id, manifest, retention_seconds=protection.retention_seconds, now_ms=lambda: created)
+            self.descriptor = os.open(path / _FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
             _lock(self.descriptor, exclusive=True)
             self._append("header", {})
             _sync_directory(path)
@@ -287,9 +291,14 @@ class EncryptedOutputStore:
 
     def close(self):
         with self.lock:
-            if self.descriptor is not None:
-                descriptor, self.descriptor = self.descriptor, None
-                os.close(descriptor)
+            try:
+                if self.descriptor is not None:
+                    descriptor, self.descriptor = self.descriptor, None
+                    os.close(descriptor)
+            finally:
+                if self.retention is not None:
+                    retention, self.retention = self.retention, None
+                    retention.close()
 
 
 @contextmanager

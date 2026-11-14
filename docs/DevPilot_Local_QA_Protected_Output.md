@@ -70,7 +70,11 @@ python -I -m devpilot.local_qa_output reconcile-purge --directory ORIGINAL_RESUL
 
 receipt 是可信本地文件系统上的**未认证声明**，hash 不是签名或平台来源证明；一致伪造无法据此认证。该无 key API 不区分完整、半写或损坏 ciphertext，`content_status=not_inspected` 不证明输出未完成；明确同意只授权清理指定原文件，不授权内容访问。旧结果目录不补造 receipt。原先持 key 的完整认证 `purge-expired` 入口保持独立，不能由此模块推断 Windows 删除持锁文件已经验收。
 
-**仍未完成：** 取消、硬退出或半写输出的更广泛运行时编排和 CLI 自动接入。备份、文件系统快照、SSD、swap/进程内存及已打开明文副本均不在安全擦除证明范围内。
+2026-11-14：`EncryptedOutputStore`（含真实 CLI）现在先创建全新目录、同步父目录、持久化 retention 锁和 receipt，再创建 ciphertext；receipt 与认证 header 使用同一原 ID、创建时间和到期时间。运行期间持有同一 retention 独占 lease，输出 descriptor 关闭后才释放；已有 off-loop/drain 路径在重复取消后排空创建、加密和 journal 工作。回执短写、fsync、close 或目录同步不确定时不创建输出、journal 或派发，不修复或重试。输出 open/header/sync 失败保留可只读检查的原 receipt；真实子进程在 receipt、header 和首 attempt 后硬退出也只授予原 ID 检查，不授予续跑。保留期不从重启或首次检查重新计算。
+
+该接入仅创建身份记录并排除活跃 writer 的处置，不自动删除任何文件，也不改变 plaintext 模式。新 run 的 `--confirm-encrypted-output` 仍只确认加密写入；处置必须另行确认原 ID/hash 和 `confirm_incomplete_output_disposal=True`。`run-receipt.json` 仍在 journal 创建后、任何 start/reserve/DNS/send 前写入，与输出前的 retention receipt 分别建模。旧目录不补造 receipt。
+
+**仍未完成：** 用户可直接操作的 retention 管理命令、明文副本及更广泛崩溃产物治理、Windows 实际安装/持锁删除验收。备份、文件系统快照、SSD、swap/进程内存及已打开明文副本均不在安全擦除证明范围内。
 
 ## 6. 锁定软件分发 / Locked distribution
 
@@ -86,7 +90,7 @@ CPython 3.12 的 Linux glibc x86_64/aarch64、Windows amd64、macOS arm64 有明
 
 Explicit operator-key Fernet output reuses the one shared local execution chain. Separate consent, ALL frozen denominators, immutable v1 identities, bounded authenticated header/attempt/final chains, no-wait locks, fsync and repeated-cancellation draining are mandatory. No default key, implicit plaintext, retry, resume, resend, platform provenance or approval is added. Sensitive opening authenticates the complete stream before creating a new private literal copy and retains the same source lock across both passes. Expiry is an application read gate, not cryptographic revocation; copies and incomplete/crashed outputs still require separately authorized retention governance.
 
-Expired, completely authenticated source files require original ID/hash confirmation and an exclusive intent-before-one-unlink sequence. Unknown deletion only reconciles the same IDs read-only; absence is not secure erasure. The separate content-unverified retention primitive adds no authentication or automatic CLI integration. The platform-qualified v2 software archive now contains 12 original hash-locked runtime wheels and 37 first-party sources; six build tools remain separate. Only actual tested platforms may claim installation acceptance. No deployment, real model/target call, business-data import or formal approval is implied.
+Expired, completely authenticated source files require original ID/hash confirmation and an exclusive intent-before-one-unlink sequence. Unknown deletion only reconciles the same IDs read-only; absence is not secure erasure. Encrypted runtime/CLI output now creates its separate content-unverified retention receipt before ciphertext and holds its lease through close; disposal remains explicitly consented and management commands are unfinished. The platform-qualified v2 software archive now contains 12 original hash-locked runtime wheels and 37 first-party sources; six build tools remain separate. Only actual tested platforms may claim installation acceptance. No deployment, real model/target call, business-data import or formal approval is implied.
 
 ## 本轮验证 / Verification (2026-11-11)
 

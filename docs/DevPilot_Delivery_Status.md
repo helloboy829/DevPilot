@@ -6,16 +6,16 @@
 
 下表描述仓库代码；使用需要部署相应版本并完成账号、权限和 operator 配置。
 
-| 能力                                                     | 代码状态                    | 使用边界                                                   |
-| -------------------------------------------------------- | --------------------------- | ---------------------------------------------------------- |
-| 项目/组件、QA 导入复核冻结、请求版本、冻结计划/v2 标准   | 已实现                      | 计划/hash 不授予执行权限；请求值与金标分离保护             |
-| 独立准入、有界 QA Worker、加密采集、人工复核、全样本汇总 | 已实现，执行默认关闭        | 未知交付不重发；采集成功/阈值达标不等于批准                |
-| 历史报告/Word 草稿、同基准复测                           | 已实现                      | 草稿与比较不自动批准、不自动再执行                         |
-| 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF  | 候选代码已实现，未部署      | `eval_0010..0012`；旧 owner 路径保持独立                   |
-| 授权配置导出与外部技术元数据隔离接收                     | 候选代码已实现，未部署      | `eval_0013..0014`；不接纳敏感输出为可信证据                |
-| 独立本地 QA 命令、共享核心、锁定软件分发、加密输出       | 候选代码已实现              | 默认离线；真实发送与输出模式分别同意                       |
-| 未完成/损坏本地输出的保留治理                            | 独立 API 已实现，CLI 未接入 | 未认证技术声明；指定 ID/hash、显式到期处置；无安全擦除保证 |
-| 聊天、私有助手、请求调试、旧定时评测、模型管理           | 兼容入口保留                | 模型调用需配置与授权；旧调度不代表新 QA 链调度完成         |
+| 能力                                                     | 代码状态                         | 使用边界                                                            |
+| -------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------- |
+| 项目/组件、QA 导入复核冻结、请求版本、冻结计划/v2 标准   | 已实现                           | 计划/hash 不授予执行权限；请求值与金标分离保护                      |
+| 独立准入、有界 QA Worker、加密采集、人工复核、全样本汇总 | 已实现，执行默认关闭             | 未知交付不重发；采集成功/阈值达标不等于批准                         |
+| 历史报告/Word 草稿、同基准复测                           | 已实现                           | 草稿与比较不自动批准、不自动再执行                                  |
+| 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF  | 候选代码已实现，未部署           | `eval_0010..0012`；旧 owner 路径保持独立                            |
+| 授权配置导出与外部技术元数据隔离接收                     | 候选代码已实现，未部署           | `eval_0013..0014`；不接纳敏感输出为可信证据                         |
+| 独立本地 QA 命令、共享核心、锁定软件分发、加密输出       | 候选代码已实现                   | 默认离线；真实发送与输出模式分别同意                                |
+| 未完成/损坏本地输出的保留治理                            | 加密运行时已接入，管理命令未完成 | 输出前 durable receipt；指定 ID/hash、显式 API 处置；无安全擦除保证 |
+| 聊天、私有助手、请求调试、旧定时评测、模型管理           | 兼容入口保留                     | 模型调用需配置与授权；旧调度不代表新 QA 链调度完成                  |
 
 入口与操作见[README](../README.md)、[文档导航](README.md)和[工作台范围](DevPilot_Evaluation_Workspace.md)。
 
@@ -33,13 +33,13 @@
 
 ## 最近验证
 
-- 后端最终完整离线回归：**13,383 passed / 75 skipped / 11 deselected / 40 warnings**，924.71s。本地未启动独占 PostgreSQL，相关专项等按原门禁跳过；远端 CI 的数据库服务测试独立核验。
-- 保留治理专项 **40 passed**、receipt/distribution 联合 **112 passed**、本地 QA/API-installed/Blocking IO 联合 **490 passed**；归属与 RunManager **161 passed**。领域 **15 / 58 passed**，完整后端 Ruff check/format **1,280 files** 通过。
+- 运行时接入后的最终完整离线回归：**13,393 passed / 77 skipped / 11 deselected / 40 warnings**，791.25s。本地为默认 dev 安装，未安装 PostgreSQL extra 或启动独占 PostgreSQL；相关专项等按原门禁跳过。远端数据库服务门禁单独核验。
+- 运行时 CLI/receipt/retention 联合 **210 passed**，含实际软件档案的分发/API 联合 **284 passed**；覆盖输出前 durable receipt、重复取消、真实 module 入口及 receipt/header/首 attempt 硬退出。Blocking IO **72 passed / 2 warnings**，领域 **15 / 58 passed**，完整后端 Ruff check/format **1,280 files** 通过。专项与全量重叠，不相加；基础模块前轮专项与原始失败见交付历史。
 - 新鲜六工具 hash-locked build → sdist/wheel → 12 依赖完整离线安装、新 no-system-site venv 中实际 plaintext/encrypted CLI、打开/清理/原 ID 对账与新 retention API 验证通过。当前软件档案 allowlist 为 **37** 个第一方源码成员。
 
 专项、联合和全量有重叠，不相加；skip 不是通过。前端/浏览器历史通过数没有在本轮本地重跑，Linux 验证不代替 Windows 验收。
 
-修复代码提交 **`0a88d114247e7b7bc880dc76a9e9e8d4e2d89254`** 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43546891747)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43546891689)和[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43546891728)成功。[Unit workflow](https://github.com/helloboy829/DevPilot/actions/runs/43546891714)中完整后端、分发、实际安装导出成功；默认安装 collection job 超过原 10 分钟门禁被取消，整项未通过。新增一次 60 秒后触发的有界调用栈注释用于诊断，只含文件/行号/函数，不含参数、locals 或源码行；不提高 timeout、不减少收集范围、不自动重试。新 SHA 必须再次独立核验。
+基线提交 **`5fa993445400feae0420261231d4a6dd1e6d0bee`** 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43549070559)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43549070532)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43549070615)和 [Unit](https://github.com/helloboy829/DevPilot/actions/runs/43549070550)共 **4 workflows / 8 jobs 全成功**，含默认安装全量 collection、带 PostgreSQL 的完整后端、软件分发与实际安装导出。默认 collection 步骤用时 355s；前一提交的 10m 超时没有确证根因，不宣称已修复。一次 60s 有界诊断保持原门禁，没有扩大 timeout 或自动重试。新 retention 运行时模块的 SHA/CI 另行核验，不能沿用基线结果。
 
 原始红灯、修复原因和逐轮收据见[交付历史](DevPilot_Delivery_History.md)。push、本地通过、CI 成功和部署是独立事实。
 
@@ -48,11 +48,11 @@
 | 优先级 | 工作                                                   | 退出条件                                                                         |
 | ------ | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
 | P0     | 当前源码 CI、环境与候选升级验收闭环                    | 精确 SHA 门禁、当前镜像源码核对、数据/配置保护、隔离迁移及回退演练；部署另行执行 |
-| P1     | 本地 incomplete-output 运行时与 CLI 接入               | 输出前 durable receipt、重复取消/硬退出、原 ID 对账、独立处置同意与实际安装验证  |
+| P1     | 本地 retention 显式管理命令与残留产物治理              | 复用已接入的输出前 receipt；原 ID/hash、独立处置同意、重复取消及实际安装验证     |
 | P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；不能把 case PASS 当批准         |
 | P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入       |
 | P2     | 敏感外部证据治理、CV/流式指标/模型裁判、整改与知识闭环 | 各自授权、隔离、证据/计量与人工审查；缺失指标不填零、不判 PASS                   |
 
 开发环境恢复不必等所有 P1/P2 功能完成；正式质量验收依赖独立批准及相应业务能力。具体交付以模块退出条件为准，项目整体尚未完成。
 
-English: Source capabilities, candidate migrations, exact-commit verification and observed runtime are tracked separately. Business containers were stopped at the recorded observation; no deployment or real calls were performed. Independent approval, runtime retention integration and safe lost-worker/scheduling operations remain open.
+English: Source capabilities, candidate migrations, exact-commit verification and observed runtime are tracked separately. Business containers were stopped at the recorded observation; no deployment or real calls were performed. Encrypted runtime retention receipts are connected; management commands, independent approval and safe lost-worker/scheduling operations remain open.

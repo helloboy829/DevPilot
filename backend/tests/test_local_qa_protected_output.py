@@ -4,7 +4,10 @@ import asyncio
 import json
 import os
 import socket
+import subprocess
+import sys
 import threading
+from pathlib import Path
 from uuid import uuid4
 
 import httpx
@@ -369,6 +372,11 @@ async def test_repeated_cancellation_drains_encryption_before_closing_journal(ca
         task.cancel()
         await asyncio.sleep(0.02)
         assert not task.done() and not closed
+        from devpilot.local_qa_retention import inspect_retention
+
+        identity = json.loads((directory / "retention-receipt.json").read_bytes())
+        with pytest.raises(ValueError, match="Local output"):
+            inspect_retention(directory, expected_run_id=identity["run_id"], expected_manifest_fingerprint=case[0].fingerprint)
         journal = LocalJSONJournal.open(directory / "journal.sqlite")
         try:
             assert journal.snapshot().state == "running"
@@ -379,6 +387,7 @@ async def test_repeated_cancellation_drains_encryption_before_closing_journal(ca
         with pytest.raises(asyncio.CancelledError):
             await task
     assert len(closed) == 1
+    assert inspect_retention(directory, expected_run_id=identity["run_id"], expected_manifest_fingerprint=case[0].fingerprint)["output_present"]
     journal = LocalJSONJournal.open(directory / "journal.sqlite")
     try:
         assert journal.snapshot().state == "interrupted"
@@ -529,3 +538,254 @@ def test_future_authenticated_output_rejected_even_for_metadata(case, tmp_path, 
     receipt = inspect(case, directory, snapshot.definition.run_id)
     with pytest.raises(ValueError, match="Local output"):
         inspect(case, directory, snapshot.definition.run_id, now_ms=lambda: receipt["created_at_ms"] - 1)
+
+
+def test_runtime_retention_is_durable_before_header_and_locked_until_close(case, tmp_path, monkeypatch):
+    import devpilot.local_qa_output as output
+    import devpilot.local_qa_retention as retention
+
+    directory = tmp_path / "protected"
+    events = []
+    original_write = retention._write_exclusive
+    original_append = output.EncryptedOutputStore._append
+    original_close = output.EncryptedOutputStore.close
+
+    def write(path, data):
+        original_write(path, data)
+        if path.name == "retention-receipt.json":
+            events.append("durable-receipt")
+            assert not (directory / "observations.encrypted.jsonl").exists()
+
+    def check_locked(store):
+        with pytest.raises(ValueError, match="Local output"):
+            retention.inspect_retention(directory, expected_run_id=store.binding["run_id"], expected_manifest_fingerprint=case[0].fingerprint)
+
+    def append(self, kind, record):
+        if kind == "header":
+            assert events == ["durable-receipt"]
+            receipt = json.loads((directory / "retention-receipt.json").read_bytes())
+            for field in ("run_id", "manifest_fingerprint", "created_at_ms", "expires_at_ms", "retention_seconds"):
+                assert receipt[field] == self.binding[field]
+            for field in retention._FROZEN:
+                assert receipt[field] == getattr(case[0], field)
+            events.append("header")
+        check_locked(self)
+        return original_append(self, kind, record)
+
+    def close(self):
+        check_locked(self)
+        original_close(self)
+        events.append("closed")
+
+    monkeypatch.setattr(retention, "_write_exclusive", write)
+    monkeypatch.setattr(output.EncryptedOutputStore, "_append", append)
+    monkeypatch.setattr(output.EncryptedOutputStore, "close", close)
+    snapshot, sent = execute(case, directory, monkeypatch)
+    assert events == ["durable-receipt", "header", "closed"] and len(sent) == 5
+    receipt = retention.inspect_retention(directory, expected_run_id=snapshot.definition.run_id, expected_manifest_fingerprint=case[0].fingerprint)
+    assert receipt["output_present"] and not receipt["output_integrity_verified"]
+    assert receipt["verdict"] == "NOT_EVALUATED" and not receipt["resend_permitted"]
+
+
+@pytest.mark.parametrize("failure", ["short-write", "fsync", "close", "directory-sync"])
+def test_uncertain_runtime_retention_never_creates_output_or_retries(case, tmp_path, monkeypatch, failure):
+    import devpilot.local_qa_retention as retention
+
+    directory = tmp_path / "protected"
+    original_write = retention._write_exclusive
+    attempts = []
+
+    def fail(*_args):
+        raise OSError("SYNTHETIC_UNCERTAIN_RETENTION")
+
+    def write(path, data):
+        if path.name != "retention-receipt.json":
+            return original_write(path, data)
+        attempts.append(path.name)
+        real_write, real_close = os.write, os.close
+
+        def close(descriptor):
+            real_close(descriptor)
+            fail()
+
+        with monkeypatch.context() as patch:
+            if failure == "short-write":
+                patch.setattr(os, "write", lambda fd, payload: real_write(fd, payload[:1]))
+            elif failure == "fsync":
+                patch.setattr(os, "fsync", fail)
+            elif failure == "close":
+                patch.setattr(os, "close", close)
+            else:
+                patch.setattr(retention, "_sync_directory", fail)
+            return original_write(path, data)
+
+    monkeypatch.setattr(retention, "_write_exclusive", write)
+    for _ in range(2):
+        with pytest.raises(ValueError, match="Local output"):
+            execute(case, directory, monkeypatch)
+        assert attempts == ["retention-receipt.json"]
+        assert not (directory / "observations.encrypted.jsonl").exists()
+        assert not (directory / "journal.sqlite").exists()
+        assert not (directory / "run-receipt.json").exists()
+
+
+@pytest.mark.parametrize("failure", ["open", "header", "directory-sync"])
+def test_output_creation_failure_leaves_original_retention_readable(case, tmp_path, monkeypatch, failure):
+    import devpilot.local_qa_output as output
+    from devpilot.local_qa_retention import inspect_retention
+
+    directory = tmp_path / "protected"
+    real_open = os.open
+
+    def fail(*_args):
+        raise OSError("SYNTHETIC_OUTPUT_CREATION_FAILURE")
+
+    def open_file(path, *args):
+        if Path(path).name == "observations.encrypted.jsonl":
+            fail()
+        return real_open(path, *args)
+
+    with monkeypatch.context() as patch:
+        if failure == "open":
+            patch.setattr(os, "open", open_file)
+        elif failure == "header":
+            patch.setattr(output.EncryptedOutputStore, "_append", fail)
+        else:
+            patch.setattr(output, "_sync_directory", fail)
+        with pytest.raises(OSError, match="SYNTHETIC_OUTPUT_CREATION_FAILURE"):
+            execute(case, directory, monkeypatch)
+    receipt = json.loads((directory / "retention-receipt.json").read_bytes())
+    result = inspect_retention(directory, expected_run_id=receipt["run_id"], expected_manifest_fingerprint=case[0].fingerprint)
+    assert result["output_present"] is (failure != "open")
+    assert not result["output_integrity_verified"] and not result["resend_permitted"]
+    assert not (directory / "journal.sqlite").exists()
+
+
+@pytest.mark.asyncio
+async def test_repeated_cancellation_drains_retention_creation_before_releasing_lock(case, tmp_path, monkeypatch):
+    import devpilot.local_qa_retention as retention
+
+    directory = tmp_path / "protected"
+    entered, release = threading.Event(), threading.Event()
+    original = retention._write_exclusive
+    calls = []
+
+    def write(path, data):
+        if path.name == "retention-receipt.json":
+            calls.append(path.name)
+            entered.set()
+            assert release.wait(10)
+        return original(path, data)
+
+    monkeypatch.setattr(retention, "_write_exclusive", write)
+    prepared = preflight(**{name + "_file": path for name, path in case[1].items()})
+    task = asyncio.create_task(
+        execute_local(
+            prepared,
+            directory,
+            policy=LocalOutboundPolicy(("example.test",)),
+            confirm_send=case[0].fingerprint,
+            confirm_input_use=True,
+            output_protection=LocalOutputProtection.from_key_file(case[2], retention_seconds=300),
+            confirm_encrypted_output=True,
+        )
+    )
+    try:
+        assert await asyncio.to_thread(entered.wait, 10)
+        for _ in range(3):
+            task.cancel()
+            await asyncio.sleep(0)
+        assert not task.done() and not (directory / "observations.encrypted.jsonl").exists()
+    finally:
+        release.set()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    receipt = json.loads((directory / "retention-receipt.json").read_bytes())
+    result = retention.inspect_retention(directory, expected_run_id=receipt["run_id"], expected_manifest_fingerprint=case[0].fingerprint)
+    assert calls == ["retention-receipt.json"]
+    assert result["output_present"] and not result["final_record_verified"]
+    assert json.loads((directory / "run-receipt.json").read_bytes())["run_id"] == receipt["run_id"]
+
+
+@pytest.mark.parametrize("stage", ["receipt", "header", "attempt"])
+def test_actual_cli_hard_exit_preserves_retention_identity_without_resuming(case, tmp_path, stage):
+    from devpilot.local_qa_retention import dispose_incomplete_output, inspect_retention, reconcile_incomplete_disposal
+
+    directory = tmp_path / "protected"
+    script = """
+import asyncio, os, runpy, socket, sys
+import httpx
+from devpilot.local_qa_output import EncryptedOutputStore
+import devpilot.local_qa_retention as retention
+from devpilot.pinned_http import PinnedHTTPTransport
+stage, flags = sys.argv[1], sys.argv[2:]
+def denied(*args, **kwargs): raise AssertionError("Real network forbidden")
+socket.getaddrinfo = denied
+for name in ("connect", "connect_ex", "sendto"): setattr(socket.socket, name, denied)
+async def lookup(self, host, port, **kwargs):
+    return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port))]
+asyncio.BaseEventLoop.getaddrinfo = lookup
+class Body(httpx.AsyncByteStream):
+    async def __aiter__(self): yield b'{"a":"SYNTHETIC_OUTPUT"}'
+    async def aclose(self): pass
+original_init = PinnedHTTPTransport.__init__
+def init(self, *args, **kwargs):
+    original_init(self, *args, **kwargs)
+    self.inner = httpx.MockTransport(lambda request: httpx.Response(200, headers={"content-type":"application/json"}, stream=Body()))
+PinnedHTTPTransport.__init__ = init
+original_write = retention._write_exclusive
+def write(path, data):
+    original_write(path, data)
+    if stage == "receipt" and path.name == "retention-receipt.json": os._exit(23)
+retention._write_exclusive = write
+original_append = EncryptedOutputStore._append
+def append(self, kind, record):
+    original_append(self, kind, record)
+    if kind == stage: os._exit(23)
+EncryptedOutputStore._append = append
+sys.argv = ["devpilot.local_qa_cli", *flags]
+runpy.run_module("devpilot.local_qa_cli", run_name="__main__")
+"""
+    flags = arguments(case[1]) + [
+        "--execute",
+        "--results",
+        str(directory),
+        "--allow-host",
+        "example.test",
+        "--confirm-send",
+        case[0].fingerprint,
+        "--confirm-input-use",
+        "--confirm-encrypted-output",
+        "--output-key-file",
+        str(case[2]),
+        "--output-retention-seconds",
+        "300",
+    ]
+    result = subprocess.run([sys.executable, "-I", "-c", script, stage, *flags], cwd=tmp_path, capture_output=True, timeout=10)
+    assert result.returncode == 23, result.stderr
+    receipt = json.loads((directory / "retention-receipt.json").read_bytes())
+    before = {path.name: path.read_bytes() for path in directory.iterdir() if path.is_file()}
+    options = {"expected_run_id": receipt["run_id"], "expected_manifest_fingerprint": case[0].fingerprint}
+    inspection = inspect_retention(directory, **options)
+    assert inspection["output_present"] is (stage != "receipt")
+    assert not inspection["output_integrity_verified"]
+    assert not inspection["resume_permitted"] and not inspection["resend_permitted"]
+    assert before == {path.name: path.read_bytes() for path in directory.iterdir() if path.is_file()}
+    with pytest.raises(ValueError):
+        inspect(case, directory, receipt["run_id"])
+    assert (directory / "journal.sqlite").exists() is (stage == "attempt")
+    if stage != "receipt":
+        disposal_id = str(uuid4())
+        dispose_incomplete_output(
+            directory,
+            **options,
+            source_ciphertext_sha256=inspection["source_ciphertext_sha256"],
+            retention_receipt_sha256=inspection["retention_receipt_sha256"],
+            disposal_id=disposal_id,
+            confirm_incomplete_output_disposal=True,
+            now_ms=lambda: receipt["expires_at_ms"],
+        )
+        reconciled = reconcile_incomplete_disposal(directory, **options, disposal_id=disposal_id)
+        assert reconciled["output_absent"] and reconciled["completion_receipt_present"] and not reconciled["secure_erasure_proven"]
+        assert all((directory / name).read_bytes() == data for name, data in before.items() if name != "observations.encrypted.jsonl")

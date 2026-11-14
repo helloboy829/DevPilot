@@ -2,6 +2,16 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## 运行时保留身份接入（2026-11-14）
+
+基线 `5fa993445400feae0420261231d4a6dd1e6d0bee` 的四项实际 push Actions / 八个 jobs 全成功：Lint `43549070559`、Blocking `43549070532`、Frontend `43549070615`、Unit `43549070550`。默认安装 collection 步骤 355s，完整后端/独立分发/实际安装导出均成功。前一 `0a88d11` 默认 collection 超过 10m 取消仍保留，不以本轮成功宣称其根因已修复；诊断不改 timeout/范围/重试。隔离默认安装实际收集 13,464 项；首次 git archive 副本缺 `.git` 时四项扫描器收集报错，建立独立空仓库后原命令通过，未修改扫描器或断言。
+
+本模块将 retention 原身份创建接入 `EncryptedOutputStore` 与真实 CLI：先 durable receipt，再 ciphertext，原时间/ID/ALL counts 与预算保持；lease 排除活跃 writer 期间的检查/处置，到输出关闭后释放。原线程 drain 处理重复取消；未知写入不重试、无自动删除或恢复。receipt、header、首 attempt 三个真实子进程硬退出点保留原身份，只读检查及另行确认到期 API 处置；plaintext 与旧目录不补造记录。
+
+新增回归先 **11 failed**；初步接入后加密输出/retention 联合 **100 passed**。实际全新 wheel 安装另暴露 `python -m` 的 `__main__`/规范模块 manifest 类身份不一致；入口改为调用规范模块 main，保留严格类型检查，硬退出回归也改走实际 module 入口。旧全量因该修复中断，不算通过；最终源码重新验证。最终 CLI/receipt/retention 联合 **210 passed**；新鲜六工具构建、12 依赖完整离线安装、真实加密/plaintext mock CLI、受控打开/到期清理和原 ID 核对通过，缺失/篡改 wheel 仍拒绝。软件档案 SHA256 `514aab7028e739441dc037cc016f7f78374f906bb4b18559a2af71e33c0a8ada` 只校验完整性，声明基线不认证 dirty 工作区来源。完整门禁及新 SHA CI 单独记录。
+
+最终完整离线回归 **13,393 passed / 77 skipped / 11 deselected / 40 warnings**（791.25s），领域 **15 / 58 passed**；默认 dev 安装没有 PostgreSQL extra 或独占 PostgreSQL，相关门禁跳过，不冒充通过。带实际 artifact 的 API/分发/输出/receipt 联合 **284 passed**，真实 `make test-blocking-io` **72 passed / 2 warnings**（5.24s）。完整 Ruff check/format **1,280 files** 及三个变更模块通过。未新增依赖/迁移、未部署或真实调用。无 key retention 检查不认证完整性，处置仍需另行同意原 ID/hash；显式管理命令、明文副本治理和 Windows 实际验收未完成。
+
 ## 未完成本地输出保留治理基础模块（2026-11-14）
 
 新增 `devpilot.local_qa_retention` 纯本地治理模块，为尚未完成或崩溃的本地 QA 输出建立先 receipt、后输出的固定身份记录，并提供不认证内容的只读检查、到期后一次性显式清理和同 ID 只读对账。未知 unlink/fsync/完成回执结果不会重试、再次删除、修复、续跑或重发；清理不是安全擦除证明，也不授予平台 provenance、PASS 或批准。

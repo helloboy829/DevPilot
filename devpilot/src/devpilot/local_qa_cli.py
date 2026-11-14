@@ -442,4 +442,8 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # Keep the canonical manifest class identity when invoked with ``python -m``.
+    # Retention validates this type rather than accepting a structural impostor.
+    from devpilot.local_qa_cli import main as installed_main
+
+    raise SystemExit(installed_main())

@@ -91,10 +91,21 @@ legacy_directory=directory
 directory=directory.parent/'encrypted-results'
 sent.clear()
 from cryptography.fernet import Fernet
+from devpilot.local_qa_output import EncryptedOutputStore
+original_append=EncryptedOutputStore._append
+def retained_append(self,kind,record):
+ if kind=='header':
+  receipt=json.loads((directory/'retention-receipt.json').read_bytes())
+  assert receipt['run_id']==self.binding['run_id'] and receipt['manifest_fingerprint']==manifest['fingerprint']
+  assert receipt['created_at_ms']==self.binding['created_at_ms'] and receipt['expires_at_ms']==self.binding['expires_at_ms']
+  assert receipt['input_count']==2 and receipt['request_count']==5 and not receipt['resend_permitted']
+ return original_append(self,kind,record)
+EncryptedOutputStore._append=retained_append
 key=directory.parent/'synthetic-output-key'
 key.write_bytes(Fernet.generate_key()); key.chmod(0o600)
 result=command('devpilot.local_qa_cli',arguments+['--execute','--results',str(directory),'--allow-host','example.test','--confirm-send',manifest['fingerprint'],'--confirm-input-use','--output-key-file',str(key),'--output-retention-seconds','300','--confirm-encrypted-output'])
 assert result['state']=='collected' and len(sent)==5
+EncryptedOutputStore._append=original_append
 assert not (directory/'observations.jsonl').exists()
 assert all(b'SYNTHETIC_OUTPUT' not in p.read_bytes() for p in directory.iterdir() if p.is_file())
 inspected=command('devpilot.local_qa_output',['inspect','--directory',str(directory),'--run-id',result['run_id'],'--manifest-fingerprint',manifest['fingerprint'],'--key-file',str(key)])
@@ -107,8 +118,7 @@ purged=purge_output(directory,key_file=key,expected_run_id=result['run_id'],expe
 assert purged['encrypted_file_removed'] and not purged['secure_erasure_proven']
 reconciled=command('devpilot.local_qa_output',['reconcile-purge','--directory',str(directory),'--run-id',result['run_id'],'--manifest-fingerprint',manifest['fingerprint']])
 assert reconciled['encrypted_file_absent'] and reconciled['completion_receipt_present'] and len(sent)==5
-# The standalone content-unverified API is also exercised from the installed
-# wheel; CLI execution still does not create retention receipts automatically.
+# The standalone content-unverified disposal API remains separately consented.
 from uuid import uuid4
 from devpilot.local_qa_cli import LocalRunManifest
 from devpilot.local_qa_retention import create_retention_receipt, inspect_retention, dispose_incomplete_output, reconcile_incomplete_disposal
