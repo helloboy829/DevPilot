@@ -16,13 +16,18 @@
 
 ## 2. 验收前置（operator 责任）
 
-- [ ] 私有 `config.yaml`、`extensions_config.json` 与凭据由 operator 提供；仓库内不提交。
-- [ ] `DEVPILOT_REQUEST_ENCRYPTION_KEY`（请求版本与证据加密）已按 secret 管理配置；缺失时只验证失败关闭。
+- [ ] 私有 `config.yaml`、`extensions_config.json` 与凭据由 operator 提供；仓库内不提交。- [ ] `DEVPILOT_REQUEST_ENCRYPTION_KEY`（请求版本与证据加密）已按 secret 管理配置；缺失时只验证失败关闭。
 - [ ] 模型目录与 `DEVPILOT_MODEL_ENCRYPTION_KEY`（如启用）独立配置；不把模型 key 当作 QA 目标授权。
 - [ ] 执行策略保持默认关闭；启用需独立 operator 决定、目标 allowlist、权限与显式同意。
 - [ ] 升级前在**在线一致性备份**下完成；确认备份可恢复（SQLite 需含 WAL，恢复会导致备份后写入丢失）。
 - [ ] 账号与角色（admin / 普通 owner / 独立审阅人 / 仲裁人 / 具名审批人）按职责分离准备，至少需要 5 个不同账号才能走完独立复核＋正式批准。
 - [ ] 固定 Compose project、端口、卷与挂载；不启动第二个同端口栈。
+
+## 开发与验证环境提示
+
+- `backend/.venv` 是按锁文件生成的 **Linux Python 3.12** 环境（gitignored），不能在 Windows 宿主直接执行；在 Linux 容器中把仓库挂载到 `/src` 后使用 `/src/backend/.venv/bin/python` 运行测试。
+- Windows 原生开发需要单独准备 Python 3.12 与 uv；不要把 Docker 内生成的 venv 当作宿主环境。
+- 容器只挂载公开源码，不挂载私有配置、业务数据库或客户材料；测试结束按完整 ID 停止并删除本轮容器。
 
 ## 3. 合成工作台验收清单
 
