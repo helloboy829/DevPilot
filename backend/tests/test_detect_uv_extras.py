@@ -264,6 +264,9 @@ def test_resolve_extras_falls_back_to_config(isolated_cwd):
 
 def test_resolve_extras_respects_explicit_config_path(tmp_path, monkeypatch):
     monkeypatch.delenv("UV_EXTRAS", raising=False)
+    # Clear runtime env extras that would interfere with config-based detection
+    monkeypatch.delenv("DEER_FLOW_STREAM_BRIDGE_REDIS_URL", raising=False)
+    monkeypatch.delenv("DEER_FLOW_SANDBOX_OWNERSHIP_REDIS_URL", raising=False)
     elsewhere = tmp_path / "elsewhere.yaml"
     elsewhere.write_text("database:\n  backend: postgres\n")
     monkeypatch.chdir(tmp_path)
