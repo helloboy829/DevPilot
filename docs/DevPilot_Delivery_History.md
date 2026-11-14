@@ -2,6 +2,14 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## 本地完整套件运行（2026-11-15）
+
+在隔离 Python 3.12 容器内以 `git archive HEAD`（对应 `abbdde7` 工作树）重建完整源码副本，使用锁文件 dev 环境运行完整后端离线套件：**13,495 passed / 2 failed / 77 skipped / 11 deselected / 40 warnings**（1923.14s）。首次以 `tar` 手工复制时遗漏 `scripts` 等目录，出现 7 个 collection 错误（含 `support_bundle`），该次结果作废，改用 `git archive` 后重新运行。
+
+两个失败均属临时容器环境，不是本轮改动：`test_config_version` 的 `config-upgrade.sh` 需要 PATH 上的 `uv`，容器未安装导致 127，安装后单独复跑 **1 passed**；`test_local_qa_cli` 的隔离源码子进程在本轮容器内报 `JSONRunStopped`，该测试未被本轮修改，且在同一 SHA 的 CI Unit 中通过。两条均保留为环境观察，不归因于当前源码；精确 SHA CI 仍是权威门禁。
+
+English: a full offline suite on a `git archive` copy reported 13,495 passed with two container-environment failures (missing `uv`, isolated-source `JSONRunStopped`); the same tests pass in the exact-SHA CI. The earlier incomplete tar copy was discarded.
+
 ## 执行诊断聚合安全状态（2026-11-15）
 
 [运维诊断](DevPilot_Execution_Reservation_Diagnostics.md)的 `reservation_snapshot` 在同一聚合 SELECT 中新增 `safety.states`：按[执行安全合同](DevPilot_Execution_Safety_Contract.md)的固定状态码统计持锁行（queued_ready、queued_deadline_reached、running_within_deadline、running_deadline_reached、cancel_requested_pending、interrupted_terminal）。仍不选择执行/run/owner ID、claim/证据列，不取锁、不初始化 guard、不写审计；`worker_liveness=not_established`，释放/回收/重试/调度仍为 false。
@@ -42,7 +50,7 @@ English: a pure synchronous classifier projects one held execution row without e
 
 后续补充专属迁移回归 `tests/test_formal_approval_migrations.py`（本地 **2 passed**，29.05s）：在真实评估/复核/批准行存在时 downgrade 到 `eval_0014`，确认只移除批准两表、其余历史行逐表不变；再 upgrade 到 head，确认空表重建、`devpilot_alembic_version=eval_0015` 与 `compare_metadata` parity；并以真实行验证 `(run_id, revision)` 唯一、decision/action/revision 检查、assessment/run 外键失败关闭。首版测试暴露夹具缺少 `users` 表与 SQLite 未启用外键（**2 failed**），按外部迁移测试既有做法显式建 Harness 表并在连接时启用 `PRAGMA foreign_keys=ON`，未削弱断言；Ruff 通过。该补充随 `fa54cbb` 的 4 workflows 全绿通过精确 SHA CI。
 
-再补充只读审计列表 `GET .../review-runs/{run}/approvals/audit`：按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash`、`at_ms`（最多 1000 条），不返回 note/document/counts 或证据，沿用 read+review 人类权限与 `no-store`。批准/撤销、迁移与审计联合 **24 passed**（51.35s），Ruff 通过；精确 SHA CI 另行记录。
+再补充只读审计列表 `GET .../review-runs/{run}/approvals/audit`：按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash`、`at_ms`（最多 1000 条），不返回 note/document/counts 或证据，沿用 read+review 人类权限与 `no-store`。批准/撤销、迁移与审计联合 **24 passed**（51.35s），Ruff 通过；该审计列表随 `abbdde7` 的 5 workflows 全绿通过精确 SHA CI（Unit `43623795524`）。
 
 English: `eval_0015` adds an append-only, revisioned formal-approval ledger that pins an immutable independent assessment and requires finished collection, complete independent review, a met frozen threshold when defined, an explicit decision, and an approver distinct from the owner and every blind reviewer/arbitrator of that run. Revocation appends a revision with a required reason and audit. Focused, migration, cross-module and Blocking IO gates passed locally in an isolated source-mounted container; exact-SHA CI and Windows acceptance remain separate.
 
