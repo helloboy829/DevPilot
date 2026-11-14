@@ -104,6 +104,6 @@
 | 报告/复测/导出   |      |                                        |
 | 未知写对账       |      |                                        |
 | 备份与回退演练   |      |                                        |
-| Windows 验收     |      |                                        |
+| Windows 验收     |      | 按 [Windows Runbook](DevPilot_Windows_Acceptance.md) 记录 |
 
 English: this package lists the synthetic acceptance path, checklist, rollback limits and non-claims for a source candidate. It does not authorize deployment, external data transfer, real model/target calls, production keys or formal approval; Linux/container evidence does not replace Windows or real-user acceptance.
