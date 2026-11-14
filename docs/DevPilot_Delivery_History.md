@@ -12,7 +12,7 @@ English: one authenticated-workflow test observed an empty sent list in CI attem
 
 紧接着 docs-only `32e4b3e` 的 Unit 再次在 `test_gateway_lifespan_shutdown.py::test_lifespan_preserves_flush_budget_when_retrieval_warm_is_still_running` 失败：flush 预算实测 **1.283s**，断言 `< 1.0`；其余 13,564 passed（710.14s）。该测试依赖真实计时，属于 CI runner 波动；rerun 请求因 API POST 暂时不可达未完成，保留原失败。两者均不改测试或门禁，后续提交的精确 SHA CI 另行核验。
 
-随后 `881f0bd` 的 Unit 第三次在同一 lifespan 测试失败（**1.058s > 1.0s**；前两次 1.283s/1.058s 出现在不同 SHA）。根因是该测试用 1 秒墙钟上限覆盖了与检索预热无关的 shutdown 步骤；改为在释放阻塞线程之前捕获 `warm_returned` 事件并断言 False，同时保留 `shutdown_flush(5.0)` 与 `close` 未调用的断言。连续 5 次单测与整文件 **11 passed**（43.99s），Ruff 通过；没有修改生产代码或延长产品超时。该确定性修复的精确 SHA CI 另行核验。
+随后 `881f0bd` 的 Unit 第三次在同一 lifespan 测试失败（**1.058s > 1.0s**；前两次 1.283s/1.058s 出现在不同 SHA）。根因是该测试用 1 秒墙钟上限覆盖了与检索预热无关的 shutdown 步骤；改为在释放阻塞线程之前捕获 `warm_returned` 事件并断言 False，同时保留 `shutdown_flush(5.0)` 与 `close` 未调用的断言。连续 5 次单测与整文件 **11 passed**（43.99s），Ruff 通过；没有修改生产代码或延长产品超时。确定性修复随 `805c648` 的 Lint/Blocking IO/Frontend/Unit **4 workflows 全绿**通过精确 SHA CI（Unit `43646997095`）。
 
 ## 本地完整套件运行（2026-11-15）
 
