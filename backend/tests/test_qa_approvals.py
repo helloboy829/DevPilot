@@ -190,6 +190,11 @@ async def test_frozen_threshold_never_substitutes_for_or_blocks_a_missing_decisi
     archived = await repo.create_assessment("owner", project, run["id"], ASSESSMENT, assessment_payload(summary))
     unit = approvals(repo)
     target = payload(archived, approver=str(UUID(int=5 + threshold)))
+    preview = await unit.preview_approval("owner", project, run["id"], archived["id"], target.approver_id)
+    assert preview["criteria"]["status"] == expected
+    assert preview["eligible"] is (expected == "met")
+    if expected != "met":
+        assert "criteria_not_met" in preview["blockers"]
     if expected == "met":
         document = await unit.create_approval("owner", project, run["id"], APPROVAL, target)
         assert document["criteria"]["status"] == "met" and document["decision"] == "approved"
