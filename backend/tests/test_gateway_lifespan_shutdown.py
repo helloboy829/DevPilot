@@ -352,7 +352,7 @@ def test_lifespan_does_not_wait_for_retrieval_rebuild_before_serving() -> None:
     assert asyncio.run(_run_lifespan_with_slow_retrieval_warm()) < 1.0
 
 
-async def _run_shutdown_with_blocked_retrieval_warm() -> tuple[float, MagicMock]:
+async def _run_shutdown_with_blocked_retrieval_warm() -> tuple[MagicMock, bool]:
     from app.gateway.app import lifespan
 
     app = FastAPI()
@@ -368,11 +368,13 @@ async def _run_shutdown_with_blocked_retrieval_warm() -> tuple[float, MagicMock]
     fake_service.get_status.return_value = {}
     rebuild_started = threading.Event()
     release_rebuild = threading.Event()
+    warm_returned = threading.Event()
     manager = MagicMock()
 
     def block_rebuild() -> bool:
         rebuild_started.set()
         release_rebuild.wait(5.0)
+        warm_returned.set()
         return True
 
     manager.warm_retrieval.side_effect = block_rebuild
@@ -395,20 +397,20 @@ async def _run_shutdown_with_blocked_retrieval_warm() -> tuple[float, MagicMock]
         context = lifespan(app)
         await context.__aenter__()
         assert await asyncio.to_thread(rebuild_started.wait, 1.0)
-        loop = asyncio.get_running_loop()
-        started_at = loop.time()
         try:
             await context.__aexit__(None, None, None)
         finally:
+            waited_for_warm = warm_returned.is_set()
             release_rebuild.set()
-        shutdown_elapsed = loop.time() - started_at
 
-    return shutdown_elapsed, manager
+    return manager, waited_for_warm
 
 
 def test_lifespan_preserves_flush_budget_when_retrieval_warm_is_still_running() -> None:
-    shutdown_elapsed, manager = asyncio.run(_run_shutdown_with_blocked_retrieval_warm())
+    manager, waited_for_warm = asyncio.run(_run_shutdown_with_blocked_retrieval_warm())
 
-    assert shutdown_elapsed < 1.0
+    # The warm task must still be blocked when shutdown returns: an elapsed-time
+    # bound flaked on loaded CI runners, while this event proves the invariant.
+    assert waited_for_warm is False
     manager.shutdown_flush.assert_called_once_with(5.0)
     manager.close.assert_not_called()
