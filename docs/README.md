@@ -9,6 +9,10 @@
 
 以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
 
+## 2026-11-15：Lost Worker 安全合同（候选，未部署）
+
+[只读分类与明确阻塞](DevPilot_Execution_Safety_Contract.md)：`execution_safety.classify_held_reservation` 对单行占用给出固定技术投影；deadline、队列与终态都不证明 Worker 死亡，恒不授权 release/reclaim/requeue/retry/resend/dispatch；类型伪装、未知状态与不一致行失败关闭。回归锁定调度器与正式批准不能导入/触发执行仓库，运维路由只有聚合 GET。没有新 API、迁移、UI、后台清理器或配额处置。
+
 ## 2026-11-15：正式批准首切片（候选，未部署）
 
 [显式人类批准、职责分离与撤销审计](DevPilot_Formal_Approval.md)：`eval_0015` 在不可变独立评估之上追加具名审批人的 `approved`/`revoked` 修订，固定 assessment revision/hash 与 ALL 分母；要求采集完成、独立复核完整、冻结阈值（若定义）达标，且审批人不得是 owner 或该 run 任一盲审/仲裁人。撤销须附理由并追加审计。只有 owner 记录、没有审批人专属身份、多人签核、通知或导出权限；阈值达标与 case PASS 都不产生批准。

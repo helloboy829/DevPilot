@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- 执行安全合同（本地离线，恢复后的 Linux venv）：`tests/test_execution_safety.py` **30 passed**（14.04s）；关联执行/调度回归 `test_execution_diagnostics`、`test_qa_execution`、`test_qa_execution_lifecycle`、`test_evaluation_schedules` 联合 **66 passed**（73.57s）；锁定 Ruff 0.15.12 check/format 通过。只新增纯同步分类与边界回归，没有 API/迁移/UI/后台清理器；精确 SHA CI 须在新提交后独立核验。
 - **精确 SHA CI（正式批准，2026-11-15）**：`18101f9c08f8fbb32d8fbfdde72200aefef26738` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43612739708)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43612739812)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43612739625)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43612739710)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43612739705) 共 **5 workflows 全部成功**；Unit 的 `make test` 覆盖新批准模块与 `eval_0009 → eval_0015` 迁移矩阵。该 SHA 只增加批准切片与测试/文档；旧 SHA 的结果不适用于新提交。
 - 正式批准首切片（`eval_0015`，本地离线、隔离 Python 3.12 容器，锁文件 dev 组）：专项 `tests/test_qa_approvals.py` + `tests/test_qa_approvals_router.py` **20 passed**（32.94s）；迁移矩阵（候选恢复 + 五组迁移专项）**13 passed / 5 skipped**（146.36s，skip 是原 PostgreSQL 独占服务器门禁），候选恢复链现为 39 → 44 → 45 → 47 → 49 → 51 → **53** 张表并固定新增 14 张表；更新头断言的九个既有文件 **285 passed**（286.45s）；领域测试 **15 / 58 passed**。Blocking IO **72 passed**；锁定 Ruff check/format 通过。
 - **精确 SHA CI（2026-11-14）**：`6c67ab58819d5871603a7f21547bec184db55e16` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43600357480)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43600357401)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43600357383)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43600357353) 共 **4 workflows / 全部 jobs 成功**；Unit 含默认安装 collection、`make test`（完整后端离线套件，覆盖候选 SQLite 恢复演练）、软件分发与实际安装导出。该提交只修改三个测试的环境隔离（清除容器 Redis 环境变量对默认存储/uv extras 推断的干扰）与 `overlay_models` 的 `models: None` 处理；没有运行时行为、迁移、依赖或执行开关变更。这是该 SHA 的唯一 CI 收据，不适用于 `eval_0015` 候选。
@@ -58,7 +59,7 @@
 | P0     | 当前源码 CI、环境与候选升级验收闭环                    | 精确 SHA 门禁、当前镜像源码核对、数据/配置保护、隔离迁移及回退演练；部署另行执行 |
 | P1     | 本地明文副本与更广泛崩溃产物治理、Windows 验收         | 分别绑定原身份/用途/保留同意，旧目录不补造回执；新平台实际安装/锁/处置验证       |
 | P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；不能把 case PASS 当批准；首切片候选已实现，审批人专属身份/多人签核/通知仍未完成 |
-| P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入       |
+| P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入；只读分类合同与阻塞回归已实现，释放/准入仍未完成 |
 | P2     | 敏感外部证据治理、CV/流式指标/模型裁判、整改与知识闭环 | 各自授权、隔离、证据/计量与人工审查；缺失指标不填零、不判 PASS                   |
 
 开发环境恢复不必等所有 P1/P2 功能完成；正式质量验收依赖独立批准及相应业务能力。具体交付以模块退出条件为准，项目整体尚未完成。
