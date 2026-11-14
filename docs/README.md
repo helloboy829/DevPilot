@@ -3,6 +3,7 @@
 ## 先看这里
 
 - [当前能力、运行状态与缺口](DevPilot_Delivery_Status.md)
+- [候选验收包与检查清单](DevPilot_Acceptance_Package.md)
 - [两周冲刺建议与迁移风险](DevPilot_Sprint_Plan.md)
 - [逐轮交付历史与验证收据](DevPilot_Delivery_History.md)
 - [根开发指南](../AGENTS.md) / [后端开发指南](../backend/AGENTS.md) / [前端开发指南](../frontend/AGENTS.md)

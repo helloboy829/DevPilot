@@ -2,6 +2,12 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## 候选验收包（2026-11-15）
+
+[候选验收包](DevPilot_Acceptance_Package.md)整理同一 SHA 的源码验收路径：登录/RBAC、数据与冻结计划、默认关闭的执行、两名盲审＋仲裁、全样本评估、正式批准与撤销、报告/复测/导出、未知写对账、备份与回退边界，以及由验收人填写的签收表。它明确不授权部署、数据外发、真实模型/目标调用、生产 key 或正式批准；Linux/容器证据不替代 Windows 与真实用户验收。本地门禁：文档相对链接核对通过；无代码、迁移或运行时变更。
+
+English: the acceptance package documents the synthetic checklist, rollback limits and sign-off record without authorizing deployment, external data transfer, real calls or approval.
+
 ## Lost Worker 执行安全合同（2026-11-15）
 
 [执行安全合同](DevPilot_Execution_Safety_Contract.md)新增纯同步 `app.evaluation.execution_safety.classify_held_reservation`：对单行占用输出固定技术投影（七种状态、到期标记、配额、固定阻塞码），恒返回 `release/reclaim/requeue/retry/resend/dispatch` 未授权，`worker_liveness=not_established`；未知状态、类型伪装、非一致 held/state 与非正时钟全部 `ValueError` 失败关闭。边界回归以 AST 锁定：调度器与正式批准模块不得导入执行仓库或调用 `admit`，运维路由只有 `GET /reservations`。
@@ -19,6 +25,8 @@ English: a pure synchronous classifier projects one held execution row without e
 本地离线门禁（隔离 Python 3.12.16 容器，仅挂载公开源码，锁文件 dev 组）：批准专项 **20 passed**（32.94s）；迁移矩阵 **13 passed / 5 skipped**（146.36s，skip 为原 PostgreSQL 独占服务器门禁）；更新头断言的九个文件 **285 passed**（286.45s）；领域 **15 / 58 passed**；Blocking IO **72 passed / 2 warnings**（41.70s）；锁定 Ruff 0.15.12 check 通过、**1,286 files** format 通过。完整后端离线套件结果见下方本轮补充；专项与全量重叠，不相加。未部署、未启用执行、未生成生产 key、未调用真实模型/目标，未读取或复制业务数据库；本轮测试容器仅挂载公开源码，结束后按完整 ID 停止并删除。
 
 **精确 SHA CI**：提交 `18101f9c08f8fbb32d8fbfdde72200aefef26738` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43612739708)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43612739812)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43612739625)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43612739710)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43612739705) 共 **5 workflows 全部成功**；Unit 的 `make test` 覆盖新增批准模块与扩展后的 `eval_0009 → eval_0015` 恢复矩阵。该结果只属于此 SHA；不能移用于后续提交或部署。
+
+后续补充专属迁移回归 `tests/test_formal_approval_migrations.py`（本地 **2 passed**，29.05s）：在真实评估/复核/批准行存在时 downgrade 到 `eval_0014`，确认只移除批准两表、其余历史行逐表不变；再 upgrade 到 head，确认空表重建、`devpilot_alembic_version=eval_0015` 与 `compare_metadata` parity；并以真实行验证 `(run_id, revision)` 唯一、decision/action/revision 检查、assessment/run 外键失败关闭。首版测试暴露夹具缺少 `users` 表与 SQLite 未启用外键（**2 failed**），按外部迁移测试既有做法显式建 Harness 表并在连接时启用 `PRAGMA foreign_keys=ON`，未削弱断言；Ruff 通过。该补充的精确 SHA CI 另行记录。
 
 English: `eval_0015` adds an append-only, revisioned formal-approval ledger that pins an immutable independent assessment and requires finished collection, complete independent review, a met frozen threshold when defined, an explicit decision, and an approver distinct from the owner and every blind reviewer/arbitrator of that run. Revocation appends a revision with a required reason and audit. Focused, migration, cross-module and Blocking IO gates passed locally in an isolated source-mounted container; exact-SHA CI and Windows acceptance remain separate.
 

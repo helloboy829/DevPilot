@@ -59,6 +59,7 @@
 ```sh
 cd backend
 uv run pytest tests/test_qa_approvals.py tests/test_qa_approvals_router.py -q --tb=short
+uv run pytest tests/test_formal_approval_migrations.py -q --tb=short
 uv run pytest tests/test_candidate_upgrade_recovery.py -q --tb=short
 ```
 
