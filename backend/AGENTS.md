@@ -77,7 +77,7 @@ App 候选迁移链为 `eval_0009 → eval_0010 → eval_0011 → eval_0012 → 
 - [共享 QA 核心](../docs/DevPilot_Shared_QA_JSON_Run_Core.md)与[本地命令](../docs/DevPilot_Local_QA_Command.md)：同一 runner，未知结果不重发、不续跑。
 - [本地输出保护与保留](../docs/DevPilot_Local_QA_Protected_Output.md)及[管理命令](../docs/DevPilot_Local_QA_Retention_Commands.md)：独立 key、分别同意、输出前 durable receipt、运行期间持锁；处置须原 ID/两个 hash/单独同意，未知结果只原 disposal ID 对账，不生成 ID/修复/重试。expiry 不证明安全擦除。
 - [执行占用诊断](../docs/DevPilot_Execution_Reservation_Diagnostics.md)：只读观察不是 Worker 死亡证明，不回收配额或重试。
-- [正式批准首切片](../docs/DevPilot_Formal_Approval.md)：`eval_0015` append-only 批准/撤销修订，固定 assessment hash 与 ALL 分母；独立复核完整、冻结阈值（若定义）达标、审批人非 owner 且非该 run 任一盲审/仲裁，撤销附理由与审计。case PASS/阈值达标不生成批准；无审批人专属身份、多人签核、通知或导出权限。
+- [正式批准首切片](../docs/DevPilot_Formal_Approval.md)：`eval_0015` append-only 批准/撤销修订，固定 assessment hash 与 ALL 分母；独立复核完整、冻结阈值（若定义）达标、审批人非 owner 且非该 run 任一盲审/仲裁，撤销附理由与审计。另有只读预检（eligible/blockers/分离，不写回执）、项目级最新 revision 索引与有序审计列表（仅元数据）。case PASS/阈值达标不生成批准；无审批人专属身份、多人签核、通知或导出权限。
 - [执行安全合同](../docs/DevPilot_Execution_Safety_Contract.md)：`classify_held_reservation` 只读固定投影，恒不授权 release/reclaim/requeue/retry/resend/dispatch；deadline/终态不是 Worker 死亡证明；未知/不一致行失败关闭。调度器与正式批准不得导入或触发执行仓库；运维路由保持聚合 GET。
 
 完整逐模块条款见[原后端指南](../docs/Backend_Development_History.md)及[文档索引](../docs/README.md)。

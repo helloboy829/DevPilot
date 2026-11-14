@@ -16,7 +16,7 @@
 
 ## 2026-11-15：正式批准首切片（候选，未部署）
 
-[显式人类批准、职责分离与撤销审计](DevPilot_Formal_Approval.md)：`eval_0015` 在不可变独立评估之上追加具名审批人的 `approved`/`revoked` 修订，固定 assessment revision/hash 与 ALL 分母；要求采集完成、独立复核完整、冻结阈值（若定义）达标，且审批人不得是 owner 或该 run 任一盲审/仲裁人。撤销须附理由并追加审计。只有 owner 记录、没有审批人专属身份、多人签核、通知或导出权限；阈值达标与 case PASS 都不产生批准。
+[显式人类批准、职责分离与撤销审计](DevPilot_Formal_Approval.md)：`eval_0015` 在不可变独立评估之上追加具名审批人的 `approved`/`revoked` 修订，固定 assessment revision/hash 与 ALL 分母；要求采集完成、独立复核完整、冻结阈值（若定义）达标，且审批人不得是 owner 或该 run 任一盲审/仲裁人。撤销须附理由并追加审计；另有只读预检、项目级最新 revision 索引与有序审计列表（仅元数据，不授权）。只有 owner 记录、没有审批人专属身份、多人签核、通知或导出权限；阈值达标与 case PASS 都不产生批准。
 
 ## 2026-11-14：候选 SQLite 升级与恢复演练
 
