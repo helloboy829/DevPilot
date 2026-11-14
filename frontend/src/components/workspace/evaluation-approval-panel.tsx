@@ -217,7 +217,7 @@ export function EvaluationApprovalPanel({
     : "Metadata-only reads and an explicit human decision; the approver must not be the owner or a blind reviewer/arbitrator of this run.";
 
   return (
-    <section className="space-y-4 rounded-lg border p-4">
+    <section aria-label={title} className="space-y-4 rounded-lg border p-4">
       <div>
         <h3 className="font-medium">{title}</h3>
         <p className="text-muted-foreground text-sm">{explanation}</p>
