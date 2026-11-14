@@ -166,3 +166,18 @@ async def test_approval_audit_is_metadata_only_and_permissioned(api, monkeypatch
     assert (await client.get(root + "/approvals/audit")).status_code == 404
     app.state.actor = 0
     assert (await client.get(root + "/approvals/audit")).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_revocation_appends_second_revision_and_ordered_audit_over_api(api, monkeypatch):
+    client, _, _, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    approved = await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment))
+    assert approved.status_code == 200
+    revoked = await client.post(root + "/approvals/" + "e" * 32, json=payload(assessment, decision="revoked", note="SYNTHETIC_REVOCATION", expected_previous_revision=1))
+    assert revoked.status_code == 200 and revoked.json()["revision"] == 2 and revoked.json()["decision"] == "revoked"
+    listing = await client.get(root + "/approvals")
+    assert [(item["revision"], item["decision"]) for item in listing.json()] == [(2, "revoked"), (1, "approved")]
+    audit = await client.get(root + "/approvals/audit")
+    assert [(event["sequence"], event["action"]) for event in audit.json()] == [(1, "approved"), (2, "revoked")]
+    assert (await client.get(root + "/approvals/" + APPROVAL)).json()["decision"] == "approved"

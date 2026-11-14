@@ -13,7 +13,7 @@ from test_qa_assessments import complete as complete
 from test_qa_assessments import payload as assessment_payload
 from test_qa_evidence import captured as captured
 from test_qa_evidence import observation
-from test_review_tasks import ARB, A, B, command, decision
+from test_review_tasks import ARB, TASK, A, B, TaskReopen, command, decision
 from test_review_tasks import tasks as tasks
 
 from app.evaluation import tables as t
@@ -225,3 +225,17 @@ async def test_approval_audit_is_ordered_and_metadata_only(tasks):
         await unit.list_approval_audit("owner", project, "f" * 32)
     with pytest.raises(NotFound):
         await unit.list_approval_audit("other", project, run["id"])
+
+
+@pytest.mark.asyncio
+async def test_revocation_stays_available_after_current_review_is_reopened(tasks):
+    task_repo, _, _, project, run, _, _, _ = tasks
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    task = await task_repo.get_task("owner", TASK)
+    await task_repo.reopen("owner", TASK, TaskReopen(**command(task).model_dump(), reason="SYNTHETIC_REOPEN"))
+    assert (await repo.get_preview("owner", project, run["id"]))["readiness"] == "provisional"
+    revoked = await unit.create_approval("owner", project, run["id"], "e" * 32, payload(archived, decision_value="revoked", note="SYNTHETIC_REVOCATION", revision=1))
+    assert revoked["revision"] == 2 and revoked["decision"] == "revoked"
+    assert (await unit.get_approval("owner", project, run["id"], APPROVAL))["decision"] == "approved"
