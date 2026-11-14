@@ -2,6 +2,14 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## CI 偶发失败与重跑（2026-11-15）
+
+`a4627c6` 的 Unit Tests 第 1 次尝试在 `tests/test_qa_authenticated_workflow_api.py::test_real_rbac_deny_wins_and_denied_commands_do_not_advance_task[evaluation_projects:read]` 失败：`state.sent == []`（期望 3），其余 **13,564 passed / 19 skipped / 11 deselected / 18 warnings**（737.88s）；job 退出码 2。原始日志 **2,040,605 bytes** 从 Actions 签名 blob 导出，失败上下文显示 `dns=[('example.test', 443)]`、`bodies=[]`，即 `collect` 未产生发送。
+
+同一测试在本地隔离环境 **3/3 passed**（38.13s）；使用仓库已有凭据触发 `rerun-failed-jobs`，**attempt 2 成功**。原失败保留为偶发观察，不改测试、不延长超时、不重试掩盖；不能由重跑成功推断其他 SHA 或部署通过。后续提交的精确 SHA CI 另行核验。
+
+English: one authenticated-workflow test observed an empty sent list in CI attempt 1 (13,564 other tests passed); it passed locally 3/3 and on rerun attempt 2. The original failure remains recorded as a flake, not a code change conclusion.
+
 ## 本地完整套件运行（2026-11-15）
 
 在隔离 Python 3.12 容器内以 `git archive HEAD`（对应 `abbdde7` 工作树）重建完整源码副本，使用锁文件 dev 环境运行完整后端离线套件：**13,495 passed / 2 failed / 77 skipped / 11 deselected / 40 warnings**（1923.14s）。首次以 `tar` 手工复制时遗漏 `scripts` 等目录，出现 7 个 collection 错误（含 `support_bundle`），该次结果作废，改用 `git archive` 后重新运行。
