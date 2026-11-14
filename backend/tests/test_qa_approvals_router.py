@@ -220,3 +220,26 @@ async def test_approval_preflight_marks_provisional_assessment(api, monkeypatch)
     result = await client.get(root + "/assessments/" + archived["id"] + "/approval-preflight", params={"approver_id": APPROVER})
     assert result.status_code == 200 and result.json()["eligible"] is False
     assert "independent_review_incomplete" in result.json()["blockers"]
+
+
+@pytest.mark.asyncio
+async def test_project_approval_index_is_latest_metadata_only_and_permissioned(api, monkeypatch):
+    client, app, base, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    assert (await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment))).status_code == 200
+    index = await client.get(base + "/approvals")
+    assert index.status_code == 200 and "no-store" in index.headers["cache-control"]
+    entries = index.json()
+    assert [(entry["run_id"], entry["revision"], entry["decision"]) for entry in entries] == [(root.rsplit("/", 1)[1], 1, "approved")]
+    assert "document" not in index.text and "note" not in index.text
+    original = app.state.permissions
+    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
+    assert (await client.get(base + "/approvals")).status_code == 403
+    app.state.permissions = original
+    app.state.internal = True
+    assert (await client.get(base + "/approvals")).status_code == 403
+    app.state.internal = False
+    app.state.actor = 2
+    assert (await client.get(base + "/approvals")).status_code == 404
+    app.state.actor = 0
+    assert (await client.get(base + "/approvals")).status_code == 401

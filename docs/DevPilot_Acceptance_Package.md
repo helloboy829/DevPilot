@@ -61,6 +61,7 @@
 - [ ] 撤销追加新 revision 并要求理由；审计按 run 递增；重复载荷幂等，不同载荷同 ID 冲突。
 - [ ] 批准审计列表只返回有序元数据（approval_id/revision/action/actor/subject_hash/at_ms），不含 note/document；单个批准读取不被审计路径遮蔽。
 - [ ] 批准预检只返回 eligible/blockers/分离布尔且不写批准或审计；非法 approver 返回 422、未知评估 404。
+- [ ] 项目级批准索引只返回每个 run 的最新 revision 元数据（最多 200），不含文档/备注/计数。
 - [ ] case PASS、复核完整与阈值达标都不会自动生成批准。
 
 ### 3.5 报告、复测与导出

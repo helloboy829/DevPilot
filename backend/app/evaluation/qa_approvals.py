@@ -181,6 +181,23 @@ class ApprovalRepository(AssessmentRepository):
             statement = select(t.approval_audit).where(t.approval_audit.c.project_id == project_id, t.approval_audit.c.run_id == run_id).order_by(t.approval_audit.c.sequence).limit(1000)
             return [dict(row) for row in (await session.execute(statement)).mappings()]
 
+    async def list_project_approvals(self, owner, project_id):
+        """Latest approval revision per run; metadata only, read-only."""
+        async with self.sf() as session:
+            await self._project(session, owner, project_id)
+            latest = (
+                select(t.run_approvals.c.run_id, func.max(t.run_approvals.c.revision).label("revision")).where(t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id).group_by(t.run_approvals.c.run_id).subquery()
+            )
+            columns = [t.run_approvals.c[key] for key in ("run_id", "id", "revision", "decision", "assessment_id", "assessment_hash", "created_at_ms")]
+            statement = (
+                select(*columns)
+                .join(latest, (t.run_approvals.c.run_id == latest.c.run_id) & (t.run_approvals.c.revision == latest.c.revision))
+                .where(t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id)
+                .order_by(t.run_approvals.c.created_at_ms.desc())
+                .limit(200)
+            )
+            return [dict(row) for row in (await session.execute(statement)).mappings()]
+
     async def preview_approval(self, owner, project_id, run_id, assessment_id, approver_id):
         """Read-only eligibility preview; never writes an approval or audit row."""
         approval_identifier(assessment_id)

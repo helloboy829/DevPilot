@@ -550,6 +550,14 @@ async def get_approval_preflight(project_id: str, run_id: str, assessment_id: st
         raise HTTPException(422, "Invalid approval preflight request", headers={"Cache-Control": "private, no-store"}) from None
 
 
+@router.get("/{project_id}/approvals")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def list_project_approvals(project_id: str, request: Request):
+    owner, repository = await _approval_context(request)
+    return await _result(repository.list_project_approvals(owner, project_id))
+
+
 @router.get("/{project_id}/review-runs/{run_id}/approvals")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "review")

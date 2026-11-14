@@ -278,3 +278,20 @@ async def test_preflight_marks_incomplete_review_ineligible(tasks):
     preview = await approvals(repo).preview_approval("owner", project, run["id"], archived["id"], APPROVER)
     assert preview["eligible"] is False and preview["readiness"] == "provisional"
     assert "independent_review_incomplete" in preview["blockers"]
+
+
+@pytest.mark.asyncio
+async def test_project_approval_index_returns_latest_revision_per_run(tasks):
+    from app.evaluation.dispatch_journal import JournalLimits
+
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    await unit.create_approval("owner", project, run["id"], "e" * 32, payload(archived, decision_value="revoked", note="SYNTHETIC_REVOCATION", revision=1))
+    evidence = tasks[1]
+    await evidence.record_run("owner", project, run["plan_id"], run["plan_hash"], JournalLimits(max_response_bytes=128, max_total_response_bytes=129))
+    entries = await unit.list_project_approvals("owner", project)
+    assert [(entry["run_id"], entry["revision"], entry["decision"]) for entry in entries] == [(run["id"], 2, "revoked")]
+    assert all("document" not in entry and "note" not in entry and "counts" not in entry for entry in entries)
+    with pytest.raises(NotFound):
+        await unit.list_project_approvals("owner", "f" * 32)
