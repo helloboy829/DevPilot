@@ -208,6 +208,18 @@ class ApprovalRepository(AssessmentRepository):
             raise ValueError("Canonical account ID required") from None
         async with self.sf() as session:
             snapshot = await self._approval_snapshot(session, owner, project_id, run_id, assessment_id)
+            latest = (
+                (
+                    await session.execute(
+                        select(t.run_approvals.c.revision, t.run_approvals.c.decision)
+                        .where(t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id, t.run_approvals.c.run_id == run_id)
+                        .order_by(t.run_approvals.c.revision.desc())
+                        .limit(1)
+                    )
+                )
+                .mappings()
+                .first()
+            )
         decoded = await asyncio.to_thread(self._decode_assessment, snapshot["assessment"])
         body = decoded["assessment"]
         blockers = []
@@ -235,6 +247,7 @@ class ApprovalRepository(AssessmentRepository):
             "readiness": body["readiness"],
             "criteria": {"status": criteria["status"] if criteria is not None else "not_defined"},
             "separation": {"approver_not_owner": approver_id != owner, "approver_not_review_actor": approver_id not in snapshot["actors"]},
+            "latest_approval": {"revision": latest["revision"], "decision": latest["decision"]} if latest else None,
             "approval": "not_recorded",
         }
 

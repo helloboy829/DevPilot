@@ -40,7 +40,7 @@
 
 审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
 
-只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation）、`readiness`、`criteria.status` 与两个分离布尔；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；未知评估返回 404；所有响应 `no-store`。
+只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation）、`readiness`、`criteria.status`、两个分离布尔与 `latest_approval`（最新 revision/decision 元数据，若存在）；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；未知评估返回 404；所有响应 `no-store`。
 
 内部调用者、非人类 token、无权限账号均被拒绝；跨 owner 返回 404。未知写入不重试，只按原 ID `GET` 对账（含 404）。错误响应不包含内部异常、SQL 或客户端敏感值；所有响应 `Cache-Control: no-store`。
 

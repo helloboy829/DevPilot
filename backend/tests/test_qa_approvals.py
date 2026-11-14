@@ -255,10 +255,13 @@ async def test_preflight_reports_eligibility_and_separation_without_writes(tasks
     assert preview["eligible"] is True and preview["blockers"] == []
     assert preview["separation"] == {"approver_not_owner": True, "approver_not_review_actor": True}
     assert preview["readiness"] == "review_complete" and preview["criteria"]["status"] == "not_defined"
-    assert preview["approval"] == "not_recorded"
+    assert preview["latest_approval"] is None and preview["approval"] == "not_recorded"
     async with unit.sf() as session:
         assert (await session.execute(select(t.run_approvals))).all() == []
         assert (await session.execute(select(t.approval_audit))).all() == []
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    after = await unit.preview_approval("owner", project, run["id"], archived["id"], APPROVER)
+    assert after["latest_approval"] == {"revision": 1, "decision": "approved"}
     for actor in (A, B, ARB):
         blocked = await unit.preview_approval("owner", project, run["id"], archived["id"], actor)
         assert blocked["eligible"] is False and "approver_is_review_actor" in blocked["blockers"]
