@@ -81,7 +81,7 @@ def test_projection_does_not_canonicalize_url_or_query(url):
     assert QAJSONRequest(frozen(url=url)).url == url
 
 
-@pytest.mark.parametrize("body", ["x" * 262144, "\u00e9" * 131072, "\U0001f642" * 65536])
+@pytest.mark.parametrize("body", [pytest.param("x" * 262144, id="ascii-at-byte-limit"), pytest.param("\u00e9" * 131072, id="two-byte-at-limit"), pytest.param("\U0001f642" * 65536, id="four-byte-at-limit")])
 def test_exact_request_utf8_byte_limit_is_preserved(body):
     ready = QAJSONRequest(frozen(body=body))
     assert len(ready.content) == 262144 and ready.body == body
@@ -110,7 +110,7 @@ def test_only_frozen_request_is_accepted(invalid):
         ("headers", (("X-Test", "SYNTHETIC_HEADER_SECRET\r\nInjected: value"),)),
         ("headers", (("X-Test", "\u4e2d"),)),
         ("headers", tuple(("X-Test", str(i)) for i in range(65))),
-        ("body", "x" * 262145),
+        pytest.param("body", "x" * 262145, id="body-over-byte-limit"),
         ("body", "\ud800"),
         ("body", None),
     ],

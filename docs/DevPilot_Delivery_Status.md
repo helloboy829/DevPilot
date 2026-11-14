@@ -34,6 +34,7 @@
 
 ## 最近验证
 
+- CI 日志修复的独立 Python 3.12 冻结 dev 环境：修改前 **13,441 passed / 77 skipped / 11 deselected / 40 warnings，1032.35s**；修改后原 `make test` **同样 13,441 passed / 77 skipped / 11 deselected / 40 warnings，951.44s**，两组领域测试 **15 / 58 passed**。六文件专项 **384 passed**、Blocking IO **72 passed**、完整 Ruff **1,282 files** 通过。相同入口 collection 前后均 **13,524 items**，每个测试函数的用例数一致；11 个超长编号消除，最长 **655,440 → 615 字符**。这是本地离线结果，不代替新提交 CI 或 Windows 验收。
 - 候选恢复回归的最终完整离线套件：**13,441 passed / 77 skipped / 11 deselected / 40 warnings**，934.37s；修改前基线为 13,433 passed（906.24s）。本地默认 dev 安装未配置 PostgreSQL extra/独占服务器，相关专项等按原门禁跳过。远端数据库服务门禁单独核验。
 - [最终 SQLite 恢复矩阵](DevPilot_Candidate_Upgrade_Recovery.md)专项 **8 passed**（59.15s），验证 39 → 44 → 45 → 47 → 49 → 51 张表及 ALL 历史行/schema、WAL/账号/报告/复测/Word。与五组已有迁移联合 **13 passed / 5 skipped**；Blocking IO **72 passed / 2 warnings**，领域 **15 / 58 passed**，最终完整后端 Ruff check/format **1,282 files** 通过。专项和全量重叠，不相加；skip 不是通过。
 - 前一 `7ba1484` 的管理命令/原 retention API 联合 **80 passed**，带实际软件的联合 **241 passed**，六工具构建→12依赖完整离线安装与三条实际管理命令已验证；本轮未改软件源码/依赖或重建分发。档案 SHA256 `27aeb3cdb8df596b63fd2b0d8569e824ea5a13d11c4f36a315b7d1eb48af697f` 只属于前轮构建，当前 allowlist 为 **37** 个第一方源码成员。原始失败与逐轮门禁见交付历史。
@@ -41,6 +42,8 @@
 专项、联合和全量有重叠，不相加；skip 不是通过。前端/浏览器历史通过数没有在本轮本地重跑，Linux 验证不代替 Windows 验收。
 
 基线 **`7ba1484b098d7a29a0a737400ff321d0ccbc8001`** 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43558000440)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43558000459)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43558000384)和 [Unit](https://github.com/helloboy829/DevPilot/actions/runs/43558000487)共 **4 workflows / 8 jobs 全成功**，含默认安装全量 collection、带 PostgreSQL 的完整后端、软件分发与实际安装导出。本轮合成恢复回归的 SHA/CI 另行核验，不能沿用基线结果。更早的 collection 超时与有界诊断保留在历史，不宣称已确证根因或改变原门禁。
+
+恢复回归提交 **cd26960455fd1e74e4b698d1d81c5bc6c840ba11** 的 8 个 jobs 中 7 个成功；[backend-unit-tests](https://github.com/helloboy829/DevPilot/actions/runs/43563204085/job/132351247651) 虽打印 **13,499 passed / 19 skipped / 11 deselected**，job 仍超过原 **15 分钟**限制而取消，不能记为 CI 通过。原日志 3,994,360 bytes，11 个超长测试行合计 1,968,573 字符，最长 655,484 字符。修复只为这些边界参数设置简短固定名称；输入、断言、测试数量和超时均保留。新 SHA 的 CI 必须另行核验，日志问题本身不证明已消除所有超时原因。
 
 原始红灯、修复原因和逐轮收据见[交付历史](DevPilot_Delivery_History.md)。push、本地通过、CI 成功和部署是独立事实。
 

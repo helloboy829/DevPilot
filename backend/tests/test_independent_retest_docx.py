@@ -96,7 +96,7 @@ def test_allowlist_excludes_unknown_sensitive_fields_at_every_projection_level()
         (("request_definition_changed",), 1),
         (("project_name",), "bad\x00"),
         (("project_name",), "bad\ud800"),
-        (("project_name",), "x" * 200_001),
+        pytest.param(("project_name",), "x" * 200_001, id="project-name-over-limit"),
         (("cases",), []),
         (("baseline", "readiness"), "provisional"),
         (("baseline", "policy"), {}),

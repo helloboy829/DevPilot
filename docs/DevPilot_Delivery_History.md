@@ -2,6 +2,20 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## 边界测试编号与 CI 超时排查（2026-11-14）
+
+恢复回归提交 `cd26960455fd1e74e4b698d1d81c5bc6c840ba11` 已推送且与远端 main 一致。其 Lint `43563204115`、Blocking IO `43563204134`、Frontend `43563204161` 成功；Unit `43563204085` 中默认安装 collection、软件分发和实际安装导出成功，但 backend-unit-tests 超过原 15 分钟 job 限制而取消。原始日志虽打印 **13,499 passed / 19 skipped / 11 deselected / 18 warnings，788.11s**，仍不是成功的 CI job。
+
+原始日志 **3,994,360 bytes**；11 个超过 1,000 字符的测试行合计 **1,968,573 字符**，最长 **655,484 字符**。这些行直接包含大体积边界输入。六份测试文件仅给这 11 个参数增加简短固定 pytest ID；AST 去除 ID 包装后与原版完全一致，保留全部参数、测试函数、断言和原 CI 超时。缩短日志是明确修复；是否足以消除 job 超时须由新 SHA 验证，不能仅从测试汇总或日志时间间隔推断根因。
+
+`blockbuster` 原本就在 dev 依赖及锁文件；保留测试 `backend/tests/test_local_qa_retention.py` 已受版本控制。本轮从公开源码及冻结锁在独立 Python 3.12 容器重建 dev 环境，没有重复添加依赖、复制私有配置/业务 DB 或启动旧业务服务。本机四个业务容器仍 stopped；daemon 正常、未标记 OOM，退出码本身不确定根因。镜像清单只有现用 DevPilot 版本；不因 stopped、无标签或 reclaimable 比例删除业务资源、卷、回退镜像或其他项目。
+
+本轮独立 Python 3.12 冻结 dev 环境中 `blockbuster` 实际版本 **1.5.26**，没有缺模块错误。修复前完整基线 **13,441 passed / 77 skipped / 11 deselected / 40 warnings，1032.35s**；修复后原 `make test` **13,441 passed / 77 skipped / 11 deselected / 40 warnings，951.44s**，领域 **15 / 58 passed**。六文件专项 **384 passed / 1 warning**、Blocking IO **72 passed / 2 warnings**、完整 Ruff **1,282 files** 和两份文档 Prettier 通过。专项与全量有重叠，不相加；77 skips 包含默认安装缺少 PostgreSQL extra/独占服务器等原门禁，不是通过。
+
+相同辅助入口的 collection 前后均 **13,524 items**，每个测试函数的用例数一致；原标准全量日志另记录 **11 deselected / 5 collection skips / 13,513 selected**。11 个超长编号替换后，最长编号从 **655,440** 降至 **615 字符**，总编号长度 **3,280,383 → 1,313,364 字符**；其他测试每次生成的随机 UUID 编号单独保留，不误当本轮改动。AST 比较保留所有原输入和断言，六份受测文件及两份依赖文件按字节 hash 与宿主一致；锁文件原始 CRLF/LF 差异已确认只是换行后统一测试副本。原失败日志、两轮完整结果和编号对照留在本地；精确提交/推送、Actions 与资源收尾另行核验。
+
+English: The prior backend job timed out despite a passing pytest summary. Short IDs preserve every input and assertion; both full local runs passed with identical result counts, and the longest collected name fell from 655,440 to 615 characters. Exact-commit CI and resource cleanup remain separately recorded; no deployment, real calls or business-data cleanup is implied.
+
 ## 候选 SQLite 升级与备份恢复演练（2026-11-14）
 
 基线 `7ba1484b098d7a29a0a737400ff321d0ccbc8001` 的四项实际 push Actions / 八个 jobs 重新核验全成功：Lint `43558000440`、Blocking `43558000459`、Frontend `43558000384`、Unit `43558000487`；工作区与远端 main 一致。

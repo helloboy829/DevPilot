@@ -149,7 +149,9 @@ def test_separate_input_only_and_exact_secret_bindings_fail_closed(tmp_path, nam
         preflight(**{key + "_file": path for key, path in files.items()})
 
 
-@pytest.mark.parametrize("content", [b'{"schema":1,"schema":2}', b'{"value":NaN}', b"\xff", b"[]", b"[" * 1100 + b"]" * 1100, b'{"x":' + b"[" * 33 + b"0" + b"]" * 33 + b"}", b"x" * 32769])
+@pytest.mark.parametrize(
+    "content", [b'{"schema":1,"schema":2}', b'{"value":NaN}', b"\xff", b"[]", pytest.param(b"[" * 1100 + b"]" * 1100, id="excessive-nesting"), b'{"x":' + b"[" * 33 + b"0" + b"]" * 33 + b"}", pytest.param(b"x" * 32769, id="over-byte-limit")]
+)
 def test_malformed_bounded_manifest_files_have_generic_errors(tmp_path, content, capsys):
     _, files = write_files(tmp_path)
     files["manifest"].write_bytes(content)

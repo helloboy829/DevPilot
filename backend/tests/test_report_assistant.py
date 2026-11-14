@@ -67,7 +67,9 @@ def test_real_graph_runs_once_without_tools_memory_or_fact_mutation(monkeypatch)
     assert kwargs["model_overrides"]["max_tokens"] == 1200
 
 
-@pytest.mark.parametrize("raw", ["not JSON", '{"summary":"x","findings":[],"recommendations":[],"verdict":"PASS"}', json.dumps(advice() | {"summary": "x" * 2001}), '{"summary":"x","findings":[1],"recommendations":[]}'])
+@pytest.mark.parametrize(
+    "raw", ["not JSON", '{"summary":"x","findings":[],"recommendations":[],"verdict":"PASS"}', pytest.param(json.dumps(advice() | {"summary": "x" * 2001}), id="summary-over-limit"), '{"summary":"x","findings":[1],"recommendations":[]}']
+)
 def test_invalid_output_is_rejected_without_retry_or_echo(monkeypatch, raw):
     graph = SimpleNamespace(ainvoke=AsyncMock(return_value={"messages": [AIMessage(content=raw)]}))
     monkeypatch.setattr(assistant, "create_chat_model", MagicMock())

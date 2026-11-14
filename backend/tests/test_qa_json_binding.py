@@ -93,7 +93,7 @@ def test_extraction_never_fabricates_output_by_coercion(response):
         QAJSONBinding("/q", "/a").extract(response)
 
 
-@pytest.mark.parametrize("value", ["", "  \n", None, True, 1, "x" * 10001, "\ud800"])
+@pytest.mark.parametrize("value", ["", "  \n", None, True, 1, pytest.param("x" * 10001, id="over-character-limit"), "\ud800"])
 def test_input_is_bounded_nonblank_text(value):
     with pytest.raises(ValueError, match="^Cannot render QA JSON request$"):
         binding().render(request(), value)
