@@ -295,3 +295,10 @@ async def test_project_approval_index_returns_latest_revision_per_run(tasks):
     assert all("document" not in entry and "note" not in entry and "counts" not in entry for entry in entries)
     with pytest.raises(NotFound):
         await unit.list_project_approvals("owner", "f" * 32)
+
+
+@pytest.mark.asyncio
+async def test_preflight_unknown_run_is_not_found(tasks):
+    repo, project, _, archived = await archive(tasks)
+    with pytest.raises(NotFound):
+        await approvals(repo).preview_approval("owner", project, "f" * 32, archived["id"], APPROVER)

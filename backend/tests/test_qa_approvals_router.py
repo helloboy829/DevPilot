@@ -243,3 +243,14 @@ async def test_project_approval_index_is_latest_metadata_only_and_permissioned(a
     assert (await client.get(base + "/approvals")).status_code == 404
     app.state.actor = 0
     assert (await client.get(base + "/approvals")).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_empty_approval_surfaces_and_unknown_run(api, monkeypatch):
+    client, _, base, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    assert (await client.get(base + "/approvals")).json() == []
+    assert (await client.get(root + "/approvals")).json() == []
+    assert (await client.get(root + "/approvals/audit")).json() == []
+    unknown = await client.get(base + "/review-runs/" + "f" * 32 + "/assessments/" + assessment["id"] + "/approval-preflight", params={"approver_id": APPROVER})
+    assert unknown.status_code == 404
