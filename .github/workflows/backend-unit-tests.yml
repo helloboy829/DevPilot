@@ -2,7 +2,7 @@ name: Unit Tests
 
 on:
   push:
-    branches: [ 'main', '2.0.x-dev' ]
+    branches: ["main", "2.0.x-dev"]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -29,7 +29,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -40,7 +40,39 @@ jobs:
 
       - name: Collect backend tests
         working-directory: backend
-        run: uv run pytest --collect-only -q
+        run: |
+          uv run python - <<'PY'
+          import os
+          import sys
+          import threading
+          import traceback
+
+          # Preserve the CI console before pytest installs fd-level capture.
+          console = os.fdopen(os.dup(sys.stdout.fileno()), "w", encoding="utf-8", buffering=1)
+
+          def report_slow_collection():
+              # Frames only: no arguments, locals, source lines or credentials.
+              lines = []
+              for thread_id, frame in list(sys._current_frames().items())[:8]:
+                  lines.append(f"Thread {thread_id}")
+                  for current, lineno in list(traceback.walk_stack(frame))[:24]:
+                      code = current.f_code
+                      lines.append(f"{code.co_filename}:{lineno} in {code.co_name}")
+              message = "\n".join(lines)[:8192]
+              message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print("::warning title=Slow backend collection::" + message, file=console, flush=True)
+
+          diagnostic = threading.Timer(60, report_slow_collection)
+          diagnostic.daemon = True
+          diagnostic.start()
+          try:
+              import pytest
+              raise SystemExit(pytest.main(["--collect-only", "-q"]))
+          finally:
+              diagnostic.cancel()
+              diagnostic.join()
+              console.close()
+          PY
 
   backend-unit-tests:
     if: github.event.pull_request.draft == false
@@ -81,7 +113,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -111,7 +143,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Install uv
         uses: astral-sh/setup-uv@v7
       - name: Build first-party wheel with hash-locked build tools
@@ -154,7 +186,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Install uv
         uses: astral-sh/setup-uv@v7
       - name: Retrieve independently verified software-only archive

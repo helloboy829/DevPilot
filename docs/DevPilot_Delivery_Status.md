@@ -39,7 +39,7 @@
 
 专项、联合和全量有重叠，不相加；skip 不是通过。前端/浏览器历史通过数没有在本轮本地重跑，Linux 验证不代替 Windows 验收。
 
-修复代码提交 **`0a88d114247e7b7bc880dc76a9e9e8d4e2d89254`** 已推送；精确 SHA 的 [Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43546891714)、[Lint](https://github.com/helloboy829/DevPilot/actions/runs/43546891747)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43546891689)和[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43546891728)正在独立核验，不预先声明成功。后续纯文档提交的 Actions 另行记录。
+修复代码提交 **`0a88d114247e7b7bc880dc76a9e9e8d4e2d89254`** 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43546891747)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43546891689)和[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43546891728)成功。[Unit workflow](https://github.com/helloboy829/DevPilot/actions/runs/43546891714)中完整后端、分发、实际安装导出成功；默认安装 collection job 超过原 10 分钟门禁被取消，整项未通过。新增一次 60 秒后触发的有界调用栈注释用于诊断，只含文件/行号/函数，不含参数、locals 或源码行；不提高 timeout、不减少收集范围、不自动重试。新 SHA 必须再次独立核验。
 
 原始红灯、修复原因和逐轮收据见[交付历史](DevPilot_Delivery_History.md)。push、本地通过、CI 成功和部署是独立事实。
 
