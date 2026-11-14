@@ -18,6 +18,8 @@ English: one authenticated-workflow test observed an empty sent list in CI attem
 
 English: a full offline suite on a `git archive` copy reported 13,495 passed with two container-environment failures (missing `uv`, isolated-source `JSONRunStopped`); the same tests pass in the exact-SHA CI. The earlier incomplete tar copy was discarded.
 
+随后在 HEAD 工作树（含本轮批准/预检/索引改动）再次运行完整套件：**13,504 passed / 3 failed / 77 skipped / 11 deselected / 40 warnings**（2253.52s）。三个失败分别为缺 `uv`、Hypothesis `HealthCheck.too_slow`（慢容器）与隔离源码 CLI `JSONRunStopped`；`a4627c6` 的偶发 RBAC 测试在该全量中通过，同代码的 `1465ff4` 精确 SHA CI Unit 亦通过。原失败保留为环境观察，不归因于当前源码。
+
 ## 执行诊断聚合安全状态（2026-11-15）
 
 [运维诊断](DevPilot_Execution_Reservation_Diagnostics.md)的 `reservation_snapshot` 在同一聚合 SELECT 中新增 `safety.states`：按[执行安全合同](DevPilot_Execution_Safety_Contract.md)的固定状态码统计持锁行（queued_ready、queued_deadline_reached、running_within_deadline、running_deadline_reached、cancel_requested_pending、interrupted_terminal）。仍不选择执行/run/owner ID、claim/证据列，不取锁、不初始化 guard、不写审计；`worker_liveness=not_established`，释放/回收/重试/调度仍为 false。
