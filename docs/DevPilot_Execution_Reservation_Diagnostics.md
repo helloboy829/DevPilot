@@ -27,6 +27,7 @@
 | `policy_scope` / `policy`                                                                | `serving_process_only`；当前进程的已校验显式策略，不证明其他 Worker/guard 策略一致，不返回 allowlist/config/key                    |
 | `reservations`                                                                           | 当前仍占用的运行数、保留并发/body/response 字节和截止时刻已到的运行数；不是实际流量、可用槽位或安全释放量                          |
 | `states`                                                                                 | queued/running/cancel_requested/collected/interrupted 每种状态的占用数、其中 deadline 已到数；保留所有占用状态，不筛掉 interrupted |
+| `safety`                                                                                 | `aggregate_held_reservation_states`；按[执行安全合同](DevPilot_Execution_Safety_Contract.md)固定状态码统计持锁行（queued_ready / queued_deadline_reached / running_within_deadline / running_deadline_reached / cancel_requested_pending / interrupted_terminal），不含任何 ID；计数不是 liveness 或授权 |
 | `worker_liveness`                                                                        | 一律 `not_established`；deadline 到达、零计数或 collected/interrupted 状态都不是进程死亡证明                                       |
 | `release_authorized` / `reclaim_authorized` / `retry_authorized` / `dispatch_authorized` | 一律 `false`；重新读取不会授予变更或发送权力                                                                                       |
 

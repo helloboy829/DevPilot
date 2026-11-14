@@ -10,7 +10,7 @@ from test_qa_execution import prepared as prepared
 
 from app.evaluation import tables as t
 from app.evaluation.execution import ExecutionPolicy
-from app.evaluation.execution_diagnostics import STATES, reservation_snapshot
+from app.evaluation.execution_diagnostics import SAFETY_STATES, STATES, reservation_snapshot
 
 
 async def database_state(repo):
@@ -24,6 +24,9 @@ def assert_no_authority(snapshot):
     assert snapshot["policy_scope"] == "serving_process_only"
     assert all(snapshot[key] is False for key in ("release_authorized", "reclaim_authorized", "retry_authorized", "dispatch_authorized"))
     assert set(snapshot["states"]) == set(STATES)
+    assert snapshot["safety"]["scope"] == "aggregate_held_reservation_states"
+    assert set(snapshot["safety"]["states"]) == set(SAFETY_STATES)
+    assert all(type(value) is int and value >= 0 for value in snapshot["safety"]["states"].values())
 
 
 @pytest.mark.asyncio
@@ -36,6 +39,7 @@ async def test_empty_diagnostics_do_not_initialize_guard_or_require_keys(prepare
     assert_no_authority(result)
     assert set(result["reservations"].values()) == {0}
     assert all(set(counts.values()) == {0} for counts in result["states"].values())
+    assert set(result["safety"]["states"].values()) == {0}
     assert result["policy"] == policy.model_dump()
     assert result["observed_at_ms"] == prepared[4]["ms"]
     assert await database_state(repo) == before and before[t.execution_guard.name] == []
@@ -82,6 +86,14 @@ async def test_all_lifecycle_reservations_are_observed_not_mutated_or_released(p
     }
     assert result["states"][state] == {"held_runs": held, "deadline_reached_runs": held * deadline}
     assert sum(values["held_runs"] for values in result["states"].values()) == held
+    expected_safety = {
+        "queued": "queued_ready",
+        "running": "running_within_deadline",
+        "cancel_requested": "cancel_requested_pending",
+        "deadline_running": "running_deadline_reached",
+        "expired_running": "interrupted_terminal",
+    }.get(mode)
+    assert result["safety"]["states"] == {code: int(code == expected_safety) for code in SAFETY_STATES}
     assert await database_state(repo) == before
     text = json.dumps(result)
     assert all(value not in text for value in ("SYNTHETIC", row["id"], row["run_id"], row["plan_hash"], prepared[2]))
@@ -126,6 +138,7 @@ async def test_one_aggregate_select_has_no_secret_columns_joins_locks_or_owner_s
         "deadline_reached_runs": 2,
     }
     assert result["states"]["running"] == result["states"]["queued"] == {"held_runs": 1, "deadline_reached_runs": 1}
+    assert result["safety"]["states"] == {code: int(code in {"running_deadline_reached", "queued_deadline_reached"}) for code in SAFETY_STATES}
     assert result["policy"]["enabled"] is False and result["policy"]["max_active_runs"] == 1
     assert await database_state(repo) == before
 

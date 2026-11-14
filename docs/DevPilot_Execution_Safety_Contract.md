@@ -24,6 +24,8 @@
 
 固定阻塞码：`worker_liveness_not_established`（持锁时）、`deadline_is_not_worker_death`（持锁且到期）、`quota_retained_until_original_worker_drains`（running/cancel_requested，或过期后仍持锁的 interrupted）、`terminal_record_grants_nothing`（未持锁时）。阻塞码是结论，不是可执行建议。
 
+运维诊断 `reservation_snapshot` 在同一聚合 SELECT 中新增 `safety.states`，按上述固定状态码统计持锁行；仍不返回任何 per-run ID，不授权释放/回收/重试/调度。
+
 ## 现有运行时语义（未改动）
 
 - `ExecutionRepository.claim()` 先执行 `expire()`，只领取 `deadline_ms > now` 的 queued 行；领取时写 claim hash 并把状态改为 running。

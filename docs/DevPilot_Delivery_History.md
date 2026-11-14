@@ -2,6 +2,14 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## 执行诊断聚合安全状态（2026-11-15）
+
+[运维诊断](DevPilot_Execution_Reservation_Diagnostics.md)的 `reservation_snapshot` 在同一聚合 SELECT 中新增 `safety.states`：按[执行安全合同](DevPilot_Execution_Safety_Contract.md)的固定状态码统计持锁行（queued_ready、queued_deadline_reached、running_within_deadline、running_deadline_reached、cancel_requested_pending、interrupted_terminal）。仍不选择执行/run/owner ID、claim/证据列，不取锁、不初始化 guard、不写审计；`worker_liveness=not_established`，释放/回收/重试/调度仍为 false。
+
+测试先红后绿：先加断言得到 `ImportError: SAFETY_STATES`（collection 失败），实现后诊断 **14 passed**；路由与执行安全联合 **40 passed**，Ruff check/format 通过。无迁移、执行/调度/配额/计时变更，无部署或真实调用；精确 SHA CI 另行记录。
+
+English: aggregate held-reservation counts keyed by the fixed safety codes are exposed in the same single diagnostic SELECT, without identities, claim/evidence columns or any release/retry/dispatch authority.
+
 ## 候选验收包（2026-11-15）
 
 [候选验收包](DevPilot_Acceptance_Package.md)整理同一 SHA 的源码验收路径：登录/RBAC、数据与冻结计划、默认关闭的执行、两名盲审＋仲裁、全样本评估、正式批准与撤销、报告/复测/导出、未知写对账、备份与回退边界，以及由验收人填写的签收表。它明确不授权部署、数据外发、真实模型/目标调用、生产 key 或正式批准；Linux/容器证据不替代 Windows 与真实用户验收。本地门禁：文档相对链接核对通过；无代码、迁移或运行时变更。
