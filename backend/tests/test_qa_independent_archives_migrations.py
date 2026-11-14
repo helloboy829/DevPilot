@@ -100,7 +100,7 @@ async def cycle(engine, old, before):
         async with engine.connect() as conn:
             names = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
             assert NEW.isdisjoint(names) if target == "eval_0011" else NEW.issubset(names)
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0011" if target == "eval_0011" else "eval_0014")
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0011" if target == "eval_0011" else "eval_0015")
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
             if target == "head":
 

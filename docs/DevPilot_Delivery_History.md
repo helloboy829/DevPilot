@@ -2,6 +2,30 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## 正式批准首切片（2026-11-15，候选 `eval_0015`）
+
+[正式批准首切片](DevPilot_Formal_Approval.md)在不可变独立评估之上增加 append-only、可修订的具名人类批准：`evaluation_run_approvals` 与 `evaluation_approval_audit` 两表，`down_revision = eval_0014`。批准固定 assessment id/revision/`assessment_hash`/`summary_hash` 与 ALL 分母；要求 run 与评估文档均为 `recording_finished`、`review_complete` 且无 blockers、冻结阈值（若定义）`met`、显式 `confirmed=true`；审批人必须是 canonical 账号且不得等于 owner 或该 run 任一已验签任务中的 reviewer_1/reviewer_2/arbitrator。撤销追加 revision 且必须有理由；同 ID 相同载荷幂等、不同载荷或旧 revision 冲突；并发首发只有一个成功；审计按 run 原子递增。owner 是记录人（`recorded_by`），审计 `actor` 记录实际写入者，`approver_id` 记录具名决策人。文档 hash 链被篡改时读取失败关闭；列表只返回技术元数据。路由为 owner-scoped `GET/POST /review-runs/{run}/approvals[/{id}]`（read+review；写入再加 write），人类专用、`no-store`、验证错误不回显客户端值。
+
+测试先红后绿：新增仓库级 `tests/test_qa_approvals.py` 与 API 级 `tests/test_qa_approvals_router.py`，覆盖未完成复核拒绝、阈值 `not_met` 拒绝、owner/盲审/仲裁职责分离、显式决定、撤销理由、同 ID/旧 revision/并发、篡改、跨 owner、未知写原 ID 对账与错误脱敏。候选恢复矩阵扩展为 39 → 44 → 45 → 47 → 49 → 51 → **53** 张表并固定新增 14 张表；14 个既有测试文件的迁移头断言与旧 revision 表集合派生同步更新（`eval_0015`）。
+
+本地离线门禁（隔离 Python 3.12.16 容器，仅挂载公开源码，锁文件 dev 组）：批准专项 **20 passed**（32.94s）；迁移矩阵 **13 passed / 5 skipped**（146.36s，skip 为原 PostgreSQL 独占服务器门禁）；更新头断言的九个文件 **285 passed**（286.45s）；领域 **15 / 58 passed**；Blocking IO **72 passed / 2 warnings**（41.70s）；锁定 Ruff 0.15.12 check 通过、**1,286 files** format 通过。完整后端离线套件结果见下方本轮补充；专项与全量重叠，不相加。未部署、未启用执行、未生成生产 key、未调用真实模型/目标，未读取或复制业务数据库；本轮测试容器仅挂载公开源码，结束后按完整 ID 停止并删除。
+
+English: `eval_0015` adds an append-only, revisioned formal-approval ledger that pins an immutable independent assessment and requires finished collection, complete independent review, a met frozen threshold when defined, an explicit decision, and an approver distinct from the owner and every blind reviewer/arbitrator of that run. Revocation appends a revision with a required reason and audit. Focused, migration, cross-module and Blocking IO gates passed locally in an isolated source-mounted container; exact-SHA CI and Windows acceptance remain separate.
+
+## 测试环境隔离与配置 None 修复（2026-11-14）
+
+上一基线 `a3e0deb` 的四项 Actions 已核验成功。本轮提交 `6c67ab58819d5871603a7f21547bec184db55e16` 共三个修复提交（`8f4678b`、`5dd7b3a`、`6c67ab5`），只修改测试隔离与 `overlay_models` 的 None 处理：
+
+- `test_default_config_is_memory` / `test_make_stream_bridge_defaults`：Docker 容器存在 `DEER_FLOW_STREAM_BRIDGE_REDIS_URL` 时默认推断为 Redis，与测试期望的 Memory 冲突；用 monkeypatch 清除环境变量，保留原推断逻辑与断言。
+- `test_deploy_uv_extras` / `test_detect_uv_extras`：三个测试只清除 `UV_EXTRAS`，容器 Redis 环境变量仍被 `detect_from_runtime_env()` 计入；改为同时清除两个 Redis URL 变量。
+- `overlay_models`：`models: None`（全部注释掉）时 `config_data.get("models", [])` 返回 None 导致 `TypeError`；改用 `or []`，符合该函数对空模型列表的既有语义。同一修复消除 `test_local_registration_gate` 六项 fixture 错误（读取 `config.example.yaml` 时触发同一路径）。
+
+**精确 SHA CI**：`6c67ab5` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43600357480)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43600357401)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43600357383)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43600357353) **4 workflows 全部成功**；Unit 的 backend-unit-tests 执行原 `make test`（含本轮修复和候选 SQLite 恢复演练）通过，default-install-collection、local-qa-distribution、authorized-export-installed 亦成功。`5dd7b3a` 的 Unit Tests 已被后续推送取代而 cancelled，不记为通过。
+
+容器内先行观察到的其余失败（授权路由权限 5 项、USER.md 路径、cancel interrupt 等）经本地源码核对属于容器旧镜像（`criteria-0fd689da83a4`）与当前源码不一致，不是当前源码缺陷；当前源码的同等套件由上述精确 SHA CI 覆盖。不以容器观察冒充当前失败或通过；Windows 验收仍独立。
+
+English: Three test-isolation/None-handling fixes on exact SHA 6c67ab5 passed all four workflows, including the full backend suite and candidate SQLite recovery rehearsal. Container-only failures were old-image artifacts, not current-source defects; Windows acceptance remains separate.
+
 ## 边界测试编号与 CI 超时排查（2026-11-14）
 
 恢复回归提交 `cd26960455fd1e74e4b698d1d81c5bc6c840ba11` 已推送且与远端 main 一致。其 Lint `43563204115`、Blocking IO `43563204134`、Frontend `43563204161` 成功；Unit `43563204085` 中默认安装 collection、软件分发和实际安装导出成功，但 backend-unit-tests 超过原 15 分钟 job 限制而取消。原始日志虽打印 **13,499 passed / 19 skipped / 11 deselected / 18 warnings，788.11s**，仍不是成功的 CI job。

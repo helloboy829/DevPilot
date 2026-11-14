@@ -9,9 +9,13 @@
 
 以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
 
+## 2026-11-15：正式批准首切片（候选，未部署）
+
+[显式人类批准、职责分离与撤销审计](DevPilot_Formal_Approval.md)：`eval_0015` 在不可变独立评估之上追加具名审批人的 `approved`/`revoked` 修订，固定 assessment revision/hash 与 ALL 分母；要求采集完成、独立复核完整、冻结阈值（若定义）达标，且审批人不得是 owner 或该 run 任一盲审/仲裁人。撤销须附理由并追加审计。只有 owner 记录、没有审批人专属身份、多人签核、通知或导出权限；阈值达标与 case PASS 都不产生批准。
+
 ## 2026-11-14：候选 SQLite 升级与恢复演练
 
-[合成版本矩阵、WAL 备份与独立还原](DevPilot_Candidate_Upgrade_Recovery.md)：真实 Harness/App 迁移、39 张旧表全部行/schema、账号、历史密文和报告/复测/Word；逐级或直接升级到 51 张表，注入提交后结果丢失并从旧备份恢复到新路径。只复制主数据库会漏 WAL；恢复旧备份会丢弃之后的新写。不操作业务库，不等于部署、PostgreSQL 原生恢复、Windows 或正式批准验收。
+[合成版本矩阵、WAL 备份与独立还原](DevPilot_Candidate_Upgrade_Recovery.md)：真实 Harness/App 迁移、39 张旧表全部行/schema、账号、历史密文和报告/复测/Word；逐级或直接升级到 53 张表（`eval_0015` 加入正式批准两表），注入提交后结果丢失并从旧备份恢复到新路径。只复制主数据库会漏 WAL；恢复旧备份会丢弃之后的新写。不操作业务库，不等于部署、PostgreSQL 原生恢复、Windows 或正式批准验收。
 
 ## 2026-11-14：本地保留管理命令
 

@@ -17,6 +17,7 @@ from app.evaluation.independent_report_docx import render_independent_docx
 from app.evaluation.independent_retest_docx import render_independent_retest_docx
 from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import AcceptancePlanCreate, PlanCreate, PlanPreflightError
+from app.evaluation.qa_approvals import ApprovalCreate, ApprovalRepository, approval_identifier
 from app.evaluation.qa_assessments import AssessmentCreate, AssessmentRepository
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
 from app.evaluation.qa_independent_archives import IndependentArchiveCreate, IndependentReportRepository, IndependentRetestCreate, IndependentRetestRepository, independent_templates
@@ -529,6 +530,39 @@ async def create_run_assessment(project_id: str, run_id: str, assessment_id: str
     _require_human(request)
     owner, repository = await _context(request)
     return await _result(AssessmentRepository(repository.sf).create_assessment(owner, project_id, run_id, assessment_id, payload))
+
+
+async def _approval_context(request):
+    _require_human(request)
+    owner, repository = await _context(request)
+    return owner, ApprovalRepository(repository.sf)
+
+
+@router.get("/{project_id}/review-runs/{run_id}/approvals")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def list_run_approvals(project_id: str, run_id: str, request: Request):
+    owner, repository = await _approval_context(request)
+    return await _result(repository.list_approvals(owner, project_id, run_id))
+
+
+@router.get("/{project_id}/review-runs/{run_id}/approvals/{approval_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_run_approval(project_id: str, run_id: str, approval_id: str, request: Request):
+    owner, repository = await _approval_context(request)
+    approval_identifier(approval_id)
+    return await _result(repository.get_approval(owner, project_id, run_id, approval_id))
+
+
+@router.post("/{project_id}/review-runs/{run_id}/approvals/{approval_id}")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def create_run_approval(project_id: str, run_id: str, approval_id: str, payload: ApprovalCreate, request: Request):
+    owner, repository = await _approval_context(request)
+    approval_identifier(approval_id)
+    return await _result(repository.create_approval(owner, project_id, run_id, approval_id, payload))
 
 
 async def _independent_report_context(request):

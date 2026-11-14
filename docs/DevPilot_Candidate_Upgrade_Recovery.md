@@ -1,6 +1,6 @@
 # 候选 SQLite 升级与恢复演练 / Candidate upgrade recovery
 
-2026-11-14。本模块补充可重复的合成数据库回归，验证本地 SQLite 的 `eval_0009 → eval_0014` 及升级前备份恢复。测试代码位于 `backend/tests/test_candidate_upgrade_recovery.py`，复用真实迁移、仓库、密码校验和历史 Word 渲染；没有新增运行时迁移命令或业务恢复工具。
+2026-11-14。本模块补充可重复的合成数据库回归，验证本地 SQLite 的 `eval_0009 → eval_0015` 及升级前备份恢复。测试代码位于 `backend/tests/test_candidate_upgrade_recovery.py`，复用真实迁移、仓库、密码校验和历史 Word 渲染；没有新增运行时迁移命令或业务恢复工具。
 
 ## 运行
 
@@ -30,7 +30,7 @@ uv run pytest tests/test_candidate_upgrade_recovery.py \
 
 起点使用真实 Harness bootstrap、真实 `alembic_version` 和 App `eval_0009`，没有手写假的 Harness revision。三个账号覆盖 admin/user、needs_setup、token_version 和可由真实密码函数校验的 hash。两个历史 QA run 保留每次 **ALL 2** 个冻结样本、请求版本/计划/hash、密文输出、人工复核、不可变报告和同基准复测。
 
-当前合成起点共 **39 张表**；每阶段对所有旧表（包括空表）、所有行和旧表 SQL 定义/索引做完整快照比较，并运行 SQLite `integrity_check` / `foreign_key_check`。只有 App revision ledger 可按阶段变更，Harness ledger 必须不变；新增表必须与固定合同集合完全一致。
+当前合成起点共 **39 张表**；每阶段对所有旧表（包括空表）、所有行和旧表 SQL 定义/索引做完整快照比较，并运行 SQLite `integrity_check` / `foreign_key_check`。只有 App revision ledger 可按阶段变更，Harness ledger 必须不变；新增表必须与固定合同集合（累计 **14** 张）完全一致。
 
 | App revision | 合成表数 | 新增职责                                    |
 | ------------ | -------: | ------------------------------------------- |
@@ -40,6 +40,7 @@ uv run pytest tests/test_candidate_upgrade_recovery.py \
 | `eval_0012`  |       47 | 独立报告/复测档案                           |
 | `eval_0013`  |       49 | 授权导出与审计                              |
 | `eval_0014`  |       51 | 外部技术隔离接收与审计                      |
+| `eval_0015`  |       53 | 正式批准与审计（含撤销修订）                |
 
 分别执行逐级升级、直接升级 head 及 head 重复 no-op。升级后与还原后的新连接实际读取旧报告/复测、解密合成 case、校验 ALL 分母与账号密码，并比较历史 Word 字节；不只比较表存在性或文件 hash。
 
@@ -61,4 +62,4 @@ uv run pytest tests/test_candidate_upgrade_recovery.py \
 
 本轮没有修改依赖、迁移、App/API、业务配置或执行开关。候选镜像源码核对、浏览器/真实账号验收、PostgreSQL 原生备份恢复、Windows 和正式批准仍独立进行；本机业务库/卷没有被复制、迁移或还原，业务容器仍按实际观察记录状态。
 
-English: Synthetic SQLite rehearsal exercises the real eval_0009-to-eval_0014 chain, WAL-aware backup and restore to a fresh old-schema database. All historical tables/rows/schema, accounts, encrypted cases, reports, retests and Word bytes are verified. A committed-but-unconfirmed migration is retained rather than repaired. Restoring an earlier backup loses later writes; this is neither a production recovery tool nor deployment, PostgreSQL/Windows acceptance or formal approval.
+English: Synthetic SQLite rehearsal exercises the real eval_0009-to-eval_0015 chain, WAL-aware backup and restore to a fresh old-schema database. All historical tables/rows/schema, accounts, encrypted cases, reports, retests and Word bytes are verified. A committed-but-unconfirmed migration is retained rather than repaired. Restoring an earlier backup loses later writes; this is neither a production recovery tool nor deployment, PostgreSQL/Windows acceptance or formal approval.

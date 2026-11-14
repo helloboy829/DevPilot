@@ -4,7 +4,7 @@ DevPilot 基于 DeerFlow，面向 AI 组件评测：整理授权 QA 数据、冻
 
 [当前能力与运行状态](docs/DevPilot_Delivery_Status.md) · [完整模块文档](docs/README.md) · [架构与开发指南](AGENTS.md) · [上游 DeerFlow](README_upstream.md)
 
-源码已包含独立复核、评估修订、历史报告和授权外部 QA 候选；App 迁移头 `eval_0014` 尚未部署。本地加密输出在写入前持久化保留回执，运行期间持锁；[管理命令](docs/DevPilot_Local_QA_Retention_Commands.md)提供只读检查、单独同意的到期处置和原 ID 对账。正式批准、lost Worker 安全处置和新 QA 调度仍未完成。旧部署收据不证明当前本机服务运行。
+源码已包含独立复核、评估修订、历史报告、授权外部 QA 和正式批准首切片候选；App 迁移头 `eval_0015` 尚未部署。正式批准切片要求具名审批人（非 owner、非该 run 盲审/仲裁）在完整独立复核与冻结阈值（若定义）达标后显式决定，撤销追加理由与审计；它不提供审批人专属身份、多人签核或导出权限。本地加密输出在写入前持久化保留回执，运行期间持锁；[管理命令](docs/DevPilot_Local_QA_Retention_Commands.md)提供只读检查、单独同意的到期处置和原 ID 对账。正式批准全生命周期、lost Worker 安全处置和新 QA 调度仍未完成。旧部署收据不证明当前本机服务运行。
 
 ## 快速开始
 

@@ -1,6 +1,6 @@
 # DevPilot 当前交付状态 / Current delivery status
 
-更新：2026-11-14。本页只列当前能力、验证范围和缺口；逐轮原始记录见[交付历史](DevPilot_Delivery_History.md)。
+更新：2026-11-15。本页只列当前能力、验证范围和缺口；逐轮原始记录见[交付历史](DevPilot_Delivery_History.md)。
 
 ## 现在能用什么
 
@@ -12,6 +12,7 @@
 | 独立准入、有界 QA Worker、加密采集、人工复核、全样本汇总 | 已实现，执行默认关闭           | 未知交付不重发；采集成功/阈值达标不等于批准                                  |
 | 历史报告/Word 草稿、同基准复测                           | 已实现                         | 草稿与比较不自动批准、不自动再执行                                           |
 | 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF  | 候选代码已实现，未部署         | `eval_0010..0012`；旧 owner 路径保持独立                                     |
+| 正式批准首切片（具名审批、职责分离、撤销/审计）          | 候选代码已实现，未部署         | `eval_0015`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准       |
 | 授权配置导出与外部技术元数据隔离接收                     | 候选代码已实现，未部署         | `eval_0013..0014`；不接纳敏感输出为可信证据                                  |
 | 独立本地 QA 命令、共享核心、锁定软件分发、加密输出       | 候选代码已实现                 | 默认离线；真实发送与输出模式分别同意                                         |
 | 未完成/损坏本地输出的保留治理                            | 加密运行时和显式管理命令已实现 | 输出前 durable receipt；原 IDs/两个 hash/单独处置同意；无安全擦除保证        |
@@ -25,15 +26,17 @@
 | 项目               | 当前事实                                                                                  |
 | ------------------ | ----------------------------------------------------------------------------------------- |
 | Git 源码           | `main`；精确工作区提交用 `git rev-parse HEAD` 查询，不用迁移号代替                        |
-| App 候选迁移头     | `eval_0014`；本轮合成恢复验证没有新增迁移                                                 |
+| App 候选迁移头     | `eval_0015`；本轮合成恢复矩阵尚无新 SHA CI 收据                                           |
 | 最后留存的部署收据 | `0fd689da83a4ac7646250447fb6d044599a823c5` / `eval_0009`，属于历史验证                    |
-| 本机 Docker 观察   | 2026-11-14 四个 `devpilot-local` 业务容器均 stopped；旧镜像并不包含新候选模块             |
-| 本轮操作           | 隔离合成升级/备份/恢复验证；没有部署、复制或迁移业务 DB、生成生产 key 或调用真实模型/目标 |
+| 本机 Docker 观察   | 2026-11-15 观察：先前四个 `devpilot-local` 业务容器及其 `criteria-0fd689da83a4` 镜像已不在本机（外部清理，原因未核实）；不做业务恢复或镜像重建推断 |
+| 本轮操作           | 只创建本轮隔离 Python 3.12 测试容器（仅挂载公开源码、无业务卷、无发布端口），运行专项/迁移/完整离线套件；不部署、不复制或迁移业务 DB、不生成生产 key、不调用真实模型/目标；结束后按完整 ID 停止并删除该容器 |
 
 只有重新启动并验真相应版本才能声称当前本机可用。历史健康和账号/数据保存记录见[本地升级记录](DevPilot_Local_Recovery_and_Upgrade.md)。
 
 ## 最近验证
 
+- 正式批准首切片（`eval_0015`，本地离线、隔离 Python 3.12 容器，锁文件 dev 组）：专项 `tests/test_qa_approvals.py` + `tests/test_qa_approvals_router.py` **20 passed**（32.94s）；迁移矩阵（候选恢复 + 五组迁移专项）**13 passed / 5 skipped**（146.36s，skip 是原 PostgreSQL 独占服务器门禁），候选恢复链现为 39 → 44 → 45 → 47 → 49 → 51 → **53** 张表并固定新增 14 张表；更新头断言的九个既有文件 **285 passed**（286.45s）；领域测试 **15 / 58 passed**。完整后端离线套件与 Blocking IO 结果见下一条；精确 SHA CI 须在新提交后独立核验。
+- **精确 SHA CI（2026-11-14）**：`6c67ab58819d5871603a7f21547bec184db55e16` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43600357480)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43600357401)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43600357383)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43600357353) 共 **4 workflows / 全部 jobs 成功**；Unit 含默认安装 collection、`make test`（完整后端离线套件，覆盖候选 SQLite 恢复演练）、软件分发与实际安装导出。该提交只修改三个测试的环境隔离（清除容器 Redis 环境变量对默认存储/uv extras 推断的干扰）与 `overlay_models` 的 `models: None` 处理；没有运行时行为、迁移、依赖或执行开关变更。这是该 SHA 的唯一 CI 收据，不适用于 `eval_0015` 候选。
 - CI 日志修复的独立 Python 3.12 冻结 dev 环境：修改前 **13,441 passed / 77 skipped / 11 deselected / 40 warnings，1032.35s**；修改后原 `make test` **同样 13,441 passed / 77 skipped / 11 deselected / 40 warnings，951.44s**，两组领域测试 **15 / 58 passed**。六文件专项 **384 passed**、Blocking IO **72 passed**、完整 Ruff **1,282 files** 通过。相同入口 collection 前后均 **13,524 items**，每个测试函数的用例数一致；11 个超长编号消除，最长 **655,440 → 615 字符**。这是本地离线结果，不代替新提交 CI 或 Windows 验收。
 - 候选恢复回归的最终完整离线套件：**13,441 passed / 77 skipped / 11 deselected / 40 warnings**，934.37s；修改前基线为 13,433 passed（906.24s）。本地默认 dev 安装未配置 PostgreSQL extra/独占服务器，相关专项等按原门禁跳过。远端数据库服务门禁单独核验。
 - [最终 SQLite 恢复矩阵](DevPilot_Candidate_Upgrade_Recovery.md)专项 **8 passed**（59.15s），验证 39 → 44 → 45 → 47 → 49 → 51 张表及 ALL 历史行/schema、WAL/账号/报告/复测/Word。与五组已有迁移联合 **13 passed / 5 skipped**；Blocking IO **72 passed / 2 warnings**，领域 **15 / 58 passed**，最终完整后端 Ruff check/format **1,282 files** 通过。专项和全量重叠，不相加；skip 不是通过。
@@ -53,10 +56,10 @@
 | ------ | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
 | P0     | 当前源码 CI、环境与候选升级验收闭环                    | 精确 SHA 门禁、当前镜像源码核对、数据/配置保护、隔离迁移及回退演练；部署另行执行 |
 | P1     | 本地明文副本与更广泛崩溃产物治理、Windows 验收         | 分别绑定原身份/用途/保留同意，旧目录不补造回执；新平台实际安装/锁/处置验证       |
-| P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；不能把 case PASS 当批准         |
+| P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；不能把 case PASS 当批准；首切片候选已实现，审批人专属身份/多人签核/通知仍未完成 |
 | P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入       |
 | P2     | 敏感外部证据治理、CV/流式指标/模型裁判、整改与知识闭环 | 各自授权、隔离、证据/计量与人工审查；缺失指标不填零、不判 PASS                   |
 
 开发环境恢复不必等所有 P1/P2 功能完成；正式质量验收依赖独立批准及相应业务能力。具体交付以模块退出条件为准，项目整体尚未完成。
 
-English: Source capabilities, candidate migrations, exact-commit verification and observed runtime are tracked separately. Business containers were stopped at the recorded observation; no deployment or real calls were performed. Encrypted runtime retention receipts and explicit management commands are implemented; plaintext-copy/crash-artifact governance, Windows acceptance, independent approval and safe lost-worker/scheduling operations remain open.
+English: Source capabilities, candidate migrations, exact-commit verification and observed runtime are tracked separately. Business containers were observed as absent on 2026-11-15 (external cleanup, cause unverified); no deployment or real calls were performed. Encrypted runtime retention receipts and explicit management commands are implemented; the formal-approval first slice exists as an undeployed candidate, while approver-side identity, multi-level sign-off, plaintext-copy/crash-artifact governance, Windows acceptance and safe lost-worker/scheduling operations remain open.

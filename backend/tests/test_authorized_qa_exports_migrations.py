@@ -25,9 +25,10 @@ from deerflow.persistence.component_tests.model import ComponentRow
 from deerflow.persistence.user.model import UserRow
 
 NEW = {t.exports.name, t.export_audit.name}
-# Freeze this revision's historical table population; eval_0014 has its own
-# full-head parity/preservation regression and must not be queried after downgrade.
-APP_TABLES = [table for table in t.metadata.sorted_tables if table.name not in {t.external_qa_intakes.name, t.external_qa_intake_audit.name}]
+# Freeze this revision's historical table population; eval_0014/eval_0015 have
+# their own full-head parity/preservation regressions and must not be queried
+# after downgrade.
+APP_TABLES = [table for table in t.metadata.sorted_tables if table.name not in {t.external_qa_intakes.name, t.external_qa_intake_audit.name, t.run_approvals.name, t.approval_audit.name}]
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in APP_TABLES if table.name not in NEW]]
 
 

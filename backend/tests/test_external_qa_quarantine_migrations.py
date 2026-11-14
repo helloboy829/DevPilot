@@ -1,4 +1,4 @@
-"""eval_0014 is additive, preserves ALL previous rows and the Harness ledger."""
+"""eval_0014/eval_0015 are additive, preserve ALL previous rows and the Harness ledger."""
 
 import asyncio
 import os
@@ -27,7 +27,7 @@ from deerflow.config.database_config import DatabaseConfig
 from deerflow.persistence.component_tests.model import ComponentRow
 from deerflow.persistence.user.model import UserRow
 
-NEW = {t.external_qa_intakes.name, t.external_qa_intake_audit.name}
+NEW = {t.external_qa_intakes.name, t.external_qa_intake_audit.name, t.run_approvals.name, t.approval_audit.name}
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name not in NEW]]
 
 
@@ -71,7 +71,7 @@ async def cycle(engine):
         async with engine.connect() as conn:
             names = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
             assert NEW.isdisjoint(names) if target == "eval_0013" else NEW.issubset(names)
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0013" if target == "eval_0013" else "eval_0014")
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0013" if target == "eval_0013" else "eval_0015")
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
             if target == "head":
 

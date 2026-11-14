@@ -584,3 +584,47 @@ external_qa_intake_audit = Table(
     CheckConstraint("action = 'metadata_quarantined' AND at_ms > 0", name="ck_evaluation_external_intake_audit"),
 )
 Index("ix_evaluation_external_intake_audit_intake", external_qa_intake_audit.c.project_id, external_qa_intake_audit.c.intake_id)
+
+# Explicit human formal approval over an immutable independent assessment.
+# Decision is always supplied by the approver; case outcomes and threshold
+# arithmetic never write an approval. Revocation appends a new revision.
+run_approvals = Table(
+    "evaluation_run_approvals",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("owner_id", String(64), nullable=False),
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("request_hash", String(64), nullable=False),
+    Column("assessment_id", String(32), nullable=False),
+    Column("assessment_hash", String(64), nullable=False),
+    Column("approver_id", String(64), nullable=False),
+    Column("decision", String(16), nullable=False),
+    Column("document", JSON, nullable=False),
+    Column("approval_hash", String(64), nullable=False),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    ForeignKeyConstraint(["assessment_id"], ["evaluation_run_assessments.id"]),
+    UniqueConstraint("run_id", "revision", name="uq_evaluation_approval_revision"),
+    CheckConstraint("revision BETWEEN 1 AND 1000 AND created_at_ms > 0", name="ck_evaluation_approval_bounds"),
+    CheckConstraint("decision IN ('approved','revoked')", name="ck_evaluation_approval_decision"),
+)
+Index("ix_evaluation_approval_run_revision", run_approvals.c.run_id, run_approvals.c.revision)
+approval_audit = Table(
+    "evaluation_approval_audit",
+    metadata,
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), primary_key=True),
+    Column("sequence", Integer, primary_key=True),
+    Column("approval_id", String(32), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("actor", String(64), nullable=False),
+    Column("action", String(16), nullable=False),
+    Column("subject_hash", String(64), nullable=False),
+    Column("at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    CheckConstraint("sequence > 0 AND revision BETWEEN 1 AND 1000 AND at_ms > 0", name="ck_evaluation_approval_audit_bounds"),
+    CheckConstraint("action IN ('approved','revoked')", name="ck_evaluation_approval_audit_action"),
+)
+Index("ix_evaluation_approval_audit_run", approval_audit.c.run_id, approval_audit.c.sequence)
