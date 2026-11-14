@@ -14,7 +14,7 @@ English: one authenticated-workflow test observed an empty sent list in CI attem
 
 随后 `881f0bd` 的 Unit 第三次在同一 lifespan 测试失败（**1.058s > 1.0s**；前两次 1.283s/1.058s 出现在不同 SHA）。根因是该测试用 1 秒墙钟上限覆盖了与检索预热无关的 shutdown 步骤；改为在释放阻塞线程之前捕获 `warm_returned` 事件并断言 False，同时保留 `shutdown_flush(5.0)` 与 `close` 未调用的断言。连续 5 次单测与整文件 **11 passed**（43.99s），Ruff 通过；没有修改生产代码或延长产品超时。确定性修复随 `805c648` 的 Lint/Blocking IO/Frontend/Unit **4 workflows 全绿**通过精确 SHA CI（Unit `43646997095`）。
 
-随后 docs-only `03fe751` 的 Unit 再次在同一 RBAC 测试失败（`sent=[]`，13,564 passed，829.16s）。根因指向合成计划的 1 秒请求超时在 CI 调度抖动下先于发送触发；该测试改用 5 秒合成超时，并让共享 `collect` 显式断言 `state == collected` 以便区分中断。本地 3/3 通过，Ruff 通过；未修改产品超时、未放宽产品断言，精确 SHA CI 另行核验。
+随后 docs-only `03fe751` 的 Unit 再次在同一 RBAC 测试失败（`sent=[]`，13,564 passed，829.16s）。根因指向合成计划的 1 秒请求超时在 CI 调度抖动下先于发送触发；该测试改用 5 秒合成超时。初次同时给共享 `collect` 增加 `state == collected` 诊断断言，但 `delivery_unknown` 等故障场景合法返回 interrupted，导致 `4ae13bb` 出现 2 failed；该断言已撤销，保留原断言。相关 fault/RBAC **15 passed**（52.09s），Ruff 通过；未修改产品超时。精确 SHA CI 另行核验。
 
 ## 本地完整套件运行（2026-11-15）
 

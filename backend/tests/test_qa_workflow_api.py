@@ -277,7 +277,6 @@ async def collect(state, plan, *, build):
     state.run_id = queued["run_id"]
     assert await state.worker.run_once() is True
     finished = response_json(await state.client.get(path))
-    assert finished["state"] == "collected", finished
     assert not finished["reservation_held"]
     assert response_json(await state.client.put(path, json=payload)) == finished
     assert await state.worker.run_once() is False
