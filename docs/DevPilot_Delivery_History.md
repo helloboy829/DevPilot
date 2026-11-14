@@ -12,7 +12,7 @@ English: the acceptance package documents the synthetic checklist, rollback limi
 
 [执行安全合同](DevPilot_Execution_Safety_Contract.md)新增纯同步 `app.evaluation.execution_safety.classify_held_reservation`：对单行占用输出固定技术投影（七种状态、到期标记、配额、固定阻塞码），恒返回 `release/reclaim/requeue/retry/resend/dispatch` 未授权，`worker_liveness=not_established`；未知状态、类型伪装、非一致 held/state 与非正时钟全部 `ValueError` 失败关闭。边界回归以 AST 锁定：调度器与正式批准模块不得导入执行仓库或调用 `admit`，运维路由只有 `GET /reservations`。
 
-未修改执行/调度/配额/取消/计时行为，无 API、迁移、UI、后台清理器、部署或真实调用。测试先红后绿：首版路由断言用子串匹配，把 docstring 的 `release/reclaim` 误判为路径（**1 failed**），改为 AST 精确断言路由方法与路径后 **30 passed**；未改运行时、未放宽断言。关联执行/调度回归 **66 passed**，批准/迁移/执行安全/恢复矩阵组合 **60 passed**（137.47s），锁定 Ruff 0.15.12 check/format 通过。
+未修改执行/调度/配额/取消/计时行为，无 API、迁移、UI、后台清理器、部署或真实调用。测试先红后绿：首版路由断言用子串匹配，把 docstring 的 `release/reclaim` 误判为路径（**1 failed**），改为 AST 精确断言路由方法与路径后 **30 passed**；未改运行时、未放宽断言。后续加入真实 admit/claim/expire 集成回归（**2 passed**）：queued 过期释放配额并分类为 `interrupted_terminal`，running 过期保留配额且仍不授权，`interrupted` 持锁行增加显式 quota blocker；专项合计 **32 passed**（20.80s），关联执行/调度回归 **66 passed**（54.49s），批准/迁移/执行安全/恢复矩阵组合 **60 passed**（137.47s），锁定 Ruff 0.15.12 check/format 通过。
 
 **精确 SHA CI**：`ce6ca15f97c410252100dea4c00a8949ed826a40` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43615345199)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43615345236)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43615345167)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43615345169) 共 **4 workflows 全部成功**；Unit 的 `make test` 覆盖本模块与既有执行/调度回归。该结果只属于此 SHA，不能移用于后续提交或部署。
 

@@ -22,7 +22,7 @@
 
 固定投影键：`scope`、`observed_at_ms`、`state`、`reservation_held`、`deadline_reached`、`terminal`、`worker_liveness`（恒为 `not_established`）、`reservation{concurrency,body_bytes,response_bytes}`、`blockers`、以及恒为 `false` 的 `release_authorized`、`reclaim_authorized`、`requeue_authorized`、`retry_authorized`、`resend_authorized`、`dispatch_authorized`。不返回 owner/project/run/plan/execution ID、claim token/hash、端点、key、Q/A/gold 或密文。
 
-固定阻塞码：`worker_liveness_not_established`（持锁时）、`deadline_is_not_worker_death`（持锁且到期）、`quota_retained_until_original_worker_drains`（running/cancel_requested）、`terminal_record_grants_nothing`（未持锁时）。阻塞码是结论，不是可执行建议。
+固定阻塞码：`worker_liveness_not_established`（持锁时）、`deadline_is_not_worker_death`（持锁且到期）、`quota_retained_until_original_worker_drains`（running/cancel_requested，或过期后仍持锁的 interrupted）、`terminal_record_grants_nothing`（未持锁时）。阻塞码是结论，不是可执行建议。
 
 ## 现有运行时语义（未改动）
 

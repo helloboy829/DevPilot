@@ -75,7 +75,7 @@ def classify_held_reservation(row, *, now_ms):
         blockers.append("terminal_record_grants_nothing")
     if held and deadline_reached:
         blockers.append("deadline_is_not_worker_death")
-    if held and state in {"running", "cancel_requested"}:
+    if held and state in {"running", "cancel_requested", "interrupted"}:
         blockers.append("quota_retained_until_original_worker_drains")
     return {
         "scope": "execution_safety_observation_only",

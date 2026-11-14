@@ -5,7 +5,13 @@ import inspect
 from pathlib import Path
 
 import pytest
+from sqlalchemy import select
+from test_dispatch_journal import prepared as prepared
+from test_qa_execution import admit as admit_execution
+from test_qa_execution import repository as execution_repository
 
+from app.evaluation import tables as t
+from app.evaluation.execution import ExecutionPolicy
 from app.evaluation.execution_safety import classify_held_reservation
 
 APP = Path(__file__).resolve().parents[1] / "app" / "evaluation"
@@ -80,6 +86,8 @@ def test_deadline_and_quota_blockers_are_fixed_codes():
     assert running["blockers"] == ["worker_liveness_not_established", "deadline_is_not_worker_death", "quota_retained_until_original_worker_drains"]
     queued = classify_held_reservation(row(state="queued"), now_ms=2500)
     assert queued["blockers"] == ["worker_liveness_not_established", "deadline_is_not_worker_death"]
+    expired_running = classify_held_reservation(row(state="interrupted"), now_ms=2500)
+    assert expired_running["blockers"] == ["worker_liveness_not_established", "deadline_is_not_worker_death", "quota_retained_until_original_worker_drains"]
     done = classify_held_reservation(row(state="collected", reservation_held=False), now_ms=1000)
     assert done["blockers"] == ["terminal_record_grants_nothing"]
 
@@ -137,3 +145,54 @@ def test_operations_router_exposes_only_aggregate_get():
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == "router"]
     assert {node.func.attr for node in calls} == {"get"}
     assert {node.args[0].value for node in calls} == {"/reservations"}
+
+
+def execution_policy():
+    return ExecutionPolicy(enabled=True, max_active_runs=2, max_reserved_concurrency=4, max_response_bytes=128, max_reserved_body_bytes=100000, max_reserved_response_bytes=10000)
+
+
+async def stored_row(engine, execution_id):
+    async with engine.connect() as conn:
+        return dict((await conn.execute(select(t.executions).where(t.executions.c.id == execution_id))).mappings().one())
+
+
+@pytest.mark.asyncio
+async def test_real_queued_expiry_releases_quota_and_never_authorizes(prepared):
+    repo = execution_repository(prepared, execution_policy())
+    await repo.initialize()
+    _, engine, _, _, clock = prepared
+    admitted = await admit_execution(repo, prepared)
+    row = await stored_row(engine, admitted["id"])
+    assert row["state"] == "queued" and row["reservation_held"] is True
+    pending = classify_held_reservation(row, now_ms=clock["ms"])
+    assert pending["state"] == "queued_ready" and pending["terminal"] is False
+    clock["ms"] = row["deadline_ms"] + 1
+    await repo.expire()
+    expired = await stored_row(engine, admitted["id"])
+    assert expired["state"] == "interrupted" and expired["reservation_held"] is False
+    after = classify_held_reservation(expired, now_ms=clock["ms"])
+    assert after["state"] == "interrupted_terminal" and after["terminal"] is True
+    assert after["blockers"] == ["terminal_record_grants_nothing"]
+    assert all(after[key] is False for key in ("release_authorized", "reclaim_authorized", "requeue_authorized", "retry_authorized", "resend_authorized", "dispatch_authorized"))
+
+
+@pytest.mark.asyncio
+async def test_real_running_expiry_retains_quota_and_never_authorizes(prepared):
+    repo = execution_repository(prepared, execution_policy())
+    await repo.initialize()
+    _, engine, _, _, clock = prepared
+    admitted = await admit_execution(repo, prepared)
+    claim = await repo.claim()
+    assert claim is not None
+    row = await stored_row(engine, admitted["id"])
+    assert row["state"] == "running" and row["reservation_held"] is True
+    assert classify_held_reservation(row, now_ms=clock["ms"])["state"] == "running_within_deadline"
+    clock["ms"] = row["deadline_ms"] + 1
+    await repo.expire()
+    expired = await stored_row(engine, admitted["id"])
+    assert expired["state"] == "interrupted" and expired["reservation_held"] is True
+    after = classify_held_reservation(expired, now_ms=clock["ms"])
+    assert after["state"] == "interrupted_terminal"
+    assert after["blockers"] == ["worker_liveness_not_established", "deadline_is_not_worker_death", "quota_retained_until_original_worker_drains"]
+    assert after["reservation"] == {"concurrency": row["reserved_concurrency"], "body_bytes": row["reserved_body_bytes"], "response_bytes": row["reserved_response_bytes"]}
+    assert all(after[key] is False for key in ("release_authorized", "reclaim_authorized", "requeue_authorized", "retry_authorized", "resend_authorized", "dispatch_authorized"))
