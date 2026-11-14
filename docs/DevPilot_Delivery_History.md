@@ -6,7 +6,9 @@
 
 [运维诊断](DevPilot_Execution_Reservation_Diagnostics.md)的 `reservation_snapshot` 在同一聚合 SELECT 中新增 `safety.states`：按[执行安全合同](DevPilot_Execution_Safety_Contract.md)的固定状态码统计持锁行（queued_ready、queued_deadline_reached、running_within_deadline、running_deadline_reached、cancel_requested_pending、interrupted_terminal）。仍不选择执行/run/owner ID、claim/证据列，不取锁、不初始化 guard、不写审计；`worker_liveness=not_established`，释放/回收/重试/调度仍为 false。
 
-测试先红后绿：先加断言得到 `ImportError: SAFETY_STATES`（collection 失败），实现后诊断 **14 passed**；路由与执行安全联合 **40 passed**，Ruff check/format 通过。无迁移、执行/调度/配额/计时变更，无部署或真实调用；精确 SHA CI 另行记录。
+测试先红后绿：先加断言得到 `ImportError: SAFETY_STATES`（collection 失败），实现后诊断 **14 passed**；路由与执行安全联合 **40 passed**，Ruff check/format 通过。无迁移、执行/调度/配额/计时变更，无部署或真实调用。
+
+**精确 SHA CI**：`052a62474f919b0bf7404f545d81c36f74d84246` 的 Lint、Blocking IO、Frontend、Unit 共 **4 workflows 全部成功**（Unit `43620477352`，14m23s）；结果只属于该 SHA。
 
 English: aggregate held-reservation counts keyed by the fixed safety codes are exposed in the same single diagnostic SELECT, without identities, claim/evidence columns or any release/retry/dispatch authority.
 
