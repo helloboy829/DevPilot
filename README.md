@@ -4,7 +4,7 @@ DevPilot 基于 DeerFlow，面向 AI 组件评测：整理授权 QA 数据、冻
 
 [当前能力与运行状态](docs/DevPilot_Delivery_Status.md) · [完整模块文档](docs/README.md) · [架构与开发指南](AGENTS.md) · [上游 DeerFlow](README_upstream.md)
 
-源码已包含独立复核、评估修订、历史报告和授权外部 QA 候选；App 迁移头 `eval_0014` 尚未部署。本地加密输出现在于写入前持久化保留回执，运行期间持锁；到期处置仍须通过独立 API 明确确认。正式批准、lost Worker 安全处置和新 QA 调度仍未完成。旧部署收据不证明当前本机服务运行。
+源码已包含独立复核、评估修订、历史报告和授权外部 QA 候选；App 迁移头 `eval_0014` 尚未部署。本地加密输出在写入前持久化保留回执，运行期间持锁；[管理命令](docs/DevPilot_Local_QA_Retention_Commands.md)提供只读检查、单独同意的到期处置和原 ID 对账。正式批准、lost Worker 安全处置和新 QA 调度仍未完成。旧部署收据不证明当前本机服务运行。
 
 ## 快速开始
 
@@ -104,7 +104,7 @@ Use the [current delivery matrix](docs/DevPilot_Delivery_Status.md) for code, de
 1. Close full-suite/environment regressions and run an independently observed, synthetic-only deployed workflow before requesting user acceptance.
 2. Validate the implemented independent review/arbitration candidates and add versioned formal approval without changing frozen evidence, denominators or report history.
 3. Define lost-worker operations that cannot resend unknown deliveries or reclaim a worker still capable of sending; independently admit QA-chain scheduling.
-4. Unify remaining legacy adapters with the versioned execution boundary and finish explicit retention management commands and the separately authorized external evidence lifecycle.
+4. Unify remaining legacy adapters with the versioned execution boundary and finish plaintext-copy/crash-artifact governance and the separately authorized external evidence lifecycle.
 5. Add explicitly authorized/calibrated CV, streaming-performance and judge-model workflows, dataset governance and reviewed knowledge promotion.
 
 Default backend `make test` excludes real-model cases. Direct pytest runs also require `DEER_FLOW_RUN_LIVE_TESTS=1` before pytest starts; existing keys or a later test-module `.env` read are not authorization. CI always blocks live cases. Local Docker lifecycle integration is separately gated by `DEVPILOT_RUN_DOCKER_TESTS=1`, never probes the daemon during collection, and never implicitly pulls an image. Authorized live tests may incur API costs and create local artifacts; see [test safety](CONTRIBUTING.md#testing).

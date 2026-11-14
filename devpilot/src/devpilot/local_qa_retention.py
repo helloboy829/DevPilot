@@ -9,9 +9,12 @@ uncertain.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
+import json
 import os
 import stat
+import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -475,3 +478,56 @@ def reconcile_incomplete_disposal(directory, *, expected_run_id: str, expected_m
             os.close(descriptor)
     except (OSError, ValueError, TypeError, UnicodeError, RecursionError):
         raise ValueError(_ERROR) from None
+
+
+def main(argv=None):
+    """Explicit original-ID operations; never discover, execute, decrypt or retry."""
+
+    class Parser(argparse.ArgumentParser):
+        def error(self, message):
+            raise ValueError(_ERROR)
+
+    parser = Parser(
+        description="Explicit local retention inspection/disposal/reconciliation. Content remains unverified / NOT_EVALUATED; expiry is not secure erasure.",
+        allow_abbrev=False,
+    )
+    operations = parser.add_subparsers(dest="operation", required=True)
+    for operation in ("inspect", "dispose-expired", "reconcile-disposal"):
+        command = operations.add_parser(operation, allow_abbrev=False)
+        command.add_argument("--directory", required=True)
+        command.add_argument("--run-id", required=True)
+        command.add_argument("--manifest-fingerprint", required=True)
+        if operation != "inspect":
+            command.add_argument("--disposal-id", required=True)
+        if operation == "dispose-expired":
+            command.add_argument("--confirm-retention-receipt-sha256", required=True)
+            command.add_argument("--confirm-ciphertext-sha256", required=True)
+            command.add_argument("--confirm-incomplete-output-disposal", action="store_true", required=True)
+    try:
+        args = parser.parse_args(argv)
+        common = {"expected_run_id": args.run_id, "expected_manifest_fingerprint": args.manifest_fingerprint}
+        if args.operation == "inspect":
+            result = inspect_retention(args.directory, **common)
+        elif args.operation == "reconcile-disposal":
+            result = reconcile_incomplete_disposal(args.directory, **common, disposal_id=args.disposal_id)
+        else:
+            result = dispose_incomplete_output(
+                args.directory,
+                **common,
+                disposal_id=args.disposal_id,
+                source_ciphertext_sha256=args.confirm_ciphertext_sha256,
+                retention_receipt_sha256=args.confirm_retention_receipt_sha256,
+                confirm_incomplete_output_disposal=args.confirm_incomplete_output_disposal,
+            )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except KeyboardInterrupt:
+        print(_ERROR, file=sys.stderr)
+        return 130
+    except Exception:
+        print(_ERROR, file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

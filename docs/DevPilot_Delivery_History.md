@@ -2,6 +2,18 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## 显式本地保留管理命令（2026-11-14）
+
+上一模块 `deb1935d246fac1a8ed25d89ff16fd5ccd40c607` 的四项实际 push Actions / 八个 jobs 重新核验全成功：Lint `43553100136`、Blocking `43553100133`、Frontend `43553100555`、Unit `43553100265`。本模块从当前锁文件在独立 Python 3.12.16 dev 环境建立修改前完整基线：**13,393 passed / 77 skipped / 11 deselected / 40 warnings**（899.12s），领域 **15 / 58 passed**。新命令最初 **38 failed**，证实缺少入口；新增 stdout 丢失和无输出目录场景后，管理命令与原 API 联合 **80 passed**。
+
+[新命令](DevPilot_Local_QA_Retention_Commands.md)复用真实 retention API：显式 inspect、原 disposal UUID/两个 hash/单独同意的 dispose-expired 和同 ID reconcile-disposal。所有结果保持未认证 `NOT_EVALUATED`，不读 key/解密/业务配置，不运行 QA，不生成 ID、发现 latest、修复或重试。未知 unlink/sync/完成回执、键盘中断和 stdout 丢失后只读原 ID 对账；缺 intent/锁或绑定错误不修复。原运行时 shared runner、hash/ALL 分母和一次删除合同不改。
+
+独立候选目录使用新鲜六工具 hash-locked build → sdist/wheel → 十二依赖完整离线安装；实际已安装进程执行三条管理命令，并拒绝业务/执行 imports、DNS/socket 和 Fernet 解密。缺同意、缺失/篡改 wheel 和重复处置拒绝；两次软件档案逐字节一致，SHA256 `27aeb3cdb8df596b63fd2b0d8569e824ea5a13d11c4f36a315b7d1eb48af697f`，声明基线 revision，不认证 dirty 工作区 provenance。带实际 artifact 的命令/API/分发/输出/receipt 联合 **241 passed**（31.00s），Blocking IO **72 passed / 2 warnings**（14.13s），完整后端 Ruff check/format **1,281 files** 及两个变更模块通过。全量、资源收尾和本模块精确 SHA CI 分别记录，不挪用上一模块结果。无依赖/迁移/平台 API/部署/真实调用；明文副本、广泛崩溃产物、Windows 和正式批准仍独立待完成。
+
+最终完整离线回归 **13,433 passed / 77 skipped / 11 deselected / 40 warnings**（881.28s），领域 **15 / 58 passed**；默认 dev 安装无 PostgreSQL extra/独占服务，相关专项按原门禁跳过，不宣称已通过。专项、安装和全量重叠，不相加。受测三个变更源码与宿主 SHA256 相同，十份变更 Markdown 的 **208** 个本地链接有效。
+
+测试结束后逐项导出并比较 **16** 份合成日志/软件的大小与 SHA256；只移除本轮无挂载容器 `c97c196792ef` 和本轮 `source.tar`。停止前已无测试/build 进程，只剩 PID 1 和测试留下的 defunct 子进程；普通 `docker stop --timeout 10` 记录 Exit137 / OOMKilled=false，不宣称优雅退出。原十个容器、镜像、缓存和卷均保留，无全局清理。新提交和精确 SHA CI 另行核验。
+
 ## 运行时保留身份接入（2026-11-14）
 
 基线 `5fa993445400feae0420261231d4a6dd1e6d0bee` 的四项实际 push Actions / 八个 jobs 全成功：Lint `43549070559`、Blocking `43549070532`、Frontend `43549070615`、Unit `43549070550`。默认安装 collection 步骤 355s，完整后端/独立分发/实际安装导出均成功。前一 `0a88d11` 默认 collection 超过 10m 取消仍保留，不以本轮成功宣称其根因已修复；诊断不改 timeout/范围/重试。隔离默认安装实际收集 13,464 项；首次 git archive 副本缺 `.git` 时四项扫描器收集报错，建立独立空仓库后原命令通过，未修改扫描器或断言。

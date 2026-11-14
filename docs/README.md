@@ -9,6 +9,10 @@
 
 以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
 
+## 2026-11-14：本地保留管理命令
+
+[显式检查、到期处置与原 ID 对账](DevPilot_Local_QA_Retention_Commands.md)：复用输出前 durable receipt 和真实锁/文件 API；处置需 operator 原 disposal UUID、两个 hash 及单独同意。无 key/解密/执行/自动删除，不把未认证 metadata 或文件缺失当作来源、PASS、安全擦除或批准；plaintext 副本治理和 Windows 实际验收仍独立进行。
+
 ## 2026-11-11：本地 QA 加密输出与保留候选
 
 [独立输出保护 / Protected local output](DevPilot_Local_QA_Protected_Output.md)：显式 operator key、分离同意、完整认证链、同 descriptor 持锁打开、到期精确一次删除和原 ID 只读对账。v2 软件分发含 12 个锁定运行依赖；不等于平台证据、正式批准或部署，半写输出保留治理仍待完成。

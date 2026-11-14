@@ -6,7 +6,7 @@
 
 English: Explicit operator-key encryption is now available as a separately consented mode; legacy plaintext is opt-in only. Expiry/open/one-shot deletion are described in the linked contract, not a new runner or approval.
 
-2026-11-14：加密输出在创建 ciphertext 前持久化 `retention-receipt.json`，与认证 header 使用同一原 ID、创建/到期时间和冻结预算；从创建到关闭持有 retention 独占锁。原 `_drained_database` 负责重复取消排空；回执不确定则无输出、journal 或派发，硬退出保留原身份供显式检查。无 key 检查不认证内容；到期处置单独同意，管理命令和明文副本治理仍未完成。详见[保护与保留合同](DevPilot_Local_QA_Protected_Output.md)。
+2026-11-14：加密输出在创建 ciphertext 前持久化 `retention-receipt.json`，与认证 header 使用同一原 ID、创建/到期时间和冻结预算；从创建到关闭持有 retention 独占锁。原 `_drained_database` 负责重复取消排空；回执不确定则无输出、journal 或派发，硬退出保留原身份供显式检查。[管理命令](DevPilot_Local_QA_Retention_Commands.md)只返回未认证 metadata，处置另需原 disposal ID、两个 hash 和单独同意；未知结果只原 ID 只读对账。明文副本治理仍未完成。详见[保护与保留合同](DevPilot_Local_QA_Protected_Output.md)。
 
 > 2026-11-10。独立 execute-only 候选；默认离线，结果外部未核验。不是平台授权 exporter、正式批准或完整依赖发行包。历史部署收据不是本机运行验收。
 

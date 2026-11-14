@@ -20,7 +20,7 @@ _builder_spec.loader.exec_module(_builder)
 archive_entries, native_target, read_regular, sha256 = _builder.archive_entries, _builder.native_target, _builder.read_regular, _builder.sha256
 
 _INSTALLED_CHECK = r"""
-import asyncio, contextlib, importlib.abc, importlib.util, io, json, runpy, socket, sys
+import asyncio, contextlib, importlib.abc, importlib.util, io, json, runpy, socket, subprocess, sys
 from pathlib import Path
 assert sys.version_info[:2] == (3,12) and sys.prefix != sys.base_prefix
 root, directory = Path(sys.argv[1]), Path(sys.argv[2])
@@ -118,10 +118,33 @@ purged=purge_output(directory,key_file=key,expected_run_id=result['run_id'],expe
 assert purged['encrypted_file_removed'] and not purged['secure_erasure_proven']
 reconciled=command('devpilot.local_qa_output',['reconcile-purge','--directory',str(directory),'--run-id',result['run_id'],'--manifest-fingerprint',manifest['fingerprint']])
 assert reconciled['encrypted_file_absent'] and reconciled['completion_receipt_present'] and len(sent)==5
-# The standalone content-unverified disposal API remains separately consented.
+# Exercise real installed retention module commands in fresh processes.
 from uuid import uuid4
 from devpilot.local_qa_cli import LocalRunManifest
-from devpilot.local_qa_retention import create_retention_receipt, inspect_retention, dispose_incomplete_output, reconcile_incomplete_disposal
+from devpilot.local_qa_retention import create_retention_receipt
+retention_script = '''
+import importlib.abc, runpy, socket, sys
+from cryptography.fernet import Fernet
+class Deny(importlib.abc.MetaPathFinder):
+ def find_spec(self,fullname,*args):
+  if fullname.split('.')[0] in {'app','deerflow','sqlalchemy','fastapi','langchain','langgraph'} or fullname in {'devpilot.local_qa_cli','devpilot.local_json_run','devpilot.pinned_http'}:
+   raise AssertionError('business/execution import')
+sys.meta_path.insert(0,Deny())
+def denied(*args,**kwargs): raise AssertionError('network/decryption forbidden')
+socket.getaddrinfo=denied
+for name in ('connect','connect_ex','sendto'): setattr(socket.socket,name,denied)
+Fernet.decrypt=denied
+sys.argv=['devpilot.local_qa_retention',*sys.argv[1:]]
+runpy.run_module('devpilot.local_qa_retention',run_name='__main__')
+'''
+def retention_command(args,success=True):
+ completed=subprocess.run([sys.executable,'-I','-c',retention_script,*args],cwd=directory.parent,capture_output=True,text=True,timeout=15)
+ if not success:
+  assert completed.returncode==1 and not completed.stdout and 'Local output' in completed.stderr
+  return
+ assert completed.returncode==0 and not completed.stderr, completed.stderr
+ assert len(completed.stdout.splitlines())==1 and 'SYNTHETIC_INCOMPLETE_CIPHERTEXT' not in completed.stdout
+ return json.loads(completed.stdout)
 retention_directory=directory.parent/'incomplete-retention'
 frozen=LocalRunManifest.from_dict(manifest)
 original_id,disposal_id=str(uuid4()),str(uuid4())
@@ -129,17 +152,21 @@ with create_retention_receipt(retention_directory,original_id,frozen,retention_s
  assert not (retention_directory/'observations.encrypted.jsonl').exists()
 partial=retention_directory/'observations.encrypted.jsonl'
 partial.write_bytes(b'SYNTHETIC_INCOMPLETE_CIPHERTEXT'); partial.chmod(0o600)
-binding={'expected_run_id':original_id,'expected_manifest_fingerprint':frozen.fingerprint}
-inspection=inspect_retention(retention_directory,**binding,now_ms=lambda:301000)
+binding=['--directory',str(retention_directory),'--run-id',original_id,'--manifest-fingerprint',frozen.fingerprint]
+inspection=retention_command(['inspect',*binding])
 assert inspection['content_status']=='not_inspected' and not inspection['output_integrity_verified'] and inspection['expired']
 for name in ('input_count','request_count','concurrency','timeout_ms','duration_ms','max_response_bytes','max_total_request_bytes','max_total_response_bytes'):
  assert inspection[name]==getattr(frozen,name)
-disposed=dispose_incomplete_output(retention_directory,**binding,source_ciphertext_sha256=inspection['source_ciphertext_sha256'],retention_receipt_sha256=inspection['retention_receipt_sha256'],disposal_id=disposal_id,confirm_incomplete_output_disposal=True,now_ms=lambda:301000)
-reconciled=reconcile_incomplete_disposal(retention_directory,**binding,disposal_id=disposal_id)
+disposal_args=['dispose-expired',*binding,'--disposal-id',disposal_id,'--confirm-ciphertext-sha256',inspection['source_ciphertext_sha256'],'--confirm-retention-receipt-sha256',inspection['retention_receipt_sha256']]
+retention_command(disposal_args,success=False)
+assert partial.read_bytes()==b'SYNTHETIC_INCOMPLETE_CIPHERTEXT'
+disposed=retention_command([*disposal_args,'--confirm-incomplete-output-disposal'])
+reconciled=retention_command(['reconcile-disposal',*binding,'--disposal-id',disposal_id])
 assert disposed['output_removed'] and reconciled['completion_receipt_present'] and reconciled['output_absent']
 assert not reconciled['secure_erasure_proven'] and not reconciled['resend_permitted'] and len(sent)==5
+retention_command([*disposal_args,'--confirm-incomplete-output-disposal'],success=False)
 assert not any(name.split('.')[0] in {'app','deerflow','sqlalchemy','fastapi'} for name in sys.modules)
-print(json.dumps({'fresh_venv_origins_verified':True,'all_runtime_dependencies_present':True,'real_dns_and_socket_sends_denied':True,'default_offline':True,'actual_installed_cli_mock_attempts':5,'actual_installed_encrypted_mock_attempts':5,'actual_installed_sensitive_open_and_expired_purge':True,'actual_installed_retention_disposal_and_reconciliation':True,'pre_dispatch_receipt_at_every_wire':True,'actual_installed_same_id_reconciliation':True,'platform_provenance_verified':False,'verdict':'NOT_EVALUATED'},sort_keys=True))
+print(json.dumps({'fresh_venv_origins_verified':True,'all_runtime_dependencies_present':True,'real_dns_and_socket_sends_denied':True,'default_offline':True,'actual_installed_cli_mock_attempts':5,'actual_installed_encrypted_mock_attempts':5,'actual_installed_sensitive_open_and_expired_purge':True,'actual_installed_retention_disposal_and_reconciliation':True,'actual_installed_retention_commands':True,'pre_dispatch_receipt_at_every_wire':True,'actual_installed_same_id_reconciliation':True,'platform_provenance_verified':False,'verdict':'NOT_EVALUATED'},sort_keys=True))
 """
 
 
