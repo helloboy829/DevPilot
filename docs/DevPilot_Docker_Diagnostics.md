@@ -2,6 +2,16 @@
 
 日期：2026-11-08。状态：新增运维脚本，不是 Docker 根因已经修复的声明，不自动更新部署。
 
+## 2026-11-14：保留治理修复的隔离验证与收尾
+
+本轮仅创建并启动 `devpilot-retention-20261114`，完整 ID 为 `983612aaa9f17c9c6abfece4ce0dcebee4b697354dfafeacb454b31979f4bd6d`；基于已有 gateway 镜像，无挂载、无业务数据。当前锁文件另建 Python 3.12 venv，不能把旧镜像系统 Python 缺包当作源码漏依赖。最终完整离线回归 **13,383 passed / 75 skipped / 11 deselected**；独立 Blocking IO **72 passed**，分发与新环境实际安装验收通过。完整 CI、Windows 和业务部署是独立门禁。
+
+测试进程全部结束后，将 **17** 份明确命名的合成日志/软件产物导出到 ignored `.deer-flow/ci/20261114-retention-repair/evidence/`，逐项核大小和 SHA256；原失败与成功日志均保留。宿主按绝对路径边界及 reparse-point 检查精确删除 **12** 个本轮 staging 目标，含公开源码目录/tar、重复进度日志和已应用的文档草稿，保留验收证据与诊断脚本。
+
+只按上述完整 ID 停止并删除本轮隔离容器，不使用 force 或卷删除。停止结果为 exit 137 / OOM=false，停止前已确认无活动测试，不声称 PID 1 优雅退出。删除前再次确认容器名/原镜像、零挂载及 stopped。没有构建或删除 Docker 镜像；当前 DevPilot gateway/frontend 镜像仍被业务容器引用，Python/Node/PostgreSQL 缓存保留，无 global prune 或无标签归属推断。
+
+独立复核剩余 **10** 个容器：本机四个 `devpilot-local` 业务容器保持原先 stopped，其他项目未操作；未重启业务或 Docker Desktop、未更新 Compose/生产配置或迁移数据库。镜像与停止容器影响磁盘，不能由此声明宿主 RAM 归还或 VHDX 压缩。历史业务 healthy 记录不替代这次 stopped 观察。
+
 ## 目的
 
 先区分 Docker 管理面无响应、应用容器异常、观测缺口和资源风险，再决定恢复动作。不能把“重启后恢复”当作长期修复，也不应在评测执行时自动重启、重试未知请求或删除数据。
