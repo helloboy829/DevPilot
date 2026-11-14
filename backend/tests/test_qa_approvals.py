@@ -239,3 +239,37 @@ async def test_revocation_stays_available_after_current_review_is_reopened(tasks
     revoked = await unit.create_approval("owner", project, run["id"], "e" * 32, payload(archived, decision_value="revoked", note="SYNTHETIC_REVOCATION", revision=1))
     assert revoked["revision"] == 2 and revoked["decision"] == "revoked"
     assert (await unit.get_approval("owner", project, run["id"], APPROVAL))["decision"] == "approved"
+
+
+@pytest.mark.asyncio
+async def test_preflight_reports_eligibility_and_separation_without_writes(tasks):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    preview = await unit.preview_approval("owner", project, run["id"], archived["id"], APPROVER)
+    assert preview["schema"] == "qa-approval-preflight.v1"
+    assert preview["eligible"] is True and preview["blockers"] == []
+    assert preview["separation"] == {"approver_not_owner": True, "approver_not_review_actor": True}
+    assert preview["readiness"] == "review_complete" and preview["criteria"]["status"] == "not_defined"
+    assert preview["approval"] == "not_recorded"
+    async with unit.sf() as session:
+        assert (await session.execute(select(t.run_approvals))).all() == []
+        assert (await session.execute(select(t.approval_audit))).all() == []
+    for actor in (A, B, ARB):
+        blocked = await unit.preview_approval("owner", project, run["id"], archived["id"], actor)
+        assert blocked["eligible"] is False and "approver_is_review_actor" in blocked["blockers"]
+        assert blocked["separation"]["approver_not_review_actor"] is False
+    with pytest.raises(ValueError):
+        await unit.preview_approval("owner", project, run["id"], archived["id"], "not-a-uuid")
+    with pytest.raises(NotFound):
+        await unit.preview_approval("owner", project, run["id"], "f" * 32, APPROVER)
+
+
+@pytest.mark.asyncio
+async def test_preflight_marks_incomplete_review_ineligible(tasks):
+    _, evidence, _, project, run, _, _, _ = tasks
+    repo = assessments(evidence)
+    summary = await repo.get_preview("owner", project, run["id"])
+    archived = await repo.create_assessment("owner", project, run["id"], ASSESSMENT, assessment_payload(summary))
+    preview = await approvals(repo).preview_approval("owner", project, run["id"], archived["id"], APPROVER)
+    assert preview["eligible"] is False and preview["readiness"] == "provisional"
+    assert "independent_review_incomplete" in preview["blockers"]

@@ -538,6 +538,18 @@ async def _approval_context(request):
     return owner, ApprovalRepository(repository.sf)
 
 
+@router.get("/{project_id}/review-runs/{run_id}/assessments/{assessment_id}/approval-preflight")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_approval_preflight(project_id: str, run_id: str, assessment_id: str, request: Request, approver_id: str = Query(min_length=36, max_length=36)):
+    owner, repository = await _approval_context(request)
+    approval_identifier(assessment_id)
+    try:
+        return await _result(repository.preview_approval(owner, project_id, run_id, assessment_id, approver_id))
+    except ValueError:
+        raise HTTPException(422, "Invalid approval preflight request", headers={"Cache-Control": "private, no-store"}) from None
+
+
 @router.get("/{project_id}/review-runs/{run_id}/approvals")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "review")

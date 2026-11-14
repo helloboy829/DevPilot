@@ -181,6 +181,46 @@ class ApprovalRepository(AssessmentRepository):
             statement = select(t.approval_audit).where(t.approval_audit.c.project_id == project_id, t.approval_audit.c.run_id == run_id).order_by(t.approval_audit.c.sequence).limit(1000)
             return [dict(row) for row in (await session.execute(statement)).mappings()]
 
+    async def preview_approval(self, owner, project_id, run_id, assessment_id, approver_id):
+        """Read-only eligibility preview; never writes an approval or audit row."""
+        approval_identifier(assessment_id)
+        try:
+            if str(UUID(approver_id)) != approver_id:
+                raise ValueError
+        except (ValueError, AttributeError, TypeError):
+            raise ValueError("Canonical account ID required") from None
+        async with self.sf() as session:
+            snapshot = await self._approval_snapshot(session, owner, project_id, run_id, assessment_id)
+        decoded = await asyncio.to_thread(self._decode_assessment, snapshot["assessment"])
+        body = decoded["assessment"]
+        blockers = []
+        if snapshot["run"]["status"] != "recording_finished" or body["run_status"] != "recording_finished":
+            blockers.append("collection_not_finished")
+        if body["readiness"] != "review_complete" or body["blockers"]:
+            blockers.extend(body["blockers"] or ["independent_review_incomplete"])
+        criteria = body.get("criteria_evaluation")
+        if criteria is not None and criteria.get("status") != "met":
+            blockers.append("criteria_" + str(criteria.get("status", "incomplete")))
+        if approver_id == owner:
+            blockers.append("approver_is_owner")
+        if approver_id in snapshot["actors"]:
+            blockers.append("approver_is_review_actor")
+        row = snapshot["assessment"]
+        return {
+            "schema": "qa-approval-preflight.v1",
+            "scope": "read_only_formal_approval_preflight",
+            "project_id": project_id,
+            "run_id": run_id,
+            "assessment": {"id": row["id"], "revision": row["revision"], "assessment_hash": row["assessment_hash"]},
+            "approver_id": approver_id,
+            "eligible": not blockers,
+            "blockers": sorted(set(blockers)),
+            "readiness": body["readiness"],
+            "criteria": {"status": criteria["status"] if criteria is not None else "not_defined"},
+            "separation": {"approver_not_owner": approver_id != owner, "approver_not_review_actor": approver_id not in snapshot["actors"]},
+            "approval": "not_recorded",
+        }
+
     @staticmethod
     def _document(owner, approval_id, project_id, run_id, revision, created_at_ms, row, assessment, payload):
         criteria = assessment.get("criteria_evaluation") or {"status": "not_defined", "approval": "not_approved"}

@@ -181,3 +181,42 @@ async def test_revocation_appends_second_revision_and_ordered_audit_over_api(api
     audit = await client.get(root + "/approvals/audit")
     assert [(event["sequence"], event["action"]) for event in audit.json()] == [(1, "approved"), (2, "revoked")]
     assert (await client.get(root + "/approvals/" + APPROVAL)).json()["decision"] == "approved"
+
+
+@pytest.mark.asyncio
+async def test_approval_preflight_reports_blockers_and_never_writes(api, monkeypatch):
+    client, app, _, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    path = root + "/assessments/" + assessment["id"] + "/approval-preflight"
+    eligible = await client.get(path, params={"approver_id": APPROVER})
+    assert eligible.status_code == 200 and eligible.json()["eligible"] is True and "no-store" in eligible.headers["cache-control"]
+    assert (await client.get(root + "/approvals")).json() == []
+    owner_blocked = await client.get(path, params={"approver_id": str(UUID(int=1))})
+    assert owner_blocked.json()["eligible"] is False and owner_blocked.json()["blockers"] == ["approver_is_owner"]
+    reviewer_blocked = await client.get(path, params={"approver_id": A})
+    assert reviewer_blocked.json()["eligible"] is False and "approver_is_review_actor" in reviewer_blocked.json()["blockers"]
+    invalid = await client.get(path, params={"approver_id": "SYNTHETIC_SECRET"})
+    assert invalid.status_code == 422 and "SYNTHETIC" not in invalid.text
+    assert (await client.get(root + "/assessments/" + "f" * 32 + "/approval-preflight", params={"approver_id": APPROVER})).status_code == 404
+    original = app.state.permissions
+    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
+    assert (await client.get(path, params={"approver_id": APPROVER})).status_code == 403
+    app.state.permissions = original
+    app.state.internal = True
+    assert (await client.get(path, params={"approver_id": APPROVER})).status_code == 403
+    app.state.internal = False
+    app.state.actor = 2
+    assert (await client.get(path, params={"approver_id": APPROVER})).status_code == 404
+    app.state.actor = 0
+    assert (await client.get(path, params={"approver_id": APPROVER})).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_approval_preflight_marks_provisional_assessment(api, monkeypatch):
+    client, _, _, _ = api
+    root = await setup_evidence(api, monkeypatch)
+    preview = (await client.get(root + "/independent-assessment")).json()
+    archived = (await client.post(root + "/assessments/" + ASSESSMENT, json={"summary_hash": preview["summary_hash"], "expected_previous_revision": 0, "confirmed": True})).json()
+    result = await client.get(root + "/assessments/" + archived["id"] + "/approval-preflight", params={"approver_id": APPROVER})
+    assert result.status_code == 200 and result.json()["eligible"] is False
+    assert "independent_review_incomplete" in result.json()["blockers"]
