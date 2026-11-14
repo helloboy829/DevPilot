@@ -37,6 +37,8 @@ make docker-start        # 开发 Compose，非现有生产环境升级命令
 
 English: Docker development is the recommended new-machine path. Configure private model credentials separately, then open the loopback entry at port 2026. Candidate code and report drafts do not imply deployment, QA execution authorization or formal approval.
 
+候选升级前可先运行[合成 SQLite 升级与恢复演练](docs/DevPilot_Candidate_Upgrade_Recovery.md)，核验 WAL 在线备份、历史数据和独立还原；它不操作业务数据库，也不代替实际升级验收。
+
 ## Workspace appearance and navigation
 
 The evaluation-first sidebar keeps stable Evaluation center and AI collaboration groups. Opening Chats or Custom assistants no longer inserts a new-chat row above the menu; create conversations inside Chats (or use the command palette). Assistant management does not open a conversation.

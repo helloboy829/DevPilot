@@ -2,7 +2,7 @@
 
 编制：2026-11-14。建议以 2026-11-16 至 2026-11-27 的十个工作日为窗口，按一名开发者约 **80h** 估算；这是待执行的范围建议，不是已完成记录或上线承诺。依据：[当前状态](DevPilot_Delivery_Status.md)、[业务流程与迭代方向](DevPilot_业务流程与迭代计划.md)、[工程约束](../AGENTS.md)。
 
-2026-11-14 进展：运行时接入提交 `deb1935` 的 4 workflows / 8 jobs 已全成功，包含输出前 retention receipt、重复取消持锁和真实硬退出回归。面向 operator 的显式检查、单独同意处置和原 ID 对账命令已实现；新模块完整门禁与精确 SHA CI 另行记录。明文副本、更广泛崩溃产物和 Windows 实际验收仍待完成，不将这一切片等同于完成全部输出治理。
+2026-11-14 进展：加密输出运行时与显式管理命令已实现，`7ba1484` 的 4 workflows / 8 jobs 全成功。现补充[合成 SQLite 升级与恢复演练](DevPilot_Candidate_Upgrade_Recovery.md)：真实双 ledger、39 张旧表、WAL 在线备份、`0009 → 0014` 与新路径还原；本模块最终门禁/精确 SHA CI 另行记录。候选镜像/浏览器验收、PostgreSQL 原生恢复、明文副本、更广泛崩溃产物和 Windows 仍待完成。
 
 ## 优先处理什么
 
@@ -34,7 +34,7 @@
 ## Week 1：固定可交付基线（40h）
 
 - [ ] **P0 · 8h**：关闭当前环境/CI 修复。记录准确 pushed SHA 和每项 Actions/jobs；从当前锁文件完成 Python 3.12/dev 环境、默认 collection、Blocking IO、Ruff、完整后端与实际安装门禁。交付源码/失败/修复/成功收据及隔离资源清单。
-- [ ] **P1 · 16h**：本地 incomplete-output retention 与真实 CLI 接入。先写 receipt-before-output、重复取消、硬退出、写入不确定和同 ID 对账的失败回归；复用原 shared runner，分别确认加密输出与处置。交付一个独立模块和安装验证，不补造旧目录 receipt、不认证未检查 ciphertext、不恢复/重发。
+- [x] **P1 · 16h**：本地加密 incomplete-output retention 与真实 CLI 接入。输出前 receipt、重复取消、硬退出、未知写入和原 ID 对账回归/实际安装已验证；复用原 shared runner，分别确认加密输出与处置。`7ba1484` 精确 CI 已通过；明文副本、广泛崩溃产物和 Windows 验收独立保留，不补造旧目录 receipt、不认证未检查 ciphertext、不恢复/重发。
 - [ ] **P0 · 8h**：候选迁移的隔离升级/恢复演练。核对完整迁移链，用合成旧账号/数据验证历史 hash、外键与回退恢复。交付备份/还原与版本矩阵；不更改或复制私有业务 DB。
 - [ ] **P0 · 8h**：失败修复与门禁缓冲。处理可归因失败、记录跳过原因、更新模块文档；每个代码模块单独提交、测试、推送和核验 CI，不带已知失败进入下一模块。
 

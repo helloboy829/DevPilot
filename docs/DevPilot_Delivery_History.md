@@ -2,6 +2,20 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## 候选 SQLite 升级与备份恢复演练（2026-11-14）
+
+基线 `7ba1484b098d7a29a0a737400ff321d0ccbc8001` 的四项实际 push Actions / 八个 jobs 重新核验全成功：Lint `43558000440`、Blocking `43558000459`、Frontend `43558000384`、Unit `43558000487`；工作区与远端 main 一致。
+
+[合成恢复回归](DevPilot_Candidate_Upgrade_Recovery.md)复用真实 Harness bootstrap、App `eval_0009`、仓库/密码校验及 Word 渲染。全部 39 张旧表/行/schema 与双 ledger 纳入快照；逐级或直接到 `eval_0014`，合同固定新增 12 张表，完整性/外键、ALL 两样本/两历史 run、账号、密文、报告/复测/Word 均核对。WAL-only 的已提交账号变更使主文件复制反例确实失败；online backup 与新路径还原必须保留。注入实际提交 `eval_0011` 后结果丢失，不重试或 downgrade 该候选；独立恢复旧备份。恢复后不保留候选的新写，不能称无损回退。
+
+最初 13 项恢复用例全部通过（113.37s）；这是纯验证新增，没有伪造运行时缺陷或宣称原迁移存在 bug。首轮 Ruff 报 E501，按项目 formatter 修正。后续增加固定新增表集合、逐级版本矩阵、空表/列变化和备份后新写丢失验证；七类行破坏仍分别在新副本中执行，共享合成种子以减少重复迁移。最终门禁、精确 SHA CI 和资源收尾另行记录。无运行时/依赖/迁移/API/业务配置变更，未复制业务 DB 或执行部署/真实调用。
+
+新建 Python 3.12.16 默认 dev 环境，修改前完整基线 **13,433 passed / 77 skipped / 11 deselected / 40 warnings**（906.24s），领域 **15 / 58 passed**。最终版本矩阵专项 **8 passed**（59.15s），完整显示 39 → 44 → 45 → 47 → 49 → 51 张表；此前与五组已有迁移联合 **13 passed / 5 skipped**（80.45s），五个 PostgreSQL 专项因本地无独占服务/extra 跳过，不冒充通过。Blocking IO **72 passed / 2 warnings**（7.03s），完整后端 Ruff check/format **1,282 files** 通过。最终源码全量与新 SHA CI 单独记录，专项/全量重叠不相加。
+
+最终完整离线回归 **13,441 passed / 77 skipped / 11 deselected / 40 warnings**（934.37s），领域 **15 / 58 passed**，最终 Ruff check/format **1,282 files** 通过。变更测试源码与宿主 hash 一致；最终专项/全量不相加。**13** 份合成日志逐项导出比较大小/SHA256，另从实际 stdout 提取两条版本矩阵；临时 SQLite/key 不导出。七份变更 Markdown 的 **206** 个本地链接有效。新提交的精确 SHA CI 仍须独立核验。
+
+只移除本轮零挂载容器 `91ddbdedff7c` 和本轮 `source.tar`，删除前复核标签/精确 ID、全部测试终态及证据 hash。普通 `docker stop --timeout 10` 后 Exit137 / OOMKilled=false；停止前仅 PID 1/defunct 子进程，不宣称优雅退出。原十个容器仍保留且 stopped；没有镜像、卷或全局缓存清理，没有业务数据库/配置复制或部署。
+
 ## 显式本地保留管理命令（2026-11-14）
 
 上一模块 `deb1935d246fac1a8ed25d89ff16fd5ccd40c607` 的四项实际 push Actions / 八个 jobs 重新核验全成功：Lint `43553100136`、Blocking `43553100133`、Frontend `43553100555`、Unit `43553100265`。本模块从当前锁文件在独立 Python 3.12.16 dev 环境建立修改前完整基线：**13,393 passed / 77 skipped / 11 deselected / 40 warnings**（899.12s），领域 **15 / 58 passed**。新命令最初 **38 failed**，证实缺少入口；新增 stdout 丢失和无输出目录场景后，管理命令与原 API 联合 **80 passed**。

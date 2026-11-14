@@ -9,6 +9,10 @@
 
 以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
 
+## 2026-11-14：候选 SQLite 升级与恢复演练
+
+[合成版本矩阵、WAL 备份与独立还原](DevPilot_Candidate_Upgrade_Recovery.md)：真实 Harness/App 迁移、39 张旧表全部行/schema、账号、历史密文和报告/复测/Word；逐级或直接升级到 51 张表，注入提交后结果丢失并从旧备份恢复到新路径。只复制主数据库会漏 WAL；恢复旧备份会丢弃之后的新写。不操作业务库，不等于部署、PostgreSQL 原生恢复、Windows 或正式批准验收。
+
 ## 2026-11-14：本地保留管理命令
 
 [显式检查、到期处置与原 ID 对账](DevPilot_Local_QA_Retention_Commands.md)：复用输出前 durable receipt 和真实锁/文件 API；处置需 operator 原 disposal UUID、两个 hash 及单独同意。无 key/解密/执行/自动删除，不把未认证 metadata 或文件缺失当作来源、PASS、安全擦除或批准；plaintext 副本治理和 Windows 实际验收仍独立进行。
