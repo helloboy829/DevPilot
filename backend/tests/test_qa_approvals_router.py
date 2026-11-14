@@ -142,3 +142,27 @@ async def test_provisional_independent_review_cannot_be_approved_over_api(api, m
     result = await client.post(root + "/approvals/" + APPROVAL, json=payload(archived))
     assert result.status_code == 409 and "no-store" in result.headers["cache-control"]
     assert (await client.get(root + "/approvals/" + APPROVAL)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_approval_audit_is_metadata_only_and_permissioned(api, monkeypatch):
+    client, app, _, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    created = await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment, note="SYNTHETIC_APPROVAL_NOTE"))
+    assert created.status_code == 200
+    audit = await client.get(root + "/approvals/audit")
+    assert audit.status_code == 200 and "no-store" in audit.headers["cache-control"]
+    assert [(event["sequence"], event["action"], event["revision"]) for event in audit.json()] == [(1, "approved", 1)]
+    assert not any(secret in audit.text for secret in ("SYNTHETIC_APPROVAL_NOTE", "SYNTHETIC_GOLD", "SYNTHETIC_OUTPUT", "document", "note"))
+    assert (await client.get(root + "/approvals/" + APPROVAL)).status_code == 200
+    original = app.state.permissions
+    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
+    assert (await client.get(root + "/approvals/audit")).status_code == 403
+    app.state.permissions = original
+    app.state.internal = True
+    assert (await client.get(root + "/approvals/audit")).status_code == 403
+    app.state.internal = False
+    app.state.actor = 2
+    assert (await client.get(root + "/approvals/audit")).status_code == 404
+    app.state.actor = 0
+    assert (await client.get(root + "/approvals/audit")).status_code == 401

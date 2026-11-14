@@ -209,3 +209,19 @@ async def test_unknown_run_or_assessment_requires_original_identifiers(tasks):
         await unit.create_approval("owner", project, "run-does-not-exist", "not-an-approval", payload(archived))
     with pytest.raises(Conflict):
         await unit.create_approval("owner", project, tasks[4]["id"], APPROVAL, payload({**archived, "assessment_hash": "f" * 64}))
+
+
+@pytest.mark.asyncio
+async def test_approval_audit_is_ordered_and_metadata_only(tasks):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    first = await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived, note="SYNTHETIC_APPROVAL_NOTE"))
+    second = await unit.create_approval("owner", project, run["id"], "e" * 32, payload(archived, decision_value="revoked", note="SYNTHETIC_REVOCATION", revision=1))
+    events = await unit.list_approval_audit("owner", project, run["id"])
+    assert [(e["sequence"], e["approval_id"], e["revision"], e["action"], e["actor"]) for e in events] == [(1, APPROVAL, 1, "approved", "owner"), (2, "e" * 32, 2, "revoked", "owner")]
+    assert [e["subject_hash"] for e in events] == [first["approval_hash"], second["approval_hash"]]
+    assert all("document" not in e and "note" not in e for e in events)
+    with pytest.raises(NotFound):
+        await unit.list_approval_audit("owner", project, "f" * 32)
+    with pytest.raises(NotFound):
+        await unit.list_approval_audit("other", project, run["id"])

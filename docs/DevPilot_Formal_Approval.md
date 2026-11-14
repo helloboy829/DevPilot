@@ -25,15 +25,18 @@
 - 批准表 append-only：`(run_id, revision)` 唯一。首个记录 revision 1；撤销是新增 revision（通常 2），不改写 revision 1 的文档或 hash。
 - `expected_previous_revision` 必须等于当前该 run 最大 revision；并发首发只有一个成功，其余冲突。同一 approval ID 与完全相同的请求重放返回原回执；不同载荷复用同 ID 冲突，不生成替代 ID。
 - 每次追加写一条 `evaluation_approval_audit`（`sequence` 原子递增、`actor`、`action`、`subject_hash=approval_hash`、`at_ms`）。审计失败回滚整次追加。
-- 读取：`GET` 单个批准验证整链 hash；文档被篡改返回保护错误。列表仅返回元数据（不含 counts/document）。
+- 读取：`GET` 单个批准验证整链 hash；文档被篡改返回保护错误。列表仅返回元数据（不含 counts/document）；审计列表只返回有序技术元数据，不含 note/document/证据。
 
 ## API
 
 | 方法 | 路径                                                             | 权限（全部满足）                     |
 | ---- | ---------------------------------------------------------------- | ------------------------------------ |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals` | read + review                        |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/audit` | read + review                  |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + review                   |
 | POST | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + write + review（人类）  |
+
+审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。
 
 内部调用者、非人类 token、无权限账号均被拒绝；跨 owner 返回 404。未知写入不重试，只按原 ID `GET` 对账（含 404）。错误响应不包含内部异常、SQL 或客户端敏感值；所有响应 `Cache-Control: no-store`。
 

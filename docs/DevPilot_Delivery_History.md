@@ -40,6 +40,8 @@ English: a pure synchronous classifier projects one held execution row without e
 
 后续补充专属迁移回归 `tests/test_formal_approval_migrations.py`（本地 **2 passed**，29.05s）：在真实评估/复核/批准行存在时 downgrade 到 `eval_0014`，确认只移除批准两表、其余历史行逐表不变；再 upgrade 到 head，确认空表重建、`devpilot_alembic_version=eval_0015` 与 `compare_metadata` parity；并以真实行验证 `(run_id, revision)` 唯一、decision/action/revision 检查、assessment/run 外键失败关闭。首版测试暴露夹具缺少 `users` 表与 SQLite 未启用外键（**2 failed**），按外部迁移测试既有做法显式建 Harness 表并在连接时启用 `PRAGMA foreign_keys=ON`，未削弱断言；Ruff 通过。该补充随 `fa54cbb` 的 4 workflows 全绿通过精确 SHA CI。
 
+再补充只读审计列表 `GET .../review-runs/{run}/approvals/audit`：按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash`、`at_ms`（最多 1000 条），不返回 note/document/counts 或证据，沿用 read+review 人类权限与 `no-store`。批准/撤销、迁移与审计联合 **24 passed**（51.35s），Ruff 通过；精确 SHA CI 另行记录。
+
 English: `eval_0015` adds an append-only, revisioned formal-approval ledger that pins an immutable independent assessment and requires finished collection, complete independent review, a met frozen threshold when defined, an explicit decision, and an approver distinct from the owner and every blind reviewer/arbitrator of that run. Revocation appends a revision with a required reason and audit. Focused, migration, cross-module and Blocking IO gates passed locally in an isolated source-mounted container; exact-SHA CI and Windows acceptance remain separate.
 
 ## 测试环境隔离与配置 None 修复（2026-11-14）

@@ -175,6 +175,12 @@ class ApprovalRepository(AssessmentRepository):
                 ).mappings()
             ]
 
+    async def list_approval_audit(self, owner, project_id, run_id):
+        async with self.sf() as session:
+            await self._journal(session, owner, project_id, run_id)
+            statement = select(t.approval_audit).where(t.approval_audit.c.project_id == project_id, t.approval_audit.c.run_id == run_id).order_by(t.approval_audit.c.sequence).limit(1000)
+            return [dict(row) for row in (await session.execute(statement)).mappings()]
+
     @staticmethod
     def _document(owner, approval_id, project_id, run_id, revision, created_at_ms, row, assessment, payload):
         criteria = assessment.get("criteria_evaluation") or {"status": "not_defined", "approval": "not_approved"}
