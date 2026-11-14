@@ -205,7 +205,7 @@ async def workflow(api, monkeypatch):
     return state
 
 
-async def create_plan(state, build, *, threshold=6667, concurrency=1):
+async def create_plan(state, build, *, threshold=6667, concurrency=1, timeout_ms=1000):
     root = state.base + "/components/" + state.component["id"]
     version = response_json(
         await state.client.post(
@@ -242,7 +242,7 @@ async def create_plan(state, build, *, threshold=6667, concurrency=1):
                     "mode": "effectiveness",
                     "concurrency": concurrency,
                     "request_count": 3,
-                    "timeout_ms": 1000,
+                    "timeout_ms": timeout_ms,
                     "wall_time_ms": 10000,
                     "max_total_body_bytes": 10000,
                 },
@@ -277,6 +277,7 @@ async def collect(state, plan, *, build):
     state.run_id = queued["run_id"]
     assert await state.worker.run_once() is True
     finished = response_json(await state.client.get(path))
+    assert finished["state"] == "collected", finished
     assert not finished["reservation_held"]
     assert response_json(await state.client.put(path, json=payload)) == finished
     assert await state.worker.run_once() is False

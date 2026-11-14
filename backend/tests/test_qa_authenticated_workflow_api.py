@@ -288,7 +288,7 @@ async def test_real_account_lookup_and_explicit_independent_sharing_are_required
 @pytest.mark.parametrize("permission", PERMISSIONS)
 async def test_real_rbac_deny_wins_and_denied_commands_do_not_advance_task(workflow, permission):
     state = workflow
-    plan = await create_plan(state, "v1")
+    plan = await create_plan(state, "v1", timeout_ms=5000)
     root, _ = await collect(state, plan, build="v1")
     path, original, _ = await create_task(state, root, 1)
     identities = accounts(state)
