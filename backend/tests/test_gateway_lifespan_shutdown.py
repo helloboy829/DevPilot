@@ -304,7 +304,7 @@ def test_lifespan_warns_when_warm_returns_false(caplog) -> None:
     assert any(r.levelno == logging.WARNING and "warm-up failed" in r.message for r in caplog.records)
 
 
-async def _run_lifespan_with_slow_retrieval_warm() -> float:
+async def _run_lifespan_with_slow_retrieval_warm() -> bool:
     from app.gateway.app import lifespan
 
     app = FastAPI()
@@ -319,8 +319,9 @@ async def _run_lifespan_with_slow_retrieval_warm() -> float:
     fake_service = MagicMock()
     fake_service.get_status.return_value = {}
     release_rebuild = threading.Event()
+    warm_returned = threading.Event()
     manager = MagicMock()
-    manager.warm_retrieval.side_effect = lambda: release_rebuild.wait(5.0) or True
+    manager.warm_retrieval.side_effect = lambda: release_rebuild.wait(5.0) or warm_returned.set() or True
     manager.warm.return_value = True
     manager.shutdown_flush.return_value = True
 
@@ -337,19 +338,17 @@ async def _run_lifespan_with_slow_retrieval_warm() -> float:
         patch("deerflow.agents.memory.get_memory_manager", return_value=manager),
     ):
         context = lifespan(app)
-        loop = asyncio.get_running_loop()
-        started_at = loop.time()
         try:
-            await asyncio.wait_for(context.__aenter__(), timeout=1.0)
-            startup_elapsed = loop.time() - started_at
+            await context.__aenter__()
         finally:
+            waited_for_warm = warm_returned.is_set()
             release_rebuild.set()
         await context.__aexit__(None, None, None)
-    return startup_elapsed
+    return waited_for_warm
 
 
 def test_lifespan_does_not_wait_for_retrieval_rebuild_before_serving() -> None:
-    assert asyncio.run(_run_lifespan_with_slow_retrieval_warm()) < 1.0
+    assert asyncio.run(_run_lifespan_with_slow_retrieval_warm()) is False
 
 
 async def _run_shutdown_with_blocked_retrieval_warm() -> tuple[MagicMock, bool]:
