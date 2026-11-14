@@ -615,3 +615,11 @@ Reports/Retests 新增独立区块：明确打开历史 assessment ID/修订/has
 新增[只读原 ID 对账命令](DevPilot_Local_QA_Reconciliation.md)，真实复用 journal snapshot，不读取敏感输出或更改 owner claim。全冻结分母、技术分类/预算一致性、hard-exit WAL 和实际 CLI → 对账链作为门禁。仍为 external/unverified / NOT_EVALUATED；不是输出完整性/平台 provenance、retry/resume/重发、平台导入或批准。无 App/API/依赖/迁移/部署/执行启用或真实调用。新 SHA 的 Actions/资源收尾另行核验，整个平台未完成。
 
 本模块最终本地门禁：新增 **64 passed**（4.00s），联合 **786 passed**（157.99s）；标准 `make test` **12,982 passed / 18 skipped / 11 deselected / 40 warnings**（756.47s），纯领域 **15 / 58 passed**；Blocking IO **72 passed**（5.60s）；Ruff **1,260 files**、新领域模块独立 lint/format 和 offline lock 通过。前端完整 **152 files / 1,293 passed**（13.0s），完整 Prettier 与八份模块文档格式核验。真实 sdist→wheel 十三个公开成员逐 bytes 相等，隔离 `-I` 实际 wheel 的执行 CLI mock sends → 对账 CLI 成功，并显式确认模块 import origin 位于 wheel；真实 DNS/socket 和业务层 imports 禁止。源码/证据/专用资源与新 SHA 实际 Actions 独立闭环。未本地重跑 frontend build/browser/performance；无部署/执行启用/真实调用。
+
+## 流式 TTFT/吞吐纯核心（2026-11-15）
+
+新增 `devpilot.qa_stream_metrics.compute_stream_metrics`：对单次可观测流输出 `qa-stream-metrics.v1` 固定投影。输入为 exact-fields 严格字典（mode/outcome/时间/内容单位）；时间不可观测必须为 null，非空时强制 `started <= first <= last <= finished`。TTFT 仅在 streaming+collected+已观测首内容时可用；吞吐仅在完整生成窗口、`content_units > 0` 且 `last > first` 时可用并保留 3 位小数；non-streaming/technical_incomplete/缺失窗口/零内容/零区间分别返回显式 `not_applicable`/`unavailable`，数值为 null，不填零、不推算、不代表 PASS 或批准。
+
+测试先红后绿（unittest）：覆盖可用值、chars/tokens、两类不可用、缺失首/末内容、零内容、零区间、类型伪装与顺序不一致、unknown 枚举与 exact-fields 失败关闭；**8 passed**，devpilot evaluation 域 **23 passed**、toolkit **58 passed**。同步把新源码与测试加入 `devpilot/distribution/source-members.txt`（39 个第一方成员，allowlist 与包内文件集合一致）。未接入 App 证据/API/UI/报告，无模型调用、迁移、部署或批准；精确 SHA CI 另行记录。
+
+English: a pure, versioned TTFT/throughput projection with explicit availability; missing/inapplicable values are never zero. It is not wired into App evidence, reports or approval and makes no model calls.

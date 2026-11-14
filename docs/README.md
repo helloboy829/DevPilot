@@ -11,6 +11,10 @@
 
 以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
 
+## 2026-11-15：流式指标纯核心（候选，未接入 App）
+
+[TTFT/内容吞吐投影](DevPilot_Streaming_Metrics.md)：`devpilot.qa_stream_metrics` 对单次可观测流输出固定技术投影；缺失/不可观测/不适用显式 `unavailable`/`not_applicable`，绝不填零，也不代表 PASS 或批准。未接入 App 证据/API/UI，无模型调用。
+
 ## 2026-11-15：Lost Worker 安全合同（候选，未部署）
 
 [只读分类与明确阻塞](DevPilot_Execution_Safety_Contract.md)：`execution_safety.classify_held_reservation` 对单行占用给出固定技术投影；deadline、队列与终态都不证明 Worker 死亡，恒不授权 release/reclaim/requeue/retry/resend/dispatch；类型伪装、未知状态与不一致行失败关闭。回归锁定调度器与正式批准不能导入/触发执行仓库，运维路由只有聚合 GET。没有新 API、迁移、UI、后台清理器或配额处置。

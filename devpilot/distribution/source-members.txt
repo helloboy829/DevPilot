@@ -9,6 +9,7 @@ devpilot/evaluation/metrics.py
 devpilot/evaluation/runner.py
 devpilot/evaluation/tests/__init__.py
 devpilot/evaluation/tests/test_judge_metrics.py
+devpilot/evaluation/tests/test_stream_metrics.py
 devpilot/http.py
 devpilot/local_json_run.py
 devpilot/local_qa_cli.py
@@ -21,6 +22,7 @@ devpilot/qa_json_binding.py
 devpilot/qa_json_request.py
 devpilot/qa_json_response.py
 devpilot/qa_json_run.py
+devpilot/qa_stream_metrics.py
 devpilot/reporting/__init__.py
 devpilot/reporting/project.py
 devpilot/request_templates.py
