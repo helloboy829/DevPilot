@@ -190,6 +190,8 @@ async def test_approval_preflight_reports_blockers_and_never_writes(api, monkeyp
     path = root + "/assessments/" + assessment["id"] + "/approval-preflight"
     eligible = await client.get(path, params={"approver_id": APPROVER})
     assert eligible.status_code == 200 and eligible.json()["eligible"] is True and "no-store" in eligible.headers["cache-control"]
+    assert eligible.json()["latest_approval"] is None
+    assert not any(secret in eligible.text for secret in ("document", "note", "counts", "SYNTHETIC_GOLD", "SYNTHETIC_OUTPUT"))
     assert (await client.get(root + "/approvals")).json() == []
     owner_blocked = await client.get(path, params={"approver_id": str(UUID(int=1))})
     assert owner_blocked.json()["eligible"] is False and owner_blocked.json()["blockers"] == ["approver_is_owner"]

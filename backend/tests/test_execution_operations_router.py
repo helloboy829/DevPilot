@@ -57,6 +57,7 @@ async def test_authenticated_human_admin_plus_explicit_permission_not_project_me
     assert result.status_code == 200 and result.headers["cache-control"] == "private, no-store"
     data = result.json()
     assert data["reservations"]["held_runs"] == 1 and data["states"]["queued"]["held_runs"] == 1
+    assert data["safety"]["scope"] == "aggregate_held_reservation_states" and data["safety"]["states"]["queued_ready"] == 1
     assert data["release_authorized"] is data["dispatch_authorized"] is False
     assert all(value not in result.text for value in [*CANARIES, PASSWORD, queued["id"], queued["run_id"], plan["definition_hash"], state.base.rsplit("/", 1)[1]])
     # The global aggregate grant does not grant access to any project or evidence.
