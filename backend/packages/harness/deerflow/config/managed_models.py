@@ -222,7 +222,7 @@ def overlay_models(config_data):
     managed = catalog.config_models(state)
     names = {row["name"] for row in state["models"]}
     # Names are reserved by the managed catalog even when disabled.
-    operator_models = config_data.get("models", [])
+    operator_models = config_data.get("models") or []
     if names.intersection(row["name"] for row in operator_models):
         raise ValueError("Managed and operator model identifiers conflict; rename the operator entry")
     config_data["models"] = operator_models + managed
