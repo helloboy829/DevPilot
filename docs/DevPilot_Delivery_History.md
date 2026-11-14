@@ -10,6 +10,8 @@
 
 English: one authenticated-workflow test observed an empty sent list in CI attempt 1 (13,564 other tests passed); it passed locally 3/3 and on rerun attempt 2. The original failure remains recorded as a flake, not a code change conclusion.
 
+紧接着 docs-only `32e4b3e` 的 Unit 再次在 `test_gateway_lifespan_shutdown.py::test_lifespan_preserves_flush_budget_when_retrieval_warm_is_still_running` 失败：flush 预算实测 **1.283s**，断言 `< 1.0`；其余 13,564 passed（710.14s）。该测试依赖真实计时，属于 CI runner 波动；rerun 请求因 API POST 暂时不可达未完成，保留原失败。两者均不改测试或门禁，后续提交的精确 SHA CI 另行核验。
+
 ## 本地完整套件运行（2026-11-15）
 
 在隔离 Python 3.12 容器内以 `git archive HEAD`（对应 `abbdde7` 工作树）重建完整源码副本，使用锁文件 dev 环境运行完整后端离线套件：**13,495 passed / 2 failed / 77 skipped / 11 deselected / 40 warnings**（1923.14s）。首次以 `tar` 手工复制时遗漏 `scripts` 等目录，出现 7 个 collection 错误（含 `support_bundle`），该次结果作废，改用 `git archive` 后重新运行。

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AuthorizedExportPanel } from "@/components/workspace/authorized-export-panel";
+import { EvaluationApprovalPanel } from "@/components/workspace/evaluation-approval-panel";
 import { EvaluationExecutionPanel } from "@/components/workspace/evaluation-execution-panel";
 import { EvaluationPlanPanel } from "@/components/workspace/evaluation-plan-panel";
 import { EvaluationReviewPanel } from "@/components/workspace/evaluation-review-panel";
@@ -63,6 +64,7 @@ export default function DatasetsPage() {
   const intakeWriteLock = useRef(false);
   const pendingReviewTasks = useRef<PendingReviewTasks>(new Map());
   const pendingAssessments = useRef<PendingAssessments>(new Map());
+  const pendingApprovals = useRef<Map<string, string>>(new Map());
   const epoch = useRef(0);
   const lock = useRef(false);
 
@@ -717,6 +719,14 @@ export default function DatasetsPage() {
             <IndependentAssessmentPanel
               projectId={projectId}
               pendingAssessments={pendingAssessments.current}
+              zh={zh}
+            />
+          )}
+          {projectId && (
+            <EvaluationApprovalPanel
+              key={"approval:" + projectId}
+              pendingApprovals={pendingApprovals.current}
+              projectId={projectId}
               zh={zh}
             />
           )}
