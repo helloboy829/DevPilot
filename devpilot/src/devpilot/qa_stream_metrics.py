@@ -46,7 +46,7 @@ def compute_stream_metrics(observation):
     mode = observation["mode"]
     outcome = observation["outcome"]
     unit = observation["content_unit"]
-    if mode not in _MODES or outcome not in _OUTCOMES or unit not in _UNITS:
+    if any(type(value) is not str for value in (mode, outcome, unit)) or mode not in _MODES or outcome not in _OUTCOMES or unit not in _UNITS:
         raise ValueError("Invalid stream observation")
     started = _instant(observation["started_at_ms"])
     finished = _instant(observation["finished_at_ms"])

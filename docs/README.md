@@ -11,6 +11,10 @@
 
 以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
 
+## 2026-11-15：模型裁判校准纯核心（候选，未接入 App）
+
+[人工/裁判一致性统计](DevPilot_Judge_Calibration.md)：`devpilot.qa_judge_calibration` 只统计双方确定的 pass/fail 配对；缺失/uncertain 显式排除，无确定配对时 `insufficient` 且数值为 null，绝不填零或当作批准。未接入 App，无模型调用。
+
 ## 2026-11-15：流式指标纯核心（候选，未接入 App）
 
 [TTFT/内容吞吐投影](DevPilot_Streaming_Metrics.md)：`devpilot.qa_stream_metrics` 对单次可观测流输出固定技术投影；缺失/不可观测/不适用显式 `unavailable`/`not_applicable`，绝不填零，也不代表 PASS 或批准。未接入 App 证据/API/UI，无模型调用。

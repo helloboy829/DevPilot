@@ -623,3 +623,11 @@ Reports/Retests 新增独立区块：明确打开历史 assessment ID/修订/has
 测试先红后绿（unittest）：覆盖可用值、chars/tokens、两类不可用、缺失首/末内容、零内容、零区间、类型伪装与顺序不一致、unknown 枚举与 exact-fields 失败关闭；**8 passed**，devpilot evaluation 域 **23 passed**、toolkit **58 passed**。同步把新源码与测试加入 `devpilot/distribution/source-members.txt`（39 个第一方成员，allowlist 与包内文件集合一致）。未接入 App 证据/API/UI/报告，无模型调用、迁移、部署或批准；精确 SHA CI 另行记录。
 
 English: a pure, versioned TTFT/throughput projection with explicit availability; missing/inapplicable values are never zero. It is not wired into App evidence, reports or approval and makes no model calls.
+
+## 裁判校准纯核心（2026-11-15）
+
+新增 `devpilot.qa_judge_calibration.compute_judge_calibration`：严格列表（≤10,000）的成对 `{human, judge}` 标签（pass/fail/uncertain/None）。只对双方确定（pass/fail）的配对计算 confusion 与 agreement；缺失、uncertain、双方缺失均显式计数并排除；无确定配对时 `agreement.status=insufficient`、数值 null，绝不填零。未知标签、类型伪装、多余字段或超界失败关闭；`approval=not_approved`，无模型调用。
+
+unittest **6 passed**，devpilot evaluation 域 **29 passed**、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（41 个第一方成员）并通过完整性测试；Ruff 通过。未接入 App 证据/API/UI/报告，无迁移、部署或批准；精确 SHA CI 另行记录。
+
+English: a pure human/judge agreement core that counts only definitive pairs, excludes missing/uncertain pairs explicitly, and returns `insufficient` with null values when no definitive pair exists. It is not approval or a model call.
