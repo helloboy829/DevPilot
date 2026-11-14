@@ -10,6 +10,8 @@
 
 本地离线门禁（隔离 Python 3.12.16 容器，仅挂载公开源码，锁文件 dev 组）：批准专项 **20 passed**（32.94s）；迁移矩阵 **13 passed / 5 skipped**（146.36s，skip 为原 PostgreSQL 独占服务器门禁）；更新头断言的九个文件 **285 passed**（286.45s）；领域 **15 / 58 passed**；Blocking IO **72 passed / 2 warnings**（41.70s）；锁定 Ruff 0.15.12 check 通过、**1,286 files** format 通过。完整后端离线套件结果见下方本轮补充；专项与全量重叠，不相加。未部署、未启用执行、未生成生产 key、未调用真实模型/目标，未读取或复制业务数据库；本轮测试容器仅挂载公开源码，结束后按完整 ID 停止并删除。
 
+**精确 SHA CI**：提交 `18101f9c08f8fbb32d8fbfdde72200aefef26738` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43612739708)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43612739812)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43612739625)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43612739710)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43612739705) 共 **5 workflows 全部成功**；Unit 的 `make test` 覆盖新增批准模块与扩展后的 `eval_0009 → eval_0015` 恢复矩阵。该结果只属于此 SHA；不能移用于后续提交或部署。
+
 English: `eval_0015` adds an append-only, revisioned formal-approval ledger that pins an immutable independent assessment and requires finished collection, complete independent review, a met frozen threshold when defined, an explicit decision, and an approver distinct from the owner and every blind reviewer/arbitrator of that run. Revocation appends a revision with a required reason and audit. Focused, migration, cross-module and Blocking IO gates passed locally in an isolated source-mounted container; exact-SHA CI and Windows acceptance remain separate.
 
 ## 测试环境隔离与配置 None 修复（2026-11-14）
