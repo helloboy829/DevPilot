@@ -1,5 +1,14 @@
 # DevPilot 文档导航与设计基线
 
+## 先看这里
+
+- [当前能力、运行状态与缺口](DevPilot_Delivery_Status.md)
+- [两周冲刺建议与迁移风险](DevPilot_Sprint_Plan.md)
+- [逐轮交付历史与验证收据](DevPilot_Delivery_History.md)
+- [根开发指南](../AGENTS.md) / [后端开发指南](../backend/AGENTS.md) / [前端开发指南](../frontend/AGENTS.md)
+
+以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
+
 ## 2026-11-11：本地 QA 加密输出与保留候选
 
 [独立输出保护 / Protected local output](DevPilot_Local_QA_Protected_Output.md)：显式 operator key、分离同意、完整认证链、同 descriptor 持锁打开、到期精确一次删除和原 ID 只读对账。v2 软件分发含 12 个锁定运行依赖；不等于平台证据、正式批准或部署，半写输出保留治理仍待完成。
