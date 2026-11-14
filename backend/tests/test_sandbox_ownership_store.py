@@ -327,7 +327,13 @@ def test_memory_store_declares_it_cannot_see_peers():
     assert store.supports_cross_process is False
 
 
-def test_default_config_is_memory():
+def test_default_config_is_memory(monkeypatch):
+    """Default config is memory when no Redis environment variables are present."""
+    # Clear Redis environment variables that would trigger redis inference
+    monkeypatch.delenv("DEER_FLOW_SANDBOX_OWNERSHIP_REDIS_URL", raising=False)
+    monkeypatch.delenv("DEER_FLOW_STREAM_BRIDGE_REDIS_URL", raising=False)
+    monkeypatch.delenv("REDIS_URL", raising=False)
+
     store = make_sandbox_ownership_store(None, owner_id="A")
     assert isinstance(store, MemoryOwnershipStore)
 

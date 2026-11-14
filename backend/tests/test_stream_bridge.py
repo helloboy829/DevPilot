@@ -947,8 +947,12 @@ async def test_redis_blocking_wakeup_error_gives_up_after_max_retries():
 
 
 @pytest.mark.anyio
-async def test_make_stream_bridge_defaults():
+async def test_make_stream_bridge_defaults(monkeypatch):
     """make_stream_bridge() with no config yields a MemoryStreamBridge."""
+    # Clear Redis environment variable that would trigger redis inference
+    monkeypatch.delenv("DEER_FLOW_STREAM_BRIDGE_REDIS_URL", raising=False)
+    monkeypatch.delenv("REDIS_URL", raising=False)
+
     async with make_stream_bridge() as bridge:
         assert isinstance(bridge, MemoryStreamBridge)
 
