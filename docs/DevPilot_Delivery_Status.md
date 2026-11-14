@@ -4,7 +4,13 @@
 
 新增 `devpilot.local_qa_retention` 纯本地治理模块，为尚未完成或崩溃的本地 QA 输出建立先 receipt、后输出的固定身份记录，并提供不认证内容的只读检查、到期后一次性显式清理和同 ID 只读对账。未知 unlink/fsync/完成回执结果不会重试、再次删除、修复、续跑或重发；清理不是安全擦除证明，也不授予平台 provenance、PASS 或批准。
 
-本轮使用 Docker 中 Python 3.12.16 环境完成专项 **14 passed**、本地 QA 联合回归 **236 passed**，Ruff 通过。该模块目前是可复用纯 API，尚未接入 CLI 的崩溃恢复自动流程；取消/硬退出后更广泛的运行时编排、平台批准、QA 调度和部署验收仍未完成。新提交的精确 SHA Actions 需独立核验。
+初版专项 14 passed 未覆盖关键边界；复核后修正只读建锁、未持续持有输出锁、FIFO 读取阻塞、宽松布尔校验及失真的删除故障夹具。最终专项 **40 passed**（包含在 receipt/distribution 联合 **112 passed** 中）；当前锁文件的新 Python 3.12.16 环境完成真实本地 QA/API-installed/Blocking IO 联合 **490 passed / 2 warnings**，领域 **15 / 58 passed**、完整后端 Ruff check/format **1,280 files** 通过。最终完整离线回归为 **13,383 passed / 75 skipped / 11 deselected / 40 warnings**（924.71s）；本地未启动独占 PostgreSQL，相关专项等按原门禁跳过，远端 CI 的数据库服务门禁独立核验。专项/联合与全量重叠，不相加。
+
+真实六工具 hash-locked build → sdist/wheel → 12 依赖完整 offline install、新 no-system-site venv 下实际 encrypted/plaintext CLI、打开/删除/原 ID 对账，以及新 retention API 的实际安装验证均通过。档案 SHA256 为 `c0d6be72cc04e88a094f9e466f9ce3e19ba8562005ee4b9b5bd53cb5ffc23ffb`，声明基线 revision，不认证当前工作区来源。没有改依赖锁或部署。该模块仍是独立 API，CLI 未自动接入；Windows 验收、取消/硬退出后更广泛编排、平台批准与 QA 调度仍未完成。
+
+`3f970c5` 的远端 Backend Unit Tests / default-install collection 成功，但 Lint 和 distribution job 失败；原因分别为测试格式和源码 allowlist 未排序。当前修复已通过本地相应门禁，新提交的精确 SHA Actions 仍须独立核验。旧前端完整/浏览器/部署记录不代表本轮重跑或当前本机运行状态。
+
+本轮第一次完整回归为 **1 failed / 13,381 passed / 75 skipped / 11 deselected / 40 warnings**（862.60s）：`test_late_successful_renewal_still_fences_local_run` 的 50ms 真实 UTC 夹具在调度延迟后进入了“调用前已过期”的另一条正确运行时路径。显式 100ms 延迟复现同一断言失败；现以受控 UTC 保留真实 timeout/cancellation，新增无延迟/100ms 延迟两场景，归属 + RunManager 联合 **161 passed**。没有改 Worker 逻辑、延长 timeout 或放宽断言。修复后的完整套件另行通过，原失败仍保留。
 
 English: `devpilot.local_qa_retention` adds receipt-first, content-unverified inspection, explicit one-shot expired disposal and same-ID read-only reconciliation for incomplete local output. Unknown filesystem outcomes never retry, delete again, repair, resume or resend. The primitive is tested but is not a platform evidence, PASS, approval or secure-erasure mechanism; broader runtime integration and exact-SHA CI remain separate gates.
 

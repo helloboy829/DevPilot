@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Local retention primitive regressions (2026-11-14)
+
+`test_local_qa_retention.py` covers read-only missing-lock rejection, ALL frozen metadata, linked/nonregular/FIFO rejection, active output locks, the same descriptor held through unlink, intent durability failures, post-intent source/receipt/clock changes and same-ID reconciliation without a second unlink. Check strict booleans, not Python's int/bool dictionary equality. Verify the actual sorted whole-package distribution allowlist and real installed software separately. This is a content-unverified standalone local API; no CLI integration, execution authority, Windows acceptance or secure-erasure claim. [Contract](../docs/DevPilot_Local_QA_Protected_Output.md).
+
 ## Backend image ships the sibling toolkit (2026-11-12)
 
 `backend/pyproject.toml` resolves `devpilot` as an editable sibling path, so the image must contain `/app/devpilot` before `uv sync` and after the builder stage; the runtime stage copies it from the builder because the editable install points at source, not a wheel. Development Compose mounts `../devpilot` at the same path. A clean build previously failed with `Distribution not found at: file:///app/devpilot`. `test_backend_image_devpilot.py` pins builder ordering, the runtime copy and the dev mount; keep all three consistent rather than working around the failure in a local override. No runtime semantics, dependencies or migrations change.

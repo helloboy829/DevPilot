@@ -66,11 +66,15 @@ python -I -m devpilot.local_qa_output reconcile-purge --directory ORIGINAL_RESUL
 
 `devpilot.local_qa_retention` 现在提供一个独立的 receipt-first 基础模块：它在输出文件出现前持久化冻结身份，检查只返回未认证技术 metadata，到期后要求原 ID、receipt hash、ciphertext hash 和单独同意，并对 unlink/fsync/完成回执不确定结果提供同 ID 只读对账。它不读取或认证半写内容，不修复、不续跑、不重发，也不声明安全擦除。
 
+该基础 API 只接受新目录和实际 `LocalRunManifest`；receipt/inspection 保留 ALL input/request counts、concurrency、timeout、duration 和三个字节预算。它使用已有锁文件的非等待锁；只读检查/对账绝不创建丢失的锁或 receipt。读取前拒绝 symlink、hardlink、FIFO 和超限文件，并核对同 descriptor/path identity。清理在两个有界 hash pass、durable intent、身份/时钟重检及一次 unlink 全程持有同一输出 descriptor 的独占锁；intent 短写、fsync、close 或目录同步不确定时保留状态，不能以新 disposal ID 重试。
+
+receipt 是可信本地文件系统上的**未认证声明**，hash 不是签名或平台来源证明；一致伪造无法据此认证。该无 key API 不区分完整、半写或损坏 ciphertext，`content_status=not_inspected` 不证明输出未完成；明确同意只授权清理指定原文件，不授权内容访问。旧结果目录不补造 receipt。原先持 key 的完整认证 `purge-expired` 入口保持独立，不能由此模块推断 Windows 删除持锁文件已经验收。
+
 **仍未完成：** 取消、硬退出或半写输出的更广泛运行时编排和 CLI 自动接入。备份、文件系统快照、SSD、swap/进程内存及已打开明文副本均不在安全擦除证明范围内。
 
 ## 6. 锁定软件分发 / Locked distribution
 
-`cryptography` 现在是 devpilot 直接依赖，使用 backend 已锁定的 50.0.0 与 cffi 2.0.0/pycparser 3.0，无新解析升级。runtime 闭包为 **12**，allowlisted first-party sources 为 **36**；六项 hash-locked build tools 不变。native crypto 使新档案使用 **`local-qa-distribution.v2`** 和显式 platform；旧 pure-wheel v1 档案不改写，不冒充 native 兼容。
+`cryptography` 现在是 devpilot 直接依赖，使用 backend 已锁定的 50.0.0 与 cffi 2.0.0/pycparser 3.0，无新解析升级。runtime 闭包为 **12**，allowlisted first-party sources 为 **37**（包括 retention 基础模块）；六项 hash-locked build tools 不变。native crypto 使新档案使用 **`local-qa-distribution.v2`** 和显式 platform；旧 pure-wheel v1 档案不改写，不冒充 native 兼容。
 
 CPython 3.12 的 Linux glibc x86_64/aarch64、Windows amd64、macOS arm64 有明确 wheel profile；未知平台、PyPy、缺 wheel、marker/闭包漂移 fail closed，不取任意 wheel 或源码 fallback。profile 静态校验不等于各系统实际安装验收。原始官方 URL/hash/size、first-party metadata/RECORD 与全体源码逐 bytes 验证保持；不重打依赖包或绕过依赖安装。archive hash 是 integrity，不是 provenance 或授权。
 
@@ -82,7 +86,7 @@ CPython 3.12 的 Linux glibc x86_64/aarch64、Windows amd64、macOS arm64 有明
 
 Explicit operator-key Fernet output reuses the one shared local execution chain. Separate consent, ALL frozen denominators, immutable v1 identities, bounded authenticated header/attempt/final chains, no-wait locks, fsync and repeated-cancellation draining are mandatory. No default key, implicit plaintext, retry, resume, resend, platform provenance or approval is added. Sensitive opening authenticates the complete stream before creating a new private literal copy and retains the same source lock across both passes. Expiry is an application read gate, not cryptographic revocation; copies and incomplete/crashed outputs still require separately authorized retention governance.
 
-Expired, completely authenticated source files require original ID/hash confirmation and an exclusive intent-before-one-unlink sequence. Unknown deletion only reconciles the same IDs read-only; absence is not secure erasure. The platform-qualified v2 software archive contains 12 original hash-locked runtime wheels and 36 first-party sources; six build tools remain separate. Only actual tested platforms may claim installation acceptance. No deployment, real model/target call, business-data import or formal approval is implied.
+Expired, completely authenticated source files require original ID/hash confirmation and an exclusive intent-before-one-unlink sequence. Unknown deletion only reconciles the same IDs read-only; absence is not secure erasure. The separate content-unverified retention primitive adds no authentication or automatic CLI integration. The platform-qualified v2 software archive now contains 12 original hash-locked runtime wheels and 37 first-party sources; six build tools remain separate. Only actual tested platforms may claim installation acceptance. No deployment, real model/target call, business-data import or formal approval is implied.
 
 ## 本轮验证 / Verification (2026-11-11)
 

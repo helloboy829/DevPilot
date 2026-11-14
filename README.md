@@ -1,5 +1,7 @@
 # DevPilot
 
+**Local output retention primitive — candidate (2026-11-14):** standalone receipt-first API with ALL frozen limits, content-unverified inspection, explicit one-shot expired disposal and same-ID read-only reconciliation. Repairs preserve output locks through unlink, reject nonregular files before opening and never create missing locks during reads. CLI integration remains unfinished; the software archive now allowlists 37 first-party sources. [Contract / 范围](docs/DevPilot_Local_QA_Protected_Output.md).
+
 **Local QA protected output — candidate (2026-11-11):** explicit operator-key encryption, separate consent, bounded authenticated records, retention, same-descriptor locked sensitive opening and one-shot expired deletion with same-ID read-only reconciliation. Legacy plaintext requires explicit consent. Platform-qualified software v2 contains 12 hash-locked runtime dependencies; incomplete/crashed-output governance remains unfinished. No deployment, production key generation, real calls or approval. [Contract / 范围与验证](docs/DevPilot_Local_QA_Protected_Output.md).
 
 **Previous module delivery:** external quarantine workspace commit `e5af8fd` has six exact-SHA Actions / 11 jobs verified successful; this is not CI evidence for the uncommitted protected-output candidate or proof of deployment.

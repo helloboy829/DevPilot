@@ -964,40 +964,63 @@ async def test_hung_renewal_is_bounded_by_confirmed_lease_deadline():
 
 
 @pytest.mark.anyio
-async def test_late_successful_renewal_still_fences_local_run():
+@pytest.mark.parametrize("pre_call_delay", [0, 0.1])
+async def test_late_successful_renewal_still_fences_local_run(monkeypatch, pre_call_delay):
     """A renewal confirmed after the old deadline cannot revive local work."""
+    import deerflow.runtime.runs.manager as manager_module
+
     config = _lease_config(lease_seconds=30, heartbeat_enabled=True)
     store = MemoryRunStore()
     manager = _make_manager(store=store, worker_id="worker-a", run_ownership_config=config)
     record = await manager.create("thread-1")
     await manager.set_status(record.run_id, RunStatus.running)
     record.task = asyncio.create_task(asyncio.sleep(3600))
-    near_expiry = (datetime.now(UTC) + timedelta(milliseconds=50)).isoformat()
+    clock = datetime.now(UTC)
+    deadline = clock + timedelta(milliseconds=50)
+    near_expiry = deadline.isoformat()
     record.lease_expires_at = near_expiry
     store._runs[record.run_id]["lease_expires_at"] = near_expiry
     original_update_lease = store.update_lease
+    cancelled_update = asyncio.Event()
+
+    class ClockDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock.astimezone(tz) if tz is not None else clock.replace(tzinfo=None)
+
+    # Keep the pre-call UTC clock fixed even if a loaded runner is descheduled.
+    # The real asyncio timeout still cancels the store operation after 50ms.
+    monkeypatch.setattr(manager_module, "datetime", ClockDateTime)
 
     async def renew_after_timeout_cancellation(*args, **kwargs):
+        nonlocal clock
         try:
             await asyncio.sleep(3600)
         except asyncio.CancelledError:
             # Simulate a store operation that commits successfully despite the
             # caller's deadline cancellation.
-            pass
+            clock = deadline + timedelta(milliseconds=1)
+            cancelled_update.set()
         return await original_update_lease(*args, **kwargs)
 
     store.update_lease = renew_after_timeout_cancellation
 
-    await asyncio.wait_for(manager._renew_leases(), timeout=1)
-    await asyncio.sleep(0)
+    try:
+        await asyncio.sleep(pre_call_delay)
+        await asyncio.wait_for(manager._renew_leases(), timeout=1)
+        await asyncio.sleep(0)
 
-    row = await store.get(record.run_id)
-    assert row is not None
-    assert row["lease_expires_at"] > near_expiry
-    assert record.lease_expires_at == near_expiry
-    assert record.ownership_lost is True
-    assert record.abort_event.is_set() is True
-    assert record.task.cancelled()
+        assert cancelled_update.is_set()
+        row = await store.get(record.run_id)
+        assert row is not None
+        assert row["lease_expires_at"] > near_expiry
+        assert record.lease_expires_at == near_expiry
+        assert record.ownership_lost is True
+        assert record.abort_event.is_set() is True
+        assert record.task.cancelled()
+    finally:
+        record.task.cancel()
+        await asyncio.gather(record.task, return_exceptions=True)
 
 
 @pytest.mark.anyio
