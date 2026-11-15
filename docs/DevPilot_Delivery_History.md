@@ -724,6 +724,6 @@ English: removing the deprecated `baseUrl` keeps the `@/*` alias working via tsc
 
 连续两次推送的 Unit Tests 在 15 分钟 job 上限处被取消，不能记为通过：`509834b` 在 88% 处取消（无测试汇总）；`ffc1a9f` 已打印 **13,591 passed / 19 skipped / 11 deselected**（859.49s，14:19），但在 PostgreSQL/Redis 服务清理阶段仍被上限取消。两次的 Lint/Frontend/E2E/Replay E2E 均成功；取消不是测试失败，也不能用其余四项替代 Unit 通过。
 
-完整离线套件在正常 runner 上约 11 分钟，慢 runner 上已接近或超过 15 分钟；本次只把 `backend-unit-tests` 的 job 容量上限调整为 **20 分钟**，不修改测试、断言、pytest 超时或失败处理，并在工作流注释中说明这是容量边界而非测试超时。`509834b` 与 `ffc1a9f` 的原取消记录保留；新 SHA 必须重新核验 Unit。
+完整离线套件在正常 runner 上约 11 分钟，慢 runner 上已接近或超过 15 分钟；本次只把 `backend-unit-tests` 的 job 容量上限调整为 **20 分钟**，不修改测试、断言、pytest 超时或失败处理，并在工作流注释中说明这是容量边界而非测试超时。`509834b` 与 `ffc1a9f` 的原取消记录保留；新 SHA 必须重新核验 Unit。`5257293` 的 Lint/Frontend/E2E/Replay E2E/Unit **5 workflows 全绿**（Unit `43688003108`，job 11m24s），覆盖 `ffc1a9f` 的批准面板对账/跨项目隔离、`baseUrl` 迁移与本容量修复。
 
-English: two consecutive Unit jobs were cancelled by the 15-minute job cap (one at 88%, one after printing 13,591 passes); the job capacity is raised to 20 minutes without changing tests, assertions or test timeouts, and the new SHA must be verified separately.
+English: two consecutive Unit jobs were cancelled by the 15-minute job cap (one at 88%, one after printing 13,591 passes); the job capacity is raised to 20 minutes without changing tests, assertions or test timeouts. Commit `5257293` then passed all five workflows, with the Unit job taking 11m24s.
