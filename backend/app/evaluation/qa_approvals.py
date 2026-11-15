@@ -17,6 +17,7 @@ from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 from sqlalchemy import func, insert, select
+from sqlalchemy.exc import IntegrityError
 
 from app.evaluation import tables as t
 from app.evaluation.datasets import StrictDTO
@@ -393,13 +394,16 @@ class ApprovalRepository(AssessmentRepository):
             "enforcement": "none",
         }
         policy_hash = await asyncio.to_thread(fingerprint, {"owner_id": owner, "request_hash": request_hash, "document": document})
-        async with self._transaction() as session:
-            await self._project(session, owner, project_id)
-            await session.execute(
-                insert(t.approval_signoff_policies).values(
-                    project_id=project_id, revision=revision, owner_id=owner, required_distinct_approvers=required_distinct_approvers, created_at_ms=created_at_ms, request_hash=request_hash, document=document, policy_hash=policy_hash
+        try:
+            async with self._transaction() as session:
+                await self._project(session, owner, project_id)
+                await session.execute(
+                    insert(t.approval_signoff_policies).values(
+                        project_id=project_id, revision=revision, owner_id=owner, required_distinct_approvers=required_distinct_approvers, created_at_ms=created_at_ms, request_hash=request_hash, document=document, policy_hash=policy_hash
+                    )
                 )
-            )
+        except IntegrityError:
+            raise Conflict from None
         return {**document, "policy_hash": policy_hash}
 
     async def list_project_approvals(self, owner, project_id):
