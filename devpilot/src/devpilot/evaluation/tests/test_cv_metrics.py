@@ -36,6 +36,19 @@ class TestImageDiff(unittest.TestCase):
         self.assertTrue(tolerated["within_threshold"])
         self.assertFalse(tolerated["identical"])
 
+    def test_diff_is_symmetric_and_boundary_pixels_are_valid(self):
+        left, right = [[0, 255]], [[255, 0]]
+        forward = compute_image_diff(left, right)
+        reverse = compute_image_diff(right, left)
+        self.assertEqual(forward["changed_pixels"], reverse["changed_pixels"])
+        self.assertEqual(forward["mean_absolute_error"], reverse["mean_absolute_error"])
+        self.assertEqual(forward["max_absolute_error"], 255)
+        single = compute_image_diff([[7]], [[7]])
+        self.assertTrue(single["identical"])
+        tolerated = compute_image_diff([[0]], [[255]], threshold=255)
+        self.assertTrue(tolerated["within_threshold"])
+        self.assertFalse(tolerated["identical"])
+
     def test_malformed_inputs_fail_closed(self):
         good = [[0]]
         cases = [

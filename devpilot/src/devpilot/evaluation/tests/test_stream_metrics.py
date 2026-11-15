@@ -63,6 +63,10 @@ class TestStreamMetrics(unittest.TestCase):
             self.assertIsNone(result[key].get("ms"))
             self.assertIsNone(result[key].get("value"))
 
+    def test_immediate_first_content_reports_a_real_zero_ttft(self):
+        result = compute_stream_metrics(observation(first_content_at_ms=START))
+        self.assertEqual(result["ttft"], {"status": "available", "ms": 0, "reason": None})
+
     def test_missing_content_window_is_explicit(self):
         result = compute_stream_metrics(observation(first_content_at_ms=None, last_content_at_ms=None))
         self.assertEqual(result["ttft"], {"status": "unavailable", "ms": None, "reason": "first_content_not_observed"})

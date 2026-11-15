@@ -636,6 +636,6 @@ English: a pure human/judge agreement core that counts only definitive pairs, ex
 
 新增 `devpilot.qa_cv_metrics.compute_image_diff`：严格等尺寸整数像素矩阵（每边 1–2048、像素 0–255）与包含式 0–255 阈值；输出 dimensions、changed_pixels/ratio、mean/max absolute error、identical 与 within_threshold，`approval=not_approved`。畸形、非矩形、尺寸不一致、类型伪装、越界与超尺寸失败关闭；不解码图片、不访问网络、不调用模型，也不作视觉质量或批准。
 
-unittest **3 passed**；devpilot evaluation 域与 toolkit 另行复核；分发 allowlist 同步新增源码与测试（43 个第一方成员）。未接入 App 证据/API/UI/报告，无迁移、部署或批准；精确 SHA CI 另行记录。
+unittest **3 passed**，另补对称性/单像素/阈值边界回归；devpilot evaluation 域合计 **35 passed**（含流式真实零 TTFT 与校准顺序无关断言）、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（43 个第一方成员）。未接入 App 证据/API/UI/报告，无迁移、部署或批准；CV 核心随 `5524e2d` 的 Lint/Frontend/Unit **3 workflows 全绿**通过精确 SHA CI（Unit `43658711846`）。
 
 English: a pure technical diff over equal integer pixel matrices with strict bounds and an inclusive threshold; not image decoding, perceptual quality, approval or a model call.

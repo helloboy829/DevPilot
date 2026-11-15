@@ -40,6 +40,14 @@ class TestJudgeCalibration(unittest.TestCase):
         self.assertEqual(result["counts"]["uncertain_excluded"], 2)
         self.assertEqual(sum(result["confusion"].values()), 0)
 
+    def test_counts_are_order_independent(self):
+        pairs = [("pass", "pass"), ("fail", "fail"), ("pass", "fail"), (None, "pass"), ("uncertain", "pass")]
+        forward = compute_judge_calibration(items(*pairs))
+        reverse = compute_judge_calibration(items(*reversed(pairs)))
+        self.assertEqual(forward["counts"], reverse["counts"])
+        self.assertEqual(forward["confusion"], reverse["confusion"])
+        self.assertEqual(forward["agreement"], reverse["agreement"])
+
     def test_malformed_inputs_fail_closed(self):
         cases = [
             {},
