@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- **TypeScript `baseUrl` 弃用修复（2026-11-15，本地）**：VS Code 的 TS 7 诊断报 `baseUrl` 弃用错误；项目 TS 5.9 的 `paths` 已相对 tsconfig 解析，移除 `baseUrl` 即完成迁移。`tsc`/ESLint、完整前端 **1,409 passed** 与生产构建通过，构建未重新写回 `baseUrl`，IDE 诊断为空。精确 SHA CI 另行记录。
 - **批准面板跨项目与预检新鲜度（2026-11-15，本地）**：切换项目时清除项目索引、run 与评估/审批人输入；修改评估 ID/hash 或审批人时清除旧预检；成功写入清除预检。面板定向 **19 passed**，前端完整 **1,409 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **6 passed**。临时配置与测试产物已删除；精确 SHA CI 另行记录。
 - **批准面板对账与链汇总一致性（2026-11-15，本地）**：显式加载运行批准时若发现 pending 原 ID 已存在，清除 pending、旧运行级/项目级链汇总并提示已对账；未发现则保留 pending；成功写入同样清除旧的链汇总。定向面板 **17 passed**，前端完整 **1,407 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **6 passed**。临时配置与测试产物已删除；精确 SHA CI 另行记录。
 - **运维安全分类接入与回归修复（2026-11-15，本地）**：后端已返回 `safety.states`，但前端 strict schema 未同步，生产响应会被拒绝并显示诊断不可用。本模块补齐六类安全分类的严格校验、交叉一致性与展示；定向 **60 passed**，前端完整 **1,404 passed**，typecheck/ESLint/Prettier 通过；`execution-operations.spec.ts` 本机 Chrome 串行复跑 **5 passed**（首轮一次既有导航断言失败，单独与二次整组通过，未改断言/超时/重试）。临时配置与测试产物已删除。精确 SHA CI：`2fa795c316677e1e399421d80283a338ad4ab260` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43682957392)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43682957365)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43682957366)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43682957380)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43682957356) 共 **5 workflows 全部成功**，覆盖安全分类校验、展示与回归。

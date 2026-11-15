@@ -713,3 +713,9 @@ English: an explicit approval reload now clears a pending unknown-write ID only 
 测试先红后绿：新增项目切换清除索引/run 与目标字段变更清除预检用例；实现后面板定向 **19 passed**，前端完整 **1,409 passed**，typecheck/ESLint/Prettier 通过；“写入后清除旧链汇总”用例继续通过。`approval-panel.spec.ts` 本机 Chrome 串行 **6 passed**；临时配置与测试产物已删除。无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
 
 English: switching projects clears the approval panel's project index, run and target inputs, and editing the assessment or approver clears stale preflight output; no automatic reads, retries or writes are introduced.
+
+## TypeScript `baseUrl` 弃用修复（2026-11-15）
+
+VS Code 使用 TS 7 诊断时，`frontend/tsconfig.json` 的 `baseUrl` 触发弃用错误，提示 TS 7.0 将停止支持。项目 TypeScript 为 5.9.3，`paths` 自 TS 4.1 起默认相对 tsconfig 解析，因此移除 `baseUrl` 即完成迁移，不改变 `@/*` 别名或包含/排除范围。`tsc --noEmit`、ESLint、完整前端 **1,409 passed** 与生产构建均通过；构建后 `baseUrl` 未被 Next 写回，IDE 诊断为空。无依赖、运行时、API 或迁移变更；精确 SHA CI 另行记录。
+
+English: removing the deprecated `baseUrl` keeps the `@/*` alias working via tsconfig-relative `paths`, with typecheck, lint, tests, build and IDE diagnostics all clean.
