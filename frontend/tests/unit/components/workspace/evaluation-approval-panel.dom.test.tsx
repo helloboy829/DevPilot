@@ -16,6 +16,7 @@ const state = rs.hoisted(() => ({
     runAudit: rs.fn(),
     chainIntegrity: rs.fn(),
     projectChainIntegrity: rs.fn(),
+    signoffProgress: rs.fn(),
     preflight: rs.fn(),
     create: rs.fn(),
   },
@@ -571,4 +572,83 @@ it("clears stale preflight results when the target changes", async () => {
     target: { value: "d".repeat(64) },
   });
   expect(screen.queryByText(/Eligible/)).toBeNull();
+});
+
+it("checks approver sign-off progress without asserting a policy", async () => {
+  state.api.signoffProgress.mockResolvedValue({
+    schema: "qa-approval-signoff.v1",
+    scope: "approval_signoff_progress_only",
+    policy: "not_defined",
+    required_distinct_approvers: null,
+    revisions: 2,
+    distinct_approvers: 2,
+    distinct_approved_approvers: 1,
+    approved_revisions: 1,
+    revoked_revisions: 1,
+    latest_revision: 2,
+    latest_decision: "revoked",
+    multi_level_satisfied: null,
+    blockers: [
+      "multi_level_policy_not_defined",
+      "approver_login_not_implemented",
+    ],
+  });
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  expect(state.api.signoffProgress).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Check approver sign-off progress",
+    }),
+  );
+  await screen.findByText(
+    "Sign-off progress: 2 revisions · 2 distinct approvers · latest revoked",
+  );
+  expect(screen.getByText(/Policy not defined/)).toBeTruthy();
+  expect(screen.getByText("multi_level_policy_not_defined")).toBeTruthy();
+  expect(state.api.signoffProgress).toHaveBeenCalledWith("p1", run);
+  expect(state.api.create).not.toHaveBeenCalled();
+});
+
+it("clears sign-off progress after a recorded decision", async () => {
+  state.api.runApprovals.mockResolvedValue([]);
+  state.api.runAudit.mockResolvedValue([]);
+  state.api.signoffProgress.mockResolvedValue({
+    schema: "qa-approval-signoff.v1",
+    scope: "approval_signoff_progress_only",
+    policy: "not_defined",
+    required_distinct_approvers: null,
+    revisions: 0,
+    distinct_approvers: 0,
+    distinct_approved_approvers: 0,
+    approved_revisions: 0,
+    revoked_revisions: 0,
+    latest_revision: null,
+    latest_decision: null,
+    multi_level_satisfied: null,
+    blockers: [
+      "multi_level_policy_not_defined",
+      "approver_login_not_implemented",
+    ],
+  });
+  state.api.create.mockResolvedValue(approval);
+  panel();
+  fillTarget();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Check approver sign-off progress",
+    }),
+  );
+  await screen.findByText(/Sign-off progress: 0 revisions/);
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Record approval / revocation" }),
+  );
+  await screen.findByText(/Recorded revision 1 \(approved\)/);
+  expect(screen.queryByText(/Sign-off progress/)).toBeNull();
 });

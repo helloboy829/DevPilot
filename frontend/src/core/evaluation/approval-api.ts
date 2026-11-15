@@ -64,6 +64,22 @@ export interface ApprovalChainSummary {
   blockers: string[];
 }
 
+export interface ApprovalSignoffProgress {
+  schema: "qa-approval-signoff.v1";
+  scope: "approval_signoff_progress_only";
+  policy: "not_defined";
+  required_distinct_approvers: null;
+  revisions: number;
+  distinct_approvers: number;
+  distinct_approved_approvers: number;
+  approved_revisions: number;
+  revoked_revisions: number;
+  latest_revision: number | null;
+  latest_decision: ApprovalDecision | null;
+  multi_level_satisfied: null;
+  blockers: string[];
+}
+
 export interface ApprovalView {
   schema: "qa-run-formal-approval.v1";
   scope: "formal_approval_decision";
@@ -125,6 +141,11 @@ export const approvalApi = {
   chainIntegrity(projectId: string, runId: string) {
     return evaluationApi<ApprovalChainIntegrity>(
       `${runs(projectId, runId)}/approvals/integrity`,
+    );
+  },
+  signoffProgress(projectId: string, runId: string) {
+    return evaluationApi<ApprovalSignoffProgress>(
+      `${runs(projectId, runId)}/approvals/sign-off`,
     );
   },
   preflight(

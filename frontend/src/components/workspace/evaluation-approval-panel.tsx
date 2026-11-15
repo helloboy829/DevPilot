@@ -12,6 +12,7 @@ import {
   type ApprovalChainSummary,
   type ApprovalDecision,
   type ApprovalPreflight,
+  type ApprovalSignoffProgress,
   type ApprovalView,
   type ProjectApproval,
 } from "@/core/evaluation/approval-api";
@@ -42,6 +43,7 @@ export function EvaluationApprovalPanel({
   );
   const [projectIntegrity, setProjectIntegrity] =
     useState<ApprovalChainSummary | null>(null);
+  const [signoff, setSignoff] = useState<ApprovalSignoffProgress | null>(null);
   const [assessmentId, setAssessmentId] = useState("");
   const [assessmentHash, setAssessmentHash] = useState("");
   const [approverId, setApproverId] = useState("");
@@ -77,6 +79,7 @@ export function EvaluationApprovalPanel({
     setAudit(null);
     setIntegrity(null);
     setProjectIntegrity(null);
+    setSignoff(null);
     setPreflight(null);
     setConfirmed(false);
     setError("");
@@ -130,6 +133,7 @@ export function EvaluationApprovalPanel({
           pendingApprovals.delete(key);
           setIntegrity(null);
           setProjectIntegrity(null);
+          setSignoff(null);
           setNotice(
             zh
               ? "已按原 ID 完成只读对账；未重试或更换 ID。"
@@ -189,6 +193,32 @@ export function EvaluationApprovalPanel({
           zh
             ? "完整性检查失败；未读取或写入批准文档。"
             : "Integrity check failed; no approval document was read or written.",
+        );
+    } finally {
+      if (at === epoch.current) setBusy(false);
+    }
+  }
+
+  async function checkSignoff() {
+    if (!hex(runId, 32)) {
+      setError(
+        zh ? "运行 ID 必须是 32 位十六进制。" : "Run ID must be 32 hex.",
+      );
+      return;
+    }
+    const at = ++epoch.current;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await approvalApi.signoffProgress(projectId, runId);
+      if (at === epoch.current) setSignoff(result);
+    } catch {
+      if (at === epoch.current)
+        setError(
+          zh
+            ? "签署进度检查失败；未读取或写入批准文档。"
+            : "Sign-off progress check failed; no approval document was read or written.",
         );
     } finally {
       if (at === epoch.current) setBusy(false);
@@ -259,6 +289,7 @@ export function EvaluationApprovalPanel({
         setRunRows((rows) => [result, ...(rows ?? [])]);
         setIntegrity(null);
         setProjectIntegrity(null);
+        setSignoff(null);
         setPreflight(null);
         setNotice(
           zh
@@ -346,6 +377,13 @@ export function EvaluationApprovalPanel({
         >
           {zh ? "检查批准链完整性" : "Check approval chain integrity"}
         </Button>
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() => void checkSignoff()}
+        >
+          {zh ? "检查签署进度" : "Check approver sign-off progress"}
+        </Button>
       </div>
       {projectRows ? (
         <ul className="space-y-1 text-sm">
@@ -416,6 +454,21 @@ export function EvaluationApprovalPanel({
             ? `Chain verified: ${integrity.approvals} approvals / ${integrity.events} events`
             : `Chain broken: ${integrity.blockers.join(", ") || "unspecified"}`}
         </p>
+      ) : null}
+      {signoff ? (
+        <div className="space-y-1 text-sm" role="status">
+          <p>{`Sign-off progress: ${signoff.revisions} revisions · ${signoff.distinct_approvers} distinct approvers · latest ${signoff.latest_decision ?? "none"}`}</p>
+          <p>
+            {zh
+              ? "签核政策未定义；所需不同审批人数：n/a"
+              : "Policy not defined; required distinct approvers: n/a"}
+          </p>
+          <ul className="list-disc pl-5 font-mono">
+            {signoff.blockers.map((blocker) => (
+              <li key={blocker}>{blocker}</li>
+            ))}
+          </ul>
+        </div>
       ) : null}
       {pendingId ? (
         <p className="text-sm text-amber-600" role="status">

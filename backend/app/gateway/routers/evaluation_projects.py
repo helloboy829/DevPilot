@@ -584,6 +584,14 @@ async def list_run_approvals(project_id: str, run_id: str, request: Request):
     return await _result(repository.list_approvals(owner, project_id, run_id))
 
 
+@router.get("/{project_id}/review-runs/{run_id}/approvals/sign-off")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_run_approval_signoff_progress(project_id: str, run_id: str, request: Request):
+    owner, repository = await _approval_context(request)
+    return await _result(repository.approval_signoff_progress(owner, project_id, run_id))
+
+
 @router.get("/{project_id}/review-runs/{run_id}/approvals/audit")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "review")

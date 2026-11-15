@@ -421,3 +421,41 @@ async def test_project_approval_chain_summary_is_bounded(tasks, monkeypatch):
         "events": 2,
         "blockers": ["project_chain_too_long"],
     }
+
+
+@pytest.mark.asyncio
+async def test_approval_signoff_progress_reports_aggregate_only(tasks):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    empty = await unit.approval_signoff_progress("owner", project, run["id"])
+    assert empty == {
+        "schema": "qa-approval-signoff.v1",
+        "scope": "approval_signoff_progress_only",
+        "policy": "not_defined",
+        "required_distinct_approvers": None,
+        "revisions": 0,
+        "distinct_approvers": 0,
+        "distinct_approved_approvers": 0,
+        "approved_revisions": 0,
+        "revoked_revisions": 0,
+        "latest_revision": None,
+        "latest_decision": None,
+        "multi_level_satisfied": None,
+        "blockers": ["multi_level_policy_not_defined", "approver_login_not_implemented"],
+    }
+    with pytest.raises(NotFound):
+        await unit.approval_signoff_progress("owner", project, "f" * 32)
+    with pytest.raises(NotFound):
+        await unit.approval_signoff_progress("other-owner", project, run["id"])
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    single = await unit.approval_signoff_progress("owner", project, run["id"])
+    assert single["revisions"] == 1 and single["distinct_approvers"] == 1 and single["distinct_approved_approvers"] == 1
+    assert single["latest_revision"] == 1 and single["latest_decision"] == "approved"
+    assert single["multi_level_satisfied"] is None and single["required_distinct_approvers"] is None
+    second = str(UUID(int=6))
+    await unit.create_approval("owner", project, run["id"], "e" * 32, payload(archived, approver=second, decision_value="revoked", note="SYNTHETIC_REVOCATION", revision=1))
+    result = await unit.approval_signoff_progress("owner", project, run["id"])
+    assert result["revisions"] == 2 and result["distinct_approvers"] == 2 and result["distinct_approved_approvers"] == 1
+    assert result["approved_revisions"] == 1 and result["revoked_revisions"] == 1
+    assert result["latest_revision"] == 2 and result["latest_decision"] == "revoked"
+    assert not any(token in json.dumps(result) for token in ("document", "hash", APPROVAL, APPROVER, second))

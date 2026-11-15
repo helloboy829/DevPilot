@@ -307,3 +307,56 @@ test("checks the project approval chain summary read-only", async ({
   expect(reads).toBe(1);
   expect(writes).toEqual([]);
 });
+
+test("checks approver sign-off progress without a policy", async ({ page }) => {
+  const { panel } = await setup(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && request.url().includes("/approval"))
+      writes.push(request.url());
+  });
+  let reads = 0;
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/approvals/sign-off",
+    (route) => {
+      reads += 1;
+      return route.fulfill({
+        json: {
+          schema: "qa-approval-signoff.v1",
+          scope: "approval_signoff_progress_only",
+          policy: "not_defined",
+          required_distinct_approvers: null,
+          revisions: 2,
+          distinct_approvers: 2,
+          distinct_approved_approvers: 1,
+          approved_revisions: 1,
+          revoked_revisions: 1,
+          latest_revision: 2,
+          latest_decision: "revoked",
+          multi_level_satisfied: null,
+          blockers: [
+            "multi_level_policy_not_defined",
+            "approver_login_not_implemented",
+          ],
+        },
+      });
+    },
+  );
+  await panel.getByLabel("Run ID", { exact: true }).fill(run);
+  expect(reads).toBe(0);
+  await panel
+    .getByRole("button", {
+      name: "Check approver sign-off progress",
+      exact: true,
+    })
+    .click();
+  await expect(
+    panel.getByText(
+      "Sign-off progress: 2 revisions · 2 distinct approvers · latest revoked",
+    ),
+  ).toBeVisible();
+  await expect(panel.getByText(/Policy not defined/)).toBeVisible();
+  await expect(panel.getByText("multi_level_policy_not_defined")).toBeVisible();
+  expect(reads).toBe(1);
+  expect(writes).toEqual([]);
+});

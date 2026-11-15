@@ -727,3 +727,11 @@ English: removing the deprecated `baseUrl` keeps the `@/*` alias working via tsc
 完整离线套件在正常 runner 上约 11 分钟，慢 runner 上已接近或超过 15 分钟；本次只把 `backend-unit-tests` 的 job 容量上限调整为 **20 分钟**，不修改测试、断言、pytest 超时或失败处理，并在工作流注释中说明这是容量边界而非测试超时。`509834b` 与 `ffc1a9f` 的原取消记录保留；新 SHA 必须重新核验 Unit。`5257293` 的 Lint/Frontend/E2E/Replay E2E/Unit **5 workflows 全绿**（Unit `43688003108`，job 11m24s），覆盖 `ffc1a9f` 的批准面板对账/跨项目隔离、`baseUrl` 迁移与本容量修复。
 
 English: two consecutive Unit jobs were cancelled by the 15-minute job cap (one at 88%, one after printing 13,591 passes); the job capacity is raised to 20 minutes without changing tests, assertions or test timeouts. Commit `5257293` then passed all five workflows, with the Unit job taking 11m24s.
+
+## 批准签署进度只读诊断（2026-11-15）
+
+新增 `ApprovalRepository.approval_signoff_progress` 与 `GET /api/evaluation/projects/{project}/review-runs/{run}/approvals/sign-off`：按 revision 读取批准元数据，只返回修订数、不同审批人数、有批准记录的不同审批人数、批准/撤销修订数、最新 revision/decision，并固定 `policy="not_defined"`、`required_distinct_approvers=null`、`multi_level_satisfied=null` 与 blockers `multi_level_policy_not_defined`、`approver_login_not_implemented`。不返回 ID、hash、document 或 note，也不把多审批人计数当作已满足多级签核。批准面板新增独立的显式“检查签署进度”按钮，写入或对账后清除旧结果。
+
+测试先红后绿：仓库层覆盖空集、单批准、跨审批人撤销、未知 run/owner 与聚合字段；路由层覆盖空/有数据、权限、内部 token、跨 owner、匿名与敏感字段。仓库+路由+迁移 **57 passed**（105.48s），Ruff 通过。前端新增类型化客户端、面板与 E2E 用例，定向 **23 passed**、完整 **1,411 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无迁移、依赖或部署变更，精确 SHA CI 另行记录。
+
+English: a read-only aggregate sign-off progress endpoint reports revision, distinct-approver and decision counts with fixed "policy not defined" blockers; it never returns identifiers, hashes or documents, and multiple approvers are not treated as satisfied multi-level sign-off.

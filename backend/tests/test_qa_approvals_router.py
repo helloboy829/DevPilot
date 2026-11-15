@@ -351,3 +351,45 @@ async def test_approval_requires_an_existing_active_approver_account(api, monkey
     preview = await client.get(preflight, params={"approver_id": APPROVER})
     assert preview.status_code == 200 and "approver_account_not_found" in preview.json()["blockers"]
     assert (await client.get(root + "/approvals")).json() == []
+
+
+@pytest.mark.asyncio
+async def test_approval_signoff_progress_is_aggregate_and_permissioned(api, monkeypatch):
+    client, app, base, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    path = root + "/approvals/sign-off"
+    empty = await client.get(path)
+    assert empty.status_code == 200 and "no-store" in empty.headers["cache-control"]
+    assert empty.json() == {
+        "schema": "qa-approval-signoff.v1",
+        "scope": "approval_signoff_progress_only",
+        "policy": "not_defined",
+        "required_distinct_approvers": None,
+        "revisions": 0,
+        "distinct_approvers": 0,
+        "distinct_approved_approvers": 0,
+        "approved_revisions": 0,
+        "revoked_revisions": 0,
+        "latest_revision": None,
+        "latest_decision": None,
+        "multi_level_satisfied": None,
+        "blockers": ["multi_level_policy_not_defined", "approver_login_not_implemented"],
+    }
+    assert (await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment))).status_code == 200
+    progress = await client.get(path)
+    assert progress.status_code == 200
+    body = progress.json()
+    assert body["revisions"] == 1 and body["distinct_approvers"] == 1
+    assert body["latest_revision"] == 1 and body["latest_decision"] == "approved"
+    assert not any(secret in progress.text for secret in ("document", "note", "hash", "SYNTHETIC", APPROVAL, APPROVER))
+    original = app.state.permissions
+    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
+    assert (await client.get(path)).status_code == 403
+    app.state.permissions = original
+    app.state.internal = True
+    assert (await client.get(path)).status_code == 403
+    app.state.internal = False
+    app.state.actor = 2
+    assert (await client.get(path)).status_code == 404
+    app.state.actor = 0
+    assert (await client.get(path)).status_code == 401

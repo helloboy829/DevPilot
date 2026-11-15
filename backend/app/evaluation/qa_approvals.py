@@ -285,6 +285,41 @@ class ApprovalRepository(AssessmentRepository):
             "blockers": sorted(blockers),
         }
 
+    async def approval_signoff_progress(self, owner, project_id, run_id):
+        """Read-only aggregate sign-off progress; no multi-level policy is defined."""
+        async with self.sf() as session:
+            await self._journal(session, owner, project_id, run_id)
+            rows = (
+                (
+                    await session.execute(
+                        select(t.run_approvals.c.revision, t.run_approvals.c.decision, t.run_approvals.c.approver_id)
+                        .where(t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id, t.run_approvals.c.run_id == run_id)
+                        .order_by(t.run_approvals.c.revision)
+                        .limit(1001)
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        latest = rows[-1] if rows else None
+        approvers = {row["approver_id"] for row in rows}
+        approved = [row for row in rows if row["decision"] == "approved"]
+        return {
+            "schema": "qa-approval-signoff.v1",
+            "scope": "approval_signoff_progress_only",
+            "policy": "not_defined",
+            "required_distinct_approvers": None,
+            "revisions": len(rows),
+            "distinct_approvers": len(approvers),
+            "distinct_approved_approvers": len({row["approver_id"] for row in approved}),
+            "approved_revisions": len(approved),
+            "revoked_revisions": len(rows) - len(approved),
+            "latest_revision": latest["revision"] if latest else None,
+            "latest_decision": latest["decision"] if latest else None,
+            "multi_level_satisfied": None,
+            "blockers": ["multi_level_policy_not_defined", "approver_login_not_implemented"],
+        }
+
     async def list_project_approvals(self, owner, project_id):
         """Latest approval revision per run; metadata only, read-only."""
         async with self.sf() as session:

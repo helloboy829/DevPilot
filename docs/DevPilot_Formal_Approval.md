@@ -36,12 +36,13 @@
 | GET  | `/api/evaluation/projects/{project}/approvals/integrity`         | read + review                        |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals` | read + review                        |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/audit` | read + review                  |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/sign-off` | read + review               |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/integrity` | read + review              |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + review                   |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/assessments/{assessment_id}/approval-preflight?approver_id=...` | read + review |
 | POST | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + write + review（人类）  |
 
-审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（approval_id/revision/action/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
+审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。签署进度端点只返回聚合计数与固定状态：`policy="not_defined"`、`required_distinct_approvers=null`、`multi_level_satisfied=null`、revision/不同审批人/批准与撤销计数、最新 revision/decision，以及固定 blockers `multi_level_policy_not_defined`、`approver_login_not_implemented`；不返回任何 ID、hash、document 或 note，也不把多审批人计数当作多级签核已满足。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（approval_id/revision/action/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
 
 只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation/approver account）、`readiness`、`criteria.status`、两个分离布尔与 `latest_approval`（最新 revision/decision 元数据，若存在）；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；预检还按精确 ID 查账号，账号不存在或尚未完成初始化时追加 `approver_account_not_found` 并将 `eligible` 置为 false；未知评估返回 404；所有响应 `no-store`。创建/撤销在项目归属校验后同样要求该账号存在且可用（否则 409），只做精确 ID 查询，不提供账号目录或枚举。
 
@@ -49,7 +50,7 @@
 
 ## 工作台面板
 
-`/workspace/datasets` 的正式批准面板只在显式点击后读取：项目索引、项目级链汇总、运行批准与审计列表、只读预检、运行级链完整性检查分别由独立按钮触发，不自动轮询或读取证据。链完整性按钮要求 32 位十六进制 run ID，只显示 `verified`/`broken`、批准/事件计数与固定 blockers；项目级汇总只显示 run 计数、批准/事件计数与固定 blockers。切换项目时清除项目索引、run 与评估输入；切换 run 时清除运行级结果；修改评估 ID/hash 或审批人时清除旧预检，成功写入同样清除预检与旧链汇总。创建/撤销使用页面内存 pending ID，未知结果只按原 ID 只读对账：显式加载若发现原 ID 已存在，则清除 pending、旧链汇总并提示已对账；不存在时继续保留 pending。失败不重试、不写批准或审计；面板不读取 document、note 或任何 Q/A、金标与证据。
+`/workspace/datasets` 的正式批准面板只在显式点击后读取：项目索引、项目级链汇总、运行批准与审计列表、只读预检、运行级链完整性检查、签署进度分别由独立按钮触发，不自动轮询或读取证据。链完整性按钮要求 32 位十六进制 run ID，只显示 `verified`/`broken`、批准/事件计数与固定 blockers；项目级汇总只显示 run 计数、批准/事件计数与固定 blockers；签署进度只显示 revision/不同审批人计数、最新决定与“政策未定义”blockers。切换项目时清除项目索引、run 与评估输入；切换 run 时清除运行级结果；修改评估 ID/hash 或审批人时清除旧预检，成功写入或对账后清除预检、签署进度与旧链汇总。创建/撤销使用页面内存 pending ID，未知结果只按原 ID 只读对账：显式加载若发现原 ID 已存在，则清除 pending、旧链汇总并提示已对账；不存在时继续保留 pending。失败不重试、不写批准或审计；面板不读取 document、note 或任何 Q/A、金标与证据。
 
 ## 数据与迁移
 
@@ -63,7 +64,7 @@
 ## 明确不包含
 
 - 不修改 assessment、报告/复测档案、复核决定或任何历史字节；批准不是对数据的编辑权。
-- 不引入审批人独立登录/专属审批路由、双人复核批准、多级签核、SLA、通知、外部签名或时间戳服务。
+- 不引入审批人独立登录/专属审批路由、双人复核批准、多级签核、SLA、通知、外部签名或时间戳服务；签署进度端点只是聚合观察，不定义或满足任何签核政策。
 - 不把批准写进报告/复测/PDF/Word，不改变导出权限，不自动启用执行、外发或部署。
 - 无真实模型/目标调用、无生产 key、无业务数据库迁移；所有测试为合成数据。
 - 批准备注目前作为有界明文存入批准文档（与报告草稿的人工备注同类），不进入证据加密域；敏感信息不应写入 note。
