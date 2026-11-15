@@ -686,6 +686,6 @@ English: an aggregate, read-only project approval-chain summary reuses the run v
 
 测试先红后绿：新增未知账号与未初始化账号的创建/预检断言，并保留原分离阻塞断言；路由测试账号夹具显式提供 owner、审批人与盲审/仲裁账号，未修改产品断言或降级校验。批准仓库+路由 **53 passed**（最终复跑 80.20s），Ruff check/format 通过。无迁移、依赖、部署或真实调用。
 
-**精确 SHA CI 失败与修复**：`8bb0bed` 的 Unit Tests 失败 **2** 项（其余 13,589 passed / 19 skipped，659.69s）：`test_formal_approval_migrations.py` 的两个用例复用批准路由，但迁移测试未初始化本地账号提供者，新增的精确 ID 查询触发 `get_local_provider() called before init_engine_from_config()`。根因是测试夹具缺少账号环境，不是产品放宽校验；修复把路由测试的账号播种逻辑提取为 `patch_approver_accounts`，迁移测试以 autouse fixture 复用，保留原创建/预检断言。仓库+路由+迁移联合 **55 passed**（91.99s），Ruff check/format 通过；新 SHA CI 另行核验，`8bb0bed` 的失败保留。
+**精确 SHA CI 失败与修复**：`8bb0bed` 的 Unit Tests 失败 **2** 项（其余 13,589 passed / 19 skipped，659.69s）：`test_formal_approval_migrations.py` 的两个用例复用批准路由，但迁移测试未初始化本地账号提供者，新增的精确 ID 查询触发 `get_local_provider() called before init_engine_from_config()`。根因是测试夹具缺少账号环境，不是产品放宽校验；修复把路由测试的账号播种逻辑提取为 `patch_approver_accounts`，迁移测试以 autouse fixture 复用，保留原创建/预检断言。仓库+路由+迁移联合 **55 passed**（91.99s），Ruff check/format 通过。修复提交 `d320fcc` 的 Lint/Blocking IO/Frontend/Unit **4 workflows / 8 jobs 全绿**（Unit `43679591545`）；E2E/Replay 未触发。`8bb0bed` 的失败保留，不记为通过。
 
 English: approval creation and preflight now require an existing, initialized approver account via exact-ID lookup, without account creation, directory enumeration or permission grants.
