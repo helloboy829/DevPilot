@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   approvalApi,
   type ApprovalAuditEvent,
+  type ApprovalChainIntegrity,
   type ApprovalDecision,
   type ApprovalPreflight,
   type ApprovalView,
@@ -35,6 +36,9 @@ export function EvaluationApprovalPanel({
   const [runId, setRunId] = useState("");
   const [runRows, setRunRows] = useState<ApprovalView[] | null>(null);
   const [audit, setAudit] = useState<ApprovalAuditEvent[] | null>(null);
+  const [integrity, setIntegrity] = useState<ApprovalChainIntegrity | null>(
+    null,
+  );
   const [assessmentId, setAssessmentId] = useState("");
   const [assessmentHash, setAssessmentHash] = useState("");
   const [approverId, setApproverId] = useState("");
@@ -60,6 +64,7 @@ export function EvaluationApprovalPanel({
     epoch.current += 1;
     setRunRows(null);
     setAudit(null);
+    setIntegrity(null);
     setPreflight(null);
     setConfirmed(false);
     setError("");
@@ -115,6 +120,32 @@ export function EvaluationApprovalPanel({
           zh
             ? "加载失败；未知写入只按原 ID 对账，不自动重试。"
             : "Load failed; reconcile unknown writes by original ID only; never retry automatically.",
+        );
+    } finally {
+      if (at === epoch.current) setBusy(false);
+    }
+  }
+
+  async function checkIntegrity() {
+    if (!hex(runId, 32)) {
+      setError(
+        zh ? "运行 ID 必须是 32 位十六进制。" : "Run ID must be 32 hex.",
+      );
+      return;
+    }
+    const at = ++epoch.current;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await approvalApi.chainIntegrity(projectId, runId);
+      if (at === epoch.current) setIntegrity(result);
+    } catch {
+      if (at === epoch.current)
+        setError(
+          zh
+            ? "完整性检查失败；未读取或写入批准文档。"
+            : "Integrity check failed; no approval document was read or written.",
         );
     } finally {
       if (at === epoch.current) setBusy(false);
@@ -255,6 +286,13 @@ export function EvaluationApprovalPanel({
         <Button type="button" disabled={busy} onClick={() => void loadRun()}>
           {zh ? "加载运行批准与审计" : "Load run approvals and audit"}
         </Button>
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() => void checkIntegrity()}
+        >
+          {zh ? "检查批准链完整性" : "Check approval chain integrity"}
+        </Button>
       </div>
       {projectRows ? (
         <ul className="space-y-1 text-sm">
@@ -303,6 +341,13 @@ export function EvaluationApprovalPanel({
             </p>
           ))}
         </div>
+      ) : null}
+      {integrity ? (
+        <p className="text-sm" role="status">
+          {integrity.status === "verified"
+            ? `Chain verified: ${integrity.approvals} approvals / ${integrity.events} events`
+            : `Chain broken: ${integrity.blockers.join(", ") || "unspecified"}`}
+        </p>
       ) : null}
       {pendingId ? (
         <p className="text-sm text-amber-600" role="status">

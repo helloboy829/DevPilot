@@ -43,6 +43,15 @@ export interface ApprovalPreflight {
   approval: "not_recorded";
 }
 
+export interface ApprovalChainIntegrity {
+  schema: "qa-approval-chain.v1";
+  scope: "approval_audit_chain_only";
+  status: "verified" | "broken";
+  approvals: number;
+  events: number;
+  blockers: string[];
+}
+
 export interface ApprovalView {
   schema: "qa-run-formal-approval.v1";
   scope: "formal_approval_decision";
@@ -94,6 +103,11 @@ export const approvalApi = {
   runAudit(projectId: string, runId: string) {
     return evaluationApi<ApprovalAuditEvent[]>(
       `${runs(projectId, runId)}/approvals/audit`,
+    );
+  },
+  chainIntegrity(projectId: string, runId: string) {
+    return evaluationApi<ApprovalChainIntegrity>(
+      `${runs(projectId, runId)}/approvals/integrity`,
     );
   },
   preflight(

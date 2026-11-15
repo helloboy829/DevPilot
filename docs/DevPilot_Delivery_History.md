@@ -644,7 +644,7 @@ English: a pure technical diff over equal integer pixel matrices with strict bou
 
 新增 `app.evaluation.scheduling_safety.scheduling_admission` 与管理员端点 `GET /api/evaluation/operations/scheduling-admission`：固定输出 `qa-scheduling-admission.v1`，明确 legacy scheduler 仍只覆盖 component tests、QA 链没有版本化准入合同、旧 Worker 不可再发的证明缺失；`qa_chain_admitted`、`dispatch_authorized` 与 `release_authorized` 恒为 false，固定 blockers 为 no_versioned_admission_contract / scheduler_not_bound_to_qa_execution / worker_liveness_not_established。返回独立列表副本，不读取 DB、执行仓库、配置、证据或 key。
 
-测试先红后绿：初版测试误用注册表 `api` 夹具导致 `test_accounts` 缺失；改用认证 workflow 夹具与管理员 helper 后 **5 passed**（固定投影、返回值隔离、管理员+显式权限 200/no-store、缺权限/内部 token/非管理员/匿名拒绝、POST 405）；Ruff 通过。未实现调度、释放、回收、重试或执行；无迁移、依赖、部署或真实调用。精确 SHA CI 另行记录。
+测试先红后绿：初版测试误用注册表 `api` 夹具导致 `test_accounts` 缺失；改用认证 workflow 夹具与管理员 helper 后 **5 passed**（固定投影、返回值隔离、管理员+显式权限 200/no-store、缺权限/内部 token/非管理员/匿名拒绝、POST 405）；Ruff 通过。未实现调度、释放、回收、重试或执行；无迁移、依赖、部署或真实调用。该模块随 `f0235ac` 的 Lint/Blocking IO/Frontend/Replay E2E/Unit **5 workflows 全绿**通过精确 SHA CI（Unit `43670710309`）。
 
 English: a fixed, admin-only read-only projection states that QA-chain scheduling is not admitted and the legacy scheduler remains component-tests-only. It never authorizes dispatch/release/retry and reads no database, configuration or evidence.
 
@@ -652,6 +652,14 @@ English: a fixed, admin-only read-only projection states that QA-chain schedulin
 
 新增只读 `verification`：`GET .../review-runs/{run}/approvals/integrity` 与 `ApprovalRepository.verify_approval_chain`。端点返回 `{schema, scope, status: verified|broken, approvals, events, blockers}`，校验：approvals/audit 计数一致、revision/sequence 从 1 连续、每对事件与批准的 approval_id/revision/action/subject_hash 匹配、每条批准文档 hash 完整；不返回任何 ID、hash、document 或 note。固定 blockers：event_count_mismatch、revision_gap、sequence_gap、event_mismatch、approval_integrity_failed、chain_too_long。
 
-测试先红后绿：新增仓库链验证与 7 类篡改（action/revision/subject/sequence/删除事件/额外事件/approval document），以及路由权限/遮蔽/敏感字段回归；批准套件（仓库+路由+迁移）**43 passed**（79.03s），Ruff 通过。初版测试导入位置与路由顺序按既有模式修正，未削弱断言；无迁移、执行、部署或真实调用。精确 SHA CI 另行记录。
+测试先红后绿：新增仓库链验证与 7 类篡改（action/revision/subject/sequence/删除事件/额外事件/approval document），以及路由权限/遮蔽/敏感字段回归；批准套件（仓库+路由+迁移）**43 passed**（79.03s），Ruff 通过。初版测试导入位置与路由顺序按既有模式修正，未削弱断言；无迁移、执行、部署或真实调用。该模块随 `3f849f1` 的 Lint/Blocking IO/Frontend/Replay E2E/Unit **5 workflows / 10 jobs 全绿**通过精确 SHA CI（Unit `43671927193`）。
 
 English: a read-only approval chain verifier checks counts, contiguous revisions/sequences, event-to-approval matching and document integrity, returning only verified/broken with counts and fixed blockers.
+
+## 批准面板链完整性接入（2026-11-15）
+
+数据集正式批准面板新增独立的“检查批准链完整性”按钮：仅在显式点击后调用 `GET .../approvals/integrity`，要求 32 位十六进制 run ID，显示 `verified` 的批准/事件计数或 `broken` 的固定 blockers；切换项目或 run 时清空旧结果，失败不重试、不写批准/审计，也不读取 document、note、Q/A 或证据。批准 API 客户端新增 `chainIntegrity` 类型化方法与路由测试。
+
+测试先红后绿：面板用例初次因按钮不存在按预期失败；实现后定向 **12 passed**（API 2 + DOM 10），前端完整 **1,372 passed**（含显式加载、broken blockers、run 切换清空与非法 ID 失败关闭），typecheck/ESLint/Prettier 通过。浏览器侧新增 Playwright 用例，在本机已安装 Chrome 上以临时配置运行 `approval-panel.spec.ts` **5 passed**（生产构建 + `next start`；默认 Chromium headless shell 未安装，未下载新浏览器）；临时配置与测试产物已删除。该用例断言显式读取、固定 blockers、无写请求与页面不含 `approval_hash`。精确 SHA CI 另行记录。
+
+English: the approval panel now exposes an explicit, metadata-only chain-integrity check with verified counts or fixed blockers, cleared on project/run changes; it never reads documents/evidence, writes on failure or retries.

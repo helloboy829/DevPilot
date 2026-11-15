@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Formal approval chain integrity panel (2026-11-15)
+
+`EvaluationApprovalPanel` exposes a separate "Check approval chain integrity" action next to the explicit run-approval load. It requires a 32-hex run ID, calls only the metadata-only `qa-approval-chain.v1` GET, renders `verified` counts or the fixed `broken` blockers, and clears the result whenever project or run changes. It never fetches approval documents, notes, Q/A or evidence, never writes on failure, and never retries. Keep the explicit-click boundary: mounting the panel must not call the integrity endpoint. [Contract](../docs/DevPilot_Formal_Approval.md).
+
 ## Explicit real file/hash test synchronization (2026-11-11)
 
 The external QA DOM setup must call through to the real bounded file reader/WebCrypto and drain both returned promises inside React `act`, then assert both fixture hashes. A delayed-file regression must keep inspection disabled until both reads finish. Preserve the original failed full-run log; do not substitute hashes, weaken assertions, add retries or increase timeouts. The final full suite has 1,360 passing tests; business UI behavior is unchanged. [Module verification](../docs/DevPilot_Local_QA_Protected_Output.md).

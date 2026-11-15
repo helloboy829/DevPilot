@@ -108,6 +108,48 @@ test("preflight shows fixed blockers without writing or reading evidence", async
   expect(writes).toEqual([]);
 });
 
+test("checks approval chain integrity read-only and shows fixed blockers", async ({
+  page,
+}) => {
+  const { panel } = await setup(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && request.url().includes("/approval"))
+      writes.push(request.url());
+  });
+  let reads = 0;
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/approvals/integrity",
+    (route) => {
+      reads += 1;
+      return route.fulfill({
+        json: {
+          schema: "qa-approval-chain.v1",
+          scope: "approval_audit_chain_only",
+          status: "broken",
+          approvals: 2,
+          events: 1,
+          blockers: ["event_count_mismatch"],
+        },
+      });
+    },
+  );
+  await panel.getByLabel("Run ID", { exact: true }).fill(run);
+  expect(reads).toBe(0);
+  await panel
+    .getByRole("button", {
+      name: "Check approval chain integrity",
+      exact: true,
+    })
+    .click();
+  await expect(
+    panel.getByText("Chain broken: event_count_mismatch"),
+  ).toBeVisible();
+  expect(reads).toBe(1);
+  expect(writes).toEqual([]);
+  await expect(page.locator("body")).not.toContainText("approval_hash");
+});
+
 test("records an explicit approval with a generated original ID", async ({
   page,
 }) => {

@@ -14,6 +14,7 @@ const state = rs.hoisted(() => ({
     projectApprovals: rs.fn(),
     runApprovals: rs.fn(),
     runAudit: rs.fn(),
+    chainIntegrity: rs.fn(),
     preflight: rs.fn(),
     create: rs.fn(),
   },
@@ -217,4 +218,82 @@ it("keeps an unknown write pending for same-ID reconciliation without retry", as
   const generated = state.api.create.mock.calls[0]![2];
   expect(pending.get(`p1:${run}`)).toBe(generated);
   expect(screen.getByRole("status").textContent).toContain(generated);
+});
+
+it("checks chain integrity only after an explicit click", async () => {
+  state.api.chainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain.v1",
+    scope: "approval_audit_chain_only",
+    status: "verified",
+    approvals: 2,
+    events: 2,
+    blockers: [],
+  });
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  expect(state.api.chainIntegrity).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval chain integrity" }),
+  );
+  await screen.findByText("Chain verified: 2 approvals / 2 events");
+  expect(state.api.chainIntegrity).toHaveBeenCalledWith("p1", run);
+});
+
+it("shows fixed blockers for a broken chain without writing", async () => {
+  state.api.chainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain.v1",
+    scope: "approval_audit_chain_only",
+    status: "broken",
+    approvals: 1,
+    events: 0,
+    blockers: ["event_count_mismatch", "revision_gap"],
+  });
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval chain integrity" }),
+  );
+  await screen.findByText("Chain broken: event_count_mismatch, revision_gap");
+  expect(state.api.create).not.toHaveBeenCalled();
+});
+
+it("clears chain integrity when the run changes", async () => {
+  state.api.chainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain.v1",
+    scope: "approval_audit_chain_only",
+    status: "verified",
+    approvals: 1,
+    events: 1,
+    blockers: [],
+  });
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval chain integrity" }),
+  );
+  await screen.findByText("Chain verified: 1 approvals / 1 events");
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: "2".repeat(32) },
+  });
+  expect(screen.queryByText(/Chain verified/)).toBeNull();
+});
+
+it("rejects a malformed run ID before reading the chain", () => {
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: "short" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval chain integrity" }),
+  );
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Run ID must be 32 hex.",
+  );
+  expect(state.api.chainIntegrity).not.toHaveBeenCalled();
 });

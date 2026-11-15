@@ -12,7 +12,7 @@
 | 独立准入、有界 QA Worker、加密采集、人工复核、全样本汇总 | 已实现，执行默认关闭           | 未知交付不重发；采集成功/阈值达标不等于批准                                  |
 | 历史报告/Word 草稿、同基准复测                           | 已实现                         | 草稿与比较不自动批准、不自动再执行                                           |
 | 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF  | 候选代码已实现，未部署         | `eval_0010..0012`；旧 owner 路径保持独立                                     |
-| 正式批准首切片（具名审批、职责分离、撤销/审计、只读预检/索引与数据集面板） | 候选代码已实现，未部署 | `eval_0015`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成 |
+| 正式批准首切片（具名审批、职责分离、撤销/审计、只读预检/索引/链完整性与数据集面板） | 候选代码已实现，未部署 | `eval_0015`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成 |
 | 授权配置导出与外部技术元数据隔离接收                     | 候选代码已实现，未部署         | `eval_0013..0014`；不接纳敏感输出为可信证据                                  |
 | 独立本地 QA 命令、共享核心、锁定软件分发、加密输出       | 候选代码已实现                 | 默认离线；真实发送与输出模式分别同意                                         |
 | 未完成/损坏本地输出的保留治理                            | 加密运行时和显式管理命令已实现 | 输出前 durable receipt；原 IDs/两个 hash/单独处置同意；无安全擦除保证        |
@@ -35,6 +35,8 @@
 
 ## 最近验证
 
+- **精确 SHA CI（批准审计链完整性，2026-11-15）**：`3f849f13981cbe67201dcb2b9b499b2e0885419f` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43671927105)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43671927084)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43671927228)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43671927129)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43671927193) 共 **5 workflows / 10 jobs 全部成功**；批准套件（仓库+路由+迁移）本地 **43 passed**，链验证只返回固定元数据与 blockers。
+- **精确 SHA CI（QA 调度准入只读诊断，2026-11-15）**：`f0235ac23cec0d86775b1e2c89e2b0d42eba30e1` 的 [Unit](https://github.com/helloboy829/DevPilot/actions/runs/43670710309)、[Lint](https://github.com/helloboy829/DevPilot/actions/runs/43670710163)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43670710105)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43670710095)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43670710094) 共 **5 workflows 全部成功**；该 SHA 新增固定拒绝投影、管理员路由与路由清单回归，不动 DB/调度/执行。
 - **精确 SHA CI（lifespan 确定性修复，2026-11-15）**：`805c6489ea038251a688034c872106e3bcd22e09` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43646997103)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43646997089)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43646997109)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43646997095) 共 **4 workflows 全部成功**；Unit 的完整套件通过，确认计时测试确定性修复有效。
 - **精确 SHA CI（P2 纯核心，2026-11-15）**：`0c3d6ea`（流式 TTFT/吞吐）、`30296ec`（裁判校准 + 枚举失败关闭）与 `5524e2d`（CV 图像差异）各 **3 workflows 全部成功**（[0c3d6ea Unit](https://github.com/helloboy829/DevPilot/actions/runs/43655660345)、[30296ec Unit](https://github.com/helloboy829/DevPilot/actions/runs/43656798107)、[5524e2d Unit](https://github.com/helloboy829/DevPilot/actions/runs/43658711846)）；本地 evaluation 域 **35 passed**（含对称性/顺序无关/真实零值边界）、toolkit **58 passed**，分发 allowlist **43** 成员完整。
 - **精确 SHA CI（启动确定性修复，2026-11-15）**：`107faba977d6123daa3c3085e149e1491e91c017` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43653416672)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43653416728)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43653416714)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43653416710) 共 **4 workflows 全部成功**；Unit 完整套件通过。
