@@ -1,6 +1,6 @@
 # 多级签核要求纯核心 / Sign-off requirement core
 
-日期：2026-11-15。候选源码，未接入 App、无策略存储、无强制。
+日期：2026-11-15。候选源码；App 仅通过显式查询参数提供咨询性计算，无策略存储、无强制。
 
 ## 范围
 
@@ -29,7 +29,7 @@ evaluate_signoff_requirement(
 
 ## 明确不包含
 
-- 不新增 App API、迁移、策略表、UI、通知或审批人登录；当前 App 签署进度端点仍固定 `policy=not_defined`。
+- 不新增策略表、强制、通知或审批人登录；App 签署进度端点仍固定 `policy=not_defined`，仅可选接受 `required_distinct_approvers=1..10` 并附加咨询性 `requirement`。
 - 不改变既有批准写入/撤销/链校验语义；本核心只是未来策略层的纯计算积木。
 - 无网络、模型、真实数据或部署。
 
@@ -42,4 +42,4 @@ PYTHONPATH=devpilot/src python -m unittest discover \
 
 纯核心专项 **7 passed**；同一核心也通过离线 CLI 暴露（`qa_metrics_cli signoff --requirement ...`，CLI 专项 **11 passed**）。evaluation 域合计 **53 passed**、toolkit **58 passed**；分发 allowlist 为 **47** 个成员，分发测试 **72 passed**。
 
-English: a pure requirement evaluator answers whether an explicitly supplied multi-level sign-off policy is met by aggregate counts. It stores no policy, enforces nothing, is not wired into App and never returns approval.
+English: a pure requirement evaluator answers whether an explicitly supplied multi-level sign-off policy is met by aggregate counts. The App exposes it only as an advisory query parameter; it stores no policy, enforces nothing and never returns approval.

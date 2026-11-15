@@ -46,6 +46,7 @@ export function EvaluationApprovalPanel({
     useState<ApprovalChainSummary | null>(null);
   const [signoff, setSignoff] = useState<ApprovalSignoffProgress | null>(null);
   const [assessments, setAssessments] = useState<RunAssessment[] | null>(null);
+  const [requiredSignoff, setRequiredSignoff] = useState("");
   const [assessmentId, setAssessmentId] = useState("");
   const [assessmentHash, setAssessmentHash] = useState("");
   const [approverId, setApproverId] = useState("");
@@ -83,6 +84,7 @@ export function EvaluationApprovalPanel({
     setProjectIntegrity(null);
     setSignoff(null);
     setAssessments(null);
+    setRequiredSignoff("");
     setPreflight(null);
     setConfirmed(false);
     setError("");
@@ -238,12 +240,29 @@ export function EvaluationApprovalPanel({
       );
       return;
     }
+    const proposed = requiredSignoff.trim();
+    let required: number | undefined;
+    if (proposed) {
+      const value = Number(proposed);
+      if (!Number.isInteger(value) || value < 1 || value > 10) {
+        setError(
+          zh
+            ? "拟议所需审批人数必须在 1–10 之间。"
+            : "Required approvers must be 1-10.",
+        );
+        return;
+      }
+      required = value;
+    }
     const at = ++epoch.current;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      const result = await approvalApi.signoffProgress(projectId, runId);
+      const result =
+        required === undefined
+          ? await approvalApi.signoffProgress(projectId, runId)
+          : await approvalApi.signoffProgress(projectId, runId, required);
       if (at === epoch.current) setSignoff(result);
     } catch {
       if (at === epoch.current)
@@ -431,6 +450,24 @@ export function EvaluationApprovalPanel({
         >
           {zh ? "检查批准链完整性" : "Check approval chain integrity"}
         </Button>
+        <Input
+          aria-label={
+            zh
+              ? "拟议所需审批人数（仅咨询）"
+              : "Proposed required approvers (advisory)"
+          }
+          type="number"
+          min={1}
+          max={10}
+          value={requiredSignoff}
+          onChange={(event) => {
+            setRequiredSignoff(event.target.value);
+            setSignoff(null);
+            setError("");
+          }}
+          className="max-w-xs"
+          placeholder={zh ? "可选：1–10" : "Optional: 1-10"}
+        />
         <Button
           type="button"
           disabled={busy}
@@ -522,6 +559,24 @@ export function EvaluationApprovalPanel({
               <li key={blocker}>{blocker}</li>
             ))}
           </ul>
+          {signoff.requirement ? (
+            <div className="space-y-1 border-t pt-2">
+              <p>
+                {`Advisory requirement: ${
+                  signoff.requirement.satisfied ? "satisfied" : "not satisfied"
+                }${
+                  signoff.requirement.blockers.length
+                    ? ` · ${signoff.requirement.blockers.join(", ")}`
+                    : ""
+                }`}
+              </p>
+              <p className="text-muted-foreground">
+                {zh
+                  ? "仅咨询：不保存、不强制任何签核政策。"
+                  : "Advisory only; no policy is stored or enforced."}
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {pendingId ? (

@@ -21,6 +21,7 @@ test("builds encoded project, run, audit, integrity and preflight routes", async
     .mockResolvedValueOnce({ status: "verified" })
     .mockResolvedValueOnce({ status: "verified" })
     .mockResolvedValueOnce({ revisions: 0 })
+    .mockResolvedValueOnce({ revisions: 1 })
     .mockResolvedValueOnce([])
     .mockResolvedValueOnce({ eligible: true });
 
@@ -30,6 +31,7 @@ test("builds encoded project, run, audit, integrity and preflight routes", async
   await approvalApi.chainIntegrity("project 1", "run/1");
   await approvalApi.projectChainIntegrity("project 1");
   await approvalApi.signoffProgress("project 1", "run/1");
+  await approvalApi.signoffProgress("project 1", "run/1", 2);
   await approvalApi.runAssessments("project 1", "run/1");
   await approvalApi.preflight("project 1", "run/1", assessment, approver);
 
@@ -40,6 +42,7 @@ test("builds encoded project, run, audit, integrity and preflight routes", async
     "evaluation/projects/project%201/review-runs/run%2F1/approvals/integrity",
     "evaluation/projects/project%201/approvals/integrity",
     "evaluation/projects/project%201/review-runs/run%2F1/approvals/sign-off",
+    "evaluation/projects/project%201/review-runs/run%2F1/approvals/sign-off?required_distinct_approvers=2",
     "evaluation/projects/project%201/review-runs/run%2F1/assessments",
     "evaluation/projects/project%201/review-runs/run%2F1/assessments/" +
       assessment +

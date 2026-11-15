@@ -64,6 +64,19 @@ export interface ApprovalChainSummary {
   blockers: string[];
 }
 
+export interface ApprovalSignoffRequirement {
+  schema: "qa-signoff-requirement.v1";
+  scope: "technical_signoff_requirement_only";
+  policy: { defined: boolean; required_distinct_approvers: number | null };
+  observed: {
+    distinct_approved_approvers: number;
+    latest_decision: ApprovalDecision | null;
+  };
+  satisfied: boolean | null;
+  blockers: string[];
+  approval: "not_approved";
+}
+
 export interface ApprovalSignoffProgress {
   schema: "qa-approval-signoff.v1";
   scope: "approval_signoff_progress_only";
@@ -78,6 +91,7 @@ export interface ApprovalSignoffProgress {
   latest_decision: ApprovalDecision | null;
   multi_level_satisfied: null;
   blockers: string[];
+  requirement?: ApprovalSignoffRequirement;
 }
 
 export interface RunAssessment {
@@ -158,9 +172,17 @@ export const approvalApi = {
       `${runs(projectId, runId)}/approvals/integrity`,
     );
   },
-  signoffProgress(projectId: string, runId: string) {
+  signoffProgress(
+    projectId: string,
+    runId: string,
+    requiredDistinctApprovers?: number,
+  ) {
+    const query =
+      requiredDistinctApprovers === undefined
+        ? ""
+        : `?required_distinct_approvers=${requiredDistinctApprovers}`;
     return evaluationApi<ApprovalSignoffProgress>(
-      `${runs(projectId, runId)}/approvals/sign-off`,
+      `${runs(projectId, runId)}/approvals/sign-off${query}`,
     );
   },
   preflight(

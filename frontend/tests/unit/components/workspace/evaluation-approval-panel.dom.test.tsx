@@ -863,3 +863,76 @@ it("clears loaded assessment metadata when the run changes", async () => {
   });
   expect(screen.queryByLabelText("Assessment revision")).toBeNull();
 });
+
+it("checks an advisory sign-off requirement without storing a policy", async () => {
+  state.api.signoffProgress.mockResolvedValue({
+    schema: "qa-approval-signoff.v1",
+    scope: "approval_signoff_progress_only",
+    policy: "not_defined",
+    required_distinct_approvers: null,
+    revisions: 1,
+    distinct_approvers: 1,
+    distinct_approved_approvers: 1,
+    approved_revisions: 1,
+    revoked_revisions: 0,
+    latest_revision: 1,
+    latest_decision: "approved",
+    multi_level_satisfied: null,
+    blockers: [
+      "multi_level_policy_not_defined",
+      "approver_login_not_implemented",
+    ],
+    requirement: {
+      schema: "qa-signoff-requirement.v1",
+      scope: "technical_signoff_requirement_only",
+      policy: { defined: true, required_distinct_approvers: 2 },
+      observed: {
+        distinct_approved_approvers: 1,
+        latest_decision: "approved",
+      },
+      satisfied: false,
+      blockers: ["insufficient_approvers"],
+      approval: "not_approved",
+    },
+  });
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.change(
+    screen.getByLabelText("Proposed required approvers (advisory)"),
+    { target: { value: "2" } },
+  );
+  expect(state.api.signoffProgress).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Check approver sign-off progress",
+    }),
+  );
+  await screen.findByText(
+    "Advisory requirement: not satisfied · insufficient_approvers",
+  );
+  expect(screen.getByText(/Advisory only/)).toBeTruthy();
+  expect(state.api.signoffProgress).toHaveBeenCalledWith("p1", run, 2);
+  expect(state.api.create).not.toHaveBeenCalled();
+});
+
+it("rejects an invalid advisory requirement before reading", () => {
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.change(
+    screen.getByLabelText("Proposed required approvers (advisory)"),
+    { target: { value: "11" } },
+  );
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Check approver sign-off progress",
+    }),
+  );
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Required approvers must be 1-10.",
+  );
+  expect(state.api.signoffProgress).not.toHaveBeenCalled();
+});

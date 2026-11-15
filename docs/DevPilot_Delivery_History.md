@@ -788,6 +788,14 @@ English: the offline CLI now exposes the pure sign-off requirement evaluator ove
 
 针对“明文副本/更广泛崩溃产物治理”缺口新增只读观察切片 `devpilot.local_qa_residue`：`inventory --directory <私有目录> --confirm-metadata-only-directory-inventory` 只检查七个固定文件名（run/retention/disposal receipts、lock、加密输出、明文 `observations.jsonl`）是否存在及 `size`/`mtime_ms`；不回显目录路径或内容，不发现未知文件、不递归、不读取/认证/解密、不删除或移动。目录必须为当前用户私有普通目录，固定名必须是普通文件；符号链接/其他类型与缺少显式确认失败关闭。输出 `local-qa-directory-residue.v1`，显式 `content_status=not_inspected`、`verdict=NOT_EVALUATED`、`automatic_cleanup=false`、`approval=not_approved`。
 
-测试先红后绿：模块缺失时导入失败；实现后专项 **6 passed**（已知/缺失文件、纯元数据、未知文件忽略、确认要求、非目录/符号链接、CLI 错误不回显），evaluation 域 **59 passed**、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（**49** 成员），分发测试 **72 passed**，Ruff check/format 通过。明文副本保留期、自动清理、App 集成与 Windows 验收仍未完成；无迁移、依赖或部署变更，精确 SHA CI 另行记录。
+测试先红后绿：模块缺失时导入失败；实现后专项 **6 passed**（已知/缺失文件、纯元数据、未知文件忽略、确认要求、非目录/符号链接、CLI 错误不回显），evaluation 域 **59 passed**、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（**49** 成员），分发测试 **72 passed**，Ruff check/format 通过。明文副本保留期、自动清理、App 集成与 Windows 验收仍未完成；无迁移、依赖或部署变更。该模块随 `c001bdf` 的 Lint/Frontend/Unit **3 workflows 全绿**通过精确 SHA CI（Unit `43707464738`）。
 
 English: an explicit metadata-only inventory reports whether known local QA residue filenames exist, with size/mtime only. It never reads content, discovers other files, deletes anything or constitutes evidence/approval; plaintext governance remains incomplete.
+
+## 多级签核咨询接入（2026-11-15）
+
+签署进度端点新增可选查询参数 `required_distinct_approvers=1..10`：存在时调用 `devpilot.qa_signoff_policy.evaluate_signoff_requirement`，在响应中附加 `requirement`（`qa-signoff-requirement.v1`），仅供对照当前聚合计数；不存在时响应不变。策略不保存、不强制，`policy` 仍为 `not_defined`、`multi_level_satisfied` 仍为 `null`，批准写入/撤销/链校验不变。面板新增“拟议所需审批人数（仅咨询）”输入，显示 advisory 结果并明确“不保存、不强制”；修改输入清除旧 advisory 结果，切换项目/run 清除输入。
+
+测试先红后绿：新增路由参数（2 不足、1 满足、无参数无 requirement、0/11 返回 422、无写入）、客户端查询参数、面板 advisory 展示与非法输入用例；初次 E2E 因 Playwright route 未匹配带查询字符串的 URL 失败，改用 `sign-off**` glob，保留原断言。批准仓库+路由+迁移 **58 passed**（133.34s），Ruff 通过；前端定向 **32 passed**、完整 **1,420 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **8 passed**。无迁移、依赖或部署变更；精确 SHA CI 另行记录。
+
+English: the sign-off endpoint may attach an advisory requirement computed from an explicitly supplied approver count. No policy is stored or enforced, and approval semantics are unchanged.

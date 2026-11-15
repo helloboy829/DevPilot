@@ -393,3 +393,29 @@ async def test_approval_signoff_progress_is_aggregate_and_permissioned(api, monk
     assert (await client.get(path)).status_code == 404
     app.state.actor = 0
     assert (await client.get(path)).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_signoff_requirement_is_advisory_and_read_only(api, monkeypatch):
+    client, app, base, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    path = root + "/approvals/sign-off"
+    assert (await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment))).status_code == 200
+    blocked = await client.get(path, params={"required_distinct_approvers": 2})
+    assert blocked.status_code == 200 and "no-store" in blocked.headers["cache-control"]
+    body = blocked.json()
+    assert body["policy"] == "not_defined" and body["multi_level_satisfied"] is None
+    assert body["requirement"]["schema"] == "qa-signoff-requirement.v1"
+    assert body["requirement"]["policy"] == {"defined": True, "required_distinct_approvers": 2}
+    assert body["requirement"]["satisfied"] is False
+    assert body["requirement"]["blockers"] == ["insufficient_approvers"]
+    assert body["requirement"]["approval"] == "not_approved"
+    satisfied = (await client.get(path, params={"required_distinct_approvers": 1})).json()
+    assert satisfied["requirement"]["satisfied"] is True
+    assert satisfied["requirement"]["blockers"] == []
+    plain = (await client.get(path)).json()
+    assert "requirement" not in plain
+    assert (await client.get(path, params={"required_distinct_approvers": 0})).status_code == 422
+    assert (await client.get(path, params={"required_distinct_approvers": 11})).status_code == 422
+    assert [item["revision"] for item in (await client.get(root + "/approvals")).json()] == [1]
+    assert [(event["sequence"], event["action"]) for event in (await client.get(root + "/approvals/audit")).json()] == [(1, "approved")]

@@ -343,10 +343,12 @@ test("checks approver sign-off progress without a policy", async ({ page }) => {
       writes.push(request.url());
   });
   let reads = 0;
+  let requestedUrl = "";
   await page.route(
-    "**/api/evaluation/projects/p1/review-runs/*/approvals/sign-off",
+    "**/api/evaluation/projects/p1/review-runs/*/approvals/sign-off**",
     (route) => {
       reads += 1;
+      requestedUrl = route.request().url();
       return route.fulfill({
         json: {
           schema: "qa-approval-signoff.v1",
@@ -365,11 +367,26 @@ test("checks approver sign-off progress without a policy", async ({ page }) => {
             "multi_level_policy_not_defined",
             "approver_login_not_implemented",
           ],
+          requirement: {
+            schema: "qa-signoff-requirement.v1",
+            scope: "technical_signoff_requirement_only",
+            policy: { defined: true, required_distinct_approvers: 2 },
+            observed: {
+              distinct_approved_approvers: 1,
+              latest_decision: "revoked",
+            },
+            satisfied: false,
+            blockers: ["insufficient_approvers"],
+            approval: "not_approved",
+          },
         },
       });
     },
   );
   await panel.getByLabel("Run ID", { exact: true }).fill(run);
+  await panel
+    .getByLabel("Proposed required approvers (advisory)", { exact: true })
+    .fill("2");
   expect(reads).toBe(0);
   await panel
     .getByRole("button", {
@@ -384,6 +401,13 @@ test("checks approver sign-off progress without a policy", async ({ page }) => {
   ).toBeVisible();
   await expect(panel.getByText(/Policy not defined/)).toBeVisible();
   await expect(panel.getByText("multi_level_policy_not_defined")).toBeVisible();
+  await expect(
+    panel.getByText(
+      "Advisory requirement: not satisfied · insufficient_approvers",
+    ),
+  ).toBeVisible();
+  await expect(panel.getByText(/Advisory only/)).toBeVisible();
+  expect(requestedUrl).toContain("required_distinct_approvers=2");
   expect(reads).toBe(1);
   expect(writes).toEqual([]);
 });

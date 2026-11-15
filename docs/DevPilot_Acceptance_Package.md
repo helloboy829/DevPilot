@@ -62,7 +62,7 @@
 - [ ] 批准审计列表只返回有序元数据（approval_id/revision/action/actor/subject_hash/at_ms），不含 note/document；单个批准读取不被审计路径遮蔽。
 - [ ] 批准链完整性端点返回 verified/broken、计数与固定 blockers，不含 ID/hash/文档；篡改任一环节应显示 broken。
 - [ ] 项目级批准链汇总只返回 run/批准/事件计数与固定 blockers；存在审计无批准时标记 `orphan_audit`，超界返回 `unverifiable`/`project_chain_too_long`，不含 ID/hash/文档。
-- [ ] 签署进度端点只返回 revision/不同审批人计数、最新决定与固定 blockers；`policy=not_defined`、`multi_level_satisfied=null`，不把多审批人计数当作多级签核已满足，不含 ID/hash/文档。
+- [ ] 签署进度端点只返回 revision/不同审批人计数、最新决定与固定 blockers；`policy=not_defined`、`multi_level_satisfied=null`，不把多审批人计数当作多级签核已满足，不含 ID/hash/文档。可选拟议人数只附加咨询性 requirement，不保存/不强制。
 - [ ] 数据集批准面板的链完整性按钮只在显式点击后读取，显示 verified 计数或固定 blockers，切换 run 清空旧结果，不写批准/审计；项目级链汇总按钮同样显式、只读，切换项目清空。
 - [ ] 批准面板切换项目时清除项目索引/run/评估输入，修改评估 ID/hash 或审批人时清除旧预检，避免跨项目或旧目标结果残留。
 - [ ] 批准预检只返回 eligible/blockers/分离布尔且不写批准或审计；非法 approver 返回 422、未知评估 404。

@@ -4,6 +4,7 @@ import asyncio
 import hmac
 import logging
 
+from devpilot.qa_signoff_policy import evaluate_signoff_requirement
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy.exc import SQLAlchemyError
@@ -587,9 +588,19 @@ async def list_run_approvals(project_id: str, run_id: str, request: Request):
 @router.get("/{project_id}/review-runs/{run_id}/approvals/sign-off")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "review")
-async def get_run_approval_signoff_progress(project_id: str, run_id: str, request: Request):
+async def get_run_approval_signoff_progress(project_id: str, run_id: str, request: Request, required_distinct_approvers: int | None = Query(None, ge=1, le=10)):
     owner, repository = await _approval_context(request)
-    return await _result(repository.approval_signoff_progress(owner, project_id, run_id))
+    progress = await _result(repository.approval_signoff_progress(owner, project_id, run_id))
+    if required_distinct_approvers is not None:
+        try:
+            progress["requirement"] = evaluate_signoff_requirement(
+                required_distinct_approvers=required_distinct_approvers,
+                distinct_approved_approvers=progress["distinct_approved_approvers"],
+                latest_decision=progress["latest_decision"],
+            )
+        except ValueError:
+            raise HTTPException(422, "Invalid sign-off requirement", headers={"Cache-Control": "private, no-store"}) from None
+    return progress
 
 
 @router.get("/{project_id}/review-runs/{run_id}/approvals/audit")
