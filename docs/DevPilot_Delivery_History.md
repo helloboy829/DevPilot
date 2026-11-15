@@ -697,3 +697,11 @@ English: approval creation and preflight now require an existing, initialized ap
 测试先红后绿：共享 fixture 加入一致 `safety` 后，旧 strict schema 如预期拒绝；补齐 schema 与面板后定向 **60 passed**，前端完整 **1,404 passed**，typecheck/ESLint/Prettier 通过。浏览器侧 `execution-operations.spec.ts` 本机 Chrome 生产构建按 `workers=1`：首轮一次既有“重新进入不恢复快照”断言失败，单独与二次整组 **5 passed**；未改断言、超时或重试，保留为本地观察，以精确 SHA CI 为准。临时 Playwright 配置与测试产物已删除；无后端、迁移、依赖或部署变更。该模块随 `2fa795c` 的 Lint/Frontend/E2E/Replay E2E/Unit **5 workflows 全绿**通过精确 SHA CI（Unit `43682957356`）。
 
 English: the operations workspace now strictly validates and displays the aggregate safety classification, cross-checking it against the held states; this fixes a regression where the backend `safety` field was rejected by the old strict client schema.
+
+## 批准面板对账与链汇总一致性（2026-11-15）
+
+修复批准工作台的两个状态一致性问题：未知写入留下的页面内存 pending ID 在操作者手动“加载运行批准与审计”找到原 ID 后不会清除，且成功写入或对账后，已显示的运行级/项目级链汇总仍可能过期。现在显式加载若发现 pending 原 ID 已在返回列表中，会清除 pending、两份旧链汇总并提示只读对账完成；未发现时继续保留 pending 供后续核对；成功写入也清除旧链汇总。仍不自动重试、不换 ID、不自动轮询。
+
+测试先红后绿：新增“找到原 ID 清除 pending”“未找到保留 pending”“写入后清除旧链汇总”用例；初版测试在输入 run ID 前断言 pending 横幅，因面板以项目+run 为键而失败，修正为先输入 run，未改产品行为。面板定向 **17 passed**，前端完整 **1,407 passed**，typecheck/ESLint/Prettier 通过；E2E 未知写入用例扩展为 503 后按原 ID 加载并对账，`approval-panel.spec.ts` 本机 Chrome 串行 **6 passed**，写请求仍为 1 次。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
+
+English: an explicit approval reload now clears a pending unknown-write ID only when the original ID appears, and successful writes or reconciliation invalidate stale chain summaries; nothing is retried or replaced automatically.

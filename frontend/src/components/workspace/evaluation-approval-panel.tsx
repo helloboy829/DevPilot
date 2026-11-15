@@ -117,6 +117,17 @@ export function EvaluationApprovalPanel({
       if (at === epoch.current) {
         setRunRows(rows);
         setAudit(events);
+        const pending = pendingApprovals.get(key);
+        if (pending && rows.some((row) => row.id === pending)) {
+          pendingApprovals.delete(key);
+          setIntegrity(null);
+          setProjectIntegrity(null);
+          setNotice(
+            zh
+              ? "已按原 ID 完成只读对账；未重试或更换 ID。"
+              : "Reconciled by original ID; nothing was retried or replaced.",
+          );
+        }
       }
     } catch {
       if (at === epoch.current)
@@ -238,6 +249,8 @@ export function EvaluationApprovalPanel({
       pendingApprovals.delete(key);
       if (at === epoch.current) {
         setRunRows((rows) => [result, ...(rows ?? [])]);
+        setIntegrity(null);
+        setProjectIntegrity(null);
         setNotice(
           zh
             ? `已记录 revision ${result.revision}（${result.decision}）。`

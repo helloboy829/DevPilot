@@ -246,6 +246,24 @@ test("keeps an unknown write on the same ID without retry", async ({
   const id = writes[0]!.split("/").pop();
   expect(id).toMatch(/^[0-9a-f]{32}$/);
   await expect(panel.getByRole("status")).toContainText(id!);
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/approvals",
+    (route) =>
+      route.fulfill({
+        json: [
+          { id, revision: 1, decision: "approved", approver_id: approver },
+        ],
+      }),
+  );
+  await panel
+    .getByRole("button", {
+      name: "Load run approvals and audit",
+      exact: true,
+    })
+    .click();
+  await expect(panel.getByText(/revision 1 · approved/)).toBeVisible();
+  await expect(panel.getByRole("status")).toHaveCount(0);
+  expect(posts).toBe(1);
 });
 
 test("checks the project approval chain summary read-only", async ({

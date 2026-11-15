@@ -399,3 +399,99 @@ it("clears the project chain summary when the project changes", async () => {
   );
   expect(screen.queryByText(/Project chains verified/)).toBeNull();
 });
+
+it("clears a pending ID when an explicit read finds the original ID", async () => {
+  const id = "d".repeat(32);
+  const pending = new Map([[`p1:${run}`, id]]);
+  render(
+    <EvaluationApprovalPanel
+      pendingApprovals={pending}
+      projectId="p1"
+      zh={false}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  expect(screen.getByText(/Unknown write pending reconciliation/)).toBeTruthy();
+  state.api.runApprovals.mockResolvedValue([{ ...approval, id }]);
+  state.api.runAudit.mockResolvedValue([]);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load run approvals and audit" }),
+  );
+  await screen.findByText(/revision 1 · approved/);
+  expect(pending.has(`p1:${run}`)).toBe(false);
+  expect(screen.queryByText(/Unknown write pending reconciliation/)).toBeNull();
+});
+
+it("keeps a pending ID when the explicit read does not find it", async () => {
+  const id = "d".repeat(32);
+  const pending = new Map([[`p1:${run}`, id]]);
+  render(
+    <EvaluationApprovalPanel
+      pendingApprovals={pending}
+      projectId="p1"
+      zh={false}
+    />,
+  );
+  state.api.runApprovals.mockResolvedValue([
+    { ...approval, id: "e".repeat(32) },
+  ]);
+  state.api.runAudit.mockResolvedValue([]);
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load run approvals and audit" }),
+  );
+  await screen.findByText(/revision 1 · approved/);
+  expect(pending.get(`p1:${run}`)).toBe(id);
+  expect(screen.getByText(/Unknown write pending reconciliation/)).toBeTruthy();
+});
+
+it("clears stale chain summaries after a recorded decision", async () => {
+  state.api.runApprovals.mockResolvedValue([]);
+  state.api.runAudit.mockResolvedValue([]);
+  state.api.chainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain.v1",
+    scope: "approval_audit_chain_only",
+    status: "verified",
+    approvals: 0,
+    events: 0,
+    blockers: [],
+  });
+  state.api.projectChainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain-summary.v1",
+    scope: "project_approval_audit_chains_only",
+    status: "verified",
+    runs: 0,
+    verified_runs: 0,
+    broken_runs: 0,
+    approvals: 0,
+    events: 0,
+    blockers: [],
+  });
+  state.api.create.mockResolvedValue(approval);
+  panel();
+  fillTarget();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval chain integrity" }),
+  );
+  await screen.findByText("Chain verified: 0 approvals / 0 events");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check project approval chains" }),
+  );
+  await screen.findByText(
+    "Project chains verified: 0 of 0 runs · 0 approvals / 0 events",
+  );
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Record approval / revocation" }),
+  );
+  await screen.findByText(/Recorded revision 1 \(approved\)/);
+  expect(screen.queryByText(/Chain verified/)).toBeNull();
+  expect(screen.queryByText(/Project chains verified/)).toBeNull();
+});
