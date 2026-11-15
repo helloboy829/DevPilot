@@ -94,6 +94,19 @@ export interface ApprovalSignoffProgress {
   requirement?: ApprovalSignoffRequirement;
 }
 
+export interface ApprovalCapabilities {
+  schema: "qa-approval-capabilities.v1";
+  scope: "approval_capability_diagnostic_only";
+  approver_login: "not_implemented";
+  owner_records_on_behalf: true;
+  multi_level_policy: "advisory_only";
+  multi_level_enforcement: "not_implemented";
+  notifications: "not_implemented";
+  export: "not_implemented";
+  approval: "not_authorized";
+  blockers: string[];
+}
+
 export interface RunAssessment {
   id: string;
   project_id: string;
@@ -148,6 +161,11 @@ const runs = (projectId: string, runId: string) =>
 export const approvalApi = {
   projectApprovals(projectId: string) {
     return evaluationApi<ProjectApproval[]>(`${projects(projectId)}/approvals`);
+  },
+  capabilities(projectId: string) {
+    return evaluationApi<ApprovalCapabilities>(
+      `${projects(projectId)}/approvals/capabilities`,
+    );
   },
   projectChainIntegrity(projectId: string) {
     return evaluationApi<ApprovalChainSummary>(

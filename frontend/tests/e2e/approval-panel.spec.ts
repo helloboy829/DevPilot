@@ -453,3 +453,48 @@ test("loads pinned assessment metadata for explicit selection", async ({
   ).toHaveValue(hash);
   expect(writes).toEqual([]);
 });
+
+test("shows approval capability gaps read-only", async ({ page }) => {
+  const { panel } = await setup(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && request.url().includes("/approval"))
+      writes.push(request.url());
+  });
+  let reads = 0;
+  await page.route(
+    "**/api/evaluation/projects/p1/approvals/capabilities",
+    (route) => {
+      reads += 1;
+      return route.fulfill({
+        json: {
+          schema: "qa-approval-capabilities.v1",
+          scope: "approval_capability_diagnostic_only",
+          approver_login: "not_implemented",
+          owner_records_on_behalf: true,
+          multi_level_policy: "advisory_only",
+          multi_level_enforcement: "not_implemented",
+          notifications: "not_implemented",
+          export: "not_implemented",
+          approval: "not_authorized",
+          blockers: [
+            "approver_login_not_implemented",
+            "multi_level_enforcement_not_implemented",
+            "notification_not_implemented",
+            "approval_export_not_implemented",
+          ],
+        },
+      });
+    },
+  );
+  expect(reads).toBe(0);
+  await panel
+    .getByRole("button", { name: "Load approval capabilities", exact: true })
+    .click();
+  await expect(
+    panel.getByText(/Approval capabilities: owner records on behalf/),
+  ).toBeVisible();
+  await expect(panel.getByText("approver_login_not_implemented")).toBeVisible();
+  expect(reads).toBe(1);
+  expect(writes).toEqual([]);
+});

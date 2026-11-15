@@ -9,6 +9,7 @@ import {
   approvalApi,
   type ApprovalAuditEvent,
   type ApprovalChainIntegrity,
+  type ApprovalCapabilities,
   type ApprovalChainSummary,
   type ApprovalDecision,
   type ApprovalPreflight,
@@ -47,6 +48,9 @@ export function EvaluationApprovalPanel({
   const [signoff, setSignoff] = useState<ApprovalSignoffProgress | null>(null);
   const [assessments, setAssessments] = useState<RunAssessment[] | null>(null);
   const [requiredSignoff, setRequiredSignoff] = useState("");
+  const [capabilities, setCapabilities] = useState<ApprovalCapabilities | null>(
+    null,
+  );
   const [assessmentId, setAssessmentId] = useState("");
   const [assessmentHash, setAssessmentHash] = useState("");
   const [approverId, setApproverId] = useState("");
@@ -70,6 +74,7 @@ export function EvaluationApprovalPanel({
 
   useEffect(() => {
     setProjectRows(null);
+    setCapabilities(null);
     setRunId("");
     setAssessmentId("");
     setAssessmentHash("");
@@ -155,6 +160,26 @@ export function EvaluationApprovalPanel({
           zh
             ? "加载失败；未知写入只按原 ID 对账，不自动重试。"
             : "Load failed; reconcile unknown writes by original ID only; never retry automatically.",
+        );
+    } finally {
+      if (at === epoch.current) setBusy(false);
+    }
+  }
+
+  async function loadCapabilities() {
+    const at = ++epoch.current;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await approvalApi.capabilities(projectId);
+      if (at === epoch.current) setCapabilities(result);
+    } catch {
+      if (at === epoch.current)
+        setError(
+          zh
+            ? "批准能力诊断加载失败；未读取批准或证据。"
+            : "Approval capability diagnostic failed; no approval or evidence was read.",
         );
     } finally {
       if (at === epoch.current) setBusy(false);
@@ -407,6 +432,13 @@ export function EvaluationApprovalPanel({
         <Button
           type="button"
           disabled={busy}
+          onClick={() => void loadCapabilities()}
+        >
+          {zh ? "加载批准能力" : "Load approval capabilities"}
+        </Button>
+        <Button
+          type="button"
+          disabled={busy}
           onClick={() => void checkProjectIntegrity()}
         >
           {zh ? "检查项目批准链" : "Check project approval chains"}
@@ -476,6 +508,21 @@ export function EvaluationApprovalPanel({
           {zh ? "检查签署进度" : "Check approver sign-off progress"}
         </Button>
       </div>
+      {capabilities ? (
+        <div className="space-y-1 text-sm" role="status">
+          <p>
+            {zh
+              ? "批准能力：owner 代为记录；多级政策仅咨询；审批人登录、强制签核、通知与导出未实现。"
+              : "Approval capabilities: owner records on behalf; multi-level policy is advisory only; approver login, enforcement, notifications and export are not implemented."}
+          </p>
+          <p>{`${zh ? "批准：" : "Approval: "}${zh ? "未授权" : "not authorized"}`}</p>
+          <ul className="list-disc pl-5 font-mono">
+            {capabilities.blockers.map((blocker) => (
+              <li key={blocker}>{blocker}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {projectRows ? (
         <ul className="space-y-1 text-sm">
           {projectRows.length === 0 ? (

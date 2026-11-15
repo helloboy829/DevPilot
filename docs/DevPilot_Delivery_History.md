@@ -831,3 +831,11 @@ English: a fixed read-only capability projection states that approver login, not
 测试先红后绿：新增重复键 signoff 载荷与 `NaN` calibration 载荷用例；实现后 CLI 专项 **12 passed**，evaluation 域 **61 passed**、toolkit **58 passed**，分发测试 **72 passed**，Ruff check/format 通过。无迁移、依赖或部署变更；精确 SHA CI 另行记录。
 
 English: the offline metrics CLI now rejects duplicate JSON keys and non-finite numbers, keeping ambiguous or non-integer inputs out of the pure cores.
+
+## 批准能力诊断工作台展示（2026-11-15）
+
+批准面板新增显式“加载批准能力”按钮：仅在点击后调用 `GET .../approvals/capabilities`，显示 owner 代录、多级政策仅咨询、审批人登录/强制签核/通知/导出未实现、`approval=not_authorized` 与固定 blockers；切换项目清除结果。不读取批准/账号/证据，不提供写入控件。
+
+测试先红后绿：新增客户端路由、显式加载/展示、项目切换清除用例与 E2E；实现后前端定向 **34 passed**、完整 **1,422 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **9 passed**。无后端、迁移、依赖或部署变更；精确 SHA CI 另行记录。
+
+English: the approval panel shows the fixed capability gaps only after an explicit click, without implying or adding login, notification, enforcement or export support.

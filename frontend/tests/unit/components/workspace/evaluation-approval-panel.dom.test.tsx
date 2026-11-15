@@ -16,6 +16,7 @@ const state = rs.hoisted(() => ({
     runAudit: rs.fn(),
     chainIntegrity: rs.fn(),
     projectChainIntegrity: rs.fn(),
+    capabilities: rs.fn(),
     signoffProgress: rs.fn(),
     runAssessments: rs.fn(),
     preflight: rs.fn(),
@@ -935,4 +936,68 @@ it("rejects an invalid advisory requirement before reading", () => {
     "Required approvers must be 1-10.",
   );
   expect(state.api.signoffProgress).not.toHaveBeenCalled();
+});
+
+it("shows the fixed approval capability gaps only on explicit click", async () => {
+  state.api.capabilities.mockResolvedValue({
+    schema: "qa-approval-capabilities.v1",
+    scope: "approval_capability_diagnostic_only",
+    approver_login: "not_implemented",
+    owner_records_on_behalf: true,
+    multi_level_policy: "advisory_only",
+    multi_level_enforcement: "not_implemented",
+    notifications: "not_implemented",
+    export: "not_implemented",
+    approval: "not_authorized",
+    blockers: [
+      "approver_login_not_implemented",
+      "multi_level_enforcement_not_implemented",
+      "notification_not_implemented",
+      "approval_export_not_implemented",
+    ],
+  });
+  panel();
+  expect(state.api.capabilities).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load approval capabilities" }),
+  );
+  await screen.findByText(/Approval capabilities: owner records on behalf/);
+  expect(screen.getByText("approver_login_not_implemented")).toBeTruthy();
+  expect(state.api.capabilities).toHaveBeenCalledWith("p1");
+  expect(state.api.create).not.toHaveBeenCalled();
+});
+
+it("clears approval capabilities when the project changes", async () => {
+  state.api.capabilities.mockResolvedValue({
+    schema: "qa-approval-capabilities.v1",
+    scope: "approval_capability_diagnostic_only",
+    approver_login: "not_implemented",
+    owner_records_on_behalf: true,
+    multi_level_policy: "advisory_only",
+    multi_level_enforcement: "not_implemented",
+    notifications: "not_implemented",
+    export: "not_implemented",
+    approval: "not_authorized",
+    blockers: [],
+  });
+  const pending = new Map<string, string>();
+  const view = render(
+    <EvaluationApprovalPanel
+      pendingApprovals={pending}
+      projectId="p1"
+      zh={false}
+    />,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load approval capabilities" }),
+  );
+  await screen.findByText(/Approval capabilities/);
+  view.rerender(
+    <EvaluationApprovalPanel
+      pendingApprovals={pending}
+      projectId="p2"
+      zh={false}
+    />,
+  );
+  expect(screen.queryByText(/Approval capabilities/)).toBeNull();
 });
