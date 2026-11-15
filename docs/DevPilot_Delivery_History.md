@@ -823,3 +823,11 @@ English: a read-only host preflight checks Windows platform, Docker CLI presence
 测试先红后绿：模块/端点缺失时失败；实现后专项+路由 **24 passed**，覆盖固定投影、返回值隔离、权限/内部 token/跨 owner/匿名拒绝、GET-only 与不遮蔽批准列表；Ruff check/format 通过。无迁移、依赖或部署变更，精确 SHA CI 另行记录。
 
 English: a fixed read-only capability projection states that approver login, notifications, enforced multi-level sign-off and approval export are not implemented; it reads no approval/account/evidence data and grants no authority.
+
+## 离线指标 CLI JSON 严格化（2026-11-15）
+
+`qa_metrics_cli` 的本地 JSON 解析新增重复键拒绝与 `parse_constant` 拒绝 `NaN`/`Infinity`：重复键会使字段含义歧义，非有限数值不属于核心接受的严格整数语义。两者均走固定 `Invalid metric input`，不反射输入；文件大小/普通文件/符号链接检查不变。
+
+测试先红后绿：新增重复键 signoff 载荷与 `NaN` calibration 载荷用例；实现后 CLI 专项 **12 passed**，evaluation 域 **61 passed**、toolkit **58 passed**，分发测试 **72 passed**，Ruff check/format 通过。无迁移、依赖或部署变更；精确 SHA CI 另行记录。
+
+English: the offline metrics CLI now rejects duplicate JSON keys and non-finite numbers, keeping ambiguous or non-integer inputs out of the pure cores.

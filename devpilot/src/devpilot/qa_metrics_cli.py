@@ -29,6 +29,19 @@ _SIGNOFF_FIELDS = frozenset(
 )
 
 
+def _unique(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(_ERROR)
+        result[key] = value
+    return result
+
+
+def _reject_constant(_value):
+    raise ValueError(_ERROR)
+
+
 def _read_json(path):
     source = Path(path)
     original = source.lstat()
@@ -50,7 +63,11 @@ def _read_json(path):
         os.close(descriptor)
     if len(data) != original.st_size or len(data) > _MAX_FILE_BYTES:
         raise ValueError(_ERROR)
-    return json.loads(data.decode("utf-8"))
+    return json.loads(
+        data.decode("utf-8"),
+        object_pairs_hook=_unique,
+        parse_constant=_reject_constant,
+    )
 
 
 def main(argv=None):

@@ -183,6 +183,22 @@ class MetricsCliTest(unittest.TestCase):
         )
         self.assertEqual(code, 1)
 
+    def test_rejects_duplicate_keys_and_non_finite_numbers(self):
+        duplicate = self.root / "duplicate.json"
+        duplicate.write_text(
+            '{"required_distinct_approvers":1,'
+            '"required_distinct_approvers":2,'
+            '"distinct_approved_approvers":1,'
+            '"latest_decision":"approved"}',
+            encoding="utf-8",
+        )
+        code, output, error = run("signoff", "--requirement", str(duplicate))
+        self.assertEqual((code, output, error), (1, "", "Invalid metric input\n"))
+        non_finite = self.root / "non-finite.json"
+        non_finite.write_text('[{"human": NaN, "judge": "pass"}]', encoding="utf-8")
+        code, output, error = run("calibration", "--pairs", str(non_finite))
+        self.assertEqual((code, output, error), (1, "", "Invalid metric input\n"))
+
     @unittest.skipUnless(os.name == "posix", "symlink creation is POSIX-specific")
     def test_rejects_symlinked_input(self):
         target = self.write("observation.json", observation())
