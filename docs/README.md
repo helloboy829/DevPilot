@@ -11,6 +11,10 @@
 
 以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
 
+## 2026-11-15：CV 图像差异纯核心（候选，未接入 App）
+
+[整数像素差异统计](DevPilot_CV_Metrics.md)：`devpilot.qa_cv_metrics` 只比较等尺寸整数像素矩阵，输出 changed/ratio/MAE/max 与 identical/within_threshold；不解码、不访问网络、不调用模型，也不是质量或批准。
+
 ## 2026-11-15：模型裁判校准纯核心（候选，未接入 App）
 
 [人工/裁判一致性统计](DevPilot_Judge_Calibration.md)：`devpilot.qa_judge_calibration` 只统计双方确定的 pass/fail 配对；缺失/uncertain 显式排除，无确定配对时 `insufficient` 且数值为 null，绝不填零或当作批准。未接入 App，无模型调用。

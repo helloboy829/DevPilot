@@ -8,6 +8,7 @@ devpilot/evaluation/judge.py
 devpilot/evaluation/metrics.py
 devpilot/evaluation/runner.py
 devpilot/evaluation/tests/__init__.py
+devpilot/evaluation/tests/test_cv_metrics.py
 devpilot/evaluation/tests/test_judge_calibration.py
 devpilot/evaluation/tests/test_judge_metrics.py
 devpilot/evaluation/tests/test_stream_metrics.py
@@ -18,6 +19,7 @@ devpilot/local_qa_output.py
 devpilot/local_qa_reconcile.py
 devpilot/local_qa_retention.py
 devpilot/pinned_http.py
+devpilot/qa_cv_metrics.py
 devpilot/qa_json_attempt.py
 devpilot/qa_json_binding.py
 devpilot/qa_json_request.py

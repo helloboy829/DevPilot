@@ -631,3 +631,11 @@ English: a pure, versioned TTFT/throughput projection with explicit availability
 unittest **6 passed**，devpilot evaluation 域 **29 passed**、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（41 个第一方成员）并通过完整性测试；Ruff 通过。未接入 App 证据/API/UI/报告，无迁移、部署或批准；该核心随 `30296ec` 的 Lint/Frontend/Unit **3 workflows 全绿**通过精确 SHA CI（Unit `43656798107`）。
 
 English: a pure human/judge agreement core that counts only definitive pairs, excludes missing/uncertain pairs explicitly, and returns `insufficient` with null values when no definitive pair exists. It is not approval or a model call.
+
+## CV 图像差异纯核心（2026-11-15）
+
+新增 `devpilot.qa_cv_metrics.compute_image_diff`：严格等尺寸整数像素矩阵（每边 1–2048、像素 0–255）与包含式 0–255 阈值；输出 dimensions、changed_pixels/ratio、mean/max absolute error、identical 与 within_threshold，`approval=not_approved`。畸形、非矩形、尺寸不一致、类型伪装、越界与超尺寸失败关闭；不解码图片、不访问网络、不调用模型，也不作视觉质量或批准。
+
+unittest **3 passed**；devpilot evaluation 域与 toolkit 另行复核；分发 allowlist 同步新增源码与测试（43 个第一方成员）。未接入 App 证据/API/UI/报告，无迁移、部署或批准；精确 SHA CI 另行记录。
+
+English: a pure technical diff over equal integer pixel matrices with strict bounds and an inclusive threshold; not image decoding, perceptual quality, approval or a model call.
