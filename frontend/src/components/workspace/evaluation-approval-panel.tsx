@@ -14,6 +14,7 @@ import {
   type ApprovalPreflight,
   type ApprovalSignoffProgress,
   type ApprovalView,
+  type RunAssessment,
   type ProjectApproval,
 } from "@/core/evaluation/approval-api";
 
@@ -44,6 +45,7 @@ export function EvaluationApprovalPanel({
   const [projectIntegrity, setProjectIntegrity] =
     useState<ApprovalChainSummary | null>(null);
   const [signoff, setSignoff] = useState<ApprovalSignoffProgress | null>(null);
+  const [assessments, setAssessments] = useState<RunAssessment[] | null>(null);
   const [assessmentId, setAssessmentId] = useState("");
   const [assessmentHash, setAssessmentHash] = useState("");
   const [approverId, setApproverId] = useState("");
@@ -80,6 +82,7 @@ export function EvaluationApprovalPanel({
     setIntegrity(null);
     setProjectIntegrity(null);
     setSignoff(null);
+    setAssessments(null);
     setPreflight(null);
     setConfirmed(false);
     setError("");
@@ -150,6 +153,32 @@ export function EvaluationApprovalPanel({
           zh
             ? "加载失败；未知写入只按原 ID 对账，不自动重试。"
             : "Load failed; reconcile unknown writes by original ID only; never retry automatically.",
+        );
+    } finally {
+      if (at === epoch.current) setBusy(false);
+    }
+  }
+
+  async function loadAssessments() {
+    if (!hex(runId, 32)) {
+      setError(
+        zh ? "运行 ID 必须是 32 位十六进制。" : "Run ID must be 32 hex.",
+      );
+      return;
+    }
+    const at = ++epoch.current;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const rows = await approvalApi.runAssessments(projectId, runId);
+      if (at === epoch.current) setAssessments(rows);
+    } catch {
+      if (at === epoch.current)
+        setError(
+          zh
+            ? "评估元数据加载失败；未读取评估文档。"
+            : "Assessment metadata load failed; no assessment document was read.",
         );
     } finally {
       if (at === epoch.current) setBusy(false);
@@ -391,6 +420,13 @@ export function EvaluationApprovalPanel({
         <Button
           type="button"
           disabled={busy}
+          onClick={() => void loadAssessments()}
+        >
+          {zh ? "加载运行评估" : "Load run assessments"}
+        </Button>
+        <Button
+          type="button"
+          disabled={busy}
           onClick={() => void checkIntegrity()}
         >
           {zh ? "检查批准链完整性" : "Check approval chain integrity"}
@@ -495,6 +531,40 @@ export function EvaluationApprovalPanel({
             : "Unknown write pending reconciliation, ID: "}
           <span className="font-mono">{pendingId}</span>
         </p>
+      ) : null}
+      {assessments ? (
+        assessments.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            {zh ? "此运行暂无评估修订。" : "No assessments for this run yet."}
+          </p>
+        ) : (
+          <select
+            aria-label={zh ? "评估修订" : "Assessment revision"}
+            className="bg-background max-w-md rounded-md border px-3 py-2 text-sm"
+            value=""
+            onChange={(event) => {
+              const row = assessments.find(
+                (item) => item.id === event.target.value,
+              );
+              if (!row) return;
+              setAssessmentId(row.id);
+              setAssessmentHash(row.assessment_hash);
+              setPreflight(null);
+              setConfirmed(false);
+              setError("");
+              setNotice("");
+            }}
+          >
+            <option value="">
+              {zh ? "选择评估修订" : "Select assessment revision"}
+            </option>
+            {assessments.map((row) => (
+              <option key={row.id} value={row.id}>
+                {`r${row.revision} · ${row.id}`}
+              </option>
+            ))}
+          </select>
+        )
       ) : null}
       <div className="grid gap-2 sm:grid-cols-3">
         <Input

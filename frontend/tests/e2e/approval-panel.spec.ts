@@ -387,3 +387,45 @@ test("checks approver sign-off progress without a policy", async ({ page }) => {
   expect(reads).toBe(1);
   expect(writes).toEqual([]);
 });
+
+test("loads pinned assessment metadata for explicit selection", async ({
+  page,
+}) => {
+  const { panel } = await setup(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && request.url().includes("/approval"))
+      writes.push(request.url());
+  });
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/assessments",
+    (route) =>
+      route.fulfill({
+        json: [
+          {
+            id: assessment,
+            project_id: "p1",
+            run_id: run,
+            revision: 1,
+            created_at_ms: 1,
+            summary_hash: "e".repeat(64),
+            assessment_hash: hash,
+          },
+        ],
+      }),
+  );
+  await panel.getByLabel("Run ID", { exact: true }).fill(run);
+  await panel
+    .getByRole("button", { name: "Load run assessments", exact: true })
+    .click();
+  await panel
+    .getByLabel("Assessment revision", { exact: true })
+    .selectOption(assessment);
+  await expect(panel.getByLabel("Assessment ID", { exact: true })).toHaveValue(
+    assessment,
+  );
+  await expect(
+    panel.getByLabel("Assessment hash", { exact: true }),
+  ).toHaveValue(hash);
+  expect(writes).toEqual([]);
+});

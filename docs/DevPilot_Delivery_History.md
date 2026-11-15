@@ -751,3 +751,11 @@ English: a successful decision now refreshes an already-loaded project index ent
 测试先红后绿：新增“修改审批人/评估 hash/评估 ID 后提交禁用、重新勾选后恢复”与“目标变更清除旧错误”用例；实现后面板定向 **25 passed**，前端完整 **1,415 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更。该模块随 `0420ef9` 的 Lint/Frontend/E2E/Replay E2E/Unit **5 workflows 全绿**通过精确 SHA CI（Unit `43696801198`）。
 
 English: editing the assessment ID/hash or approver now also revokes the explicit confirmation checkbox, so consent given for one target cannot submit another.
+
+## 批准面板评估元数据选择（2026-11-15）
+
+正式批准需要粘贴固定 assessment ID 与 hash，手工输入易错。面板新增显式“加载运行评估”按钮，调用既有 `GET .../review-runs/{run}/assessments`，只读取 `id/project_id/run_id/revision/created_at_ms/summary_hash/assessment_hash` 元数据；返回列表用下拉选择修订，选中后填入评估 ID/hash、清除旧预检与错误、撤销显式确认，不读取评估文档或证据。切换项目/run 清除已加载列表；不自动加载、不轮询、不重试。
+
+测试先红后绿：新增客户端路由断言、显式加载/选择填充、选择撤销同意、run 切换清除列表用例，以及 E2E 选择后输入值断言。面板定向 **30 passed**，前端完整 **1,418 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **8 passed**。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
+
+English: the approval panel can explicitly load run assessment metadata and fill the pinned assessment ID/hash from a selected revision; it never reads assessment documents and revokes consent on selection.

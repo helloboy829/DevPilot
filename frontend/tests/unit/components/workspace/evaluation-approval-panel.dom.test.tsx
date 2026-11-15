@@ -17,6 +17,7 @@ const state = rs.hoisted(() => ({
     chainIntegrity: rs.fn(),
     projectChainIntegrity: rs.fn(),
     signoffProgress: rs.fn(),
+    runAssessments: rs.fn(),
     preflight: rs.fn(),
     create: rs.fn(),
   },
@@ -778,4 +779,87 @@ it("clears stale errors when the approval target changes", () => {
     target: { value: hash },
   });
   expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("loads run assessment metadata only on an explicit click", async () => {
+  state.api.runAssessments.mockResolvedValue([
+    {
+      id: assessment,
+      project_id: "p1",
+      run_id: run,
+      revision: 1,
+      created_at_ms: 1,
+      summary_hash: "e".repeat(64),
+      assessment_hash: hash,
+    },
+  ]);
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  expect(state.api.runAssessments).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Load run assessments" }));
+  const selector = await screen.findByLabelText("Assessment revision");
+  fireEvent.change(selector, { target: { value: assessment } });
+  expect(screen.getByLabelText<HTMLInputElement>("Assessment ID").value).toBe(
+    assessment,
+  );
+  expect(screen.getByLabelText<HTMLInputElement>("Assessment hash").value).toBe(
+    hash,
+  );
+  expect(state.api.runAssessments).toHaveBeenCalledWith("p1", run);
+  expect(state.api.preflight).not.toHaveBeenCalled();
+});
+
+it("revokes consent when an assessment is selected", async () => {
+  state.api.runAssessments.mockResolvedValue([
+    {
+      id: assessment,
+      project_id: "p1",
+      run_id: run,
+      revision: 1,
+      created_at_ms: 1,
+      summary_hash: "e".repeat(64),
+      assessment_hash: hash,
+    },
+  ]);
+  panel();
+  fillTarget();
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Load run assessments" }));
+  fireEvent.change(await screen.findByLabelText("Assessment revision"), {
+    target: { value: assessment },
+  });
+  expect(
+    screen.getByRole<HTMLButtonElement>("button", {
+      name: "Record approval / revocation",
+    }).disabled,
+  ).toBe(true);
+});
+
+it("clears loaded assessment metadata when the run changes", async () => {
+  state.api.runAssessments.mockResolvedValue([
+    {
+      id: assessment,
+      project_id: "p1",
+      run_id: run,
+      revision: 1,
+      created_at_ms: 1,
+      summary_hash: "e".repeat(64),
+      assessment_hash: hash,
+    },
+  ]);
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Load run assessments" }));
+  await screen.findByLabelText("Assessment revision");
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: "2".repeat(32) },
+  });
+  expect(screen.queryByLabelText("Assessment revision")).toBeNull();
 });

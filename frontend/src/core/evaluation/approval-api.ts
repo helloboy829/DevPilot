@@ -80,6 +80,16 @@ export interface ApprovalSignoffProgress {
   blockers: string[];
 }
 
+export interface RunAssessment {
+  id: string;
+  project_id: string;
+  run_id: string;
+  revision: number;
+  created_at_ms: number;
+  summary_hash: string;
+  assessment_hash: string;
+}
+
 export interface ApprovalView {
   schema: "qa-run-formal-approval.v1";
   scope: "formal_approval_decision";
@@ -136,6 +146,11 @@ export const approvalApi = {
   runAudit(projectId: string, runId: string) {
     return evaluationApi<ApprovalAuditEvent[]>(
       `${runs(projectId, runId)}/approvals/audit`,
+    );
+  },
+  runAssessments(projectId: string, runId: string) {
+    return evaluationApi<RunAssessment[]>(
+      `${runs(projectId, runId)}/assessments`,
     );
   },
   chainIntegrity(projectId: string, runId: string) {
