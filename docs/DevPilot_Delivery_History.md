@@ -740,6 +740,14 @@ English: a read-only aggregate sign-off progress endpoint reports revision, dist
 
 继续修复批准工作台的状态一致性：成功创建/撤销后，已加载的项目索引仍显示旧 revision/decision，且显式加载运行批准后，先前显示的链完整性与签署进度快照可能已过期。现在成功写入会在本地把对应 run 的项目索引条目更新为最新 revision/decision（未加载索引时不发起新请求，也不新增 run 以外的条目）；显式加载运行批准会清空旧链完整性与签署进度快照，要求重新检查。仍不自动轮询、不自动读取、不重试或替换 ID。
 
-测试先红后绿：新增“写入后更新项目索引”“显式加载使链/签署快照失效”用例；E2E 创建用例先加载空项目索引，写入后断言选择器更新为 `r1 approved`。初次 E2E 因测试桩只返回部分批准字段导致页面崩溃（组件按真实 ApprovalView 读取 assessment/created_at_ms），将桩补齐为真实响应结构，未削弱产品断言。面板定向 **23 passed**，前端完整 **1,413 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
+测试先红后绿：新增“写入后更新项目索引”“显式加载使链/签署快照失效”用例；E2E 创建用例先加载空项目索引，写入后断言选择器更新为 `r1 approved`。初次 E2E 因测试桩只返回部分批准字段导致页面崩溃（组件按真实 ApprovalView 读取 assessment/created_at_ms），将桩补齐为真实响应结构，未削弱产品断言。面板定向 **23 passed**，前端完整 **1,413 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更。该模块随 `ca4c01a` 的 Lint/Frontend/E2E/Replay E2E/Unit **5 workflows 全绿**通过精确 SHA CI（Unit `43695750231`）。
 
 English: a successful decision now refreshes an already-loaded project index entry locally, and an explicit run reload invalidates stale chain/sign-off snapshots; no automatic index fetch, polling or retry is added.
+
+## 批准面板同意撤销（2026-11-15）
+
+批准面板此前在修改评估 ID、评估 hash 或审批人时只清除旧预检，但保留“我确认这是具名人类的显式决定”复选框，可能把为旧目标勾选的同意带到新目标；旧错误/提示也会残留。现在三个目标字段变更会同时撤销显式确认、清除旧错误/提示，提交按钮重新禁用，用户必须再次勾选。
+
+测试先红后绿：新增“修改审批人/评估 hash/评估 ID 后提交禁用、重新勾选后恢复”与“目标变更清除旧错误”用例；实现后面板定向 **25 passed**，前端完整 **1,415 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
+
+English: editing the assessment ID/hash or approver now also revokes the explicit confirmation checkbox, so consent given for one target cannot submit another.

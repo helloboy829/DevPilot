@@ -182,12 +182,12 @@ it("requires explicit consent and records one generated ID", async () => {
     screen.getByRole("button", { name: "Load run approvals and audit" }),
   );
   await waitFor(() => expect(state.api.runApprovals).toHaveBeenCalled());
-  const submit = screen.getByRole("button", {
+  const submit = screen.getByRole<HTMLButtonElement>("button", {
     name: "Record approval / revocation",
   });
-  expect((submit as HTMLButtonElement).disabled).toBe(true);
+  expect(submit.disabled).toBe(true);
   fireEvent.click(screen.getByRole("checkbox"));
-  expect((submit as HTMLButtonElement).disabled).toBe(false);
+  expect(submit.disabled).toBe(false);
   fireEvent.click(submit);
   await screen.findByText(/Recorded revision 1 \(approved\)/);
   expect(state.api.create).toHaveBeenCalledTimes(1);
@@ -736,4 +736,46 @@ it("invalidates chain and sign-off snapshots on an explicit run reload", async (
   await screen.findByText("No approvals for this run yet.");
   expect(screen.queryByText(/Chain verified/)).toBeNull();
   expect(screen.queryByText(/Sign-off progress/)).toBeNull();
+});
+
+it("revokes explicit consent when the approval target changes", () => {
+  panel();
+  fillTarget();
+  const submit = screen.getByRole<HTMLButtonElement>("button", {
+    name: "Record approval / revocation",
+  });
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(submit.disabled).toBe(false);
+  fireEvent.change(screen.getByLabelText("Approver account"), {
+    target: { value: "00000000-0000-0000-0000-000000000006" },
+  });
+  expect(submit.disabled).toBe(true);
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(submit.disabled).toBe(false);
+  fireEvent.change(screen.getByLabelText("Assessment hash"), {
+    target: { value: "d".repeat(64) },
+  });
+  expect(submit.disabled).toBe(true);
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(submit.disabled).toBe(false);
+  fireEvent.change(screen.getByLabelText("Assessment ID"), {
+    target: { value: "a".repeat(32) },
+  });
+  expect(submit.disabled).toBe(true);
+});
+
+it("clears stale errors when the approval target changes", () => {
+  panel();
+  fillTarget();
+  fireEvent.change(screen.getByLabelText("Assessment hash"), {
+    target: { value: "" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval eligibility" }),
+  );
+  expect(screen.getByRole("alert")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Assessment hash"), {
+    target: { value: hash },
+  });
+  expect(screen.queryByRole("alert")).toBeNull();
 });

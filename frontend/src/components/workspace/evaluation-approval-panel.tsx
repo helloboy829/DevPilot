@@ -503,6 +503,9 @@ export function EvaluationApprovalPanel({
           onChange={(event) => {
             setAssessmentId(event.target.value.trim());
             setPreflight(null);
+            setConfirmed(false);
+            setError("");
+            setNotice("");
           }}
           placeholder={zh ? "评估 ID（32 hex）" : "Assessment ID (32 hex)"}
         />
@@ -512,6 +515,9 @@ export function EvaluationApprovalPanel({
           onChange={(event) => {
             setAssessmentHash(event.target.value.trim());
             setPreflight(null);
+            setConfirmed(false);
+            setError("");
+            setNotice("");
           }}
           placeholder={zh ? "评估 hash（64 hex）" : "Assessment hash (64 hex)"}
         />
@@ -521,6 +527,9 @@ export function EvaluationApprovalPanel({
           onChange={(event) => {
             setApproverId(event.target.value.trim());
             setPreflight(null);
+            setConfirmed(false);
+            setError("");
+            setNotice("");
           }}
           placeholder={zh ? "审批人账号 UUID" : "Approver account UUID"}
         />
