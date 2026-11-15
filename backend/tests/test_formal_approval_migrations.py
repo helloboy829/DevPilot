@@ -1,4 +1,4 @@
-"""eval_0015 is additive: downgrade drops only approval tables, old rows stay."""
+"""eval_0015/eval_0016 are additive: downgrade drops approval/policy tables, old rows stay."""
 
 import asyncio
 from pathlib import Path
@@ -19,7 +19,7 @@ from app.evaluation import tables as t
 from deerflow.persistence.component_tests.model import ComponentRow
 from deerflow.persistence.user.model import UserRow
 
-NEW = {t.run_approvals.name, t.approval_audit.name}
+NEW = {t.run_approvals.name, t.approval_audit.name, t.approval_signoff_policies.name}
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name not in NEW | {"devpilot_alembic_version"}]]
 
 
@@ -54,6 +54,8 @@ async def test_downgrade_preserves_history_and_upgrade_restores_empty_approval_t
     root, assessment = await setup_approval(api, monkeypatch)
     created = await client.post(root + "/approvals/" + APPROVAL, json=approval_payload(assessment))
     assert created.status_code == 200 and created.json()["revision"] == 1
+    policy = await client.put(root.rsplit("/review-runs/", 1)[0] + "/approvals/signoff-policy", json={"required_distinct_approvers": 2, "expected_previous_revision": 0, "confirmed": True})
+    assert policy.status_code == 200 and policy.json()["revision"] == 1
     engine = app.state.evaluation_repo.sf.kw["bind"]
     await prepare_harness_tables(engine)
     before = await rows(engine)
@@ -72,7 +74,8 @@ async def test_downgrade_preserves_history_and_upgrade_restores_empty_approval_t
         assert NEW.issubset(names)
         assert (await conn.execute(select(t.run_approvals))).all() == []
         assert (await conn.execute(select(t.approval_audit))).all() == []
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0015"
+        assert (await conn.execute(select(t.approval_signoff_policies))).all() == []
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0016"
 
         def parity(c):
             context = MigrationContext.configure(c, opts={"version_table": "devpilot_alembic_version", "include_object": lambda obj, name, kind, reflected, compared: not (kind == "table" and name == "alembic_version")})

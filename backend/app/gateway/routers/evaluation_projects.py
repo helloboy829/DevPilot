@@ -19,7 +19,7 @@ from app.evaluation.independent_report_docx import render_independent_docx
 from app.evaluation.independent_retest_docx import render_independent_retest_docx
 from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import AcceptancePlanCreate, PlanCreate, PlanPreflightError
-from app.evaluation.qa_approvals import ApprovalCreate, ApprovalRepository, approval_identifier
+from app.evaluation.qa_approvals import ApprovalCreate, ApprovalRepository, SignoffPolicySet, approval_identifier
 from app.evaluation.qa_assessments import AssessmentCreate, AssessmentRepository
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
 from app.evaluation.qa_independent_archives import IndependentArchiveCreate, IndependentReportRepository, IndependentRetestCreate, IndependentRetestRepository, independent_templates
@@ -570,6 +570,23 @@ async def list_project_approvals(project_id: str, request: Request):
     return await _result(repository.list_project_approvals(owner, project_id))
 
 
+@router.get("/{project_id}/approvals/signoff-policy")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_signoff_policy(project_id: str, request: Request):
+    owner, repository = await _approval_context(request)
+    return await _result(repository.get_signoff_policy(owner, project_id))
+
+
+@router.put("/{project_id}/approvals/signoff-policy")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def set_signoff_policy(project_id: str, payload: SignoffPolicySet, request: Request):
+    owner, repository = await _approval_context(request)
+    return await _result(repository.set_signoff_policy(owner, project_id, required_distinct_approvers=payload.required_distinct_approvers, expected_previous_revision=payload.expected_previous_revision))
+
+
 @router.get("/{project_id}/approvals/capabilities")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "review")
@@ -602,13 +619,21 @@ async def list_run_approvals(project_id: str, run_id: str, request: Request):
 async def get_run_approval_signoff_progress(project_id: str, run_id: str, request: Request, required_distinct_approvers: int | None = Query(None, ge=1, le=10)):
     owner, repository = await _approval_context(request)
     progress = await _result(repository.approval_signoff_progress(owner, project_id, run_id))
-    if required_distinct_approvers is not None:
+    try:
+        stored = await repository.get_signoff_policy(owner, project_id)
+    except NotFound:
+        stored = None
+    if stored is not None:
+        progress["stored_policy"] = stored
+    required = required_distinct_approvers if required_distinct_approvers is not None else (stored["required_distinct_approvers"] if stored else None)
+    if required is not None:
         try:
             progress["requirement"] = evaluate_signoff_requirement(
-                required_distinct_approvers=required_distinct_approvers,
+                required_distinct_approvers=required,
                 distinct_approved_approvers=progress["distinct_approved_approvers"],
                 latest_decision=progress["latest_decision"],
             )
+            progress["requirement"]["source"] = "request_only" if required_distinct_approvers is not None else "stored_advisory"
         except ValueError:
             raise HTTPException(422, "Invalid sign-off requirement", headers={"Cache-Control": "private, no-store"}) from None
     return progress

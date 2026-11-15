@@ -1,6 +1,6 @@
 # 候选 SQLite 升级与恢复演练 / Candidate upgrade recovery
 
-2026-11-14。本模块补充可重复的合成数据库回归，验证本地 SQLite 的 `eval_0009 → eval_0015` 及升级前备份恢复。测试代码位于 `backend/tests/test_candidate_upgrade_recovery.py`，复用真实迁移、仓库、密码校验和历史 Word 渲染；没有新增运行时迁移命令或业务恢复工具。
+2026-11-14。本模块补充可重复的合成数据库回归（2026-11-15 更新：后续 `eval_0016` 追加咨询政策表，head 表数为 54；本页原始收据仍属 `eval_0015`），验证本地 SQLite 的 `eval_0009 → eval_0015` 及升级前备份恢复（后续 `eval_0016` 另见状态页）。测试代码位于 `backend/tests/test_candidate_upgrade_recovery.py`，复用真实迁移、仓库、密码校验和历史 Word 渲染；没有新增运行时迁移命令或业务恢复工具。
 
 ## 运行
 
@@ -41,6 +41,7 @@ uv run pytest tests/test_candidate_upgrade_recovery.py \
 | `eval_0013`  |       49 | 授权导出与审计                              |
 | `eval_0014`  |       51 | 外部技术隔离接收与审计                      |
 | `eval_0015`  |       53 | 正式批准与审计（含撤销修订）                |
+| `eval_0016`  |       54 | 咨询性签核政策存储（不强制）                |
 
 分别执行逐级升级、直接升级 head 及 head 重复 no-op。升级后与还原后的新连接实际读取旧报告/复测、解密合成 case、校验 ALL 分母与账号密码，并比较历史 Word 字节；不只比较表存在性或文件 hash。
 

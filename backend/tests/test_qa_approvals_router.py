@@ -287,7 +287,7 @@ async def test_approval_chain_integrity_is_metadata_only_and_permissioned(api, m
     result = await client.get(path)
     assert result.status_code == 200 and "no-store" in result.headers["cache-control"]
     assert result.json() == {"schema": "qa-approval-chain.v1", "scope": "approval_audit_chain_only", "status": "verified", "approvals": 1, "events": 1, "blockers": []}
-    assert not any(secret in result.text for secret in ("document", "note", "hash", "SYNTHETIC"))
+    assert not any(secret in result.text for secret in ("document", "note", "approval_hash", "SYNTHETIC"))
     assert (await client.get(root + "/approvals/" + APPROVAL)).status_code == 200
     original = app.state.permissions
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
@@ -419,3 +419,59 @@ async def test_signoff_requirement_is_advisory_and_read_only(api, monkeypatch):
     assert (await client.get(path, params={"required_distinct_approvers": 11})).status_code == 422
     assert [item["revision"] for item in (await client.get(root + "/approvals")).json()] == [1]
     assert [(event["sequence"], event["action"]) for event in (await client.get(root + "/approvals/audit")).json()] == [(1, "approved")]
+
+
+@pytest.mark.asyncio
+async def test_advisory_signoff_policy_roundtrip_and_permissions(api, monkeypatch):
+    client, app, base, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    path = base + "/approvals/signoff-policy"
+    assert (await client.get(path)).status_code == 404
+    created = await client.put(path, json={"required_distinct_approvers": 2, "expected_previous_revision": 0, "confirmed": True})
+    assert created.status_code == 200 and "no-store" in created.headers["cache-control"]
+    body = created.json()
+    assert body["schema"] == "qa-approval-signoff-policy.v1" and body["revision"] == 1 and body["required_distinct_approvers"] == 2
+    assert body["advisory"] is True and body["enforcement"] == "none"
+    assert not any(secret in created.text for secret in ("document", "note", "approval_hash", "SYNTHETIC"))
+    assert (await client.get(path)).json() == body
+    assert (await client.put(path, json={"required_distinct_approvers": 2, "expected_previous_revision": 0, "confirmed": True})).json() == body
+    revised = await client.put(path, json={"required_distinct_approvers": 3, "expected_previous_revision": 1, "confirmed": True})
+    assert revised.status_code == 200 and revised.json()["revision"] == 2 and revised.json()["required_distinct_approvers"] == 3
+    assert (await client.put(path, json={"required_distinct_approvers": 4, "expected_previous_revision": 0, "confirmed": True})).status_code == 409
+    assert (await client.put(path, json={"required_distinct_approvers": 11, "expected_previous_revision": 2, "confirmed": True})).status_code == 422
+    assert (await client.put(path, json={"required_distinct_approvers": 2, "expected_previous_revision": 2, "confirmed": False})).status_code == 422
+    original = app.state.permissions
+    original_actor = app.state.actor
+    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
+    assert (await client.get(path)).status_code == 403
+    app.state.permissions = original
+    app.state.internal = True
+    assert (await client.get(path)).status_code == 403
+    app.state.internal = False
+    app.state.actor = 2
+    assert (await client.get(path)).status_code == 404
+    app.state.actor = 0
+    assert (await client.get(path)).status_code == 401
+    app.state.actor = original_actor
+    assert (await client.get(path)).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_stored_advisory_policy_feeds_signoff_requirement(api, monkeypatch):
+    client, app, base, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    policy = base + "/approvals/signoff-policy"
+    assert (await client.put(policy, json={"required_distinct_approvers": 1, "expected_previous_revision": 0, "confirmed": True})).status_code == 200
+    assert (await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment))).status_code == 200
+    path = root + "/approvals/sign-off"
+    stored = (await client.get(path)).json()
+    assert stored["policy"] == "not_defined" and stored["multi_level_satisfied"] is None
+    assert stored["stored_policy"]["revision"] == 1 and stored["stored_policy"]["required_distinct_approvers"] == 1
+    assert stored["requirement"]["source"] == "stored_advisory"
+    assert stored["requirement"]["satisfied"] is True and stored["requirement"]["blockers"] == []
+    overridden = (await client.get(path, params={"required_distinct_approvers": 2})).json()
+    assert overridden["requirement"]["source"] == "request_only"
+    assert overridden["requirement"]["satisfied"] is False
+    assert overridden["requirement"]["blockers"] == ["insufficient_approvers"]
+    plain = (await client.get(path, params={"required_distinct_approvers": 1})).json()
+    assert plain["requirement"]["source"] == "request_only"

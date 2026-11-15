@@ -606,10 +606,19 @@ export function EvaluationApprovalPanel({
               <li key={blocker}>{blocker}</li>
             ))}
           </ul>
+          {signoff.stored_policy ? (
+            <p>
+              {`Stored advisory policy revision ${signoff.stored_policy.revision}: ${signoff.stored_policy.required_distinct_approvers} approvers`}
+            </p>
+          ) : null}
           {signoff.requirement ? (
             <div className="space-y-1 border-t pt-2">
               <p>
-                {`Advisory requirement: ${
+                {`Advisory requirement${
+                  signoff.requirement.source === "stored_advisory"
+                    ? " (stored policy)"
+                    : ""
+                }: ${
                   signoff.requirement.satisfied ? "satisfied" : "not satisfied"
                 }${
                   signoff.requirement.blockers.length
@@ -619,8 +628,10 @@ export function EvaluationApprovalPanel({
               </p>
               <p className="text-muted-foreground">
                 {zh
-                  ? "仅咨询：不保存、不强制任何签核政策。"
-                  : "Advisory only; no policy is stored or enforced."}
+                  ? "仅咨询：不强制任何签核政策。"
+                  : signoff.stored_policy
+                    ? "Advisory only; the stored policy is not enforced."
+                    : "Advisory only; no policy is stored or enforced."}
               </p>
             </div>
           ) : null}

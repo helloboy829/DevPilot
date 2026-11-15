@@ -847,3 +847,11 @@ English: the approval panel shows the fixed capability gaps only after an explic
 测试先红后绿：新增 40 层嵌套与 20,001 节点用例；实现后 CLI 专项 **13 passed**，evaluation 域 **62 passed**、toolkit **58 passed**，Ruff check/format 通过。无迁移、依赖或部署变更。该模块随 `8f10c3f` 的 Lint/Frontend/Unit **3 workflows 全绿**通过精确 SHA CI（Unit `43715063866`）。
 
 English: the offline metrics CLI now bounds parsed JSON depth (≤32) and node count (≤20,000) in addition to rejecting duplicate keys and non-finite numbers.
+
+## 咨询性签核政策存储（2026-11-15）
+
+新增候选迁移 `eval_0016`（`down_revision=eval_0015`）与表 `evaluation_approval_signoff_policies`：`(project_id, revision)` 主键、owner、`required_distinct_approvers` 1–10、created_at、request/document/policy hash；仅追加，不能修改批准/审计。`ApprovalRepository` 提供 `get_signoff_policy`/`set_signoff_policy`，owner 人类显式确认、`expected_previous_revision` CAS、同请求幂等；政策固定 `advisory=true`、`enforcement="none"`，不改变批准写入、撤销或强制签核。签署进度在存在已存政策时附加 `stored_policy` 和 `requirement.source="stored_advisory"`；显式 `required_distinct_approvers` 查询优先并标记 `request_only`。面板显示已存政策 revision 与 advisory requirement，但不提供政策编辑 UI。
+
+测试先红后绿：仓库覆盖空集/幂等/追加/陈旧冲突/篡改；路由覆盖 GET/PUT、权限、内部 token、跨 owner、匿名、非法值、幂等与 stored requirement；迁移回归将头更新为 `eval_0016`，恢复矩阵新增第 7 个 ADDITIONS（54 张表），quarantine 迁移把政策表纳入 NEW 集合。批准仓库+路由+迁移 **61 passed**；迁移相关修复前 12 文件 **294 passed / 4 skipped**（3 项待修失败保留），修复后 recovery/quarantine **9 passed / 1 skipped**（skip 为原 PostgreSQL 独占门禁）；前端完整 **1,423 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **9 passed**。无部署或真实调用；精确 SHA CI 另行记录。
+
+English: `eval_0016` stores an append-only advisory sign-off policy per project; it never enforces approvals, and sign-off progress may attach a stored advisory requirement without changing approval semantics.

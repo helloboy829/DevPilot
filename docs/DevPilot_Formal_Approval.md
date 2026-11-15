@@ -1,6 +1,6 @@
 # 正式批准首切片 / Formal approval slice
 
-2026-11-15。候选迁移 `eval_0015`。本模块在不可变独立评估之上增加**显式人类正式批准**记录：审批人具名、来源固定到具体 assessment revision/hash、职责分离、修订/撤销追加和审计。它是首切片，不是整个批准生命周期，也不改变任何历史证据或自动提升草稿为批准。
+2026-11-15。候选迁移 `eval_0015`（批准/审计）+ `eval_0016`（咨询性签核政策）。本模块在不可变独立评估之上增加**显式人类正式批准**记录：审批人具名、来源固定到具体 assessment revision/hash、职责分离、修订/撤销追加和审计。它是首切片，不是整个批准生命周期，也不改变任何历史证据或自动提升草稿为批准。
 
 ## 范围与对象
 
@@ -34,6 +34,8 @@
 | ---- | ---------------------------------------------------------------- | ------------------------------------ |
 | GET  | `/api/evaluation/projects/{project}/approvals`                   | read + review                        |
 | GET  | `/api/evaluation/projects/{project}/approvals/capabilities`      | read + review                        |
+| GET  | `/api/evaluation/projects/{project}/approvals/signoff-policy`    | read + review                        |
+| PUT  | `/api/evaluation/projects/{project}/approvals/signoff-policy`    | read + write + review（人类）        |
 | GET  | `/api/evaluation/projects/{project}/approvals/integrity`         | read + review                        |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals` | read + review                        |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/audit` | read + review                  |
@@ -43,7 +45,7 @@
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/assessments/{assessment_id}/approval-preflight?approver_id=...` | read + review |
 | POST | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + write + review（人类）  |
 
-能力诊断端点只返回固定投影 `qa-approval-capabilities.v1`：`approver_login=not_implemented`、`owner_records_on_behalf=true`、`multi_level_policy=advisory_only`、`multi_level_enforcement=not_implemented`、`notifications=not_implemented`、`export=not_implemented`、`approval=not_authorized` 与固定 blockers；不读取项目、批准、账号或证据，只做项目归属校验。审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。签署进度端点只返回聚合计数与固定状态：`policy="not_defined"`、`required_distinct_approvers=null`、`multi_level_satisfied=null`、revision/不同审批人/批准与撤销计数、最新 revision/decision，以及固定 blockers `multi_level_policy_not_defined`、`approver_login_not_implemented`；不返回任何 ID、hash、document 或 note，也不把多审批人计数当作多级签核已满足。可选 `required_distinct_approvers=1..10` 查询参数会附加**咨询性** `requirement`（复用纯核心），仅用于对照当前计数；不保存策略、不强制、不改变批准或 `multi_level_satisfied`。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（approval_id/revision/action/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
+签核政策端点按项目追加 revision（owner 人类显式确认、`expected_previous_revision` CAS）：只保存 `required_distinct_approvers` 1–10 的**咨询政策**，`advisory=true`、`enforcement="none"`；不强制批准、不通知、不改变签署进度端点既有 `policy="not_defined"`/`multi_level_satisfied=null`。签署进度会在有已存政策时附加 `stored_policy` 与 `requirement.source="stored_advisory"`；显式查询参数优先并标记 `request_only`。能力诊断端点只返回固定投影 `qa-approval-capabilities.v1`：`approver_login=not_implemented`、`owner_records_on_behalf=true`、`multi_level_policy=advisory_only`、`multi_level_enforcement=not_implemented`、`notifications=not_implemented`、`export=not_implemented`、`approval=not_authorized` 与固定 blockers；不读取项目、批准、账号或证据，只做项目归属校验。审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。签署进度端点只返回聚合计数与固定状态：`policy="not_defined"`、`required_distinct_approvers=null`、`multi_level_satisfied=null`、revision/不同审批人/批准与撤销计数、最新 revision/decision，以及固定 blockers `multi_level_policy_not_defined`、`approver_login_not_implemented`；不返回任何 ID、hash、document 或 note，也不把多审批人计数当作多级签核已满足。可选 `required_distinct_approvers=1..10` 查询参数会附加**咨询性** `requirement`（复用纯核心），仅用于对照当前计数；不保存策略、不强制、不改变批准或 `multi_level_satisfied`。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（approval_id/revision/action/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
 
 只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation/approver account）、`readiness`、`criteria.status`、两个分离布尔与 `latest_approval`（最新 revision/decision 元数据，若存在）；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；预检还按精确 ID 查账号，账号不存在或尚未完成初始化时追加 `approver_account_not_found` 并将 `eligible` 置为 false；未知评估返回 404；所有响应 `no-store`。创建/撤销在项目归属校验后同样要求该账号存在且可用（否则 409），只做精确 ID 查询，不提供账号目录或枚举。
 
@@ -55,12 +57,12 @@
 
 ## 数据与迁移
 
-`eval_0015` 新增两张表，`down_revision = eval_0014`：
+`eval_0015` 新增两张表，`down_revision = eval_0014`；`eval_0016` 追加一张咨询政策表，`down_revision = eval_0015`。
 
 - `evaluation_run_approvals`：`id`(32 hex)、`owner_id`、`project_id`、`run_id`、`revision`、`created_at_ms`、`request_hash`、`assessment_id`(FK)、`assessment_hash`、`approver_id`、`decision`、`document`(JSON)、`approval_hash`；复合 FK 到 `evaluation_dispatch_runs(project_id, id)`；`(run_id, revision)` 唯一；revision 1–1000、decision 枚举检查。
 - `evaluation_approval_audit`：`(run_id, sequence)` 主键、`project_id`、`approval_id`、`revision`、`actor`、`action`、`subject_hash`、`at_ms`。
 
-增量迁移保留全部旧表/行/外键与 Harness ledger；候选恢复矩阵从 `eval_0009` 逐级/直达 `eval_0015`，新增表集合固定为两张。回退是 schema downgrade 或恢复升级前备份；恢复旧备份会丢弃备份之后的新写。
+`eval_0016` 的 `evaluation_approval_signoff_policies` 以 `(project_id, revision)` 为主键，含 owner、required count、时间、request/document hash；仅追加，不修改批准/审计表。增量迁移保留全部旧表/行/外键与 Harness ledger；候选恢复矩阵从 `eval_0009` 逐级/直达 `eval_0016`，新增表集合固定为三张。回退是 schema downgrade 或恢复升级前备份；恢复旧备份会丢弃备份之后的新写。
 
 ## 明确不包含
 
@@ -81,4 +83,4 @@ uv run pytest tests/test_candidate_upgrade_recovery.py -q --tb=short
 
 专项与全量重叠，不相加；skip 不是通过。精确 SHA 的 Actions 与本地结果分别核验。
 
-English: `eval_0015` adds an append-only, revisioned human formal-approval ledger over a pinned immutable independent assessment. Approval requires finished collection, complete independent review, a met frozen threshold when defined, explicit confirmation, and an approver distinct from the owner and every blind reviewer/arbitrator. Revocation appends a revision with a required reason and audit. This first slice adds no approver-side auth, multi-level sign-off, notification, export authority or deployment, and never rewrites historical evidence.
+English: `eval_0015` adds an append-only, revisioned human formal-approval ledger and `eval_0016` a stored advisory sign-off policy over a pinned immutable independent assessment. Approval requires finished collection, complete independent review, a met frozen threshold when defined, explicit confirmation, and an approver distinct from the owner and every blind reviewer/arbitrator. Revocation appends a revision with a required reason and audit. This first slice adds no approver-side auth, multi-level sign-off, notification, export authority or deployment, and never rewrites historical evidence.

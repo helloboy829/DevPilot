@@ -64,6 +64,18 @@ export interface ApprovalChainSummary {
   blockers: string[];
 }
 
+export interface ApprovalSignoffPolicy {
+  schema: "qa-approval-signoff-policy.v1";
+  scope: "advisory_signoff_policy_only";
+  project_id: string;
+  revision: number;
+  required_distinct_approvers: number;
+  created_at_ms: number;
+  advisory: true;
+  enforcement: "none";
+  policy_hash: string;
+}
+
 export interface ApprovalSignoffRequirement {
   schema: "qa-signoff-requirement.v1";
   scope: "technical_signoff_requirement_only";
@@ -75,6 +87,7 @@ export interface ApprovalSignoffRequirement {
   satisfied: boolean | null;
   blockers: string[];
   approval: "not_approved";
+  source?: "stored_advisory" | "request_only";
 }
 
 export interface ApprovalSignoffProgress {
@@ -92,6 +105,7 @@ export interface ApprovalSignoffProgress {
   multi_level_satisfied: null;
   blockers: string[];
   requirement?: ApprovalSignoffRequirement;
+  stored_policy?: ApprovalSignoffPolicy;
 }
 
 export interface ApprovalCapabilities {

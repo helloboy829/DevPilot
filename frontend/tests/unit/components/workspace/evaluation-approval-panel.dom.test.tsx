@@ -1001,3 +1001,63 @@ it("clears approval capabilities when the project changes", async () => {
   );
   expect(screen.queryByText(/Approval capabilities/)).toBeNull();
 });
+
+it("shows a stored advisory policy revision and its requirement", async () => {
+  state.api.signoffProgress.mockResolvedValue({
+    schema: "qa-approval-signoff.v1",
+    scope: "approval_signoff_progress_only",
+    policy: "not_defined",
+    required_distinct_approvers: null,
+    revisions: 1,
+    distinct_approvers: 1,
+    distinct_approved_approvers: 1,
+    approved_revisions: 1,
+    revoked_revisions: 0,
+    latest_revision: 1,
+    latest_decision: "approved",
+    multi_level_satisfied: null,
+    blockers: [
+      "multi_level_policy_not_defined",
+      "approver_login_not_implemented",
+    ],
+    stored_policy: {
+      schema: "qa-approval-signoff-policy.v1",
+      scope: "advisory_signoff_policy_only",
+      project_id: "p1",
+      revision: 1,
+      required_distinct_approvers: 2,
+      created_at_ms: 1,
+      advisory: true,
+      enforcement: "none",
+      policy_hash: "f".repeat(64),
+    },
+    requirement: {
+      schema: "qa-signoff-requirement.v1",
+      scope: "technical_signoff_requirement_only",
+      policy: { defined: true, required_distinct_approvers: 2 },
+      observed: {
+        distinct_approved_approvers: 1,
+        latest_decision: "approved",
+      },
+      satisfied: false,
+      blockers: ["insufficient_approvers"],
+      approval: "not_approved",
+      source: "stored_advisory",
+    },
+  });
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Check approver sign-off progress",
+    }),
+  );
+  await screen.findByText("Stored advisory policy revision 1: 2 approvers");
+  expect(
+    screen.getByText(
+      "Advisory requirement (stored policy): not satisfied · insufficient_approvers",
+    ),
+  ).toBeTruthy();
+});

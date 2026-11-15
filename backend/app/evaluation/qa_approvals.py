@@ -80,6 +80,19 @@ class ApprovalCreate(StrictDTO):
         return self
 
 
+class SignoffPolicySet(StrictDTO):
+    required_distinct_approvers: int = Field(ge=1, le=10, strict=True)
+    expected_previous_revision: int = Field(ge=0, le=999, strict=True)
+    confirmed: Literal[True]
+
+    @field_validator("confirmed", mode="before")
+    @classmethod
+    def explicit_confirmation(cls, value):
+        if value is not True:
+            raise ValueError("Explicit confirmation required")
+        return value
+
+
 class ApprovalRepository(AssessmentRepository):
     async def _run_actors(self, session, run_id):
         actors: set[str] = set()
@@ -319,6 +332,75 @@ class ApprovalRepository(AssessmentRepository):
             "multi_level_satisfied": None,
             "blockers": ["multi_level_policy_not_defined", "approver_login_not_implemented"],
         }
+
+    @staticmethod
+    def _decode_signoff_policy(row):
+        try:
+            document = row["document"]
+            expected = fingerprint({"owner_id": row["owner_id"], "request_hash": row["request_hash"], "document": document})
+            if not hmac.compare_digest(expected, row["policy_hash"]):
+                raise ValueError
+            if document["schema"] != "qa-approval-signoff-policy.v1" or document["scope"] != "advisory_signoff_policy_only" or document["advisory"] is not True or document["enforcement"] != "none":
+                raise ValueError
+            if any(document[key] != row[key] for key in ("project_id", "revision", "required_distinct_approvers", "created_at_ms")):
+                raise ValueError
+            return {**document, "policy_hash": row["policy_hash"]}
+        except (ValueError, KeyError, TypeError, AttributeError):
+            raise RequestProtectionError("Sign-off policy integrity check failed") from None
+
+    async def get_signoff_policy(self, owner, project_id):
+        """Latest advisory sign-off policy; metadata only, read-only."""
+        async with self.sf() as session:
+            await self._project(session, owner, project_id)
+            row = (
+                (
+                    await session.execute(
+                        select(t.approval_signoff_policies).where(t.approval_signoff_policies.c.project_id == project_id, t.approval_signoff_policies.c.owner_id == owner).order_by(t.approval_signoff_policies.c.revision.desc()).limit(1)
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        if row is None:
+            raise NotFound
+        return self._decode_signoff_policy(dict(row))
+
+    async def set_signoff_policy(self, owner, project_id, *, required_distinct_approvers, expected_previous_revision):
+        """Append an advisory policy revision; never enforce or approve."""
+        if type(required_distinct_approvers) is not int or not 1 <= required_distinct_approvers <= 10 or type(expected_previous_revision) is not int or not 0 <= expected_previous_revision <= 999:
+            raise Conflict
+        request_hash = fingerprint({"required_distinct_approvers": required_distinct_approvers, "expected_previous_revision": expected_previous_revision})
+        async with self.sf() as session:
+            await self._project(session, owner, project_id)
+            latest = (await session.execute(select(func.max(t.approval_signoff_policies.c.revision)).where(t.approval_signoff_policies.c.project_id == project_id))).scalar_one()
+            revision = expected_previous_revision + 1
+            existing = (await session.execute(select(t.approval_signoff_policies).where(t.approval_signoff_policies.c.project_id == project_id, t.approval_signoff_policies.c.revision == revision))).mappings().first()
+            if existing is not None:
+                if existing["request_hash"] != request_hash:
+                    raise Conflict
+                return self._decode_signoff_policy(dict(existing))
+            if (latest or 0) != expected_previous_revision:
+                raise Conflict
+        created_at_ms = self._time()
+        document = {
+            "schema": "qa-approval-signoff-policy.v1",
+            "scope": "advisory_signoff_policy_only",
+            "project_id": project_id,
+            "revision": revision,
+            "required_distinct_approvers": required_distinct_approvers,
+            "created_at_ms": created_at_ms,
+            "advisory": True,
+            "enforcement": "none",
+        }
+        policy_hash = await asyncio.to_thread(fingerprint, {"owner_id": owner, "request_hash": request_hash, "document": document})
+        async with self._transaction() as session:
+            await self._project(session, owner, project_id)
+            await session.execute(
+                insert(t.approval_signoff_policies).values(
+                    project_id=project_id, revision=revision, owner_id=owner, required_distinct_approvers=required_distinct_approvers, created_at_ms=created_at_ms, request_hash=request_hash, document=document, policy_hash=policy_hash
+                )
+            )
+        return {**document, "policy_hash": policy_hash}
 
     async def list_project_approvals(self, owner, project_id):
         """Latest approval revision per run; metadata only, read-only."""

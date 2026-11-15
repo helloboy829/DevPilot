@@ -12,7 +12,7 @@
 | 独立准入、有界 QA Worker、加密采集、人工复核、全样本汇总 | 已实现，执行默认关闭           | 未知交付不重发；采集成功/阈值达标不等于批准                                  |
 | 历史报告/Word 草稿、同基准复测                           | 已实现                         | 草稿与比较不自动批准、不自动再执行                                           |
 | 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF  | 候选代码已实现，未部署         | `eval_0010..0012`；旧 owner 路径保持独立                                     |
-| 正式批准首切片（具名审批、审批人账号校验、职责分离、撤销/审计、只读预检/索引/运行级与项目级链完整性、签署进度、数据集面板） | 候选代码已实现，未部署 | `eval_0015`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成 |
+| 正式批准首切片（具名审批、审批人账号校验、职责分离、撤销/审计、只读预检/索引/运行级与项目级链完整性、签署进度、数据集面板） | 候选代码已实现，未部署 | `eval_0015..0016`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成 |
 | 授权配置导出与外部技术元数据隔离接收                     | 候选代码已实现，未部署         | `eval_0013..0014`；不接纳敏感输出为可信证据                                  |
 | 独立本地 QA 命令、共享核心、锁定软件分发、加密输出       | 候选代码已实现                 | 默认离线；真实发送与输出模式分别同意                                         |
 | 未完成/损坏本地输出的保留治理                            | 加密运行时、显式管理命令与目录残留清单已实现 | 输出前 durable receipt；原 IDs/两个 hash/单独处置同意；清单仅固定文件名元数据、不读内容/不删除；无安全擦除保证 |
@@ -26,7 +26,7 @@
 | 项目               | 当前事实                                                                                  |
 | ------------------ | ----------------------------------------------------------------------------------------- |
 | Git 源码           | `main`；精确工作区提交用 `git rev-parse HEAD` 查询，不用迁移号代替                        |
-| App 候选迁移头     | `eval_0015`；本轮合成恢复矩阵尚无新 SHA CI 收据                                           |
+| App 候选迁移头     | `eval_0016`；本轮合成恢复矩阵尚无新 SHA CI 收据                                           |
 | 最后留存的部署收据 | `0fd689da83a4ac7646250447fb6d044599a823c5` / `eval_0009`，属于历史验证                    |
 | 本机 Docker 观察   | 2026-11-15 观察：先前四个 `devpilot-local` 业务容器及其 `criteria-0fd689da83a4` 镜像已不在本机（外部清理，原因未核实）；不做业务恢复或镜像重建推断 |
 | 本轮操作           | 创建两个隔离 Python 3.12 容器（专项测试与 venv 恢复，仅挂载公开源码、无业务卷、无发布端口），运行专项/迁移/完整离线套件，并恢复 `backend/.venv`（Linux 3.12.16，gitignored）；两个容器均已按完整 ID 停止并删除。不部署、不复制或迁移业务 DB、不生成生产 key、不调用真实模型/目标 |
@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- **咨询性签核政策存储（2026-11-15，本地）**：`eval_0016` 追加 `evaluation_approval_signoff_policies`，仅 owner 人类显式、append-only revision、`required_distinct_approvers` 1–10、`advisory=true`/`enforcement=none`；签署进度可附加 `stored_policy` 与 `stored_advisory` requirement，显式查询优先。批准/审计/强制签核语义不变。批准仓库+路由+迁移 **61 passed**；迁移相关文件修复前 12 文件 **294 passed / 4 skipped**（3 项待修失败保留），修复后 recovery/quarantine **9 passed / 1 skipped**；Ruff 通过。前端完整 **1,423 passed**、E2E **9 passed**。精确 SHA CI 另行记录。
 - **精确 SHA CI（离线指标 CLI 输入上限，2026-11-15）**：`8f10c3f54efad66ea91317f820c0aa385762f660` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43715063822)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43715063809)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43715063866) 共 **3 workflows 全部成功**；CLI 专项 **13 passed**、evaluation **62 passed**、toolkit **58 passed**。
 - **精确 SHA CI（批准能力诊断与工作台展示，2026-11-15）**：`ea506ee327d981d29f427630764a915a5cf2594b` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43713676540)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43713676608)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43713676559)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43713676498)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43713676501) 共 **5 workflows 全部成功**；覆盖能力诊断端点与面板显式展示、JSON 严格化。
 - **离线指标 CLI JSON 严格化（2026-11-15，本地）**：解析拒绝重复键与 `NaN`/`Infinity`，避免歧义字段或非有限数值进入纯核心。CLI 专项 **12 passed**、evaluation 域 **61 passed**、toolkit **58 passed**、分发 **72 passed**，Ruff 通过。精确 SHA CI 另行记录。

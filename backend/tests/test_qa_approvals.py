@@ -459,3 +459,38 @@ async def test_approval_signoff_progress_reports_aggregate_only(tasks):
     assert result["approved_revisions"] == 1 and result["revoked_revisions"] == 1
     assert result["latest_revision"] == 2 and result["latest_decision"] == "revoked"
     assert not any(token in json.dumps(result) for token in ("document", "hash", APPROVAL, APPROVER, second))
+
+
+@pytest.mark.asyncio
+async def test_advisory_signoff_policy_is_append_only_and_idempotent(tasks):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    with pytest.raises(NotFound):
+        await unit.get_signoff_policy("owner", project)
+    with pytest.raises(NotFound):
+        await unit.get_signoff_policy("other-owner", project)
+    created = await unit.set_signoff_policy("owner", project, required_distinct_approvers=2, expected_previous_revision=0)
+    assert created == {
+        "schema": "qa-approval-signoff-policy.v1",
+        "scope": "advisory_signoff_policy_only",
+        "project_id": project,
+        "revision": 1,
+        "required_distinct_approvers": 2,
+        "created_at_ms": created["created_at_ms"],
+        "advisory": True,
+        "enforcement": "none",
+        "policy_hash": created["policy_hash"],
+    }
+    assert await unit.get_signoff_policy("owner", project) == created
+    assert await unit.set_signoff_policy("owner", project, required_distinct_approvers=2, expected_previous_revision=0) == created
+    revised = await unit.set_signoff_policy("owner", project, required_distinct_approvers=3, expected_previous_revision=1)
+    assert revised["revision"] == 2 and revised["required_distinct_approvers"] == 3
+    with pytest.raises(Conflict):
+        await unit.set_signoff_policy("owner", project, required_distinct_approvers=4, expected_previous_revision=0)
+    with pytest.raises(Conflict):
+        await unit.set_signoff_policy("owner", project, required_distinct_approvers=0, expected_previous_revision=2)
+    async with unit.sf.begin() as session:
+        await session.execute(update(t.approval_signoff_policies).where(t.approval_signoff_policies.c.revision == 2).values(document={"tampered": True}))
+    with pytest.raises(RequestProtectionError):
+        await unit.get_signoff_policy("owner", project)
+    assert not any(token in json.dumps(created) for token in ("document", "note"))
