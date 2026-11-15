@@ -495,3 +495,80 @@ it("clears stale chain summaries after a recorded decision", async () => {
   expect(screen.queryByText(/Chain verified/)).toBeNull();
   expect(screen.queryByText(/Project chains verified/)).toBeNull();
 });
+
+it("clears prior project approvals and run state when the project changes", async () => {
+  state.api.projectApprovals.mockResolvedValue([
+    {
+      run_id: run,
+      id: "d".repeat(32),
+      revision: 2,
+      decision: "revoked",
+      assessment_id: assessment,
+      assessment_hash: hash,
+      created_at_ms: 1,
+    },
+  ]);
+  const pending = new Map<string, string>();
+  const view = render(
+    <EvaluationApprovalPanel
+      pendingApprovals={pending}
+      projectId="p1"
+      zh={false}
+    />,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load project approvals" }),
+  );
+  await screen.findByText(/revision 2 · revoked/);
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  view.rerender(
+    <EvaluationApprovalPanel
+      pendingApprovals={pending}
+      projectId="p2"
+      zh={false}
+    />,
+  );
+  expect(screen.queryByText(/revision 2 · revoked/)).toBeNull();
+  expect(screen.getByLabelText<HTMLInputElement>("Run ID").value).toBe("");
+});
+
+it("clears stale preflight results when the target changes", async () => {
+  state.api.preflight.mockResolvedValue({
+    schema: "qa-approval-preflight.v1",
+    scope: "read_only_formal_approval_preflight",
+    project_id: "p1",
+    run_id: run,
+    assessment: { id: assessment, revision: 1, assessment_hash: hash },
+    approver_id: approver,
+    eligible: true,
+    blockers: [],
+    readiness: "review_complete",
+    criteria: { status: "not_defined" },
+    separation: {
+      approver_not_owner: true,
+      approver_not_review_actor: true,
+    },
+    latest_approval: null,
+    approval: "not_recorded",
+  });
+  panel();
+  fillTarget();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval eligibility" }),
+  );
+  await screen.findByText(/Eligible/);
+  fireEvent.change(screen.getByLabelText("Approver account"), {
+    target: { value: "00000000-0000-0000-0000-000000000006" },
+  });
+  expect(screen.queryByText(/Eligible/)).toBeNull();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval eligibility" }),
+  );
+  await screen.findByText(/Eligible/);
+  fireEvent.change(screen.getByLabelText("Assessment hash"), {
+    target: { value: "d".repeat(64) },
+  });
+  expect(screen.queryByText(/Eligible/)).toBeNull();
+});

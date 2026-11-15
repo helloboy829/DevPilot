@@ -705,3 +705,11 @@ English: the operations workspace now strictly validates and displays the aggreg
 测试先红后绿：新增“找到原 ID 清除 pending”“未找到保留 pending”“写入后清除旧链汇总”用例；初版测试在输入 run ID 前断言 pending 横幅，因面板以项目+run 为键而失败，修正为先输入 run，未改产品行为。面板定向 **17 passed**，前端完整 **1,407 passed**，typecheck/ESLint/Prettier 通过；E2E 未知写入用例扩展为 503 后按原 ID 加载并对账，`approval-panel.spec.ts` 本机 Chrome 串行 **6 passed**，写请求仍为 1 次。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
 
 English: an explicit approval reload now clears a pending unknown-write ID only when the original ID appears, and successful writes or reconciliation invalidate stale chain summaries; nothing is retried or replaced automatically.
+
+## 批准面板跨项目与预检新鲜度（2026-11-15）
+
+修复批准工作台的陈旧状态：项目切换时项目索引、run 和评估/审批人输入此前不会清空，可能在新项目下继续显示旧项目批准元数据；修改评估 ID/hash 或审批人后，旧预检结果也不会清除。现在切换项目清除项目索引与全部运行/目标输入，修改任一目标字段清除预检，成功写入同样清除预检；运行级/项目级链汇总按既有规则清除。仍不自动读取、不重试、不轮询或写入失败结果。
+
+测试先红后绿：新增项目切换清除索引/run 与目标字段变更清除预检用例；实现后面板定向 **19 passed**，前端完整 **1,409 passed**，typecheck/ESLint/Prettier 通过；“写入后清除旧链汇总”用例继续通过。`approval-panel.spec.ts` 本机 Chrome 串行 **6 passed**；临时配置与测试产物已删除。无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
+
+English: switching projects clears the approval panel's project index, run and target inputs, and editing the assessment or approver clears stale preflight output; no automatic reads, retries or writes are introduced.

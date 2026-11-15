@@ -64,6 +64,14 @@ export function EvaluationApprovalPanel({
   }, []);
 
   useEffect(() => {
+    setProjectRows(null);
+    setRunId("");
+    setAssessmentId("");
+    setAssessmentHash("");
+    setApproverId("");
+  }, [projectId]);
+
+  useEffect(() => {
     epoch.current += 1;
     setRunRows(null);
     setAudit(null);
@@ -251,6 +259,7 @@ export function EvaluationApprovalPanel({
         setRunRows((rows) => [result, ...(rows ?? [])]);
         setIntegrity(null);
         setProjectIntegrity(null);
+        setPreflight(null);
         setNotice(
           zh
             ? `已记录 revision ${result.revision}（${result.decision}）。`
@@ -420,19 +429,28 @@ export function EvaluationApprovalPanel({
         <Input
           aria-label={zh ? "评估 ID" : "Assessment ID"}
           value={assessmentId}
-          onChange={(event) => setAssessmentId(event.target.value.trim())}
+          onChange={(event) => {
+            setAssessmentId(event.target.value.trim());
+            setPreflight(null);
+          }}
           placeholder={zh ? "评估 ID（32 hex）" : "Assessment ID (32 hex)"}
         />
         <Input
           aria-label={zh ? "评估 hash" : "Assessment hash"}
           value={assessmentHash}
-          onChange={(event) => setAssessmentHash(event.target.value.trim())}
+          onChange={(event) => {
+            setAssessmentHash(event.target.value.trim());
+            setPreflight(null);
+          }}
           placeholder={zh ? "评估 hash（64 hex）" : "Assessment hash (64 hex)"}
         />
         <Input
           aria-label={zh ? "审批人账号" : "Approver account"}
           value={approverId}
-          onChange={(event) => setApproverId(event.target.value.trim())}
+          onChange={(event) => {
+            setApproverId(event.target.value.trim());
+            setPreflight(null);
+          }}
           placeholder={zh ? "审批人账号 UUID" : "Approver account UUID"}
         />
       </div>
