@@ -39,6 +39,17 @@ const snapshot = {
       deadline_reached_runs: 1,
     },
   },
+  safety: {
+    scope: "aggregate_held_reservation_states",
+    states: {
+      queued_ready: 0,
+      queued_deadline_reached: 0,
+      running_within_deadline: 0,
+      running_deadline_reached: 1,
+      cancel_requested_pending: 0,
+      interrupted_terminal: 1,
+    },
+  },
   worker_liveness: "not_established",
   release_authorized: false,
   reclaim_authorized: false,

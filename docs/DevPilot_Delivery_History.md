@@ -689,3 +689,11 @@ English: an aggregate, read-only project approval-chain summary reuses the run v
 **精确 SHA CI 失败与修复**：`8bb0bed` 的 Unit Tests 失败 **2** 项（其余 13,589 passed / 19 skipped，659.69s）：`test_formal_approval_migrations.py` 的两个用例复用批准路由，但迁移测试未初始化本地账号提供者，新增的精确 ID 查询触发 `get_local_provider() called before init_engine_from_config()`。根因是测试夹具缺少账号环境，不是产品放宽校验；修复把路由测试的账号播种逻辑提取为 `patch_approver_accounts`，迁移测试以 autouse fixture 复用，保留原创建/预检断言。仓库+路由+迁移联合 **55 passed**（91.99s），Ruff check/format 通过。修复提交 `d320fcc` 的 Lint/Blocking IO/Frontend/Unit **4 workflows / 8 jobs 全绿**（Unit `43679591545`）；E2E/Replay 未触发。`8bb0bed` 的失败保留，不记为通过。
 
 English: approval creation and preflight now require an existing, initialized approver account via exact-ID lookup, without account creation, directory enumeration or permission grants.
+
+## 运维安全分类接入与回归修复（2026-11-15）
+
+后端[执行诊断](DevPilot_Execution_Reservation_Diagnostics.md)已返回 `safety.states` 六类聚合分类，但前端 `execution-operations.ts` 的 strict schema 未同步，未知字段会使当前生产响应解析失败并显示“诊断不可用”——这是本模块发现并修复的真实回归。前端现要求固定 `aggregate_held_reservation_states` scope 与六个非负安全整数，并交叉校验：queued/running 的截止拆分等于对应状态计数、cancel/interrupted 分类等于对应状态 held、六类之和加 collected 等于全局 held；不一致失败关闭。运维面板新增“聚合安全分类（不是释放或重试许可）”列表，保持无释放/回收/重试控件。
+
+测试先红后绿：共享 fixture 加入一致 `safety` 后，旧 strict schema 如预期拒绝；补齐 schema 与面板后定向 **60 passed**，前端完整 **1,404 passed**，typecheck/ESLint/Prettier 通过。浏览器侧 `execution-operations.spec.ts` 本机 Chrome 生产构建按 `workers=1`：首轮一次既有“重新进入不恢复快照”断言失败，单独与二次整组 **5 passed**；未改断言、超时或重试，保留为本地观察，以精确 SHA CI 为准。临时 Playwright 配置与测试产物已删除；无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
+
+English: the operations workspace now strictly validates and displays the aggregate safety classification, cross-checking it against the held states; this fixes a regression where the backend `safety` field was rejected by the old strict client schema.

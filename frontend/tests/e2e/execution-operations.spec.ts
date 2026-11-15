@@ -28,6 +28,8 @@ for (const mobile of [false, true]) {
     await page.keyboard.press("Enter");
     await expect(page.getByTestId("reservation-snapshot")).toBeVisible();
     await expect(page.getByText("70", { exact: true })).toBeVisible();
+    await expect(page.getByTestId("safety-states")).toBeVisible();
+    await expect(page.getByText("Running deadline reached: 1")).toBeVisible();
     await expect(
       page.getByText(/A reached deadline does not prove/),
     ).toBeVisible();

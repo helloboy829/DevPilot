@@ -27,6 +27,14 @@ rs.mock("@/core/evaluation/execution-operations", () => ({
     "collected",
     "interrupted",
   ],
+  safetyStates: [
+    "queued_ready",
+    "queued_deadline_reached",
+    "running_within_deadline",
+    "running_deadline_reached",
+    "cancel_requested_pending",
+    "interrupted_terminal",
+  ],
   loadReservationSnapshot: state.load,
 }));
 rs.mock("@/core/evaluation/scheduling-admission", () => ({
@@ -76,6 +84,9 @@ it("does not load on mount or locale change; loads only explicit aggregate data 
   await screen.findByTestId("reservation-snapshot");
   expect(screen.getByText("70")).toBeTruthy();
   expect(screen.getByText(/Interrupted: 1/)).toBeTruthy();
+  expect(screen.getByTestId("safety-states")).toBeTruthy();
+  expect(screen.getByText("Running deadline reached: 1")).toBeTruthy();
+  expect(screen.getByText("Interrupted terminal: 1")).toBeTruthy();
   view.rerender(<ExecutionOperationsPanel zh />);
   expect(screen.getByText(/仅响应进程的策略/)).toBeTruthy();
   expect(state.load).toHaveBeenCalledTimes(1);

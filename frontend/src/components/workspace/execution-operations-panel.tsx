@@ -7,6 +7,7 @@ import { useAuth } from "@/core/auth/AuthProvider";
 import {
   loadReservationSnapshot,
   reservationStates,
+  safetyStates,
   type ReservationSnapshot,
 } from "@/core/evaluation/execution-operations";
 import {
@@ -82,6 +83,23 @@ function AccountSnapshot({ zh }: { zh: boolean }) {
         cancel_requested: "Cancellation requested",
         collected: "Collected",
         interrupted: "Interrupted",
+      };
+  const safetyLabels = zh
+    ? {
+        queued_ready: "排队就绪",
+        queued_deadline_reached: "排队已到截止",
+        running_within_deadline: "运行中未到截止",
+        running_deadline_reached: "运行中已到截止",
+        cancel_requested_pending: "已请求取消待处理",
+        interrupted_terminal: "中断终态",
+      }
+    : {
+        queued_ready: "Queued ready",
+        queued_deadline_reached: "Queued deadline reached",
+        running_within_deadline: "Running within deadline",
+        running_deadline_reached: "Running deadline reached",
+        cancel_requested_pending: "Cancellation requested pending",
+        interrupted_terminal: "Interrupted terminal",
       };
   return (
     <section
@@ -168,6 +186,18 @@ function AccountSnapshot({ zh }: { zh: boolean }) {
                 {labels[state]}: {snapshot.states[state].held_runs} /{" "}
                 {zh ? "其中已达截止时间" : "deadline reached"}:{" "}
                 {snapshot.states[state].deadline_reached_runs}
+              </li>
+            ))}
+          </ul>
+          <h2 className="font-semibold">
+            {zh
+              ? "聚合安全分类（不是释放或重试许可）"
+              : "Aggregate safety classification (not release or retry permission)"}
+          </h2>
+          <ul data-testid="safety-states" className="space-y-1">
+            {safetyStates.map((state) => (
+              <li key={state}>
+                {`${safetyLabels[state]}: ${snapshot.safety.states[state]}`}
               </li>
             ))}
           </ul>

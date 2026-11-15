@@ -38,6 +38,10 @@ it("accepts an empty held population and the exact policy boundaries", () => {
     item.held_runs = 0;
     item.deadline_reached_runs = 0;
   }
+  for (const key of Object.keys(
+    data.safety.states,
+  ) as (keyof typeof data.safety.states)[])
+    data.safety.states[key] = 0;
   data.observed_at_ms = 0;
   Object.assign(data.policy, {
     max_active_runs: 32,
@@ -226,4 +230,46 @@ it("suppresses network/stream details and an aborted result, without retry", asy
   await expect(loadReservationSnapshot(controller.signal)).rejects.toThrow(
     /^Reservation diagnostics unavailable$/,
   );
+});
+
+it("accepts and cross-checks aggregate safety states", () => {
+  const result = parseReservationSnapshot(fixture);
+  expect(result.safety).toEqual({
+    scope: "aggregate_held_reservation_states",
+    states: {
+      queued_ready: 0,
+      queued_deadline_reached: 0,
+      running_within_deadline: 0,
+      running_deadline_reached: 1,
+      cancel_requested_pending: 0,
+      interrupted_terminal: 1,
+    },
+  });
+  for (const safety of [
+    undefined,
+    { ...fixture.safety, scope: "other" },
+    {
+      ...fixture.safety,
+      states: { ...fixture.safety.states, unknown: 0 },
+    },
+    {
+      ...fixture.safety,
+      states: { ...fixture.safety.states, queued_ready: 1 },
+    },
+    {
+      ...fixture.safety,
+      states: { ...fixture.safety.states, running_deadline_reached: 0 },
+    },
+    {
+      ...fixture.safety,
+      states: { ...fixture.safety.states, interrupted_terminal: 0 },
+    },
+    {
+      ...fixture.safety,
+      states: { ...fixture.safety.states, queued_ready: -1 },
+    },
+  ])
+    expect(() => parseReservationSnapshot({ ...fixture, safety })).toThrow(
+      "Reservation diagnostics unavailable",
+    );
 });
