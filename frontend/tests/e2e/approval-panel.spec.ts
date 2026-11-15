@@ -107,3 +107,101 @@ test("preflight shows fixed blockers without writing or reading evidence", async
   );
   expect(writes).toEqual([]);
 });
+
+test("records an explicit approval with a generated original ID", async ({
+  page,
+}) => {
+  const { panel } = await setup(page);
+  const writes: { url: string; body: Record<string, unknown> }[] = [];
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/approvals/audit",
+    (route) => route.fulfill({ json: [] }),
+  );
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/approvals",
+    (route) => route.fulfill({ json: [] }),
+  );
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/approvals/*",
+    (route) => {
+      if (route.request().method() !== "POST")
+        return route.fulfill({ json: [] });
+      writes.push({
+        url: route.request().url(),
+        body: route.request().postDataJSON(),
+      });
+      return route.fulfill({
+        json: {
+          id: "d".repeat(32),
+          revision: 1,
+          decision: "approved",
+          approver_id: approver,
+        },
+      });
+    },
+  );
+  await panel.getByLabel("Run ID", { exact: true }).fill(run);
+  await panel.getByLabel("Assessment ID", { exact: true }).fill(assessment);
+  await panel.getByLabel("Assessment hash", { exact: true }).fill(hash);
+  await panel.getByLabel("Approver account", { exact: true }).fill(approver);
+  await panel
+    .getByRole("button", { name: "Load run approvals and audit", exact: true })
+    .click();
+  await expect(panel.getByText("No approvals for this run yet.")).toBeVisible();
+  await panel.getByRole("checkbox").check();
+  await panel
+    .getByRole("button", { name: "Record approval / revocation", exact: true })
+    .click();
+  await expect(
+    panel.getByText(/Recorded revision 1 \(approved\)/),
+  ).toBeVisible();
+  expect(writes).toHaveLength(1);
+  expect(writes[0]!.url).toMatch(/\/approvals\/[0-9a-f]{32}$/);
+  expect(writes[0]!.body).toEqual({
+    assessment_id: assessment,
+    assessment_hash: hash,
+    expected_previous_revision: 0,
+    approver_id: approver,
+    decision: "approved",
+    confirmed: true,
+  });
+});
+
+test("keeps an unknown write on the same ID without retry", async ({
+  page,
+}) => {
+  const { panel } = await setup(page);
+  const writes: string[] = [];
+  let posts = 0;
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/approvals/audit",
+    (route) => route.fulfill({ json: [] }),
+  );
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/approvals",
+    (route) => route.fulfill({ json: [] }),
+  );
+  await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/approvals/*",
+    (route) => {
+      if (route.request().method() !== "POST")
+        return route.fulfill({ json: [] });
+      posts += 1;
+      writes.push(route.request().url());
+      return route.fulfill({ status: 503, json: { detail: "unknown" } });
+    },
+  );
+  await panel.getByLabel("Run ID", { exact: true }).fill(run);
+  await panel.getByLabel("Assessment ID", { exact: true }).fill(assessment);
+  await panel.getByLabel("Assessment hash", { exact: true }).fill(hash);
+  await panel.getByLabel("Approver account", { exact: true }).fill(approver);
+  await panel.getByRole("checkbox").check();
+  await panel
+    .getByRole("button", { name: "Record approval / revocation", exact: true })
+    .click();
+  await expect(panel.getByRole("alert")).toBeVisible();
+  expect(posts).toBe(1);
+  const id = writes[0]!.split("/").pop();
+  expect(id).toMatch(/^[0-9a-f]{32}$/);
+  await expect(panel.getByRole("status")).toContainText(id!);
+});
