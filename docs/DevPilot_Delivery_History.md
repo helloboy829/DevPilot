@@ -772,6 +772,6 @@ English: an offline CLI exposes the existing pure TTFT/throughput, judge-calibra
 
 新增 `devpilot.qa_signoff_policy.evaluate_signoff_requirement`：只按调用方显式提供的 `required_distinct_approvers`（1–10 或 None）、`distinct_approved_approvers`（0–10）与 `latest_decision`（None/approved/revoked）返回固定投影。策略未定义时 `satisfied=null` 且 blocking `multi_level_policy_not_defined`；批准人数不足或最新决定非 approved 分别 blocker；所有输出 `approval=not_approved`。类型伪装、布尔、越界与未知枚举失败关闭。不存储策略、不强制、不读取批准文档，也未接入 App 签署进度端点。
 
-测试先红后绿：模块缺失时导入失败；实现后专项 **7 passed**（满足、未定义、不足、撤销/缺失、多个 blockers、零策略、类型伪装），evaluation 域 **50 passed**、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（**47** 成员），分发测试 **72 passed**，Ruff check/format 通过。无迁移、依赖或部署变更；精确 SHA CI 另行记录。
+测试先红后绿：模块缺失时导入失败；实现后专项 **7 passed**（满足、未定义、不足、撤销/缺失、多个 blockers、零策略、类型伪装），evaluation 域 **50 passed**、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（**47** 成员），分发测试 **72 passed**，Ruff check/format 通过。无迁移、依赖或部署变更。该模块随 `15677b8` 的 Lint/Frontend/Unit **3 workflows 全绿**通过精确 SHA CI（Unit `43703550183`）。
 
 English: a pure requirement evaluator answers whether an explicitly supplied multi-level sign-off policy is met by aggregate counts; it stores no policy, enforces nothing, is not wired into App and never returns approval.
