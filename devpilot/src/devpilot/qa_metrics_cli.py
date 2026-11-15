@@ -42,6 +42,21 @@ def _reject_constant(_value):
     raise ValueError(_ERROR)
 
 
+def _bounded(value):
+    stack = [(value, 0)]
+    count = 0
+    while stack:
+        item, depth = stack.pop()
+        count += 1
+        if depth > 32 or count > 20_000:
+            raise ValueError(_ERROR)
+        if isinstance(item, (dict, list)):
+            stack.extend(
+                (child, depth + 1)
+                for child in (item.values() if isinstance(item, dict) else item)
+            )
+
+
 def _read_json(path):
     source = Path(path)
     original = source.lstat()
@@ -63,11 +78,13 @@ def _read_json(path):
         os.close(descriptor)
     if len(data) != original.st_size or len(data) > _MAX_FILE_BYTES:
         raise ValueError(_ERROR)
-    return json.loads(
+    value = json.loads(
         data.decode("utf-8"),
         object_pairs_hook=_unique,
         parse_constant=_reject_constant,
     )
+    _bounded(value)
+    return value
 
 
 def main(argv=None):

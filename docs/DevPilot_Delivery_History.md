@@ -839,3 +839,11 @@ English: the offline metrics CLI now rejects duplicate JSON keys and non-finite 
 测试先红后绿：新增客户端路由、显式加载/展示、项目切换清除用例与 E2E；实现后前端定向 **34 passed**、完整 **1,422 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **9 passed**。无后端、迁移、依赖或部署变更；精确 SHA CI 另行记录。
 
 English: the approval panel shows the fixed capability gaps only after an explicit click, without implying or adding login, notification, enforcement or export support.
+
+## 离线指标 CLI 输入上限（2026-11-15）
+
+在重复键/非有限数值拒绝之外，CLI 对解析结果增加迭代深度与节点数上限：嵌套深度 ≤32、节点数 ≤20,000，超限走固定 `Invalid metric input`，不反射输入。该上限与本地 QA CLI 的边界一致，避免深层或超大 JSON 进入纯核心。
+
+测试先红后绿：新增 40 层嵌套与 20,001 节点用例；实现后 CLI 专项 **13 passed**，evaluation 域 **62 passed**、toolkit **58 passed**，Ruff check/format 通过。无迁移、依赖或部署变更；精确 SHA CI 另行记录。
+
+English: the offline metrics CLI now bounds parsed JSON depth (≤32) and node count (≤20,000) in addition to rejecting duplicate keys and non-finite numbers.

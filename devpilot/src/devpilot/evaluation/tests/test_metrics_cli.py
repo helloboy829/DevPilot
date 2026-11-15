@@ -199,6 +199,16 @@ class MetricsCliTest(unittest.TestCase):
         code, output, error = run("calibration", "--pairs", str(non_finite))
         self.assertEqual((code, output, error), (1, "", "Invalid metric input\n"))
 
+    def test_rejects_excessive_json_depth_and_nodes(self):
+        deep = self.root / "deep.json"
+        deep.write_text("[" * 40 + "0" + "]" * 40, encoding="utf-8")
+        code, output, error = run("calibration", "--pairs", str(deep))
+        self.assertEqual((code, output, error), (1, "", "Invalid metric input\n"))
+        many = self.root / "many.json"
+        many.write_text("[" + ",".join(["0"] * 20_001) + "]", encoding="utf-8")
+        code, output, error = run("calibration", "--pairs", str(many))
+        self.assertEqual((code, output, error), (1, "", "Invalid metric input\n"))
+
     @unittest.skipUnless(os.name == "posix", "symlink creation is POSIX-specific")
     def test_rejects_symlinked_input(self):
         target = self.write("observation.json", observation())
