@@ -804,7 +804,7 @@ English: the sign-off endpoint may attach an advisory requirement computed from 
 
 `local_qa_retention` 新增 `residue-inventory` 子命令，直接复用 `local_qa_residue.inventory_directory`：参数为显式目录与 `--confirm-metadata-only-directory-inventory`，输出同一 `local-qa-directory-residue.v1`；不新增读取、发现、删除或保留期语义。这样运维可从既有保留管理入口完成只读残留观察。
 
-测试先红后绿：新增保留 CLI 入口用例；实现后残留专项 **7 passed**，evaluation 域 **60 passed**、toolkit **58 passed**；`test_local_qa_distribution.py` + `test_local_qa_retention.py` 联合 **112 passed**，Ruff check/format 通过。无迁移、依赖或部署变更；精确 SHA CI 另行记录。
+测试先红后绿：新增保留 CLI 入口用例；实现后残留专项 **7 passed**，evaluation 域 **60 passed**、toolkit **58 passed**；`test_local_qa_distribution.py` + `test_local_qa_retention.py` 联合 **112 passed**，Ruff check/format 通过。无迁移、依赖或部署变更。该模块随 `2ec841d` 的 Lint/Frontend/Unit **3 workflows 全绿**通过精确 SHA CI（Unit `43709996990`）。
 
 English: the existing retention CLI now exposes the same metadata-only residue inventory, without adding content reads, discovery, deletion or retention semantics.
 
@@ -812,6 +812,6 @@ English: the existing retention CLI now exposes the same metadata-only residue i
 
 新增 `scripts/windows_acceptance_preflight.py`：只读检查 Windows 平台、Docker CLI 是否在 PATH、回环端口是否被占用、剩余磁盘是否 ≥10 GB、`config.yaml`/`extensions_config.json` 是否存在；不读取配置内容、不启动容器、不调用模型/目标。输出 `windows-acceptance-preflight.v1`，blockers 固定为 `not_windows`、`docker_cli_missing`、`port_in_use`、`insufficient_disk`、`private_config_missing`，`deployment_authorized=false`、`approval=not_approved`；退出码 0 仅是前置检查通过。
 
-测试先红后绿：模块缺失时收集失败；实现后专项 **5 passed**（通过投影、逐项 blocker、非法端口、CLI JSON 与非零阻断），Ruff check/format 通过。该工具不替代 Windows 实际安装、锁/删除、浏览器或部署验收；无迁移、依赖或运行时变更。精确 SHA CI 另行记录。
+测试先红后绿：模块缺失时收集失败；实现后专项 **5 passed**（通过投影、逐项 blocker、非法端口、CLI JSON 与非零阻断），Ruff check/format 通过。该工具不替代 Windows 实际安装、锁/删除、浏览器或部署验收；无迁移、依赖或运行时变更。该模块随 `66d7c82` 的 Lint/Blocking IO/Frontend/Unit **4 workflows 全绿**通过精确 SHA CI（Unit `43711405360`）。
 
 English: a read-only host preflight checks Windows platform, Docker CLI presence, loopback port, free disk and private-config file presence only; it never reads config contents, starts services or constitutes deployment/acceptance.
