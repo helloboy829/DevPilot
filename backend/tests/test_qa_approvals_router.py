@@ -21,8 +21,8 @@ APPROVAL = "b" * 32
 ASSESSMENT = "c" * 32
 
 
-@pytest.fixture(autouse=True)
-def approver_account(monkeypatch):
+def patch_approver_accounts(monkeypatch):
+    """Exact-ID synthetic accounts for owner, approver, blind reviewers and arbitrator."""
     users = {str(UUID(int=index)): User(id=UUID(int=index), email=f"account{index}@example.com") for index in (1, 5)}
     users.update({actor: User(id=UUID(actor), email=f"{actor[:8]}@example.com") for actor in (A, B, ARB)})
 
@@ -31,6 +31,11 @@ def approver_account(monkeypatch):
 
     monkeypatch.setattr(routes, "get_local_provider", lambda: SimpleNamespace(get_user=get_user))
     return users
+
+
+@pytest.fixture(autouse=True)
+def approver_account(monkeypatch):
+    return patch_approver_accounts(monkeypatch)
 
 
 async def setup_approval(api, monkeypatch):

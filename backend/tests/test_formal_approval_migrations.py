@@ -11,7 +11,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import MetaData, event, insert, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from test_evaluation_registry_router import api as api
-from test_qa_approvals_router import APPROVAL, setup_approval
+from test_qa_approvals_router import APPROVAL, patch_approver_accounts, setup_approval
 from test_qa_approvals_router import payload as approval_payload
 
 from app.evaluation import schema
@@ -21,6 +21,11 @@ from deerflow.persistence.user.model import UserRow
 
 NEW = {t.run_approvals.name, t.approval_audit.name}
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name not in NEW | {"devpilot_alembic_version"}]]
+
+
+@pytest.fixture(autouse=True)
+def approver_account(monkeypatch):
+    return patch_approver_accounts(monkeypatch)
 
 
 def migrate(url, target):
