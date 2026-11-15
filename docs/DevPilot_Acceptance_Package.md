@@ -64,6 +64,7 @@
 - [ ] 项目级批准链汇总只返回 run/批准/事件计数与固定 blockers；存在审计无批准时标记 `orphan_audit`，超界返回 `unverifiable`/`project_chain_too_long`，不含 ID/hash/文档。
 - [ ] 数据集批准面板的链完整性按钮只在显式点击后读取，显示 verified 计数或固定 blockers，切换 run 清空旧结果，不写批准/审计；项目级链汇总按钮同样显式、只读，切换项目清空。
 - [ ] 批准预检只返回 eligible/blockers/分离布尔且不写批准或审计；非法 approver 返回 422、未知评估 404。
+- [ ] 审批人账号必须已存在且完成初始化；未知或未初始化账号预检返回 `approver_account_not_found`，创建/撤销返回 409，且不创建账号或暴露目录。
 - [ ] 项目级批准索引只返回每个 run 的最新 revision 元数据（最多 200），不含文档/备注/计数。
 - [ ] case PASS、复核完整与阈值达标都不会自动生成批准。
 

@@ -679,3 +679,11 @@ English: the operations workspace now exposes the fixed scheduling-admission den
 测试先红后绿：仓库层新增聚合、六类篡改、审计无批准与超界用例；路由层覆盖权限、内部 token、跨 owner、匿名拒绝、无敏感字段与不遮蔽单批准读取。批准仓库+路由 **52 passed**（74.24s），Ruff check/format 通过。前端新增 API 路由/面板用例，定向 **16 passed**、完整 **1,403 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 在本机 Chrome 生产构建上以 `workers=1` **6 passed**，临时配置与测试产物已删除。无迁移、依赖、部署或真实调用。该模块随 `78f9148` 的 Lint/Blocking IO/Frontend/E2E/Replay E2E/Unit **6 workflows / 11 jobs 全绿**通过精确 SHA CI（Unit `43676392144`）。
 
 English: an aggregate, read-only project approval-chain summary reuses the run verifier per run and returns only counts and fixed blockers, with explicit orphan-audit and over-limit states; the panel exposes it only on an explicit click.
+
+## 审批人账号存在性校验（2026-11-15）
+
+正式批准路由在项目归属校验之后，按精确 ID 查询本地账号：账号不存在或 `needs_setup` 未完成时拒绝创建/撤销（409），预检追加固定 blocker `approver_account_not_found` 且 `eligible=false`。查询不创建账号、不枚举目录、不授予权限；仓储层 API 与迁移不变，审计/批准行在拒绝时不写入。这补上了“任意 canonical UUID 都可被写成具名审批人”的缺口，但不等于审批人专属登录、多人签核或通知能力。
+
+测试先红后绿：新增未知账号与未初始化账号的创建/预检断言，并保留原分离阻塞断言；路由测试账号夹具显式提供 owner、审批人与盲审/仲裁账号，未修改产品断言或降级校验。批准仓库+路由 **53 passed**（87.99s），Ruff check/format 通过。无迁移、依赖、部署或真实调用；精确 SHA CI 另行记录。
+
+English: approval creation and preflight now require an existing, initialized approver account via exact-ID lookup, without account creation, directory enumeration or permission grants.

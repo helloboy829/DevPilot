@@ -1,5 +1,6 @@
 """Synthetic owner-recorded formal approval API; no targets or live credentials."""
 
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -11,11 +12,25 @@ from test_review_tasks import ARB, A, B, command, decision
 from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.qa_approvals import ApprovalRepository
 from app.evaluation.review_tasks import ReviewTaskRepository, TaskCreate
+from app.gateway.auth.models import User
 from app.gateway.authz import Permissions
+from app.gateway.routers import evaluation_projects as routes
 
 APPROVER = str(UUID(int=5))
 APPROVAL = "b" * 32
 ASSESSMENT = "c" * 32
+
+
+@pytest.fixture(autouse=True)
+def approver_account(monkeypatch):
+    users = {str(UUID(int=index)): User(id=UUID(int=index), email=f"account{index}@example.com") for index in (1, 5)}
+    users.update({actor: User(id=UUID(actor), email=f"{actor[:8]}@example.com") for actor in (A, B, ARB)})
+
+    async def get_user(key):
+        return users.get(key)
+
+    monkeypatch.setattr(routes, "get_local_provider", lambda: SimpleNamespace(get_user=get_user))
+    return users
 
 
 async def setup_approval(api, monkeypatch):
@@ -309,3 +324,25 @@ async def test_project_approval_chain_summary_is_metadata_only_and_permissioned(
     assert (await client.get(root + "/approvals/" + APPROVAL)).status_code == 200
     listing = await client.get(base + "/approvals")
     assert listing.status_code == 200 and len(listing.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_approval_requires_an_existing_active_approver_account(api, monkeypatch, approver_account):
+    client, app, base, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    path = root + "/approvals/" + APPROVAL
+    preflight = root + "/assessments/" + ASSESSMENT + "/approval-preflight"
+    approver_account.clear()
+    created = await client.post(path, json=payload(assessment))
+    assert created.status_code == 409
+    preview = await client.get(preflight, params={"approver_id": APPROVER})
+    assert preview.status_code == 200
+    body = preview.json()
+    assert body["eligible"] is False and "approver_account_not_found" in body["blockers"]
+    assert body["approval"] == "not_recorded"
+    assert (await client.get(root + "/approvals")).json() == []
+    approver_account[APPROVER] = User(id=UUID(APPROVER), email="approver@example.com", needs_setup=True)
+    assert (await client.post(path, json=payload(assessment))).status_code == 409
+    preview = await client.get(preflight, params={"approver_id": APPROVER})
+    assert preview.status_code == 200 and "approver_account_not_found" in preview.json()["blockers"]
+    assert (await client.get(root + "/approvals")).json() == []

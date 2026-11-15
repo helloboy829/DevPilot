@@ -32,7 +32,7 @@ from app.evaluation.request_protection import RequestProtectionError, RequestPro
 from app.evaluation.request_version_repository import RequestVersionRepository
 from app.evaluation.request_versions import RequestVersionCreate
 from app.gateway.authz import _is_internal_caller, require_permission
-from app.gateway.deps import get_optional_user_from_request
+from app.gateway.deps import get_local_provider, get_optional_user_from_request
 from app.gateway.private_route import PrivateValidationRoute
 
 logger = logging.getLogger(__name__)
@@ -538,6 +538,12 @@ async def _approval_context(request):
     return owner, ApprovalRepository(repository.sf)
 
 
+async def _approver_account_ready(approver_id: str) -> bool:
+    """Exact-ID lookup only; never enumerate accounts or expose a directory."""
+    user = await get_local_provider().get_user(approver_id)
+    return user is not None and not user.needs_setup
+
+
 @router.get("/{project_id}/review-runs/{run_id}/assessments/{assessment_id}/approval-preflight")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "review")
@@ -545,9 +551,13 @@ async def get_approval_preflight(project_id: str, run_id: str, assessment_id: st
     owner, repository = await _approval_context(request)
     approval_identifier(assessment_id)
     try:
-        return await _result(repository.preview_approval(owner, project_id, run_id, assessment_id, approver_id))
+        result = await _result(repository.preview_approval(owner, project_id, run_id, assessment_id, approver_id))
     except ValueError:
         raise HTTPException(422, "Invalid approval preflight request", headers={"Cache-Control": "private, no-store"}) from None
+    if not await _approver_account_ready(approver_id):
+        result["eligible"] = False
+        result["blockers"] = sorted({*result["blockers"], "approver_account_not_found"})
+    return result
 
 
 @router.get("/{project_id}/approvals")
@@ -606,6 +616,11 @@ async def get_run_approval(project_id: str, run_id: str, approval_id: str, reque
 async def create_run_approval(project_id: str, run_id: str, approval_id: str, payload: ApprovalCreate, request: Request):
     owner, repository = await _approval_context(request)
     approval_identifier(approval_id)
+    # Check ownership before the exact-ID account lookup; never expose a directory.
+    async with repository.sf() as session:
+        await repository._project(session, owner, project_id)
+    if not await _approver_account_ready(payload.approver_id):
+        raise HTTPException(409, "Resource changed, is not eligible or already exists; reload and review the current revision", headers={"Cache-Control": "private, no-store"})
     return await _result(repository.create_approval(owner, project_id, run_id, approval_id, payload))
 
 

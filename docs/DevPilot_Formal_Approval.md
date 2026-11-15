@@ -16,6 +16,7 @@
 3. `readiness == "review_complete"` 且 `blockers` 为空——两名盲审/仲裁完整，无 uncertain、无缺失证据、无技术不完整。
 4. 若冻结计划带有 `acceptance_criteria`，评估文档内 `criteria_evaluation.status` 必须为 `met`；`not_met`/`incomplete` 一律拒绝。仅阈值达标本身不会产生批准。
 5. 职责分离：`approver_id` 不得等于项目 owner，也不得等于该 run 任一已验真任务的 reviewer_1/reviewer_2/arbitrator。任务定义会被重新验签，无法用被篡改的定义绕过。
+6. 审批人账号存在且可用：路由在项目归属校验后按精确 ID 查询本地账号，账号不存在或 `needs_setup` 未完成时拒绝写入（409）；预检以 `approver_account_not_found` 阻塞。该查询不创建账号、不枚举目录，也不授予任何权限。
 6. 显式确认：`confirmed=true`；布尔伪装（如 `1`）被拒绝。
 
 失败关闭：任一前提不满足返回冲突/未找到；`case PASS`、完整复核、阈值达标或审计/评估历史都不能单独合成批准。
@@ -42,7 +43,7 @@
 
 审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（approval_id/revision/action/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
 
-只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation）、`readiness`、`criteria.status`、两个分离布尔与 `latest_approval`（最新 revision/decision 元数据，若存在）；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；未知评估返回 404；所有响应 `no-store`。
+只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation/approver account）、`readiness`、`criteria.status`、两个分离布尔与 `latest_approval`（最新 revision/decision 元数据，若存在）；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；预检还按精确 ID 查账号，账号不存在或尚未完成初始化时追加 `approver_account_not_found` 并将 `eligible` 置为 false；未知评估返回 404；所有响应 `no-store`。创建/撤销在项目归属校验后同样要求该账号存在且可用（否则 409），只做精确 ID 查询，不提供账号目录或枚举。
 
 内部调用者、非人类 token、无权限账号均被拒绝；跨 owner 返回 404。未知写入不重试，只按原 ID `GET` 对账（含 404）。错误响应不包含内部异常、SQL 或客户端敏感值；所有响应 `Cache-Control: no-store`。
 
