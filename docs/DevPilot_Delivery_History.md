@@ -660,7 +660,7 @@ English: a read-only approval chain verifier checks counts, contiguous revisions
 
 数据集正式批准面板新增独立的“检查批准链完整性”按钮：仅在显式点击后调用 `GET .../approvals/integrity`，要求 32 位十六进制 run ID，显示 `verified` 的批准/事件计数或 `broken` 的固定 blockers；切换项目或 run 时清空旧结果，失败不重试、不写批准/审计，也不读取 document、note、Q/A 或证据。批准 API 客户端新增 `chainIntegrity` 类型化方法与路由测试。
 
-测试先红后绿：面板用例初次因按钮不存在按预期失败；实现后定向 **12 passed**（API 2 + DOM 10），前端完整 **1,372 passed**（含显式加载、broken blockers、run 切换清空与非法 ID 失败关闭），typecheck/ESLint/Prettier 通过。浏览器侧新增 Playwright 用例，在本机已安装 Chrome 上以临时配置运行 `approval-panel.spec.ts` **5 passed**（生产构建 + `next start`；默认 Chromium headless shell 未安装，未下载新浏览器）；临时配置与测试产物已删除。该用例断言显式读取、固定 blockers、无写请求与页面不含 `approval_hash`。精确 SHA CI 另行记录。
+测试先红后绿：面板用例初次因按钮不存在按预期失败；实现后定向 **12 passed**（API 2 + DOM 10），前端完整 **1,372 passed**（含显式加载、broken blockers、run 切换清空与非法 ID 失败关闭），typecheck/ESLint/Prettier 通过。浏览器侧新增 Playwright 用例，在本机已安装 Chrome 上以临时配置运行 `approval-panel.spec.ts` **5 passed**（生产构建 + `next start`；默认 Chromium headless shell 未安装，未下载新浏览器）；临时配置与测试产物已删除。该用例断言显式读取、固定 blockers、无写请求与页面不含 `approval_hash`。该模块随 `91d0a5d` 的 Lint/Blocking IO/Frontend/E2E/Replay E2E/Unit **6 workflows / 11 jobs 全绿**通过精确 SHA CI（Unit `43672925690`）。
 
 English: the approval panel now exposes an explicit, metadata-only chain-integrity check with verified counts or fixed blockers, cleared on project/run changes; it never reads documents/evidence, writes on failure or retries.
 
