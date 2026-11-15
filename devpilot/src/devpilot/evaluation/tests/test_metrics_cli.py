@@ -112,6 +112,51 @@ class MetricsCliTest(unittest.TestCase):
         self.assertTrue(result["within_threshold"])
         self.assertEqual(result["approval"], "not_approved")
 
+    def test_signoff_requirement_projection(self):
+        path = self.write(
+            "signoff.json",
+            {
+                "required_distinct_approvers": 2,
+                "distinct_approved_approvers": 1,
+                "latest_decision": "approved",
+            },
+        )
+        code, output, _ = run("signoff", "--requirement", path)
+        self.assertEqual(code, 0)
+        result = json.loads(output)
+        self.assertEqual(result["schema"], "qa-signoff-requirement.v1")
+        self.assertFalse(result["satisfied"])
+        self.assertEqual(result["blockers"], ["insufficient_approvers"])
+        self.assertEqual(result["approval"], "not_approved")
+
+    def test_signoff_requirement_undefined_policy_is_null(self):
+        path = self.write(
+            "signoff.json",
+            {
+                "required_distinct_approvers": None,
+                "distinct_approved_approvers": 2,
+                "latest_decision": "approved",
+            },
+        )
+        code, output, _ = run("signoff", "--requirement", path)
+        self.assertEqual(code, 0)
+        result = json.loads(output)
+        self.assertIsNone(result["satisfied"])
+        self.assertEqual(result["blockers"], ["multi_level_policy_not_defined"])
+
+    def test_signoff_requirement_rejects_unknown_fields(self):
+        path = self.write(
+            "signoff.json",
+            {
+                "required_distinct_approvers": 1,
+                "distinct_approved_approvers": 1,
+                "latest_decision": "approved",
+                "secret": "SENTINEL",
+            },
+        )
+        code, output, error = run("signoff", "--requirement", path)
+        self.assertEqual((code, output, error), (1, "", "Invalid metric input\n"))
+
     def test_rejects_missing_invalid_oversized_and_non_regular_files(self):
         invalid = self.root / "invalid.json"
         invalid.write_text("{", encoding="utf-8")

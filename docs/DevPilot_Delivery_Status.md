@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- **离线 CLI 支持签核要求（2026-11-15，本地）**：`qa_metrics_cli signoff --requirement` 复用纯要求核心，显式读取有界 JSON 并输出 `qa-signoff-requirement.v1`；未定义策略保持 `satisfied=null`，未接入 App/策略存储。CLI 专项 **11 passed**、evaluation 域 **53 passed**、toolkit **58 passed**、分发 allowlist **47** 成员测试 **72 passed**，Ruff 通过。精确 SHA CI 另行记录。
 - **精确 SHA CI（离线指标 CLI，2026-11-15）**：`178d650bbfbe1377c12ffac24386be3b60da884f` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43702017328)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43702017356)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43702017361) 共 **3 workflows 全部成功**；Unit 覆盖 evaluation/分发 allowlist 测试。
 - **精确 SHA CI（多级签核要求纯核心，2026-11-15）**：`15677b838a695c131126ccccb390975942e0709e` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43703550147)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43703550911)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43703550183) 共 **3 workflows 全部成功**；本地区域 **50 passed**、toolkit **58 passed**、分发 allowlist **47** 成员测试 **72 passed**。
 - **P2 指标离线 CLI（2026-11-15，本地）**：新增 `devpilot.qa_metrics_cli`，对显式普通 JSON 文件输出 TTFT/吞吐、裁判校准或图像差异投影；拒绝符号链接/目录/超限/未知字段，缺失值保持 `null`，无网络/模型/证据读取。evaluation 域 **43 passed**、toolkit **58 passed**、分发 allowlist **45** 成员测试 **72 passed**，Ruff 通过；未接入 App。精确 SHA CI 另行记录。

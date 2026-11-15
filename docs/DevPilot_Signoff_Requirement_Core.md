@@ -40,6 +40,6 @@ PYTHONPATH=devpilot/src python -m unittest discover \
   -s devpilot/src/devpilot/evaluation/tests -p 'test_signoff_policy.py' -v
 ```
 
-**7 passed**；evaluation 域合计 **50 passed**、toolkit **58 passed**；分发 allowlist 同步为 **47** 个成员，分发测试 **72 passed**。
+纯核心专项 **7 passed**；同一核心也通过离线 CLI 暴露（`qa_metrics_cli signoff --requirement ...`，CLI 专项 **11 passed**）。evaluation 域合计 **53 passed**、toolkit **58 passed**；分发 allowlist 为 **47** 个成员，分发测试 **72 passed**。
 
 English: a pure requirement evaluator answers whether an explicitly supplied multi-level sign-off policy is met by aggregate counts. It stores no policy, enforces nothing, is not wired into App and never returns approval.

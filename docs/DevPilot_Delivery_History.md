@@ -775,3 +775,11 @@ English: an offline CLI exposes the existing pure TTFT/throughput, judge-calibra
 测试先红后绿：模块缺失时导入失败；实现后专项 **7 passed**（满足、未定义、不足、撤销/缺失、多个 blockers、零策略、类型伪装），evaluation 域 **50 passed**、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（**47** 成员），分发测试 **72 passed**，Ruff check/format 通过。无迁移、依赖或部署变更。该模块随 `15677b8` 的 Lint/Frontend/Unit **3 workflows 全绿**通过精确 SHA CI（Unit `43703550183`）。
 
 English: a pure requirement evaluator answers whether an explicitly supplied multi-level sign-off policy is met by aggregate counts; it stores no policy, enforces nothing, is not wired into App and never returns approval.
+
+## 离线 CLI 支持签核要求（2026-11-15）
+
+`devpilot.qa_metrics_cli` 新增 `signoff --requirement <json>` 子命令，复用 `qa_signoff_policy.evaluate_signoff_requirement`：输入必须是有界普通 JSON 对象且只含 `required_distinct_approvers`、`distinct_approved_approvers`、`latest_decision` 三个字段；未知字段、类型伪装、越界与非法枚举失败关闭。输出 `qa-signoff-requirement.v1`，策略未定义时 `satisfied=null`，`approval=not_approved`。仍不存储策略、不强制、不读取批准文档，未接入 App。
+
+测试先红后绿：新增满足/不足、未定义策略、未知字段三条 CLI 用例；实现后 CLI 专项 **11 passed**，evaluation 域 **53 passed**、toolkit **58 passed**；分发 allowlist 保持 **47** 成员，分发测试 **72 passed**，Ruff check/format 通过。无迁移、依赖或部署变更；精确 SHA CI 另行记录。
+
+English: the offline CLI now exposes the pure sign-off requirement evaluator over bounded local JSON; it stores no policy, enforces nothing and is not wired into App.

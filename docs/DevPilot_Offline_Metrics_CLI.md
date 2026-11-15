@@ -13,11 +13,14 @@ PYTHONPATH=devpilot/src python -m devpilot.qa_metrics_cli calibration \
   --pairs pairs.json
 PYTHONPATH=devpilot/src python -m devpilot.qa_metrics_cli image-diff \
   --reference reference.json --candidate candidate.json --threshold 2
+PYTHONPATH=devpilot/src python -m devpilot.qa_metrics_cli signoff \
+  --requirement requirement.json
 ```
 
 - `stream`：`qa-stream-metrics.v1`，TTFT/内容吞吐；缺失或不可观测保持 `null`/`unavailable`，不填零。
 - `calibration`：`qa-judge-calibration.v1`，只统计双方确定的 pass/fail 配对；无确定配对时 `insufficient` 且数值为 `null`。
 - `image-diff`：`qa-image-diff.v1`，等尺寸整数像素矩阵与包含式阈值；不读取图片文件、不解码。
+- `signoff`：`qa-signoff-requirement.v1`，按显式 `required_distinct_approvers`/`distinct_approved_approvers`/`latest_decision` 返回 satisfied/固定 blockers；未定义策略时 `satisfied=null`，不存储或强制策略。
 - 所有输出都带 `approval: "not_approved"`；结果不是质量 PASS、证据、正式批准或验收。
 
 ## 输入与失败关闭
@@ -34,7 +37,7 @@ PYTHONPATH=devpilot/src python -m unittest discover \
   -s devpilot/src/devpilot/evaluation/tests -p 'test_metrics_cli.py' -v
 ```
 
-覆盖三条命令的成功输出、`null` 保持、阈值边界、缺失/非法/超限/符号链接输入、未知字段和错误信息不回显；`evaluation` 域合计 **43 passed**，`toolkit` **58 passed**。分发成员 allowlist 同步为 **45** 个第一方源码成员。
+覆盖四条命令的成功输出、`null` 保持、阈值边界、缺失/非法/超限/符号链接输入、未知字段和错误信息不回显；CLI 专项 **11 passed**，`evaluation` 域合计 **53 passed**，`toolkit` **58 passed**。分发成员 allowlist 为 **47** 个第一方源码成员，分发测试 **72 passed**。
 
 ## 明确不包含
 
@@ -42,4 +45,4 @@ PYTHONPATH=devpilot/src python -m unittest discover \
 - 不保存结果、不生成收据、不做来源认证；CLI 成功不是平台证据或正式批准。
 - 无迁移、依赖、部署或权限变更。
 
-English: an explicit offline CLI exposes the pure TTFT/throughput, judge-calibration and image-diff projections over bounded local JSON files. It never uses the network or models, never fills missing metrics with zero, and is not evidence or approval.
+English: an explicit offline CLI exposes the pure TTFT/throughput, judge-calibration, image-diff and sign-off-requirement projections over bounded local JSON files. It never uses the network or models, never fills missing metrics with zero, and is not evidence or approval.

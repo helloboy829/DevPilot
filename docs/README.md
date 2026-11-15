@@ -21,7 +21,7 @@
 
 ## 2026-11-15：离线技术指标 CLI（候选，未接入 App）
 
-[本地 JSON 投影命令](DevPilot_Offline_Metrics_CLI.md)：`python -m devpilot.qa_metrics_cli` 显式读取有界普通文件，输出 TTFT/吞吐、裁判校准或图像差异固定投影；拒绝符号链接/超限/未知字段，缺失值保持 `null`，无网络/模型/证据读取，结果不是 PASS 或批准。
+[本地 JSON 投影命令](DevPilot_Offline_Metrics_CLI.md)：`python -m devpilot.qa_metrics_cli` 显式读取有界普通文件，输出 TTFT/吞吐、裁判校准、图像差异或多级签核要求固定投影；拒绝符号链接/超限/未知字段，缺失值保持 `null`，无网络/模型/证据读取，结果不是 PASS 或批准。
 
 ## 2026-11-15：CV 图像差异纯核心（候选，未接入 App）
 

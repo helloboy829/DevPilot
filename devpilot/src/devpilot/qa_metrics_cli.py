@@ -15,10 +15,18 @@ from pathlib import Path
 
 from .qa_cv_metrics import compute_image_diff
 from .qa_judge_calibration import compute_judge_calibration
+from .qa_signoff_policy import evaluate_signoff_requirement
 from .qa_stream_metrics import compute_stream_metrics
 
 _ERROR = "Invalid metric input"
 _MAX_FILE_BYTES = 1_048_576
+_SIGNOFF_FIELDS = frozenset(
+    {
+        "required_distinct_approvers",
+        "distinct_approved_approvers",
+        "latest_decision",
+    }
+)
 
 
 def _read_json(path):
@@ -65,12 +73,19 @@ def main(argv=None):
     image.add_argument("--reference", required=True)
     image.add_argument("--candidate", required=True)
     image.add_argument("--threshold", type=int, default=0)
+    signoff = operations.add_parser("signoff", allow_abbrev=False)
+    signoff.add_argument("--requirement", required=True)
     try:
         args = parser.parse_args(argv)
         if args.operation == "stream":
             result = compute_stream_metrics(_read_json(args.observation))
         elif args.operation == "calibration":
             result = compute_judge_calibration(_read_json(args.pairs))
+        elif args.operation == "signoff":
+            payload = _read_json(args.requirement)
+            if not isinstance(payload, dict) or set(payload) != _SIGNOFF_FIELDS:
+                raise ValueError(_ERROR)
+            result = evaluate_signoff_requirement(**payload)
         else:
             result = compute_image_diff(
                 _read_json(args.reference),
