@@ -748,6 +748,6 @@ English: a successful decision now refreshes an already-loaded project index ent
 
 批准面板此前在修改评估 ID、评估 hash 或审批人时只清除旧预检，但保留“我确认这是具名人类的显式决定”复选框，可能把为旧目标勾选的同意带到新目标；旧错误/提示也会残留。现在三个目标字段变更会同时撤销显式确认、清除旧错误/提示，提交按钮重新禁用，用户必须再次勾选。
 
-测试先红后绿：新增“修改审批人/评估 hash/评估 ID 后提交禁用、重新勾选后恢复”与“目标变更清除旧错误”用例；实现后面板定向 **25 passed**，前端完整 **1,415 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
+测试先红后绿：新增“修改审批人/评估 hash/评估 ID 后提交禁用、重新勾选后恢复”与“目标变更清除旧错误”用例；实现后面板定向 **25 passed**，前端完整 **1,415 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更。该模块随 `0420ef9` 的 Lint/Frontend/E2E/Replay E2E/Unit **5 workflows 全绿**通过精确 SHA CI（Unit `43696801198`）。
 
 English: editing the assessment ID/hash or approver now also revokes the explicit confirmation checkbox, so consent given for one target cannot submit another.
