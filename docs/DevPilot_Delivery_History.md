@@ -676,6 +676,6 @@ English: the operations workspace now exposes the fixed scheduling-admission den
 
 新增只读 `GET /api/evaluation/projects/{project}/approvals/integrity` 与 `ApprovalRepository.verify_project_approval_chains`：同一项目内按 run 分组，复用运行级链校验（计数、连续 revision/sequence、事件匹配、文档完整性），只返回 `status`、`runs`/`verified_runs`/`broken_runs`、批准/事件计数与固定 blockers，不返回任何 run ID、hash、document 或 note。审计事件存在但无批准时标记 `orphan_audit`；超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`（计数为真实值，不作逐 run 结论）。数据集批准面板新增独立的显式“检查项目批准链”按钮，显示计数/blockers，切换项目或 run 清空，不写批准/审计。
 
-测试先红后绿：仓库层新增聚合、六类篡改、审计无批准与超界用例；路由层覆盖权限、内部 token、跨 owner、匿名拒绝、无敏感字段与不遮蔽单批准读取。批准仓库+路由 **52 passed**（74.24s），Ruff check/format 通过。前端新增 API 路由/面板用例，定向 **16 passed**、完整 **1,403 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 在本机 Chrome 生产构建上以 `workers=1` **6 passed**，临时配置与测试产物已删除。无迁移、依赖、部署或真实调用；精确 SHA CI 另行记录。
+测试先红后绿：仓库层新增聚合、六类篡改、审计无批准与超界用例；路由层覆盖权限、内部 token、跨 owner、匿名拒绝、无敏感字段与不遮蔽单批准读取。批准仓库+路由 **52 passed**（74.24s），Ruff check/format 通过。前端新增 API 路由/面板用例，定向 **16 passed**、完整 **1,403 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 在本机 Chrome 生产构建上以 `workers=1` **6 passed**，临时配置与测试产物已删除。无迁移、依赖、部署或真实调用。该模块随 `78f9148` 的 Lint/Blocking IO/Frontend/E2E/Replay E2E/Unit **6 workflows / 11 jobs 全绿**通过精确 SHA CI（Unit `43676392144`）。
 
 English: an aggregate, read-only project approval-chain summary reuses the run verifier per run and returns only counts and fixed blockers, with explicit orphan-audit and over-limit states; the panel exposes it only on an explicit click.
