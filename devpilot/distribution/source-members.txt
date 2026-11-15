@@ -12,6 +12,7 @@ devpilot/evaluation/tests/test_cv_metrics.py
 devpilot/evaluation/tests/test_judge_calibration.py
 devpilot/evaluation/tests/test_judge_metrics.py
 devpilot/evaluation/tests/test_metrics_cli.py
+devpilot/evaluation/tests/test_signoff_policy.py
 devpilot/evaluation/tests/test_stream_metrics.py
 devpilot/http.py
 devpilot/local_json_run.py
@@ -28,6 +29,7 @@ devpilot/qa_json_response.py
 devpilot/qa_json_run.py
 devpilot/qa_judge_calibration.py
 devpilot/qa_metrics_cli.py
+devpilot/qa_signoff_policy.py
 devpilot/qa_stream_metrics.py
 devpilot/reporting/__init__.py
 devpilot/reporting/project.py

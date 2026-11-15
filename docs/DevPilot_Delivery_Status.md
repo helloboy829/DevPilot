@@ -12,7 +12,7 @@
 | 独立准入、有界 QA Worker、加密采集、人工复核、全样本汇总 | 已实现，执行默认关闭           | 未知交付不重发；采集成功/阈值达标不等于批准                                  |
 | 历史报告/Word 草稿、同基准复测                           | 已实现                         | 草稿与比较不自动批准、不自动再执行                                           |
 | 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF  | 候选代码已实现，未部署         | `eval_0010..0012`；旧 owner 路径保持独立                                     |
-| 正式批准首切片（具名审批、审批人账号校验、职责分离、撤销/审计、只读预检/索引/运行级与项目级链完整性、数据集面板） | 候选代码已实现，未部署 | `eval_0015`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成 |
+| 正式批准首切片（具名审批、审批人账号校验、职责分离、撤销/审计、只读预检/索引/运行级与项目级链完整性、签署进度、数据集面板） | 候选代码已实现，未部署 | `eval_0015`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成 |
 | 授权配置导出与外部技术元数据隔离接收                     | 候选代码已实现，未部署         | `eval_0013..0014`；不接纳敏感输出为可信证据                                  |
 | 独立本地 QA 命令、共享核心、锁定软件分发、加密输出       | 候选代码已实现                 | 默认离线；真实发送与输出模式分别同意                                         |
 | 未完成/损坏本地输出的保留治理                            | 加密运行时和显式管理命令已实现 | 输出前 durable receipt；原 IDs/两个 hash/单独处置同意；无安全擦除保证        |
@@ -35,6 +35,8 @@
 
 ## 最近验证
 
+- **精确 SHA CI（离线指标 CLI，2026-11-15）**：`178d650bbfbe1377c12ffac24386be3b60da884f` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43702017328)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43702017356)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43702017361) 共 **3 workflows 全部成功**；Unit 覆盖 evaluation/分发 allowlist 测试。
+- **多级签核要求纯核心（2026-11-15，本地）**：新增 `evaluate_signoff_requirement`，只按显式所需不同审批人数、已批准人数与最新决定返回 `satisfied`/固定 blockers；未定义策略时 `satisfied=null`，不存储/不强制/不读取批准文档，结果不是批准。专项 **7 passed**，evaluation 域 **50 passed**、toolkit **58 passed**、分发 allowlist **47** 成员测试 **72 passed**，Ruff 通过；未接入 App。精确 SHA CI 另行记录。
 - **P2 指标离线 CLI（2026-11-15，本地）**：新增 `devpilot.qa_metrics_cli`，对显式普通 JSON 文件输出 TTFT/吞吐、裁判校准或图像差异投影；拒绝符号链接/目录/超限/未知字段，缺失值保持 `null`，无网络/模型/证据读取。evaluation 域 **43 passed**、toolkit **58 passed**、分发 allowlist **45** 成员测试 **72 passed**，Ruff 通过；未接入 App。精确 SHA CI 另行记录。
 - **精确 SHA CI（批准面板评估元数据选择，2026-11-15）**：`304ddf8cd4eaa9c73c871202625f462aeeebe3be` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43699070483)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43699070461)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43699070438)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43699070448)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43699070453) 共 **5 workflows 全部成功**；本地面板定向 **30 passed**、前端 **1,418 passed**、浏览器 **8 passed**。
 - **批准面板同意撤销与旧提示清理（2026-11-15，本地）**：修改评估 ID/hash 或审批人时除清除旧预检外，同时撤销显式确认并清除旧错误/提示，避免为旧目标勾选的同意或错误信息被用于新目标。面板定向 **25 passed**，前端完整 **1,415 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；精确 SHA CI 另行记录。
@@ -99,7 +101,7 @@
 | ------ | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
 | P0     | 当前源码 CI、环境与候选升级验收闭环                    | 精确 SHA 门禁、当前镜像源码核对、数据/配置保护、隔离迁移及回退演练；部署另行执行；清单见[候选验收包](DevPilot_Acceptance_Package.md) |
 | P1     | 本地明文副本与更广泛崩溃产物治理、Windows 验收         | 分别绑定原身份/用途/保留同意，旧目录不补造回执；新平台实际安装/锁/处置验证       |
-| P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；不能把 case PASS 当批准；首切片候选已实现，审批人专属身份/多人签核/通知仍未完成 |
+| P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；不能把 case PASS 当批准；首切片候选已实现，多级签核仅纯要求核心且未接入，审批人专属登录/通知仍未完成 |
 | P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入；只读分类合同、调度准入只读诊断与阻塞回归已实现，运维工作台提供显式只读展示；释放/真实准入仍未完成 |
 | P2     | 敏感外部证据治理、CV/流式指标/模型裁判、整改与知识闭环 | 各自授权、隔离、证据/计量与人工审查；缺失指标不填零、不判 PASS；流式 TTFT/吞吐、裁判校准与 CV 图像差异纯核心及离线 CLI 已实现，未接入 App |
 

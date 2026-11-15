@@ -15,6 +15,10 @@
 
 [固定拒绝投影](DevPilot_Scheduling_Admission.md)：管理员显式权限读取 `qa-scheduling-admission.v1`，明确 legacy scheduler 仅覆盖 component tests、QA 链未准入；恒不授权调度/释放/重试，固定 blockers，无 DB/配置/证据读取。运维工作台提供独立的管理员显式点击只读展示（有界严格校验、无重试或调度控件）。
 
+## 2026-11-15：多级签核要求纯核心（候选，未接入 App）
+
+[显式策略下的技术判定](DevPilot_Signoff_Requirement_Core.md)：`evaluate_signoff_requirement` 只根据调用方给出的所需不同审批人数、已批准人数与最新决定返回 satisfied/固定 blockers；策略未定义时 satisfied 为 null，不存储/不强制/不读取批准文档，结果不是批准。
+
 ## 2026-11-15：离线技术指标 CLI（候选，未接入 App）
 
 [本地 JSON 投影命令](DevPilot_Offline_Metrics_CLI.md)：`python -m devpilot.qa_metrics_cli` 显式读取有界普通文件，输出 TTFT/吞吐、裁判校准或图像差异固定投影；拒绝符号链接/超限/未知字段，缺失值保持 `null`，无网络/模型/证据读取，结果不是 PASS 或批准。
