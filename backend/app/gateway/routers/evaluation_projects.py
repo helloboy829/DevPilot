@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.evaluation.approval_capabilities import approval_capabilities
 from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest, ProjectCreate, parse_samples
 from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.execution import ExecutionCreate
@@ -567,6 +568,16 @@ async def get_approval_preflight(project_id: str, run_id: str, assessment_id: st
 async def list_project_approvals(project_id: str, request: Request):
     owner, repository = await _approval_context(request)
     return await _result(repository.list_project_approvals(owner, project_id))
+
+
+@router.get("/{project_id}/approvals/capabilities")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_approval_capabilities(project_id: str, request: Request):
+    owner, repository = await _approval_context(request)
+    async with repository.sf() as session:
+        await _result(repository._project(session, owner, project_id))
+    return approval_capabilities()
 
 
 @router.get("/{project_id}/approvals/integrity")
