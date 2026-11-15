@@ -15,6 +15,10 @@
 
 [固定拒绝投影](DevPilot_Scheduling_Admission.md)：管理员显式权限读取 `qa-scheduling-admission.v1`，明确 legacy scheduler 仅覆盖 component tests、QA 链未准入；恒不授权调度/释放/重试，固定 blockers，无 DB/配置/证据读取。运维工作台提供独立的管理员显式点击只读展示（有界严格校验、无重试或调度控件）。
 
+## 2026-11-15：离线技术指标 CLI（候选，未接入 App）
+
+[本地 JSON 投影命令](DevPilot_Offline_Metrics_CLI.md)：`python -m devpilot.qa_metrics_cli` 显式读取有界普通文件，输出 TTFT/吞吐、裁判校准或图像差异固定投影；拒绝符号链接/超限/未知字段，缺失值保持 `null`，无网络/模型/证据读取，结果不是 PASS 或批准。
+
 ## 2026-11-15：CV 图像差异纯核心（候选，未接入 App）
 
 [整数像素差异统计](DevPilot_CV_Metrics.md)：`devpilot.qa_cv_metrics` 只比较等尺寸整数像素矩阵，输出 changed/ratio/MAE/max 与 identical/within_threshold；不解码、不访问网络、不调用模型，也不是质量或批准。

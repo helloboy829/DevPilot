@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- **P2 指标离线 CLI（2026-11-15，本地）**：新增 `devpilot.qa_metrics_cli`，对显式普通 JSON 文件输出 TTFT/吞吐、裁判校准或图像差异投影；拒绝符号链接/目录/超限/未知字段，缺失值保持 `null`，无网络/模型/证据读取。evaluation 域 **43 passed**、toolkit **58 passed**、分发 allowlist **45** 成员测试 **72 passed**，Ruff 通过；未接入 App。精确 SHA CI 另行记录。
 - **精确 SHA CI（批准面板评估元数据选择，2026-11-15）**：`304ddf8cd4eaa9c73c871202625f462aeeebe3be` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43699070483)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43699070461)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43699070438)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43699070448)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43699070453) 共 **5 workflows 全部成功**；本地面板定向 **30 passed**、前端 **1,418 passed**、浏览器 **8 passed**。
 - **批准面板同意撤销与旧提示清理（2026-11-15，本地）**：修改评估 ID/hash 或审批人时除清除旧预检外，同时撤销显式确认并清除旧错误/提示，避免为旧目标勾选的同意或错误信息被用于新目标。面板定向 **25 passed**，前端完整 **1,415 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；精确 SHA CI 另行记录。
 - **精确 SHA CI（批准面板索引/快照新鲜度，2026-11-15）**：`ca4c01a51777897023abd1d39fa1e59785336aeb` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43695750113)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43695750127)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43695750112)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43695750115)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43695750231) 共 **5 workflows 全部成功**；覆盖写入后本地更新项目索引与显式加载使旧快照失效。
@@ -100,7 +101,7 @@
 | P1     | 本地明文副本与更广泛崩溃产物治理、Windows 验收         | 分别绑定原身份/用途/保留同意，旧目录不补造回执；新平台实际安装/锁/处置验证       |
 | P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；不能把 case PASS 当批准；首切片候选已实现，审批人专属身份/多人签核/通知仍未完成 |
 | P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入；只读分类合同、调度准入只读诊断与阻塞回归已实现，运维工作台提供显式只读展示；释放/真实准入仍未完成 |
-| P2     | 敏感外部证据治理、CV/流式指标/模型裁判、整改与知识闭环 | 各自授权、隔离、证据/计量与人工审查；缺失指标不填零、不判 PASS；流式 TTFT/吞吐、裁判校准与 CV 图像差异纯核心已实现，未接入 App |
+| P2     | 敏感外部证据治理、CV/流式指标/模型裁判、整改与知识闭环 | 各自授权、隔离、证据/计量与人工审查；缺失指标不填零、不判 PASS；流式 TTFT/吞吐、裁判校准与 CV 图像差异纯核心及离线 CLI 已实现，未接入 App |
 
 开发环境恢复不必等所有 P1/P2 功能完成；正式质量验收依赖独立批准及相应业务能力。具体交付以模块退出条件为准，项目整体尚未完成。
 

@@ -759,3 +759,11 @@ English: editing the assessment ID/hash or approver now also revokes the explici
 测试先红后绿：新增客户端路由断言、显式加载/选择填充、选择撤销同意、run 切换清除列表用例，以及 E2E 选择后输入值断言。面板定向 **30 passed**，前端完整 **1,418 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **8 passed**。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更。该模块随 `304ddf8` 的 Lint/Frontend/E2E/Replay E2E/Unit **5 workflows 全绿**通过精确 SHA CI（Unit `43699070453`）。
 
 English: the approval panel can explicitly load run assessment metadata and fill the pinned assessment ID/hash from a selected revision; it never reads assessment documents and revokes consent on selection.
+
+## P2 指标离线 CLI（2026-11-15）
+
+新增 `devpilot.qa_metrics_cli`：`python -m devpilot.qa_metrics_cli stream|calibration|image-diff` 只读取操作者显式指定的本地 JSON，分别调用已有 `qa_stream_metrics`、`qa_judge_calibration`、`qa_cv_metrics` 纯核心。输入必须是普通文件（拒绝符号链接/目录）、1 字节–1 MiB，打开后复核设备/inode 与读取长度；严格 UTF-8 JSON，核心层继续拒绝未知字段、类型伪装、越界与非法阈值。错误只输出固定 `Invalid metric input`，不反射路径或输入；无网络、模型、App 证据/数据库读取，不写/删文件，所有输出仍为 `approval: not_approved`。
+
+测试先红后绿：CLI 模块缺失时导入失败；实现后 `test_metrics_cli.py` **8 passed**，覆盖三命令成功输出、缺失值保持 `null`、阈值边界、缺失/非法/超限/符号链接、未知字段与不回显参数；evaluation 域 **43 passed**、toolkit **58 passed**。分发 allowlist 同步新增源码与测试（**45** 成员），`tests/test_local_qa_distribution.py` **72 passed**，Ruff check/format 通过。未接入 App 证据/API/UI，无迁移、依赖或部署变更；精确 SHA CI 另行记录。
+
+English: an offline CLI exposes the existing pure TTFT/throughput, judge-calibration and image-diff cores over bounded local JSON files, with no network, model, App evidence access or approval.
