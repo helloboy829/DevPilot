@@ -652,3 +652,88 @@ it("clears sign-off progress after a recorded decision", async () => {
   await screen.findByText(/Recorded revision 1 \(approved\)/);
   expect(screen.queryByText(/Sign-off progress/)).toBeNull();
 });
+
+it("updates the project index after a recorded decision", async () => {
+  state.api.projectApprovals.mockResolvedValue([
+    {
+      run_id: run,
+      id: "d".repeat(32),
+      revision: 1,
+      decision: "approved",
+      assessment_id: assessment,
+      assessment_hash: hash,
+      created_at_ms: 1,
+    },
+  ]);
+  state.api.create.mockResolvedValue({
+    ...approval,
+    id: "e".repeat(32),
+    revision: 2,
+    decision: "revoked",
+    created_at_ms: 2,
+  });
+  panel();
+  fillTarget();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load project approvals" }),
+  );
+  await screen.findByText(`${run} · r1 approved`);
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Record approval / revocation" }),
+  );
+  await screen.findByText(/Recorded revision 2 \(revoked\)/);
+  expect(screen.getByText(`${run} · r2 revoked`)).toBeTruthy();
+  expect(screen.queryByText(`${run} · r1 approved`)).toBeNull();
+});
+
+it("invalidates chain and sign-off snapshots on an explicit run reload", async () => {
+  state.api.runApprovals.mockResolvedValue([]);
+  state.api.runAudit.mockResolvedValue([]);
+  state.api.chainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain.v1",
+    scope: "approval_audit_chain_only",
+    status: "verified",
+    approvals: 0,
+    events: 0,
+    blockers: [],
+  });
+  state.api.signoffProgress.mockResolvedValue({
+    schema: "qa-approval-signoff.v1",
+    scope: "approval_signoff_progress_only",
+    policy: "not_defined",
+    required_distinct_approvers: null,
+    revisions: 0,
+    distinct_approvers: 0,
+    distinct_approved_approvers: 0,
+    approved_revisions: 0,
+    revoked_revisions: 0,
+    latest_revision: null,
+    latest_decision: null,
+    multi_level_satisfied: null,
+    blockers: [
+      "multi_level_policy_not_defined",
+      "approver_login_not_implemented",
+    ],
+  });
+  panel();
+  fireEvent.change(screen.getByLabelText("Run ID"), {
+    target: { value: run },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval chain integrity" }),
+  );
+  await screen.findByText("Chain verified: 0 approvals / 0 events");
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Check approver sign-off progress",
+    }),
+  );
+  await screen.findByText(/Sign-off progress: 0 revisions/);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load run approvals and audit" }),
+  );
+  await screen.findByText("No approvals for this run yet.");
+  expect(screen.queryByText(/Chain verified/)).toBeNull();
+  expect(screen.queryByText(/Sign-off progress/)).toBeNull();
+});

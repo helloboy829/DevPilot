@@ -174,14 +174,38 @@ test("records an explicit approval with a generated original ID", async ({
       });
       return route.fulfill({
         json: {
+          schema: "qa-run-formal-approval.v1",
+          scope: "formal_approval_decision",
           id: "d".repeat(32),
+          project_id: "p1",
+          run_id: run,
           revision: 1,
+          created_at_ms: 1,
+          recorded_by: "owner",
+          assessment: {
+            id: assessment,
+            revision: 1,
+            assessment_hash: hash,
+            summary_hash: "e".repeat(64),
+          },
+          counts: { pass: 2, fail: 0, uncertain: 0, unreviewed: 0 },
+          human_pass_rate: { numerator: 2, denominator: 2, value: 1 },
+          criteria: { status: "not_defined" },
+          readiness: "review_complete",
           decision: "approved",
           approver_id: approver,
+          note: null,
+          approval_hash: "f".repeat(64),
         },
       });
     },
   );
+  await panel
+    .getByRole("button", { name: "Load project approvals", exact: true })
+    .click();
+  await expect(
+    panel.getByText("No approvals in this project yet."),
+  ).toBeVisible();
   await panel.getByLabel("Run ID", { exact: true }).fill(run);
   await panel.getByLabel("Assessment ID", { exact: true }).fill(assessment);
   await panel.getByLabel("Assessment hash", { exact: true }).fill(hash);
@@ -197,6 +221,9 @@ test("records an explicit approval with a generated original ID", async ({
   await expect(
     panel.getByText(/Recorded revision 1 \(approved\)/),
   ).toBeVisible();
+  await expect(panel.getByLabel("Approval run", { exact: true })).toContainText(
+    `${run} · r1 approved`,
+  );
   expect(writes).toHaveLength(1);
   expect(writes[0]!.url).toMatch(/\/approvals\/[0-9a-f]{32}$/);
   expect(writes[0]!.body).toEqual({

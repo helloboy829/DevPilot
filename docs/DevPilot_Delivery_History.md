@@ -732,6 +732,14 @@ English: two consecutive Unit jobs were cancelled by the 15-minute job cap (one 
 
 新增 `ApprovalRepository.approval_signoff_progress` 与 `GET /api/evaluation/projects/{project}/review-runs/{run}/approvals/sign-off`：按 revision 读取批准元数据，只返回修订数、不同审批人数、有批准记录的不同审批人数、批准/撤销修订数、最新 revision/decision，并固定 `policy="not_defined"`、`required_distinct_approvers=null`、`multi_level_satisfied=null` 与 blockers `multi_level_policy_not_defined`、`approver_login_not_implemented`。不返回 ID、hash、document 或 note，也不把多审批人计数当作已满足多级签核。批准面板新增独立的显式“检查签署进度”按钮，写入或对账后清除旧结果。
 
-测试先红后绿：仓库层覆盖空集、单批准、跨审批人撤销、未知 run/owner 与聚合字段；路由层覆盖空/有数据、权限、内部 token、跨 owner、匿名与敏感字段。仓库+路由+迁移 **57 passed**（105.48s），Ruff 通过。前端新增类型化客户端、面板与 E2E 用例，定向 **23 passed**、完整 **1,411 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无迁移、依赖或部署变更，精确 SHA CI 另行记录。
+测试先红后绿：仓库层覆盖空集、单批准、跨审批人撤销、未知 run/owner 与聚合字段；路由层覆盖空/有数据、权限、内部 token、跨 owner、匿名与敏感字段。仓库+路由+迁移 **57 passed**（105.48s），Ruff 通过。前端新增类型化客户端、面板与 E2E 用例，定向 **23 passed**、完整 **1,411 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无迁移、依赖或部署变更。该模块随 `50627eb` 的 Lint/Blocking IO/Frontend/E2E/Replay E2E/Unit **6 workflows 全绿**通过精确 SHA CI（Unit `43693775242`）。
 
 English: a read-only aggregate sign-off progress endpoint reports revision, distinct-approver and decision counts with fixed "policy not defined" blockers; it never returns identifiers, hashes or documents, and multiple approvers are not treated as satisfied multi-level sign-off.
+
+## 批准面板索引与快照新鲜度（2026-11-15）
+
+继续修复批准工作台的状态一致性：成功创建/撤销后，已加载的项目索引仍显示旧 revision/decision，且显式加载运行批准后，先前显示的链完整性与签署进度快照可能已过期。现在成功写入会在本地把对应 run 的项目索引条目更新为最新 revision/decision（未加载索引时不发起新请求，也不新增 run 以外的条目）；显式加载运行批准会清空旧链完整性与签署进度快照，要求重新检查。仍不自动轮询、不自动读取、不重试或替换 ID。
+
+测试先红后绿：新增“写入后更新项目索引”“显式加载使链/签署快照失效”用例；E2E 创建用例先加载空项目索引，写入后断言选择器更新为 `r1 approved`。初次 E2E 因测试桩只返回部分批准字段导致页面崩溃（组件按真实 ApprovalView 读取 assessment/created_at_ms），将桩补齐为真实响应结构，未削弱产品断言。面板定向 **23 passed**，前端完整 **1,413 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **7 passed**。临时配置与测试产物已删除；无后端、迁移、依赖或部署变更，精确 SHA CI 另行记录。
+
+English: a successful decision now refreshes an already-loaded project index entry locally, and an explicit run reload invalidates stale chain/sign-off snapshots; no automatic index fetch, polling or retry is added.

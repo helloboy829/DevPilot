@@ -128,6 +128,9 @@ export function EvaluationApprovalPanel({
       if (at === epoch.current) {
         setRunRows(rows);
         setAudit(events);
+        setIntegrity(null);
+        setProjectIntegrity(null);
+        setSignoff(null);
         const pending = pendingApprovals.get(key);
         if (pending && rows.some((row) => row.id === pending)) {
           pendingApprovals.delete(key);
@@ -287,6 +290,21 @@ export function EvaluationApprovalPanel({
       pendingApprovals.delete(key);
       if (at === epoch.current) {
         setRunRows((rows) => [result, ...(rows ?? [])]);
+        setProjectRows((rows) => {
+          if (!rows) return rows;
+          const next = {
+            run_id: runId,
+            id: result.id,
+            revision: result.revision,
+            decision: result.decision,
+            assessment_id: result.assessment.id,
+            assessment_hash: result.assessment.assessment_hash,
+            created_at_ms: result.created_at_ms,
+          };
+          return rows.some((row) => row.run_id === runId)
+            ? rows.map((row) => (row.run_id === runId ? next : row))
+            : [next, ...rows];
+        });
         setIntegrity(null);
         setProjectIntegrity(null);
         setSignoff(null);
