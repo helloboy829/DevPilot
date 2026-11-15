@@ -796,6 +796,6 @@ English: an explicit metadata-only inventory reports whether known local QA resi
 
 签署进度端点新增可选查询参数 `required_distinct_approvers=1..10`：存在时调用 `devpilot.qa_signoff_policy.evaluate_signoff_requirement`，在响应中附加 `requirement`（`qa-signoff-requirement.v1`），仅供对照当前聚合计数；不存在时响应不变。策略不保存、不强制，`policy` 仍为 `not_defined`、`multi_level_satisfied` 仍为 `null`，批准写入/撤销/链校验不变。面板新增“拟议所需审批人数（仅咨询）”输入，显示 advisory 结果并明确“不保存、不强制”；修改输入清除旧 advisory 结果，切换项目/run 清除输入。
 
-测试先红后绿：新增路由参数（2 不足、1 满足、无参数无 requirement、0/11 返回 422、无写入）、客户端查询参数、面板 advisory 展示与非法输入用例；初次 E2E 因 Playwright route 未匹配带查询字符串的 URL 失败，改用 `sign-off**` glob，保留原断言。批准仓库+路由+迁移 **58 passed**（133.34s），Ruff 通过；前端定向 **32 passed**、完整 **1,420 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **8 passed**。无迁移、依赖或部署变更；精确 SHA CI 另行记录。
+测试先红后绿：新增路由参数（2 不足、1 满足、无参数无 requirement、0/11 返回 422、无写入）、客户端查询参数、面板 advisory 展示与非法输入用例；初次 E2E 因 Playwright route 未匹配带查询字符串的 URL 失败，改用 `sign-off**` glob，保留原断言。批准仓库+路由+迁移 **58 passed**（133.34s），Ruff 通过；前端定向 **32 passed**、完整 **1,420 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **8 passed**。无迁移、依赖或部署变更。该模块随 `c684588` 的 Lint/Blocking IO/Frontend/E2E/Replay E2E/Unit **6 workflows 全绿**通过精确 SHA CI（Unit `43708763253`）。
 
 English: the sign-off endpoint may attach an advisory requirement computed from an explicitly supplied approver count. No policy is stored or enforced, and approval semantics are unchanged.
