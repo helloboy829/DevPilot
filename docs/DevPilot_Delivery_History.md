@@ -815,3 +815,11 @@ English: the existing retention CLI now exposes the same metadata-only residue i
 测试先红后绿：模块缺失时收集失败；实现后专项 **5 passed**（通过投影、逐项 blocker、非法端口、CLI JSON 与非零阻断），Ruff check/format 通过。该工具不替代 Windows 实际安装、锁/删除、浏览器或部署验收；无迁移、依赖或运行时变更。该模块随 `66d7c82` 的 Lint/Blocking IO/Frontend/Unit **4 workflows 全绿**通过精确 SHA CI（Unit `43711405360`）。
 
 English: a read-only host preflight checks Windows platform, Docker CLI presence, loopback port, free disk and private-config file presence only; it never reads config contents, starts services or constitutes deployment/acceptance.
+
+## 批准能力边界诊断（2026-11-15）
+
+新增 `app.evaluation.approval_capabilities.approval_capabilities` 与 `GET /api/evaluation/projects/{project}/approvals/capabilities`：固定输出 `qa-approval-capabilities.v1`，明确审批人专属登录、通知、强制多级签核与批准导出均未实现，owner 仍代为记录，多级政策仅咨询，`approval=not_authorized`，blockers 固定排序。路由只做人类、权限与项目归属校验，不读取批准、账号或证据；每次返回独立列表副本。
+
+测试先红后绿：模块/端点缺失时失败；实现后专项+路由 **24 passed**，覆盖固定投影、返回值隔离、权限/内部 token/跨 owner/匿名拒绝、GET-only 与不遮蔽批准列表；Ruff check/format 通过。无迁移、依赖或部署变更，精确 SHA CI 另行记录。
+
+English: a fixed read-only capability projection states that approver login, notifications, enforced multi-level sign-off and approval export are not implemented; it reads no approval/account/evidence data and grants no authority.
