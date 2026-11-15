@@ -3,6 +3,8 @@ import { z } from "zod";
 import { fetch as authenticatedFetch } from "@/core/api/fetcher";
 import { getBackendBaseURL } from "@/core/config";
 
+import { readBoundedJSON } from "./bounded-json";
+
 export const reservationStates = [
   "queued",
   "running",
@@ -82,51 +84,15 @@ const maxBytes = 16_384;
 export async function loadReservationSnapshot(
   signal: AbortSignal,
 ): Promise<ReservationSnapshot> {
-  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
     const response = await authenticatedFetch(
       `${getBackendBaseURL()}/api/evaluation/operations/reservations`,
       { method: "GET", cache: "no-store", signal },
     );
-    if (
-      !response.ok ||
-      response.headers
-        .get("content-type")
-        ?.split(";")[0]
-        ?.trim()
-        .toLowerCase() !== "application/json"
-    ) {
-      void response.body?.cancel().catch(() => undefined);
-      throw safeError();
-    }
-    const length = response.headers.get("content-length");
-    if (
-      length !== null &&
-      (!/^\d+$/.test(length) || Number(length) > maxBytes)
-    ) {
-      void response.body?.cancel().catch(() => undefined);
-      throw safeError();
-    }
-    if (!response.body) throw safeError();
-    reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8", { fatal: true });
-    let size = 0;
-    let text = "";
-    while (true) {
-      signal.throwIfAborted();
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > maxBytes) throw safeError();
-      text += decoder.decode(value, { stream: true });
-    }
-    signal.throwIfAborted();
-    text += decoder.decode();
-    return parseReservationSnapshot(JSON.parse(text));
+    return parseReservationSnapshot(
+      await readBoundedJSON(response, signal, maxBytes, safeError),
+    );
   } catch {
-    if (reader) void reader.cancel().catch(() => undefined);
     throw safeError();
-  } finally {
-    reader?.releaseLock();
   }
 }

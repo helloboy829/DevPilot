@@ -11,12 +11,13 @@
 - 独立显示响应进程的执行开关/策略上限，不相减推断可用配额，不把超过当前策略的真实占用截断为上限。
 - 时间是查询前采集的 Unix 毫秒，不是心跳。达到 deadline 不证明 Worker 或远端处理已停止；策略也不是全局进程一致性回执。
 - 没有释放、回收、过期、重试、发送、取消、配置或启用执行按钮。没有轮询、后台加载、自动重试、导出、持久化缓存或敏感证据读取。
+- 同页提供独立的“加载调度准入诊断”只读区块（[调度准入合同](DevPilot_Scheduling_Admission.md)）：同样仅在显式点击后读取固定拒绝投影，显示 legacy scheduler 仅覆盖 component tests、QA 链未准入与固定 blockers；使用独立请求锁与 abort/fence，不解析或显示任何 ID、证据或授权变更，也不新增调度/释放控件。
 
 ## 严格读取与认证
 
 `core/evaluation/execution-operations.ts` 只向固定 `/api/evaluation/operations/reservations` 使用已有 authenticated fetcher，GET + `cache: no-store` + AbortSignal，保留原有 cookie/401 行为，不新建认证通道。
 
-响应必须为成功 JSON MIME，声明及实际流均不超过 **16,384 bytes**。流式严格 UTF-8 解码、JSON 和 strict schema 校验失败一律安全拒绝：固定 scope/policy_scope/liveness，四个 authority 必须 literal false；所有计数/时间必须是非负安全整数；策略范围等于后端；顶层/嵌套额外字段和缺失状态拒绝。以 BigInt 累加五态总数，精确核对全局 held/deadline，逐态 deadline 不大于 held；不运行浏览器阈值/授权引擎。
+响应必须为成功 JSON MIME，声明及实际流均不超过 **16,384 bytes**。流式严格 UTF-8 解码、JSON 和 strict schema 校验失败一律安全拒绝：固定 scope/policy_scope/liveness，四个 authority 必须 literal false；所有计数/时间必须是非负安全整数；策略范围等于后端；顶层/嵌套额外字段和缺失状态拒绝。以 BigInt 累加五态总数，精确核对全局 held/deadline，逐态 deadline 不大于 held；不运行浏览器阈值/授权引擎。调度准入区块复用同一有界读取器，并要求固定 scope、`component_tests_only`、三个 literal `false` 与固定 blocker allowlist。
 
 错误只展示通用文案，不读取/反射 HTTP 错误 body，不输出 raw JSON、异常、服务器细节或标识符。未授权身份在页面内无加载控件；UI 角色判断仅控制展示，**服务器 admin + `evaluation_operations:read` 和 internal-Agent 拒绝仍是安全边界**。
 

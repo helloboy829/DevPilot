@@ -33,6 +33,12 @@
 
 至少需要：版本化调度合同、目标/数据/操作员授权绑定、旧 Worker 不能发送的证据与 fence、CAS/竞争与取消语义、配额处置和独立审计。无法证明时保持阻塞；未知请求绝不重发，不能以 deadline 或历史健康代替证明。
 
+## 运维工作台展示
+
+`/workspace/operations` 在执行预留诊断下方提供独立的“加载调度准入诊断”按钮：只有管理员身份渲染，点击后才通过既有 authenticated fetcher 以 GET + `no-store` + AbortSignal 读取固定端点。`core/evaluation/scheduling-admission.ts` 使用共享有界 JSON 读取器（成功 JSON MIME、声明与实际流均 ≤16 KiB、严格 UTF-8），并以 strict schema 校验固定 scope、`component_tests_only`、三个 literal `false` 与固定 blocker allowlist（不重复）；未知字段、类型伪装、越界或篡改一律失败关闭。错误只显示通用文案，不读取或反射响应 body，不自动重试；切换账号、角色、auth refresh 或卸载时 abort 并在 await 后 fence 旧结果，页面不持久化快照。
+
+该展示只是诊断读取，不新增释放/调度/重试控件，也不改变服务器 admin + `evaluation_operations:read` 的安全边界。
+
 ## 明确不包含
 
 - 无调度、释放、回收、重排队、重试、发送、执行或开关变更；无迁移、依赖、部署或真实调用。
@@ -45,6 +51,6 @@ cd backend
 uv run pytest tests/test_scheduling_admission.py -q --tb=short
 ```
 
-覆盖固定投影、返回值隔离、管理员+显式权限 200/`no-store`、缺权限/内部 token/非管理员/匿名拒绝、仅 GET（POST 405）。
+覆盖固定投影、返回值隔离、管理员+显式权限 200/`no-store`、缺权限/内部 token/非管理员/匿名拒绝、仅 GET（POST 405）。前端工作台展示由 `tests/unit/core/evaluation/scheduling-admission.test.ts`、`execution-operations-panel.dom.test.tsx` 与 `tests/e2e/execution-operations.spec.ts` 覆盖。
 
-English: a fixed read-only projection states that QA-chain scheduling is not admitted, keeps the legacy scheduler scoped to component tests, and never authorizes dispatch, release or retry. It is a diagnostic, not a scheduling contract or liveness proof.
+English: a fixed read-only projection states that QA-chain scheduling is not admitted, keeps the legacy scheduler scoped to component tests, and never authorizes dispatch, release or retry. The operations workspace reads it only on an explicit admin click with strict bounded validation and no retry; it is a diagnostic, not a scheduling contract or liveness proof.

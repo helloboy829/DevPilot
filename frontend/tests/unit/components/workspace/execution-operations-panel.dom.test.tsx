@@ -11,9 +11,11 @@ import { ExecutionOperationsPanel } from "@/components/workspace/execution-opera
 import type { User } from "@/core/auth/types";
 
 import fixture from "../../../fixtures/reservation-snapshot";
+import admission from "../../../fixtures/scheduling-admission";
 
 const state = rs.hoisted(() => ({
   load: rs.fn(),
+  loadAdmission: rs.fn(),
   user: null as User | null,
   loading: false,
 }));
@@ -26,6 +28,9 @@ rs.mock("@/core/evaluation/execution-operations", () => ({
     "interrupted",
   ],
   loadReservationSnapshot: state.load,
+}));
+rs.mock("@/core/evaluation/scheduling-admission", () => ({
+  loadSchedulingAdmission: state.loadAdmission,
 }));
 rs.mock("@/core/auth/AuthProvider", () => ({
   useAuth: () => ({
@@ -45,6 +50,8 @@ beforeEach(() => {
   state.loading = false;
   state.load.mockReset();
   state.load.mockResolvedValue(fixture);
+  state.loadAdmission.mockReset();
+  state.loadAdmission.mockResolvedValue(admission);
 });
 afterEach(cleanup);
 const button = () =>
@@ -72,7 +79,7 @@ it("does not load on mount or locale change; loads only explicit aggregate data 
   view.rerender(<ExecutionOperationsPanel zh />);
   expect(screen.getByText(/仅响应进程的策略/)).toBeTruthy();
   expect(state.load).toHaveBeenCalledTimes(1);
-  expect(screen.getAllByRole("button")).toHaveLength(1);
+  expect(screen.getAllByRole("button")).toHaveLength(2);
 });
 it("locks synchronous duplicate clicks and clears an old snapshot before explicit reload", async () => {
   render(<ExecutionOperationsPanel zh={false} />);
@@ -170,5 +177,57 @@ it.each([null, { ...admin(), system_role: "user" as const }])(
     render(<ExecutionOperationsPanel zh={false} />);
     expect(screen.queryByRole("button")).toBeNull();
     expect(state.load).not.toHaveBeenCalled();
+    expect(state.loadAdmission).not.toHaveBeenCalled();
   },
 );
+
+it("loads scheduling admission only on its own explicit click and shows fixed denials", async () => {
+  render(<ExecutionOperationsPanel zh={false} />);
+  expect(state.loadAdmission).not.toHaveBeenCalled();
+  expect(screen.getByText(/only covers component tests/)).toBeTruthy();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load scheduling admission" }),
+  );
+  await screen.findByTestId("scheduling-admission");
+  expect(screen.getByText("QA chain admitted: No")).toBeTruthy();
+  expect(screen.getByText("Dispatch authorized: No")).toBeTruthy();
+  expect(screen.getByText("Release authorized: No")).toBeTruthy();
+  expect(screen.getByText("no_versioned_admission_contract")).toBeTruthy();
+  expect(state.loadAdmission).toHaveBeenCalledTimes(1);
+  expect(state.load).not.toHaveBeenCalled();
+});
+
+it("shows a generic admission error without retry or reflecting details", async () => {
+  state.loadAdmission.mockRejectedValueOnce(new Error("SECRET-SENTINEL"));
+  render(<ExecutionOperationsPanel zh={false} />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load scheduling admission" }),
+  );
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).not.toContain("SECRET-SENTINEL");
+  expect(alert.textContent).toContain("No automatic retry");
+  expect(state.loadAdmission).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId("scheduling-admission")).toBeNull();
+});
+
+it("aborts a pending admission read and hides it at account change", async () => {
+  let resolve!: (value: typeof admission) => void;
+  const promise = new Promise<typeof admission>((yes) => {
+    resolve = yes;
+  });
+  state.loadAdmission.mockReturnValueOnce(promise);
+  const view = render(<ExecutionOperationsPanel zh={false} />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load scheduling admission" }),
+  );
+  const signal = state.loadAdmission.mock.calls[0]?.[0] as AbortSignal;
+  state.user = admin("admin-b");
+  view.rerender(<ExecutionOperationsPanel zh={false} />);
+  expect(signal.aborted).toBe(true);
+  await act(async () => {
+    resolve(admission);
+    await promise;
+  });
+  expect(screen.queryByTestId("scheduling-admission")).toBeNull();
+  expect(state.loadAdmission).toHaveBeenCalledTimes(1);
+});

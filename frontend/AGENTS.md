@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Read-only scheduling admission section (2026-11-15)
+
+`ExecutionOperationsPanel` renders the scheduling-admission diagnostic in its own account-keyed section with an independent request lock, abort controller and post-await fences. Only an explicit admin click may call `GET /api/evaluation/operations/scheduling-admission`; the client requires the fixed `qa-scheduling-admission.v1` scope, `component_tests_only`, three literal `false` authorities and a unique allowlisted blocker list over the shared 16-KiB bounded JSON reader. Keep the fixed-denial text and blockers literal, never add dispatch/release/retry controls, retries, polling or persistence, and keep errors generic. [Contract](../docs/DevPilot_Scheduling_Admission.md).
+
 ## Formal approval chain integrity panel (2026-11-15)
 
 `EvaluationApprovalPanel` exposes a separate "Check approval chain integrity" action next to the explicit run-approval load. It requires a 32-hex run ID, calls only the metadata-only `qa-approval-chain.v1` GET, renders `verified` counts or the fixed `broken` blockers, and clears the result whenever project or run changes. It never fetches approval documents, notes, Q/A or evidence, never writes on failure, and never retries. Keep the explicit-click boundary: mounting the panel must not call the integrity endpoint. [Contract](../docs/DevPilot_Formal_Approval.md).

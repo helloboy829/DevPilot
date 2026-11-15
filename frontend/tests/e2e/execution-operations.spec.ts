@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import fixture from "../fixtures/reservation-snapshot";
+import admission from "../fixtures/scheduling-admission";
 
 import { mockLangGraphAPI } from "./utils/mock-api";
 
@@ -139,4 +140,40 @@ test("role refresh hides the stable admin entry and fences a late diagnostic res
     page.getByRole("button", { name: "Load reservation snapshot" }),
   ).toHaveCount(0);
   expect(calls).toBe(1);
+});
+test("scheduling admission loads only on explicit click with fixed denials", async ({
+  page,
+}) => {
+  mockLangGraphAPI(page);
+  let calls = 0;
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/evaluation/operations/"))
+      requests.push(new URL(request.url()).pathname);
+  });
+  await page.route(
+    "**/api/evaluation/operations/scheduling-admission",
+    (route) => {
+      calls++;
+      return route.fulfill({ json: admission });
+    },
+  );
+  await page.goto("/workspace/operations");
+  expect(calls).toBe(0);
+  await page.getByRole("button", { name: "Load scheduling admission" }).click();
+  await expect(page.getByTestId("scheduling-admission")).toBeVisible();
+  await expect(page.getByText("QA chain admitted: No")).toBeVisible();
+  await expect(page.getByText("Dispatch authorized: No")).toBeVisible();
+  await expect(page.getByText("Release authorized: No")).toBeVisible();
+  await expect(page.getByText("no_versioned_admission_contract")).toBeVisible();
+  expect(calls).toBe(1);
+  expect(requests).toEqual(["/api/evaluation/operations/scheduling-admission"]);
+  const stored = await page.evaluate(() =>
+    JSON.stringify({
+      local: { ...localStorage },
+      session: { ...sessionStorage },
+    }),
+  );
+  expect(stored).not.toContain("qa_scheduling_admission_diagnostic_only");
+  await expect(page.getByTestId("reservation-snapshot")).toHaveCount(0);
 });

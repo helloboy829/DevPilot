@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- **调度准入工作台展示（2026-11-15，本地）**：新增共享有界 JSON 读取器与 `scheduling-admission.ts` 严格客户端，`ExecutionOperationsPanel` 增加独立请求锁/abort/fence 的只读区块。定向（新客户端 + 预留客户端 + 面板 DOM）**83 passed**；前端完整 **1,399 passed**；typecheck/ESLint/Prettier 通过。`execution-operations.spec.ts` 在本机 Chrome 生产构建上按 CI 模式 `workers=1` **5 passed**；并行本地运行时既有导航断言出现 1 次失败（快照未卸载），串行与单测复跑通过，未改断言、超时或重试。临时配置与测试产物已删除；精确 SHA CI 另行记录。
 - **精确 SHA CI（批准审计链完整性，2026-11-15）**：`3f849f13981cbe67201dcb2b9b499b2e0885419f` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43671927105)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43671927084)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43671927228)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43671927129)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43671927193) 共 **5 workflows / 10 jobs 全部成功**；批准套件（仓库+路由+迁移）本地 **43 passed**，链验证只返回固定元数据与 blockers。
 - **精确 SHA CI（QA 调度准入只读诊断，2026-11-15）**：`f0235ac23cec0d86775b1e2c89e2b0d42eba30e1` 的 [Unit](https://github.com/helloboy829/DevPilot/actions/runs/43670710309)、[Lint](https://github.com/helloboy829/DevPilot/actions/runs/43670710163)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43670710105)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43670710095)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43670710094) 共 **5 workflows 全部成功**；该 SHA 新增固定拒绝投影、管理员路由与路由清单回归，不动 DB/调度/执行。
 - **精确 SHA CI（lifespan 确定性修复，2026-11-15）**：`805c6489ea038251a688034c872106e3bcd22e09` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43646997103)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43646997089)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43646997109)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43646997095) 共 **4 workflows 全部成功**；Unit 的完整套件通过，确认计时测试确定性修复有效。
@@ -82,7 +83,7 @@
 | P0     | 当前源码 CI、环境与候选升级验收闭环                    | 精确 SHA 门禁、当前镜像源码核对、数据/配置保护、隔离迁移及回退演练；部署另行执行；清单见[候选验收包](DevPilot_Acceptance_Package.md) |
 | P1     | 本地明文副本与更广泛崩溃产物治理、Windows 验收         | 分别绑定原身份/用途/保留同意，旧目录不补造回执；新平台实际安装/锁/处置验证       |
 | P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；不能把 case PASS 当批准；首切片候选已实现，审批人专属身份/多人签核/通知仍未完成 |
-| P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入；只读分类合同、调度准入只读诊断与阻塞回归已实现，释放/真实准入仍未完成 |
+| P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入；只读分类合同、调度准入只读诊断与阻塞回归已实现，运维工作台提供显式只读展示；释放/真实准入仍未完成 |
 | P2     | 敏感外部证据治理、CV/流式指标/模型裁判、整改与知识闭环 | 各自授权、隔离、证据/计量与人工审查；缺失指标不填零、不判 PASS；流式 TTFT/吞吐、裁判校准与 CV 图像差异纯核心已实现，未接入 App |
 
 开发环境恢复不必等所有 P1/P2 功能完成；正式质量验收依赖独立批准及相应业务能力。具体交付以模块退出条件为准，项目整体尚未完成。

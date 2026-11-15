@@ -663,3 +663,11 @@ English: a read-only approval chain verifier checks counts, contiguous revisions
 测试先红后绿：面板用例初次因按钮不存在按预期失败；实现后定向 **12 passed**（API 2 + DOM 10），前端完整 **1,372 passed**（含显式加载、broken blockers、run 切换清空与非法 ID 失败关闭），typecheck/ESLint/Prettier 通过。浏览器侧新增 Playwright 用例，在本机已安装 Chrome 上以临时配置运行 `approval-panel.spec.ts` **5 passed**（生产构建 + `next start`；默认 Chromium headless shell 未安装，未下载新浏览器）；临时配置与测试产物已删除。该用例断言显式读取、固定 blockers、无写请求与页面不含 `approval_hash`。精确 SHA CI 另行记录。
 
 English: the approval panel now exposes an explicit, metadata-only chain-integrity check with verified counts or fixed blockers, cleared on project/run changes; it never reads documents/evidence, writes on failure or retries.
+
+## 调度准入运维工作台展示（2026-11-15）
+
+新增 `core/evaluation/scheduling-admission.ts` 与共享 `core/evaluation/bounded-json.ts`：调度准入客户端只向固定端点发 GET + `no-store` + AbortSignal，使用 16 KiB 有界 JSON 读取器与 strict schema，要求固定 `qa-scheduling-admission.v1` scope、`component_tests_only`、三个 literal `false` 与不重复的 blocker allowlist；保留执行预留诊断既有的 MIME/声明/流上限与严格 UTF-8 行为（原读取逻辑提取为共享 helper）。`ExecutionOperationsPanel` 新增独立区块、按钮、请求锁、abort 与 await 后 fence，只在管理员显式点击时读取；错误仅显示通用文案，无自动重试、轮询、持久化或调度/释放控件。
+
+测试先红后绿：新客户端与面板用例初始因模块/按钮缺失按预期失败；实现后定向（新客户端 + 预留客户端 + 面板 DOM）**83 passed**，前端完整 **1,399 passed**，typecheck/ESLint/Prettier 通过。浏览器侧 `execution-operations.spec.ts` 在本机 Chrome 生产构建上以 `workers=1`（与 CI 一致）**5 passed**；同一规格并行本地运行时既有“重新进入不恢复快照”断言出现 1 次失败，串行与单独复跑通过，未改断言/超时/重试，保留为本地并行观察。临时 Playwright 配置与测试产物已删除。无后端、迁移、依赖或部署变更；精确 SHA CI 另行记录。
+
+English: the operations workspace now exposes the fixed scheduling-admission denial only on an explicit admin click, using a shared bounded JSON reader with strict schema validation, an independent request lock/abort/fence and no retry or dispatch controls.

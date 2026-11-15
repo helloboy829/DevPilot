@@ -13,7 +13,7 @@
 
 ## 2026-11-15：QA 调度准入只读诊断（候选，未部署）
 
-[固定拒绝投影](DevPilot_Scheduling_Admission.md)：管理员显式权限读取 `qa-scheduling-admission.v1`，明确 legacy scheduler 仅覆盖 component tests、QA 链未准入；恒不授权调度/释放/重试，固定 blockers，无 DB/配置/证据读取。
+[固定拒绝投影](DevPilot_Scheduling_Admission.md)：管理员显式权限读取 `qa-scheduling-admission.v1`，明确 legacy scheduler 仅覆盖 component tests、QA 链未准入；恒不授权调度/释放/重试，固定 blockers，无 DB/配置/证据读取。运维工作台提供独立的管理员显式点击只读展示（有界严格校验、无重试或调度控件）。
 
 ## 2026-11-15：CV 图像差异纯核心（候选，未接入 App）
 

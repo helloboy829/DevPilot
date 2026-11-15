@@ -9,6 +9,10 @@ import {
   reservationStates,
   type ReservationSnapshot,
 } from "@/core/evaluation/execution-operations";
+import {
+  loadSchedulingAdmission,
+  type SchedulingAdmission,
+} from "@/core/evaluation/scheduling-admission";
 
 export function ExecutionOperationsPanel({ zh }: { zh: boolean }) {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -213,6 +217,103 @@ function AccountSnapshot({ zh }: { zh: boolean }) {
               </div>
             ))}
           </dl>
+        </div>
+      )}
+      <SchedulingAdmissionSection zh={zh} />
+    </section>
+  );
+}
+
+function SchedulingAdmissionSection({ zh }: { zh: boolean }) {
+  const [admission, setAdmission] = useState<SchedulingAdmission | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const alive = useRef(false);
+  const locked = useRef(false);
+  const controller = useRef<AbortController | null>(null);
+  useLayoutEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      controller.current?.abort();
+    };
+  }, []);
+  async function load() {
+    if (!alive.current || locked.current) return;
+    locked.current = true;
+    const request = new AbortController();
+    controller.current = request;
+    setAdmission(null);
+    setFailed(false);
+    setBusy(true);
+    const current = () =>
+      alive.current &&
+      controller.current === request &&
+      !request.signal.aborted;
+    try {
+      const result = await loadSchedulingAdmission(request.signal);
+      if (current()) setAdmission(result);
+    } catch {
+      if (current()) setFailed(true);
+    } finally {
+      if (current()) {
+        locked.current = false;
+        controller.current = null;
+        setBusy(false);
+      }
+    }
+  }
+  return (
+    <section
+      className="space-y-2 rounded-md border p-3 text-sm"
+      aria-label={
+        zh ? "QA 调度准入只读诊断" : "Read-only QA scheduling admission"
+      }
+    >
+      <h2 className="font-semibold">
+        {zh ? "QA 调度准入" : "QA scheduling admission"}
+      </h2>
+      <p>
+        {zh
+          ? "只读固定拒绝投影：legacy scheduler 仅覆盖 component tests；QA 链未准入，不能调度、释放、重试或发送。"
+          : "Read-only fixed denial: the legacy scheduler only covers component tests; the QA chain is not admitted and cannot dispatch, release, retry or resend."}
+      </p>
+      <Button type="button" disabled={busy} onClick={() => void load()}>
+        {zh ? "加载调度准入诊断" : "Load scheduling admission"}
+      </Button>
+      {busy && <p role="status">{zh ? "正在加载…" : "Loading…"}</p>}
+      {failed && (
+        <p role="alert">
+          {zh
+            ? "调度准入诊断暂不可用。未自动重试；如需再次读取，请手动加载。"
+            : "Scheduling admission unavailable. No automatic retry; load manually for another read."}
+        </p>
+      )}
+      {admission && (
+        <div data-testid="scheduling-admission" className="space-y-1">
+          <p>
+            {zh
+              ? "调度器范围：仅 component tests"
+              : "Scheduler scope: component tests only"}
+          </p>
+          <p>
+            {zh ? "QA 链已准入：" : "QA chain admitted: "}
+            {zh ? "否" : "No"}
+          </p>
+          <p>
+            {zh ? "调度授权：" : "Dispatch authorized: "}
+            {zh ? "否" : "No"}
+          </p>
+          <p>
+            {zh ? "释放授权：" : "Release authorized: "}
+            {zh ? "否" : "No"}
+          </p>
+          <p>{zh ? "固定阻塞项" : "Fixed blockers"}</p>
+          <ul className="list-disc pl-5 font-mono">
+            {admission.blockers.map((blocker) => (
+              <li key={blocker}>{blocker}</li>
+            ))}
+          </ul>
         </div>
       )}
     </section>
