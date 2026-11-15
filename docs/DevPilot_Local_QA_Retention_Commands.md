@@ -53,6 +53,6 @@ python -I -m devpilot.local_qa_retention reconcile-disposal \
 
 离线回归使用真实 receipt、锁和文件 API，覆盖独立同意、原 ID/hash、未到期、无输出、缺失元数据、未知 unlink/fsync/完成回执、中断和 stdout 丢失。真实独立 module 进程拒绝业务/执行模块导入、DNS/socket 和 Fernet 解密；软件分发验证另在新 no-system-site venv 完整离线安装 12 个锁定运行依赖，执行实际已安装的三条命令并检查缺同意/重复处置拒绝。
 
-不新增依赖、迁移、平台 API、部署或真实请求。plaintext 副本、更广泛崩溃产物、Windows 实际安装/持锁删除和正式批准仍独立待验收；Linux 结果不能替代它们。逐轮结果见[交付状态](DevPilot_Delivery_Status.md)与[历史](DevPilot_Delivery_History.md)。
+保留管理入口也提供 `residue-inventory --directory ... --confirm-metadata-only-directory-inventory`，仅报告固定残留文件名的元数据，不读内容、不发现其他文件、不删除。不新增依赖、迁移、平台 API、部署或真实请求。plaintext 副本、更广泛崩溃产物、Windows 实际安装/持锁删除和正式批准仍独立待验收；Linux 结果不能替代它们。逐轮结果见[交付状态](DevPilot_Delivery_Status.md)与[历史](DevPilot_Delivery_History.md)。
 
 English: Explicit inspect, separately consented expired disposal and original-ID read-only reconciliation reuse the existing bounded retention API. No key, decryption, execution, retry, repair, new-ID replacement or secure-erasure/provenance/approval claim is added. Unknown results retain the original IDs and files; installed-software and platform acceptance are separate gates.

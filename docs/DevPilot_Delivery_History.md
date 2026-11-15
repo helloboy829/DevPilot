@@ -799,3 +799,11 @@ English: an explicit metadata-only inventory reports whether known local QA resi
 测试先红后绿：新增路由参数（2 不足、1 满足、无参数无 requirement、0/11 返回 422、无写入）、客户端查询参数、面板 advisory 展示与非法输入用例；初次 E2E 因 Playwright route 未匹配带查询字符串的 URL 失败，改用 `sign-off**` glob，保留原断言。批准仓库+路由+迁移 **58 passed**（133.34s），Ruff 通过；前端定向 **32 passed**、完整 **1,420 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **8 passed**。无迁移、依赖或部署变更。该模块随 `c684588` 的 Lint/Blocking IO/Frontend/E2E/Replay E2E/Unit **6 workflows 全绿**通过精确 SHA CI（Unit `43708763253`）。
 
 English: the sign-off endpoint may attach an advisory requirement computed from an explicitly supplied approver count. No policy is stored or enforced, and approval semantics are unchanged.
+
+## 保留 CLI 接入残留清单（2026-11-15）
+
+`local_qa_retention` 新增 `residue-inventory` 子命令，直接复用 `local_qa_residue.inventory_directory`：参数为显式目录与 `--confirm-metadata-only-directory-inventory`，输出同一 `local-qa-directory-residue.v1`；不新增读取、发现、删除或保留期语义。这样运维可从既有保留管理入口完成只读残留观察。
+
+测试先红后绿：新增保留 CLI 入口用例；实现后残留专项 **7 passed**，evaluation 域 **60 passed**、toolkit **58 passed**；`test_local_qa_distribution.py` + `test_local_qa_retention.py` 联合 **112 passed**，Ruff check/format 通过。无迁移、依赖或部署变更；精确 SHA CI 另行记录。
+
+English: the existing retention CLI now exposes the same metadata-only residue inventory, without adding content reads, discovery, deletion or retention semantics.

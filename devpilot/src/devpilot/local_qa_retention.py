@@ -4,7 +4,8 @@ An incomplete output is never authenticated, resumed, repaired, or resent.  A
 small durable receipt records the frozen identity before a collector can create
 the sensitive output file.  Expired cleanup is an explicit, one-shot unlink
 with a same-ID read-only reconciliation path when the unlink or its receipt is
-uncertain.
+uncertain.  A separate metadata-only inventory reports known residue names
+without reading or deleting content.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
+from .local_qa_residue import inventory_directory
 from .local_qa_output import (
     _ERROR,
     _FILE,
@@ -66,21 +68,31 @@ def _identity_tuple(info):
 
 
 def _regular(info, limit, *, empty=False):
-    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not (0 if empty else 1) <= info.st_size <= limit:
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or info.st_nlink != 1
+        or not (0 if empty else 1) <= info.st_size <= limit
+    ):
         raise ValueError(_ERROR)
     if os.name == "posix" and (info.st_uid != os.getuid() or info.st_mode & 0o077):
         raise ValueError(_ERROR)
 
 
 def _stable(path, descriptor, original):
-    if _identity_tuple(os.fstat(descriptor)) != _identity_tuple(original) or _identity_tuple(os.lstat(path)) != _identity_tuple(original):
+    if _identity_tuple(os.fstat(descriptor)) != _identity_tuple(
+        original
+    ) or _identity_tuple(os.lstat(path)) != _identity_tuple(original):
         raise ValueError(_ERROR)
 
 
 def _open_regular(path, limit, *, empty=False, writable=False):
     original = os.lstat(path)
     _regular(original, limit, empty=empty)
-    flags = (os.O_RDWR if writable else os.O_RDONLY) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    flags = (
+        (os.O_RDWR if writable else os.O_RDONLY)
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+    )
     descriptor = os.open(path, flags)
     try:
         info = os.fstat(descriptor)
@@ -94,7 +106,9 @@ def _open_regular(path, limit, *, empty=False, writable=False):
 
 def _open_lock(directory: Path, *, exclusive: bool) -> int:
     # Read-only operations must never recreate a missing/corrupt lease marker.
-    descriptor, _ = _open_regular(directory / _LOCK, 1, empty=True, writable=os.name == "nt")
+    descriptor, _ = _open_regular(
+        directory / _LOCK, 1, empty=True, writable=os.name == "nt"
+    )
     try:
         _lock(descriptor, exclusive=exclusive)
         return descriptor
@@ -104,7 +118,9 @@ def _open_lock(directory: Path, *, exclusive: bool) -> int:
 
 
 def _write_exclusive(path, data):
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    descriptor = os.open(
+        path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600
+    )
     try:
         if os.write(descriptor, data) != len(data):
             raise OSError(_ERROR)
@@ -133,7 +149,9 @@ def _validate_manifest(manifest) -> dict:
         raise ValueError(_ERROR) from None
 
 
-def _receipt_payload(run_id: str, manifest, *, created_at_ms: int, retention_seconds: int) -> dict:
+def _receipt_payload(
+    run_id: str, manifest, *, created_at_ms: int, retention_seconds: int
+) -> dict:
     if not _uuid(run_id) or not _integer(retention_seconds, 300, 2_592_000):
         raise ValueError(_ERROR)
     values = _validate_manifest(manifest)
@@ -214,21 +232,37 @@ def _validate_receipt(value: dict, *, run_id: str, manifest_fingerprint: str) ->
         or value["manifest_fingerprint"] != manifest_fingerprint
         or value["output_file"] != _FILE
         or value["verdict"] != "NOT_EVALUATED"
-        or any(value[name] is not False for name in ("platform_provenance_verified", "resend_permitted", "resume_permitted"))
+        or any(
+            value[name] is not False
+            for name in (
+                "platform_provenance_verified",
+                "resend_permitted",
+                "resume_permitted",
+            )
+        )
         or not _uuid(run_id)
         or not _hash(manifest_fingerprint)
         or not _integer(value["created_at_ms"], 1, 2**53 - 1)
         or not _integer(value["retention_seconds"], 300, 2_592_000)
-        or value["expires_at_ms"] != value["created_at_ms"] + value["retention_seconds"] * 1000
+        or value["expires_at_ms"]
+        != value["created_at_ms"] + value["retention_seconds"] * 1000
         or not _integer(value["expires_at_ms"], 1, 2**53 - 1)
         or not _integer(value["request_count"], 1, 10_000)
         or not _integer(value["concurrency"], 1, 64)
         or not _integer(value["timeout_ms"], 100, 300_000)
-        or not _integer(value["duration_ms"], 1000, min(3_600_000, value["retention_seconds"] * 1000))
+        or not _integer(
+            value["duration_ms"],
+            1000,
+            min(3_600_000, value["retention_seconds"] * 1000),
+        )
         or not _integer(value["input_count"], 1, min(500, value["request_count"]))
         or not _integer(value["max_response_bytes"], 1, 1_048_576)
         or not _integer(value["max_total_request_bytes"], 1, 67_108_864)
-        or not _integer(value["max_total_response_bytes"], value["max_response_bytes"] + 1, 67_108_864)
+        or not _integer(
+            value["max_total_response_bytes"],
+            value["max_response_bytes"] + 1,
+            67_108_864,
+        )
     ):
         raise ValueError(_ERROR)
     return value
@@ -242,7 +276,9 @@ def _output_descriptor(directory, limit, *, exclusive=False):
         return
     descriptor = None
     try:
-        descriptor, info = _open_regular(path, limit, empty=True, writable=exclusive and os.name == "nt")
+        descriptor, info = _open_regular(
+            path, limit, empty=True, writable=exclusive and os.name == "nt"
+        )
         _lock(descriptor, exclusive=exclusive)
         _stable(path, descriptor, info)
         yield descriptor, info
@@ -271,11 +307,17 @@ def _output_hash(directory, descriptor, info, limit):
     return digest.hexdigest()
 
 
-def _identity(directory: Path, expected_run_id: str, expected_manifest_fingerprint: str) -> tuple[dict, str]:
+def _identity(
+    directory: Path, expected_run_id: str, expected_manifest_fingerprint: str
+) -> tuple[dict, str]:
     if not _uuid(expected_run_id) or not _hash(expected_manifest_fingerprint):
         raise ValueError(_ERROR)
     receipt, receipt_bytes = _read_json_bytes(directory / _RECEIPT, 16 * 1024)
-    receipt = _validate_receipt(receipt, run_id=expected_run_id, manifest_fingerprint=expected_manifest_fingerprint)
+    receipt = _validate_receipt(
+        receipt,
+        run_id=expected_run_id,
+        manifest_fingerprint=expected_manifest_fingerprint,
+    )
     return receipt, hashlib.sha256(receipt_bytes).hexdigest()
 
 
@@ -297,10 +339,14 @@ class RetentionLease:
         self.close()
 
 
-def create_retention_receipt(directory, run_id: str, manifest, *, retention_seconds: int, now_ms=None) -> RetentionLease:
+def create_retention_receipt(
+    directory, run_id: str, manifest, *, retention_seconds: int, now_ms=None
+) -> RetentionLease:
     try:
         created = _clock(now_ms)
-        receipt = _receipt_payload(run_id, manifest, created_at_ms=created, retention_seconds=retention_seconds)
+        receipt = _receipt_payload(
+            run_id, manifest, created_at_ms=created, retention_seconds=retention_seconds
+        )
         path = Path(directory).absolute()
         path.mkdir(mode=0o700, parents=False, exist_ok=False)
         _directory(path)
@@ -310,7 +356,9 @@ def create_retention_receipt(directory, run_id: str, manifest, *, retention_seco
         try:
             encoded = _encode(receipt) + b"\n"
             _write_exclusive(path / _RECEIPT, encoded)
-            return RetentionLease(run_id, hashlib.sha256(encoded).hexdigest(), descriptor)
+            return RetentionLease(
+                run_id, hashlib.sha256(encoded).hexdigest(), descriptor
+            )
         except BaseException:
             os.close(descriptor)
             raise
@@ -318,12 +366,16 @@ def create_retention_receipt(directory, run_id: str, manifest, *, retention_seco
         raise ValueError(_ERROR) from None
 
 
-def inspect_retention(directory, *, expected_run_id: str, expected_manifest_fingerprint: str, now_ms=None) -> dict:
+def inspect_retention(
+    directory, *, expected_run_id: str, expected_manifest_fingerprint: str, now_ms=None
+) -> dict:
     try:
         path = _directory(directory)
         descriptor = _open_lock(path, exclusive=False)
         try:
-            receipt, receipt_hash = _identity(path, expected_run_id, expected_manifest_fingerprint)
+            receipt, receipt_hash = _identity(
+                path, expected_run_id, expected_manifest_fingerprint
+            )
             limit = _maximum(receipt)
             with _output_descriptor(path, limit) as (source, info):
                 source_hash = _output_hash(path, source, info, limit)
@@ -354,7 +406,9 @@ def inspect_retention(directory, *, expected_run_id: str, expected_manifest_fing
         raise ValueError(_ERROR) from None
 
 
-def _validate_disposal(value: dict, *, run_id: str, manifest_fingerprint: str, disposal_id: str) -> dict:
+def _validate_disposal(
+    value: dict, *, run_id: str, manifest_fingerprint: str, disposal_id: str
+) -> dict:
     names = {
         "schema",
         "scope",
@@ -381,7 +435,15 @@ def _validate_disposal(value: dict, *, run_id: str, manifest_fingerprint: str, d
         or value["verdict"] != "NOT_EVALUATED"
         or not _hash(value["retention_receipt_sha256"])
         or not _hash(value["source_ciphertext_sha256"])
-        or any(value[name] is not False for name in ("platform_provenance_verified", "resend_permitted", "resume_permitted", "secure_erasure_proven"))
+        or any(
+            value[name] is not False
+            for name in (
+                "platform_provenance_verified",
+                "resend_permitted",
+                "resume_permitted",
+                "secure_erasure_proven",
+            )
+        )
     ):
         raise ValueError(_ERROR)
     return value
@@ -398,7 +460,12 @@ def dispose_incomplete_output(
     confirm_incomplete_output_disposal: bool,
     now_ms=None,
 ) -> dict:
-    if confirm_incomplete_output_disposal is not True or not _uuid(disposal_id) or not _hash(source_ciphertext_sha256) or not _hash(retention_receipt_sha256):
+    if (
+        confirm_incomplete_output_disposal is not True
+        or not _uuid(disposal_id)
+        or not _hash(source_ciphertext_sha256)
+        or not _hash(retention_receipt_sha256)
+    ):
         raise ValueError(_ERROR)
     try:
         path = _directory(directory)
@@ -406,8 +473,13 @@ def dispose_incomplete_output(
         try:
             if os.path.lexists(path / _REQUEST) or os.path.lexists(path / _COMPLETE):
                 raise ValueError
-            receipt, receipt_hash = _identity(path, expected_run_id, expected_manifest_fingerprint)
-            if receipt_hash != retention_receipt_sha256 or _clock(now_ms) < receipt["expires_at_ms"]:
+            receipt, receipt_hash = _identity(
+                path, expected_run_id, expected_manifest_fingerprint
+            )
+            if (
+                receipt_hash != retention_receipt_sha256
+                or _clock(now_ms) < receipt["expires_at_ms"]
+            ):
                 raise ValueError
             limit = _maximum(receipt)
             # Retain the SAME output descriptor and exclusive lock through both
@@ -434,8 +506,13 @@ def dispose_incomplete_output(
                 _write_exclusive(path / _REQUEST, _encode(intent) + b"\n")
                 if _output_hash(path, source, original, limit) != output_hash:
                     raise ValueError
-                _, current_hash = _identity(path, expected_run_id, expected_manifest_fingerprint)
-                if current_hash != receipt_hash or _clock(now_ms) < receipt["expires_at_ms"]:
+                _, current_hash = _identity(
+                    path, expected_run_id, expected_manifest_fingerprint
+                )
+                if (
+                    current_hash != receipt_hash
+                    or _clock(now_ms) < receipt["expires_at_ms"]
+                ):
                     raise ValueError
                 _stable(path / _FILE, source, original)
                 os.unlink(path / _FILE)
@@ -449,23 +526,52 @@ def dispose_incomplete_output(
         raise ValueError(_ERROR) from None
 
 
-def reconcile_incomplete_disposal(directory, *, expected_run_id: str, expected_manifest_fingerprint: str, disposal_id: str) -> dict:
-    if not _uuid(disposal_id) or not _uuid(expected_run_id) or not _hash(expected_manifest_fingerprint):
+def reconcile_incomplete_disposal(
+    directory,
+    *,
+    expected_run_id: str,
+    expected_manifest_fingerprint: str,
+    disposal_id: str,
+) -> dict:
+    if (
+        not _uuid(disposal_id)
+        or not _uuid(expected_run_id)
+        or not _hash(expected_manifest_fingerprint)
+    ):
         raise ValueError(_ERROR)
     try:
         path = _directory(directory)
         descriptor = _open_lock(path, exclusive=False)
         try:
-            _, receipt_hash = _identity(path, expected_run_id, expected_manifest_fingerprint)
-            request = _validate_disposal(_read_json(path / _REQUEST, 16 * 1024), run_id=expected_run_id, manifest_fingerprint=expected_manifest_fingerprint, disposal_id=disposal_id)
+            _, receipt_hash = _identity(
+                path, expected_run_id, expected_manifest_fingerprint
+            )
+            request = _validate_disposal(
+                _read_json(path / _REQUEST, 16 * 1024),
+                run_id=expected_run_id,
+                manifest_fingerprint=expected_manifest_fingerprint,
+                disposal_id=disposal_id,
+            )
             if request["retention_receipt_sha256"] != receipt_hash:
                 raise ValueError
             completion_present = False
             if os.path.lexists(path / _COMPLETE):
                 completion = _read_json(path / _COMPLETE, 16 * 1024)
-                completion_body = {name: value for name, value in completion.items() if name != "output_removed"}
-                _validate_disposal(completion_body, run_id=expected_run_id, manifest_fingerprint=expected_manifest_fingerprint, disposal_id=disposal_id)
-                if completion.get("output_removed") is not True or completion_body != request:
+                completion_body = {
+                    name: value
+                    for name, value in completion.items()
+                    if name != "output_removed"
+                }
+                _validate_disposal(
+                    completion_body,
+                    run_id=expected_run_id,
+                    manifest_fingerprint=expected_manifest_fingerprint,
+                    disposal_id=disposal_id,
+                )
+                if (
+                    completion.get("output_removed") is not True
+                    or completion_body != request
+                ):
                     raise ValueError(_ERROR)
                 completion_present = True
             return {
@@ -488,7 +594,7 @@ def main(argv=None):
             raise ValueError(_ERROR)
 
     parser = Parser(
-        description="Explicit local retention inspection/disposal/reconciliation. Content remains unverified / NOT_EVALUATED; expiry is not secure erasure.",
+        description="Explicit local retention inspection/disposal/reconciliation and metadata-only residue inventory. Content remains unverified / NOT_EVALUATED; expiry is not secure erasure.",
         allow_abbrev=False,
     )
     operations = parser.add_subparsers(dest="operation", required=True)
@@ -502,14 +608,37 @@ def main(argv=None):
         if operation == "dispose-expired":
             command.add_argument("--confirm-retention-receipt-sha256", required=True)
             command.add_argument("--confirm-ciphertext-sha256", required=True)
-            command.add_argument("--confirm-incomplete-output-disposal", action="store_true", required=True)
+            command.add_argument(
+                "--confirm-incomplete-output-disposal",
+                action="store_true",
+                required=True,
+            )
+    residue = operations.add_parser("residue-inventory", allow_abbrev=False)
+    residue.add_argument("--directory", required=True)
+    residue.add_argument(
+        "--confirm-metadata-only-directory-inventory",
+        action="store_true",
+        required=True,
+    )
     try:
         args = parser.parse_args(argv)
-        common = {"expected_run_id": args.run_id, "expected_manifest_fingerprint": args.manifest_fingerprint}
+        if args.operation == "residue-inventory":
+            result = inventory_directory(
+                args.directory,
+                confirm_metadata_only_inventory=args.confirm_metadata_only_directory_inventory,
+            )
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        common = {
+            "expected_run_id": args.run_id,
+            "expected_manifest_fingerprint": args.manifest_fingerprint,
+        }
         if args.operation == "inspect":
             result = inspect_retention(args.directory, **common)
         elif args.operation == "reconcile-disposal":
-            result = reconcile_incomplete_disposal(args.directory, **common, disposal_id=args.disposal_id)
+            result = reconcile_incomplete_disposal(
+                args.directory, **common, disposal_id=args.disposal_id
+            )
         else:
             result = dispose_incomplete_output(
                 args.directory,

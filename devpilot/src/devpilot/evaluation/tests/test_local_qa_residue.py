@@ -11,6 +11,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from devpilot.local_qa_residue import inventory_directory, main
+from devpilot.local_qa_retention import main as retention_main
 
 KNOWN = (
     "incomplete-output-disposal-complete.json",
@@ -85,6 +86,23 @@ class DirectoryResidueTest(unittest.TestCase):
         (self.root / "run-receipt.json").symlink_to(target)
         with self.assertRaises(ValueError):
             inventory_directory(self.root, confirm_metadata_only_inventory=True)
+
+    def test_retention_cli_exposes_residue_inventory(self):
+        (self.root / "observations.jsonl").write_text("x", encoding="utf-8")
+        output, error = io.StringIO(), io.StringIO()
+        with redirect_stdout(output), redirect_stderr(error):
+            code = retention_main(
+                [
+                    "residue-inventory",
+                    "--directory",
+                    str(self.root),
+                    "--confirm-metadata-only-directory-inventory",
+                ]
+            )
+        self.assertEqual((code, error.getvalue()), (0, ""))
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["schema"], "local-qa-directory-residue.v1")
+        self.assertTrue(result["plaintext_copy_present"])
 
     def test_cli_outputs_projection_and_never_echoes_errors(self):
         code, output, error = run(

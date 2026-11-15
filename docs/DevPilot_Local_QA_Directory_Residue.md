@@ -10,6 +10,11 @@
 PYTHONPATH=devpilot/src python -m devpilot.local_qa_residue inventory \
   --directory /path/to/result \
   --confirm-metadata-only-directory-inventory
+
+# 同一实现也可从保留管理命令进入
+PYTHONPATH=devpilot/src python -m devpilot.local_qa_retention residue-inventory \
+  --directory /path/to/result \
+  --confirm-metadata-only-directory-inventory
 ```
 
 固定清单：`run-receipt.json`、`retention-receipt.json`、`retention.lock`、`observations.encrypted.jsonl`、`observations.jsonl`、`incomplete-output-disposal-request.json`、`incomplete-output-disposal-complete.json`。
@@ -31,7 +36,7 @@ PYTHONPATH=devpilot/src python -m unittest discover \
   -s devpilot/src/devpilot/evaluation/tests -p 'test_local_qa_residue.py' -v
 ```
 
-覆盖已知文件/缺失文件、纯元数据、未知文件忽略、显式确认、非目录与符号链接拒绝、CLI 成功与错误不回显。专项 **6 passed**；evaluation 域 **59 passed**、toolkit **58 passed**；分发 allowlist **49** 成员，分发测试 **72 passed**。
+覆盖已知文件/缺失文件、纯元数据、未知文件忽略、显式确认、非目录与符号链接拒绝、CLI 成功与错误不回显。专项 **7 passed**（含保留 CLI 入口）；evaluation 域 **60 passed**、toolkit **58 passed**；分发 allowlist **49** 成员；相关后端分发/保留测试 **112 passed**。
 
 ## 明确不包含
 
