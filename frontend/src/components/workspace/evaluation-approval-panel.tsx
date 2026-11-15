@@ -230,6 +230,21 @@ export function EvaluationApprovalPanel({
         >
           {zh ? "加载项目批准" : "Load project approvals"}
         </Button>
+        {projectRows && projectRows.length > 0 ? (
+          <select
+            aria-label={zh ? "批准运行" : "Approval run"}
+            className="bg-background rounded-md border px-3 py-2 text-sm"
+            value={projectRows.some((row) => row.run_id === runId) ? runId : ""}
+            onChange={(event) => setRunId(event.target.value)}
+          >
+            <option value="">{zh ? "选择运行" : "Select run"}</option>
+            {projectRows.map((row) => (
+              <option key={row.run_id} value={row.run_id}>
+                {`${row.run_id} · r${row.revision} ${row.decision}`}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <Input
           aria-label={zh ? "运行 ID" : "Run ID"}
           value={runId}

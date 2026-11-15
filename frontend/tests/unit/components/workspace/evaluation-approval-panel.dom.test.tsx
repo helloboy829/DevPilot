@@ -112,6 +112,29 @@ it("loads project approvals only after an explicit click", async () => {
   expect(state.api.projectApprovals).toHaveBeenCalledWith("p1");
 });
 
+it("selects a run from loaded project metadata without reading it", async () => {
+  state.api.projectApprovals.mockResolvedValue([
+    {
+      run_id: run,
+      id: "d".repeat(32),
+      revision: 2,
+      decision: "revoked",
+      assessment_id: assessment,
+      assessment_hash: hash,
+      created_at_ms: 1,
+    },
+  ]);
+  panel();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load project approvals" }),
+  );
+  const selector = await screen.findByLabelText("Approval run");
+  fireEvent.change(selector, { target: { value: run } });
+  expect(screen.getByLabelText<HTMLInputElement>("Run ID").value).toBe(run);
+  expect(state.api.runApprovals).not.toHaveBeenCalled();
+  expect(state.api.runAudit).not.toHaveBeenCalled();
+});
+
 it("shows preflight blockers and latest approval", async () => {
   state.api.preflight.mockResolvedValue({
     schema: "qa-approval-preflight.v1",
