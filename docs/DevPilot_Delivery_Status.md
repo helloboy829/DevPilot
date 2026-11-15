@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- **Windows 宿主预检工具（2026-11-15，本地）**：新增只读 `scripts/windows_acceptance_preflight.py`，检查平台、Docker CLI、回环端口、磁盘与私有配置是否存在，不读配置内容/不启动服务；输出固定 blockers，退出码只表示前置检查。专项 **5 passed**，Ruff 通过；不代表 Windows 或部署验收。精确 SHA CI 另行记录。
 - **保留 CLI 入口接入残留清单（2026-11-15，本地）**：`local_qa_retention residue-inventory` 复用同一仅元数据实现；专项 **7 passed**、evaluation 域 **60 passed**、toolkit **58 passed**，分发/保留后端 **112 passed**，Ruff 通过。精确 SHA CI 另行记录。
 - **精确 SHA CI（多级签核咨询接入，2026-11-15）**：`c684588293bfa47a286cd9aca139876a1e5b4013` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43708763243)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43708763361)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43708763309)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43708763281)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43708763388)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43708763253) 共 **6 workflows 全部成功**；本地批准套件 **58 passed**、前端 **1,420 passed**、浏览器 **8 passed**。
 - **精确 SHA CI（目录残留清单，2026-11-15）**：`c001bdf6eccbe1049b594adb40bc4a904f971cbe` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43707464732)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43707464726)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43707464738) 共 **3 workflows 全部成功**；本地区域 **59 passed**、toolkit **58 passed**、分发 **72 passed**；明文治理仍不完整。
