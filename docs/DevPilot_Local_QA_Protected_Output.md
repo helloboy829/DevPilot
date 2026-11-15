@@ -76,7 +76,7 @@ receipt 是可信本地文件系统上的**未认证声明**，hash 不是签名
 
 2026-11-14：[显式管理命令](DevPilot_Local_QA_Retention_Commands.md)提供 `python -I -m devpilot.local_qa_retention inspect / dispose-expired / reconcile-disposal`。处置须原 run/manifest/disposal IDs、receipt/ciphertext 两个 hash 和单独同意；没有默认操作、latest、自动 ID、key/时间覆盖、repair/resume 或后台删除。未知结果包括 stdout 丢失，只对原 disposal ID 只读核对，不重跑处置或换 ID。
 
-**仍未完成：** 明文副本及更广泛崩溃产物治理、Windows 实际安装/持锁删除验收。备份、文件系统快照、SSD、swap/进程内存及已打开明文副本均不在安全擦除证明范围内。
+**仍未完成：** 明文副本及更广泛崩溃产物治理、Windows 实际安装/持锁删除验收。新增[目录残留清单](DevPilot_Local_QA_Directory_Residue.md)只做固定文件名的仅元数据观察，不读取、移动或删除副本，也不建立保留期；备份、文件系统快照、SSD、swap/进程内存及已打开明文副本均不在安全擦除证明范围内。
 
 ## 6. 锁定软件分发 / Locked distribution
 

@@ -15,6 +15,10 @@
 
 [固定拒绝投影](DevPilot_Scheduling_Admission.md)：管理员显式权限读取 `qa-scheduling-admission.v1`，明确 legacy scheduler 仅覆盖 component tests、QA 链未准入；恒不授权调度/释放/重试，固定 blockers，无 DB/配置/证据读取。运维工作台提供独立的管理员显式点击只读展示（有界严格校验、无重试或调度控件）。
 
+## 2026-11-15：本地 QA 目录残留清单（候选，未接入 App）
+
+[固定文件名、仅元数据](DevPilot_Local_QA_Directory_Residue.md)：`python -m devpilot.local_qa_residue inventory` 只报告已知文件名是否存在及大小/修改时间；不读内容、不发现其他文件、不删除，明文副本与崩溃产物仍需独立人工处置。
+
 ## 2026-11-15：多级签核要求纯核心（候选，未接入 App）
 
 [显式策略下的技术判定](DevPilot_Signoff_Requirement_Core.md)：`evaluate_signoff_requirement` 只根据调用方给出的所需不同审批人数、已批准人数与最新决定返回 satisfied/固定 blockers；策略未定义时 satisfied 为 null，不存储/不强制/不读取批准文档，结果不是批准。

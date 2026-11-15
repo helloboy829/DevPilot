@@ -783,3 +783,11 @@ English: a pure requirement evaluator answers whether an explicitly supplied mul
 测试先红后绿：新增满足/不足、未定义策略、未知字段三条 CLI 用例；实现后 CLI 专项 **11 passed**，evaluation 域 **53 passed**、toolkit **58 passed**；分发 allowlist 保持 **47** 成员，分发测试 **72 passed**，Ruff check/format 通过。无迁移、依赖或部署变更。该模块随 `476ecb1` 的 Lint/Frontend/Unit **3 workflows 全绿**通过精确 SHA CI（Unit `43706091441`）。
 
 English: the offline CLI now exposes the pure sign-off requirement evaluator over bounded local JSON; it stores no policy, enforces nothing and is not wired into App.
+
+## 本地 QA 目录残留清单（2026-11-15）
+
+针对“明文副本/更广泛崩溃产物治理”缺口新增只读观察切片 `devpilot.local_qa_residue`：`inventory --directory <私有目录> --confirm-metadata-only-directory-inventory` 只检查七个固定文件名（run/retention/disposal receipts、lock、加密输出、明文 `observations.jsonl`）是否存在及 `size`/`mtime_ms`；不回显目录路径或内容，不发现未知文件、不递归、不读取/认证/解密、不删除或移动。目录必须为当前用户私有普通目录，固定名必须是普通文件；符号链接/其他类型与缺少显式确认失败关闭。输出 `local-qa-directory-residue.v1`，显式 `content_status=not_inspected`、`verdict=NOT_EVALUATED`、`automatic_cleanup=false`、`approval=not_approved`。
+
+测试先红后绿：模块缺失时导入失败；实现后专项 **6 passed**（已知/缺失文件、纯元数据、未知文件忽略、确认要求、非目录/符号链接、CLI 错误不回显），evaluation 域 **59 passed**、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（**49** 成员），分发测试 **72 passed**，Ruff check/format 通过。明文副本保留期、自动清理、App 集成与 Windows 验收仍未完成；无迁移、依赖或部署变更，精确 SHA CI 另行记录。
+
+English: an explicit metadata-only inventory reports whether known local QA residue filenames exist, with size/mtime only. It never reads content, discovers other files, deletes anything or constitutes evidence/approval; plaintext governance remains incomplete.

@@ -15,7 +15,7 @@
 | 正式批准首切片（具名审批、审批人账号校验、职责分离、撤销/审计、只读预检/索引/运行级与项目级链完整性、签署进度、数据集面板） | 候选代码已实现，未部署 | `eval_0015`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成 |
 | 授权配置导出与外部技术元数据隔离接收                     | 候选代码已实现，未部署         | `eval_0013..0014`；不接纳敏感输出为可信证据                                  |
 | 独立本地 QA 命令、共享核心、锁定软件分发、加密输出       | 候选代码已实现                 | 默认离线；真实发送与输出模式分别同意                                         |
-| 未完成/损坏本地输出的保留治理                            | 加密运行时和显式管理命令已实现 | 输出前 durable receipt；原 IDs/两个 hash/单独处置同意；无安全擦除保证        |
+| 未完成/损坏本地输出的保留治理                            | 加密运行时、显式管理命令与目录残留清单已实现 | 输出前 durable receipt；原 IDs/两个 hash/单独处置同意；清单仅固定文件名元数据、不读内容/不删除；无安全擦除保证 |
 | 候选 SQLite 升级与旧备份恢复演练                         | 合成回归已实现                 | 真实双 ledger、39 张历史表、WAL 在线备份与新路径还原；不是业务部署或无损回退 |
 | 聊天、私有助手、请求调试、旧定时评测、模型管理           | 兼容入口保留                   | 模型调用需配置与授权；旧调度不代表新 QA 链调度完成                           |
 
@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- **本地 QA 目录残留清单（2026-11-15，本地）**：新增 `local_qa_residue`，对显式私有目录只报告固定文件名是否存在及大小/修改时间；不读内容、不发现其他文件、不删除/移动，符号链接与非普通文件失败关闭，必须显式确认。专项 **6 passed**，evaluation 域 **59 passed**、toolkit **58 passed**、分发 allowlist **49** 成员测试 **72 passed**，Ruff 通过。未接入 App；明文治理仍不完整。精确 SHA CI 另行记录。
 - **精确 SHA CI（离线 CLI 签核要求，2026-11-15）**：`476ecb18bf6ff4d7ddaeb0fcb09a10ac50a415bf` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43706091447)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43706091514)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43706091441) 共 **3 workflows 全部成功**；CLI 专项 **11 passed**、evaluation **53 passed**、toolkit **58 passed**、分发 **72 passed**。
 - **精确 SHA CI（离线指标 CLI，2026-11-15）**：`178d650bbfbe1377c12ffac24386be3b60da884f` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43702017328)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43702017356)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43702017361) 共 **3 workflows 全部成功**；Unit 覆盖 evaluation/分发 allowlist 测试。
 - **精确 SHA CI（多级签核要求纯核心，2026-11-15）**：`15677b838a695c131126ccccb390975942e0709e` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43703550147)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43703550911)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43703550183) 共 **3 workflows 全部成功**；本地区域 **50 passed**、toolkit **58 passed**、分发 allowlist **47** 成员测试 **72 passed**。
