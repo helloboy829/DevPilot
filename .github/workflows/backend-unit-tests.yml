@@ -77,7 +77,10 @@ jobs:
   backend-unit-tests:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The full offline suite now prints ~13.6k passes in ~11-14 minutes before
+    # service startup/cleanup; 20 minutes keeps a slow runner from cancelling a
+    # successful run. This is a capacity bound, not a test timeout.
+    timeout-minutes: 20
 
     services:
       postgres:

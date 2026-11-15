@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- **CI Unit 容量修复（2026-11-15）**：`509834b` 的 Unit 在 88% 处被 15 分钟 job 超时取消；`ffc1a9f` 的 Unit 已完成 **13,591 passed / 19 skipped**（859.49s，14:19）但在服务清理阶段仍被 15 分钟上限取消。两者其余 4 项 workflow 均成功，但 Unit 不能记为通过。Unit job 容量上限调整为 **20 分钟**（测试、断言、超时参数不变），以容纳完整离线套件在慢 runner 上的运行时间；新 SHA CI 另行核验。
 - **TypeScript `baseUrl` 弃用修复（2026-11-15，本地）**：VS Code 的 TS 7 诊断报 `baseUrl` 弃用错误；项目 TS 5.9 的 `paths` 已相对 tsconfig 解析，移除 `baseUrl` 即完成迁移。`tsc`/ESLint、完整前端 **1,409 passed** 与生产构建通过，构建未重新写回 `baseUrl`，IDE 诊断为空。精确 SHA CI 另行记录。
 - **批准面板跨项目与预检新鲜度（2026-11-15，本地）**：切换项目时清除项目索引、run 与评估/审批人输入；修改评估 ID/hash 或审批人时清除旧预检；成功写入清除预检。面板定向 **19 passed**，前端完整 **1,409 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **6 passed**。临时配置与测试产物已删除；精确 SHA CI 另行记录。
 - **批准面板对账与链汇总一致性（2026-11-15，本地）**：显式加载运行批准时若发现 pending 原 ID 已存在，清除 pending、旧运行级/项目级链汇总并提示已对账；未发现则保留 pending；成功写入同样清除旧的链汇总。定向面板 **17 passed**，前端完整 **1,407 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **6 passed**。临时配置与测试产物已删除；精确 SHA CI 另行记录。
