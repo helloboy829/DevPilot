@@ -36,7 +36,7 @@
 ## 最近验证
 
 - **离线指标 CLI 输入上限（2026-11-15，本地）**：JSON 嵌套深度 ≤32、节点数 ≤20,000，超限失败关闭；CLI 专项 **13 passed**、evaluation 域 **62 passed**、toolkit **58 passed**，Ruff 通过。精确 SHA CI 另行记录。
-- **批准能力诊断工作台展示（2026-11-15，本地）**：面板新增显式“加载批准能力”，只显示固定未实现/仅咨询投影与 blockers；前端定向 **34 passed**、完整 **1,422 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **9 passed**。精确 SHA CI 另行记录。
+- **精确 SHA CI（批准能力诊断与工作台展示，2026-11-15）**：`ea506ee327d981d29f427630764a915a5cf2594b` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43713676540)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43713676608)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43713676559)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43713676498)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43713676501) 共 **5 workflows 全部成功**；覆盖能力诊断端点与面板显式展示、JSON 严格化。
 - **离线指标 CLI JSON 严格化（2026-11-15，本地）**：解析拒绝重复键与 `NaN`/`Infinity`，避免歧义字段或非有限数值进入纯核心。CLI 专项 **12 passed**、evaluation 域 **61 passed**、toolkit **58 passed**、分发 **72 passed**，Ruff 通过。精确 SHA CI 另行记录。
 - **批准能力边界诊断（2026-11-15，本地）**：新增 `GET /projects/{project}/approvals/capabilities`，固定返回审批人登录/通知/强制签核/导出未实现、仅 owner 代录、`approval=not_authorized` 与 blockers；不读取批准/账号/证据。专项+路由 **24 passed**（43.91s），Ruff 通过。精确 SHA CI 另行记录。
 - **精确 SHA CI（Windows 宿主预检，2026-11-15）**：`66d7c8230a703bad09876052e89130ee1bf275e9` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43711405353)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43711405369)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43711405426)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43711405360) 共 **4 workflows 全部成功**；本地专项 **5 passed**；不代表 Windows 或部署验收。

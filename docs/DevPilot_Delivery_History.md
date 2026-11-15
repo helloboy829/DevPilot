@@ -836,7 +836,7 @@ English: the offline metrics CLI now rejects duplicate JSON keys and non-finite 
 
 批准面板新增显式“加载批准能力”按钮：仅在点击后调用 `GET .../approvals/capabilities`，显示 owner 代录、多级政策仅咨询、审批人登录/强制签核/通知/导出未实现、`approval=not_authorized` 与固定 blockers；切换项目清除结果。不读取批准/账号/证据，不提供写入控件。
 
-测试先红后绿：新增客户端路由、显式加载/展示、项目切换清除用例与 E2E；实现后前端定向 **34 passed**、完整 **1,422 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **9 passed**。无后端、迁移、依赖或部署变更；精确 SHA CI 另行记录。
+测试先红后绿：新增客户端路由、显式加载/展示、项目切换清除用例与 E2E；实现后前端定向 **34 passed**、完整 **1,422 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 串行 **9 passed**。无迁移、依赖或部署变更。该模块随 `ea506ee` 的 Lint/Frontend/E2E/Replay E2E/Unit **5 workflows 全绿**通过精确 SHA CI（Unit `43713676501`）。
 
 English: the approval panel shows the fixed capability gaps only after an explicit click, without implying or adding login, notification, enforcement or export support.
 
