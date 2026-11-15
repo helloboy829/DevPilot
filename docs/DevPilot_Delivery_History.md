@@ -647,3 +647,11 @@ English: a pure technical diff over equal integer pixel matrices with strict bou
 测试先红后绿：初版测试误用注册表 `api` 夹具导致 `test_accounts` 缺失；改用认证 workflow 夹具与管理员 helper 后 **5 passed**（固定投影、返回值隔离、管理员+显式权限 200/no-store、缺权限/内部 token/非管理员/匿名拒绝、POST 405）；Ruff 通过。未实现调度、释放、回收、重试或执行；无迁移、依赖、部署或真实调用。精确 SHA CI 另行记录。
 
 English: a fixed, admin-only read-only projection states that QA-chain scheduling is not admitted and the legacy scheduler remains component-tests-only. It never authorizes dispatch/release/retry and reads no database, configuration or evidence.
+
+## 批准审计链完整性（2026-11-15）
+
+新增只读 `verification`：`GET .../review-runs/{run}/approvals/integrity` 与 `ApprovalRepository.verify_approval_chain`。端点返回 `{schema, scope, status: verified|broken, approvals, events, blockers}`，校验：approvals/audit 计数一致、revision/sequence 从 1 连续、每对事件与批准的 approval_id/revision/action/subject_hash 匹配、每条批准文档 hash 完整；不返回任何 ID、hash、document 或 note。固定 blockers：event_count_mismatch、revision_gap、sequence_gap、event_mismatch、approval_integrity_failed、chain_too_long。
+
+测试先红后绿：新增仓库链验证与 7 类篡改（action/revision/subject/sequence/删除事件/额外事件/approval document），以及路由权限/遮蔽/敏感字段回归；批准套件（仓库+路由+迁移）**43 passed**（79.03s），Ruff 通过。初版测试导入位置与路由顺序按既有模式修正，未削弱断言；无迁移、执行、部署或真实调用。精确 SHA CI 另行记录。
+
+English: a read-only approval chain verifier checks counts, contiguous revisions/sequences, event-to-approval matching and document integrity, returning only verified/broken with counts and fixed blockers.

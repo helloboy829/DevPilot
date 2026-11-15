@@ -181,6 +181,50 @@ class ApprovalRepository(AssessmentRepository):
             statement = select(t.approval_audit).where(t.approval_audit.c.project_id == project_id, t.approval_audit.c.run_id == run_id).order_by(t.approval_audit.c.sequence).limit(1000)
             return [dict(row) for row in (await session.execute(statement)).mappings()]
 
+    async def verify_approval_chain(self, owner, project_id, run_id):
+        """Read-only integrity check over the run's approvals and ordered audit."""
+        async with self.sf() as session:
+            await self._journal(session, owner, project_id, run_id)
+            approvals = (
+                (await session.execute(select(t.run_approvals).where(t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id, t.run_approvals.c.run_id == run_id).order_by(t.run_approvals.c.revision).limit(1001)))
+                .mappings()
+                .all()
+            )
+            audit = (await session.execute(select(t.approval_audit).where(t.approval_audit.c.project_id == project_id, t.approval_audit.c.run_id == run_id).order_by(t.approval_audit.c.sequence).limit(1001))).mappings().all()
+        blockers = set()
+        if len(approvals) > 1000 or len(audit) > 1000:
+            blockers.add("chain_too_long")
+        if len(approvals) != len(audit):
+            blockers.add("event_count_mismatch")
+        if any(row["revision"] != index + 1 for index, row in enumerate(approvals)):
+            blockers.add("revision_gap")
+        if any(row["sequence"] != index + 1 for index, row in enumerate(audit)):
+            blockers.add("sequence_gap")
+        for approval_row, event in zip(approvals, audit):
+            try:
+                matched = (
+                    event["approval_id"] == approval_row["id"] and event["revision"] == approval_row["revision"] and event["action"] == approval_row["decision"] and hmac.compare_digest(event["subject_hash"], approval_row["approval_hash"])
+                )
+            except (TypeError, ValueError):
+                matched = False
+            if not matched:
+                blockers.add("event_mismatch")
+                break
+        for approval_row in approvals:
+            try:
+                self._decode_approval(dict(approval_row))
+            except RequestProtectionError:
+                blockers.add("approval_integrity_failed")
+                break
+        return {
+            "schema": "qa-approval-chain.v1",
+            "scope": "approval_audit_chain_only",
+            "status": "verified" if not blockers else "broken",
+            "approvals": len(approvals),
+            "events": len(audit),
+            "blockers": sorted(blockers),
+        }
+
     async def list_project_approvals(self, owner, project_id):
         """Latest approval revision per run; metadata only, read-only."""
         async with self.sf() as session:

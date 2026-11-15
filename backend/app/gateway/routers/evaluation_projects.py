@@ -574,6 +574,14 @@ async def list_run_approval_audit(project_id: str, run_id: str, request: Request
     return await _result(repository.list_approval_audit(owner, project_id, run_id))
 
 
+@router.get("/{project_id}/review-runs/{run_id}/approvals/integrity")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_run_approval_integrity(project_id: str, run_id: str, request: Request):
+    owner, repository = await _approval_context(request)
+    return await _result(repository.verify_approval_chain(owner, project_id, run_id))
+
+
 @router.get("/{project_id}/review-runs/{run_id}/approvals/{approval_id}")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "review")

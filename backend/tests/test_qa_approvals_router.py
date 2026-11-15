@@ -256,3 +256,28 @@ async def test_empty_approval_surfaces_and_unknown_run(api, monkeypatch):
     assert (await client.get(root + "/approvals/audit")).json() == []
     unknown = await client.get(base + "/review-runs/" + "f" * 32 + "/assessments/" + assessment["id"] + "/approval-preflight", params={"approver_id": APPROVER})
     assert unknown.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_approval_chain_integrity_is_metadata_only_and_permissioned(api, monkeypatch):
+    client, app, _, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    assert (await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment))).status_code == 200
+    path = root + "/approvals/integrity"
+    result = await client.get(path)
+    assert result.status_code == 200 and "no-store" in result.headers["cache-control"]
+    assert result.json() == {"schema": "qa-approval-chain.v1", "scope": "approval_audit_chain_only", "status": "verified", "approvals": 1, "events": 1, "blockers": []}
+    assert not any(secret in result.text for secret in ("document", "note", "hash", "SYNTHETIC"))
+    assert (await client.get(root + "/approvals/" + APPROVAL)).status_code == 200
+    original = app.state.permissions
+    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
+    assert (await client.get(path)).status_code == 403
+    app.state.permissions = original
+    app.state.internal = True
+    assert (await client.get(path)).status_code == 403
+    app.state.internal = False
+    app.state.actor = 2
+    assert (await client.get(path)).status_code == 404
+    app.state.actor = 0
+    assert (await client.get(path)).status_code == 401
+    assert (await client.get(root + "/approvals/integrity", params={})).headers.get("cache-control")

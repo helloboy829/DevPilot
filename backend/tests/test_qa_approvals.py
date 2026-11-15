@@ -6,7 +6,7 @@ from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, insert, select, update
 from test_dispatch_journal import prepared as prepared
 from test_qa_assessments import assessments as assessments
 from test_qa_assessments import complete as complete
@@ -305,3 +305,42 @@ async def test_preflight_unknown_run_is_not_found(tasks):
     repo, project, _, archived = await archive(tasks)
     with pytest.raises(NotFound):
         await approvals(repo).preview_approval("owner", project, "f" * 32, archived["id"], APPROVER)
+
+
+@pytest.mark.asyncio
+async def test_approval_chain_verifies_counts_and_scope(tasks):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    await unit.create_approval("owner", project, run["id"], "e" * 32, payload(archived, decision_value="revoked", note="SYNTHETIC_REVOCATION", revision=1))
+    result = await unit.verify_approval_chain("owner", project, run["id"])
+    assert result == {"schema": "qa-approval-chain.v1", "scope": "approval_audit_chain_only", "status": "verified", "approvals": 2, "events": 2, "blockers": []}
+    with pytest.raises(NotFound):
+        await unit.verify_approval_chain("owner", project, "f" * 32)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("damage", ["action", "revision", "subject", "sequence", "delete_event", "extra_event", "approval_document"])
+async def test_approval_chain_detects_fixed_tampering(tasks, damage):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    async with unit.sf.begin() as session:
+        audit = t.approval_audit
+        if damage == "action":
+            await session.execute(update(audit).values(action="revoked"))
+        elif damage == "revision":
+            await session.execute(update(audit).values(revision=2))
+        elif damage == "subject":
+            await session.execute(update(audit).values(subject_hash="0" * 64))
+        elif damage == "sequence":
+            await session.execute(update(audit).values(sequence=2))
+        elif damage == "delete_event":
+            await session.execute(delete(audit))
+        elif damage == "extra_event":
+            await session.execute(insert(audit).values(project_id=project, run_id=run["id"], sequence=2, approval_id=APPROVAL, revision=1, actor="owner", action="approved", subject_hash="f" * 64, at_ms=1))
+        else:
+            await session.execute(update(t.run_approvals).values(document={"tampered": True}))
+    result = await unit.verify_approval_chain("owner", project, run["id"])
+    assert result["status"] == "broken" and result["blockers"]
+    assert "document" not in json.dumps(result) and "hash" not in json.dumps(result)

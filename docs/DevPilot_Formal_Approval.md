@@ -34,11 +34,12 @@
 | GET  | `/api/evaluation/projects/{project}/approvals`                   | read + review                        |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals` | read + review                        |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/audit` | read + review                  |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/integrity` | read + review              |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + review                   |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/assessments/{assessment_id}/approval-preflight?approver_id=...` | read + review |
 | POST | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + write + review（人类）  |
 
-审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
+审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（approval_id/revision/action/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
 
 只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation）、`readiness`、`criteria.status`、两个分离布尔与 `latest_approval`（最新 revision/decision 元数据，若存在）；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；未知评估返回 404；所有响应 `no-store`。
 
