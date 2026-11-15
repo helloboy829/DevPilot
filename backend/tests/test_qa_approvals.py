@@ -344,3 +344,80 @@ async def test_approval_chain_detects_fixed_tampering(tasks, damage):
     result = await unit.verify_approval_chain("owner", project, run["id"])
     assert result["status"] == "broken" and result["blockers"]
     assert "document" not in json.dumps(result) and "hash" not in json.dumps(result)
+
+
+@pytest.mark.asyncio
+async def test_project_approval_chain_summary_is_aggregate_only(tasks):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    empty = await unit.verify_project_approval_chains("owner", project)
+    assert empty == {"schema": "qa-approval-chain-summary.v1", "scope": "project_approval_audit_chains_only", "status": "verified", "runs": 0, "verified_runs": 0, "broken_runs": 0, "approvals": 0, "events": 0, "blockers": []}
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    await unit.create_approval("owner", project, run["id"], "e" * 32, payload(archived, decision_value="revoked", note="SYNTHETIC_REVOCATION", revision=1))
+    result = await unit.verify_project_approval_chains("owner", project)
+    assert result == {"schema": "qa-approval-chain-summary.v1", "scope": "project_approval_audit_chains_only", "status": "verified", "runs": 1, "verified_runs": 1, "broken_runs": 0, "approvals": 2, "events": 2, "blockers": []}
+    assert not any(token in json.dumps(result) for token in ("document", "hash", run["id"], APPROVAL))
+    with pytest.raises(NotFound):
+        await unit.verify_project_approval_chains("owner", "f" * 32)
+    with pytest.raises(NotFound):
+        await unit.verify_project_approval_chains("other-owner", project)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("damage", ["action", "revision", "subject", "sequence", "delete_event", "extra_event", "approval_document"])
+async def test_project_approval_chain_summary_reports_broken_runs(tasks, damage):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    async with unit.sf.begin() as session:
+        audit = t.approval_audit
+        if damage == "action":
+            await session.execute(update(audit).values(action="revoked"))
+        elif damage == "revision":
+            await session.execute(update(audit).values(revision=2))
+        elif damage == "subject":
+            await session.execute(update(audit).values(subject_hash="0" * 64))
+        elif damage == "sequence":
+            await session.execute(update(audit).values(sequence=2))
+        elif damage == "delete_event":
+            await session.execute(delete(audit))
+        elif damage == "extra_event":
+            await session.execute(insert(audit).values(project_id=project, run_id=run["id"], sequence=2, approval_id=APPROVAL, revision=1, actor="owner", action="approved", subject_hash="f" * 64, at_ms=1))
+        else:
+            await session.execute(update(t.run_approvals).values(document={"tampered": True}))
+    result = await unit.verify_project_approval_chains("owner", project)
+    assert result["status"] == "broken" and result["broken_runs"] == 1 and result["verified_runs"] == 0
+    assert result["blockers"] and not any(token in json.dumps(result) for token in ("document", "hash", APPROVAL))
+
+
+@pytest.mark.asyncio
+async def test_project_approval_chain_summary_flags_audit_without_approval(tasks):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    async with unit.sf.begin() as session:
+        await session.execute(delete(t.run_approvals))
+    result = await unit.verify_project_approval_chains("owner", project)
+    assert result["status"] == "broken" and result["runs"] == 1 and result["broken_runs"] == 1
+    assert result["blockers"] == ["orphan_audit"]
+
+
+@pytest.mark.asyncio
+async def test_project_approval_chain_summary_is_bounded(tasks, monkeypatch):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    await unit.create_approval("owner", project, run["id"], "e" * 32, payload(archived, decision_value="revoked", note="SYNTHETIC_REVOCATION", revision=1))
+    monkeypatch.setattr("app.evaluation.qa_approvals.PROJECT_CHAIN_ROW_LIMIT", 1)
+    result = await unit.verify_project_approval_chains("owner", project)
+    assert result == {
+        "schema": "qa-approval-chain-summary.v1",
+        "scope": "project_approval_audit_chains_only",
+        "status": "unverifiable",
+        "runs": 1,
+        "verified_runs": 0,
+        "broken_runs": 0,
+        "approvals": 2,
+        "events": 2,
+        "blockers": ["project_chain_too_long"],
+    }

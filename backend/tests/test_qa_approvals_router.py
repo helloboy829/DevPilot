@@ -281,3 +281,31 @@ async def test_approval_chain_integrity_is_metadata_only_and_permissioned(api, m
     app.state.actor = 0
     assert (await client.get(path)).status_code == 401
     assert (await client.get(root + "/approvals/integrity", params={})).headers.get("cache-control")
+
+
+@pytest.mark.asyncio
+async def test_project_approval_chain_summary_is_metadata_only_and_permissioned(api, monkeypatch):
+    client, app, base, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    assert (await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment))).status_code == 200
+    path = base + "/approvals/integrity"
+    result = await client.get(path)
+    assert result.status_code == 200 and "no-store" in result.headers["cache-control"]
+    assert result.json() == {"schema": "qa-approval-chain-summary.v1", "scope": "project_approval_audit_chains_only", "status": "verified", "runs": 1, "verified_runs": 1, "broken_runs": 0, "approvals": 1, "events": 1, "blockers": []}
+    assert not any(secret in result.text for secret in ("document", "note", "hash", "SYNTHETIC", root.rsplit("/", 1)[1]))
+    original = app.state.permissions
+    original_actor = app.state.actor
+    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
+    assert (await client.get(path)).status_code == 403
+    app.state.permissions = original
+    app.state.internal = True
+    assert (await client.get(path)).status_code == 403
+    app.state.internal = False
+    app.state.actor = 2
+    assert (await client.get(path)).status_code == 404
+    app.state.actor = 0
+    assert (await client.get(path)).status_code == 401
+    app.state.actor = original_actor
+    assert (await client.get(root + "/approvals/" + APPROVAL)).status_code == 200
+    listing = await client.get(base + "/approvals")
+    assert listing.status_code == 200 and len(listing.json()) == 1

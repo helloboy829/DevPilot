@@ -6,7 +6,7 @@
 
 ## Formal approval chain integrity panel (2026-11-15)
 
-`EvaluationApprovalPanel` exposes a separate "Check approval chain integrity" action next to the explicit run-approval load. It requires a 32-hex run ID, calls only the metadata-only `qa-approval-chain.v1` GET, renders `verified` counts or the fixed `broken` blockers, and clears the result whenever project or run changes. It never fetches approval documents, notes, Q/A or evidence, never writes on failure, and never retries. Keep the explicit-click boundary: mounting the panel must not call the integrity endpoint. [Contract](../docs/DevPilot_Formal_Approval.md).
+`EvaluationApprovalPanel` exposes separate "Check approval chain integrity" and "Check project approval chains" actions next to the explicit run-approval load. The run action requires a 32-hex run ID and calls only the metadata-only `qa-approval-chain.v1` GET; the project action calls only the aggregate `qa-approval-chain-summary.v1` GET. They render `verified` counts, fixed `broken` blockers or an `unverifiable` bound, and clear whenever project or run changes. They never fetch approval documents, notes, Q/A or evidence, never write on failure, and never retry. Keep the explicit-click boundary: mounting the panel must not call either integrity endpoint. [Contract](../docs/DevPilot_Formal_Approval.md).
 
 ## Explicit real file/hash test synchronization (2026-11-11)
 

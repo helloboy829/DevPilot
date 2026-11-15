@@ -671,3 +671,11 @@ English: the approval panel now exposes an explicit, metadata-only chain-integri
 测试先红后绿：新客户端与面板用例初始因模块/按钮缺失按预期失败；实现后定向（新客户端 + 预留客户端 + 面板 DOM）**83 passed**，前端完整 **1,399 passed**，typecheck/ESLint/Prettier 通过。浏览器侧 `execution-operations.spec.ts` 在本机 Chrome 生产构建上以 `workers=1`（与 CI 一致）**5 passed**；同一规格并行本地运行时既有“重新进入不恢复快照”断言出现 1 次失败，串行与单独复跑通过，未改断言/超时/重试，保留为本地并行观察。临时 Playwright 配置与测试产物已删除。无后端、迁移、依赖或部署变更。模块代码在 `6c1ae4f`，随收据提交 `8888825` 的 Lint/Frontend/E2E/Replay E2E/Unit **5 workflows / 10 jobs 全绿**通过精确 SHA CI（Unit `43673999386`）；该 SHA 只含前端与文档变更，Blocking IO 未触发。
 
 English: the operations workspace now exposes the fixed scheduling-admission denial only on an explicit admin click, using a shared bounded JSON reader with strict schema validation, an independent request lock/abort/fence and no retry or dispatch controls.
+
+## 项目级批准链汇总（2026-11-15）
+
+新增只读 `GET /api/evaluation/projects/{project}/approvals/integrity` 与 `ApprovalRepository.verify_project_approval_chains`：同一项目内按 run 分组，复用运行级链校验（计数、连续 revision/sequence、事件匹配、文档完整性），只返回 `status`、`runs`/`verified_runs`/`broken_runs`、批准/事件计数与固定 blockers，不返回任何 run ID、hash、document 或 note。审计事件存在但无批准时标记 `orphan_audit`；超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`（计数为真实值，不作逐 run 结论）。数据集批准面板新增独立的显式“检查项目批准链”按钮，显示计数/blockers，切换项目或 run 清空，不写批准/审计。
+
+测试先红后绿：仓库层新增聚合、六类篡改、审计无批准与超界用例；路由层覆盖权限、内部 token、跨 owner、匿名拒绝、无敏感字段与不遮蔽单批准读取。批准仓库+路由 **52 passed**（74.24s），Ruff check/format 通过。前端新增 API 路由/面板用例，定向 **16 passed**、完整 **1,403 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 在本机 Chrome 生产构建上以 `workers=1` **6 passed**，临时配置与测试产物已删除。无迁移、依赖、部署或真实调用；精确 SHA CI 另行记录。
+
+English: an aggregate, read-only project approval-chain summary reuses the run verifier per run and returns only counts and fixed blockers, with explicit orphan-audit and over-limit states; the panel exposes it only on an explicit click.

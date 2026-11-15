@@ -247,3 +247,45 @@ test("keeps an unknown write on the same ID without retry", async ({
   expect(id).toMatch(/^[0-9a-f]{32}$/);
   await expect(panel.getByRole("status")).toContainText(id!);
 });
+
+test("checks the project approval chain summary read-only", async ({
+  page,
+}) => {
+  const { panel } = await setup(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && request.url().includes("/approval"))
+      writes.push(request.url());
+  });
+  let reads = 0;
+  await page.route(
+    "**/api/evaluation/projects/p1/approvals/integrity",
+    (route) => {
+      reads += 1;
+      return route.fulfill({
+        json: {
+          schema: "qa-approval-chain-summary.v1",
+          scope: "project_approval_audit_chains_only",
+          status: "verified",
+          runs: 2,
+          verified_runs: 2,
+          broken_runs: 0,
+          approvals: 3,
+          events: 3,
+          blockers: [],
+        },
+      });
+    },
+  );
+  expect(reads).toBe(0);
+  await panel
+    .getByRole("button", { name: "Check project approval chains", exact: true })
+    .click();
+  await expect(
+    panel.getByText(
+      "Project chains verified: 2 of 2 runs · 3 approvals / 3 events",
+    ),
+  ).toBeVisible();
+  expect(reads).toBe(1);
+  expect(writes).toEqual([]);
+});

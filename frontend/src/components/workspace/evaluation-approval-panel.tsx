@@ -9,6 +9,7 @@ import {
   approvalApi,
   type ApprovalAuditEvent,
   type ApprovalChainIntegrity,
+  type ApprovalChainSummary,
   type ApprovalDecision,
   type ApprovalPreflight,
   type ApprovalView,
@@ -39,6 +40,8 @@ export function EvaluationApprovalPanel({
   const [integrity, setIntegrity] = useState<ApprovalChainIntegrity | null>(
     null,
   );
+  const [projectIntegrity, setProjectIntegrity] =
+    useState<ApprovalChainSummary | null>(null);
   const [assessmentId, setAssessmentId] = useState("");
   const [assessmentHash, setAssessmentHash] = useState("");
   const [approverId, setApproverId] = useState("");
@@ -65,6 +68,7 @@ export function EvaluationApprovalPanel({
     setRunRows(null);
     setAudit(null);
     setIntegrity(null);
+    setProjectIntegrity(null);
     setPreflight(null);
     setConfirmed(false);
     setError("");
@@ -120,6 +124,26 @@ export function EvaluationApprovalPanel({
           zh
             ? "加载失败；未知写入只按原 ID 对账，不自动重试。"
             : "Load failed; reconcile unknown writes by original ID only; never retry automatically.",
+        );
+    } finally {
+      if (at === epoch.current) setBusy(false);
+    }
+  }
+
+  async function checkProjectIntegrity() {
+    const at = ++epoch.current;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await approvalApi.projectChainIntegrity(projectId);
+      if (at === epoch.current) setProjectIntegrity(result);
+    } catch {
+      if (at === epoch.current)
+        setError(
+          zh
+            ? "项目完整性检查失败；未读取或写入批准文档。"
+            : "Project integrity check failed; no approval document was read or written.",
         );
     } finally {
       if (at === epoch.current) setBusy(false);
@@ -261,6 +285,13 @@ export function EvaluationApprovalPanel({
         >
           {zh ? "加载项目批准" : "Load project approvals"}
         </Button>
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() => void checkProjectIntegrity()}
+        >
+          {zh ? "检查项目批准链" : "Check project approval chains"}
+        </Button>
         {projectRows && projectRows.length > 0 ? (
           <select
             aria-label={zh ? "批准运行" : "Approval run"}
@@ -311,6 +342,21 @@ export function EvaluationApprovalPanel({
             ))
           )}
         </ul>
+      ) : null}
+      {projectIntegrity ? (
+        <p className="text-sm" role="status">
+          {projectIntegrity.status === "verified"
+            ? zh
+              ? `项目批准链已校验：${projectIntegrity.verified_runs}/${projectIntegrity.runs} 个运行 · ${projectIntegrity.approvals} 条批准 / ${projectIntegrity.events} 条事件`
+              : `Project chains verified: ${projectIntegrity.verified_runs} of ${projectIntegrity.runs} runs · ${projectIntegrity.approvals} approvals / ${projectIntegrity.events} events`
+            : projectIntegrity.status === "broken"
+              ? zh
+                ? `项目批准链损坏：${projectIntegrity.broken_runs}/${projectIntegrity.runs} 个运行 · ${projectIntegrity.blockers.join(", ")}`
+                : `Project chains broken: ${projectIntegrity.broken_runs} of ${projectIntegrity.runs} runs · ${projectIntegrity.blockers.join(", ")}`
+              : zh
+                ? `项目批准链无法校验：${projectIntegrity.blockers.join(", ") || "unspecified"}`
+                : `Project chains unverifiable: ${projectIntegrity.blockers.join(", ") || "unspecified"}`}
+        </p>
       ) : null}
       {runRows ? (
         <div

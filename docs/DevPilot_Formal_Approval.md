@@ -32,6 +32,7 @@
 | 方法 | 路径                                                             | 权限（全部满足）                     |
 | ---- | ---------------------------------------------------------------- | ------------------------------------ |
 | GET  | `/api/evaluation/projects/{project}/approvals`                   | read + review                        |
+| GET  | `/api/evaluation/projects/{project}/approvals/integrity`         | read + review                        |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals` | read + review                        |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/audit` | read + review                  |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/integrity` | read + review              |
@@ -39,7 +40,7 @@
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/assessments/{assessment_id}/approval-preflight?approver_id=...` | read + review |
 | POST | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + write + review（人类）  |
 
-审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（approval_id/revision/action/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
+审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（approval_id/revision/action/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
 
 只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation）、`readiness`、`criteria.status`、两个分离布尔与 `latest_approval`（最新 revision/decision 元数据，若存在）；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；未知评估返回 404；所有响应 `no-store`。
 
@@ -47,7 +48,7 @@
 
 ## 工作台面板
 
-`/workspace/datasets` 的正式批准面板只在显式点击后读取：项目索引、运行批准与审计列表、只读预检、链完整性检查分别由独立按钮触发，不自动轮询或读取证据。链完整性按钮要求 32 位十六进制 run ID，只显示 `verified`/`broken`、批准/事件计数与固定 blockers；切换项目或 run 时清除旧结果，失败不重试、不写批准或审计。创建/撤销使用页面内存 pending ID，未知结果只按原 ID 只读对账；面板不读取 document、note 或任何 Q/A、金标与证据。
+`/workspace/datasets` 的正式批准面板只在显式点击后读取：项目索引、项目级链汇总、运行批准与审计列表、只读预检、运行级链完整性检查分别由独立按钮触发，不自动轮询或读取证据。链完整性按钮要求 32 位十六进制 run ID，只显示 `verified`/`broken`、批准/事件计数与固定 blockers；项目级汇总只显示 run 计数、批准/事件计数与固定 blockers。切换项目或 run 时清除旧结果，失败不重试、不写批准或审计。创建/撤销使用页面内存 pending ID，未知结果只按原 ID 只读对账；面板不读取 document、note 或任何 Q/A、金标与证据。
 
 ## 数据与迁移
 

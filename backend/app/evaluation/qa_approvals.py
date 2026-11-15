@@ -26,6 +26,9 @@ from app.evaluation.repository import Conflict, NotFound
 from app.evaluation.request_protection import RequestProtectionError
 from app.evaluation.review_tasks import POLICY
 
+PROJECT_CHAIN_ROW_LIMIT = 5000
+PROJECT_CHAIN_RUN_LIMIT = 1000
+
 
 def approval_identifier(value):
     if type(value) is not str or len(value) != 32 or any(c not in "0123456789abcdef" for c in value):
@@ -181,16 +184,8 @@ class ApprovalRepository(AssessmentRepository):
             statement = select(t.approval_audit).where(t.approval_audit.c.project_id == project_id, t.approval_audit.c.run_id == run_id).order_by(t.approval_audit.c.sequence).limit(1000)
             return [dict(row) for row in (await session.execute(statement)).mappings()]
 
-    async def verify_approval_chain(self, owner, project_id, run_id):
-        """Read-only integrity check over the run's approvals and ordered audit."""
-        async with self.sf() as session:
-            await self._journal(session, owner, project_id, run_id)
-            approvals = (
-                (await session.execute(select(t.run_approvals).where(t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id, t.run_approvals.c.run_id == run_id).order_by(t.run_approvals.c.revision).limit(1001)))
-                .mappings()
-                .all()
-            )
-            audit = (await session.execute(select(t.approval_audit).where(t.approval_audit.c.project_id == project_id, t.approval_audit.c.run_id == run_id).order_by(t.approval_audit.c.sequence).limit(1001))).mappings().all()
+    @classmethod
+    def _chain_blockers(cls, approvals, audit):
         blockers = set()
         if len(approvals) > 1000 or len(audit) > 1000:
             blockers.add("chain_too_long")
@@ -212,14 +207,79 @@ class ApprovalRepository(AssessmentRepository):
                 break
         for approval_row in approvals:
             try:
-                self._decode_approval(dict(approval_row))
+                cls._decode_approval(dict(approval_row))
             except RequestProtectionError:
                 blockers.add("approval_integrity_failed")
                 break
+        return blockers
+
+    async def verify_approval_chain(self, owner, project_id, run_id):
+        """Read-only integrity check over the run's approvals and ordered audit."""
+        async with self.sf() as session:
+            await self._journal(session, owner, project_id, run_id)
+            approvals = (
+                (await session.execute(select(t.run_approvals).where(t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id, t.run_approvals.c.run_id == run_id).order_by(t.run_approvals.c.revision).limit(1001)))
+                .mappings()
+                .all()
+            )
+            audit = (await session.execute(select(t.approval_audit).where(t.approval_audit.c.project_id == project_id, t.approval_audit.c.run_id == run_id).order_by(t.approval_audit.c.sequence).limit(1001))).mappings().all()
+        blockers = self._chain_blockers(approvals, audit)
         return {
             "schema": "qa-approval-chain.v1",
             "scope": "approval_audit_chain_only",
             "status": "verified" if not blockers else "broken",
+            "approvals": len(approvals),
+            "events": len(audit),
+            "blockers": sorted(blockers),
+        }
+
+    async def verify_project_approval_chains(self, owner, project_id):
+        """Aggregate read-only chain status over every run in the project."""
+        async with self.sf() as session:
+            await self._project(session, owner, project_id)
+            approvals_filter = (t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id)
+            approvals_count = (await session.execute(select(func.count()).select_from(t.run_approvals).where(*approvals_filter))).scalar_one()
+            audit_count = (await session.execute(select(func.count()).select_from(t.approval_audit).where(t.approval_audit.c.project_id == project_id))).scalar_one()
+            run_count = (await session.execute(select(func.count(func.distinct(t.run_approvals.c.run_id))).where(*approvals_filter))).scalar_one()
+            if approvals_count > PROJECT_CHAIN_ROW_LIMIT or audit_count > PROJECT_CHAIN_ROW_LIMIT or run_count > PROJECT_CHAIN_RUN_LIMIT:
+                return {
+                    "schema": "qa-approval-chain-summary.v1",
+                    "scope": "project_approval_audit_chains_only",
+                    "status": "unverifiable",
+                    "runs": run_count,
+                    "verified_runs": 0,
+                    "broken_runs": 0,
+                    "approvals": approvals_count,
+                    "events": audit_count,
+                    "blockers": ["project_chain_too_long"],
+                }
+            approvals = (await session.execute(select(t.run_approvals).where(*approvals_filter).order_by(t.run_approvals.c.run_id, t.run_approvals.c.revision))).mappings().all()
+            audit = (await session.execute(select(t.approval_audit).where(t.approval_audit.c.project_id == project_id).order_by(t.approval_audit.c.run_id, t.approval_audit.c.sequence))).mappings().all()
+        approvals_by_run: dict[str, list] = {}
+        audit_by_run: dict[str, list] = {}
+        for row in approvals:
+            approvals_by_run.setdefault(row["run_id"], []).append(row)
+        for row in audit:
+            audit_by_run.setdefault(row["run_id"], []).append(row)
+        blockers = set()
+        verified_runs = 0
+        broken_runs = 0
+        for run_id in set(approvals_by_run) | set(audit_by_run):
+            run_approvals = approvals_by_run.get(run_id, [])
+            run_audit = audit_by_run.get(run_id, [])
+            run_blockers = self._chain_blockers(run_approvals, run_audit) if run_approvals else {"orphan_audit"}
+            if run_blockers:
+                blockers.update(run_blockers)
+                broken_runs += 1
+            else:
+                verified_runs += 1
+        return {
+            "schema": "qa-approval-chain-summary.v1",
+            "scope": "project_approval_audit_chains_only",
+            "status": "verified" if not blockers else "broken",
+            "runs": verified_runs + broken_runs,
+            "verified_runs": verified_runs,
+            "broken_runs": broken_runs,
             "approvals": len(approvals),
             "events": len(audit),
             "blockers": sorted(blockers),

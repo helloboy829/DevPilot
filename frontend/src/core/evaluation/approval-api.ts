@@ -52,6 +52,18 @@ export interface ApprovalChainIntegrity {
   blockers: string[];
 }
 
+export interface ApprovalChainSummary {
+  schema: "qa-approval-chain-summary.v1";
+  scope: "project_approval_audit_chains_only";
+  status: "verified" | "broken" | "unverifiable";
+  runs: number;
+  verified_runs: number;
+  broken_runs: number;
+  approvals: number;
+  events: number;
+  blockers: string[];
+}
+
 export interface ApprovalView {
   schema: "qa-run-formal-approval.v1";
   scope: "formal_approval_decision";
@@ -96,6 +108,11 @@ const runs = (projectId: string, runId: string) =>
 export const approvalApi = {
   projectApprovals(projectId: string) {
     return evaluationApi<ProjectApproval[]>(`${projects(projectId)}/approvals`);
+  },
+  projectChainIntegrity(projectId: string) {
+    return evaluationApi<ApprovalChainSummary>(
+      `${projects(projectId)}/approvals/integrity`,
+    );
   },
   runApprovals(projectId: string, runId: string) {
     return evaluationApi<ApprovalView[]>(`${runs(projectId, runId)}/approvals`);

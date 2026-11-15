@@ -15,6 +15,7 @@ const state = rs.hoisted(() => ({
     runApprovals: rs.fn(),
     runAudit: rs.fn(),
     chainIntegrity: rs.fn(),
+    projectChainIntegrity: rs.fn(),
     preflight: rs.fn(),
     create: rs.fn(),
   },
@@ -296,4 +297,105 @@ it("rejects a malformed run ID before reading the chain", () => {
     "Run ID must be 32 hex.",
   );
   expect(state.api.chainIntegrity).not.toHaveBeenCalled();
+});
+
+it("checks project approval chains only after an explicit click", async () => {
+  state.api.projectChainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain-summary.v1",
+    scope: "project_approval_audit_chains_only",
+    status: "verified",
+    runs: 2,
+    verified_runs: 2,
+    broken_runs: 0,
+    approvals: 3,
+    events: 3,
+    blockers: [],
+  });
+  panel();
+  expect(state.api.projectChainIntegrity).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check project approval chains" }),
+  );
+  await screen.findByText(
+    "Project chains verified: 2 of 2 runs · 3 approvals / 3 events",
+  );
+  expect(state.api.projectChainIntegrity).toHaveBeenCalledWith("p1");
+  expect(state.api.create).not.toHaveBeenCalled();
+});
+
+it("shows broken project chains with fixed blockers", async () => {
+  state.api.projectChainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain-summary.v1",
+    scope: "project_approval_audit_chains_only",
+    status: "broken",
+    runs: 2,
+    verified_runs: 1,
+    broken_runs: 1,
+    approvals: 2,
+    events: 1,
+    blockers: ["event_count_mismatch", "orphan_audit"],
+  });
+  panel();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check project approval chains" }),
+  );
+  await screen.findByText(
+    "Project chains broken: 1 of 2 runs · event_count_mismatch, orphan_audit",
+  );
+  expect(state.api.create).not.toHaveBeenCalled();
+});
+
+it("shows an unverifiable project summary as a fixed blocker", async () => {
+  state.api.projectChainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain-summary.v1",
+    scope: "project_approval_audit_chains_only",
+    status: "unverifiable",
+    runs: 1200,
+    verified_runs: 0,
+    broken_runs: 0,
+    approvals: 5001,
+    events: 5001,
+    blockers: ["project_chain_too_long"],
+  });
+  panel();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check project approval chains" }),
+  );
+  await screen.findByText(
+    "Project chains unverifiable: project_chain_too_long",
+  );
+});
+
+it("clears the project chain summary when the project changes", async () => {
+  state.api.projectChainIntegrity.mockResolvedValue({
+    schema: "qa-approval-chain-summary.v1",
+    scope: "project_approval_audit_chains_only",
+    status: "verified",
+    runs: 1,
+    verified_runs: 1,
+    broken_runs: 0,
+    approvals: 1,
+    events: 1,
+    blockers: [],
+  });
+  const pending = new Map<string, string>();
+  const view = render(
+    <EvaluationApprovalPanel
+      pendingApprovals={pending}
+      projectId="p1"
+      zh={false}
+    />,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check project approval chains" }),
+  );
+  await screen.findByText(/Project chains verified/);
+  view.rerender(
+    <EvaluationApprovalPanel
+      pendingApprovals={pending}
+      projectId="p2"
+      zh={false}
+    />,
+  );
+  expect(screen.queryByText(/Project chains verified/)).toBeNull();
 });

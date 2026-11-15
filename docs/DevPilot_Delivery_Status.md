@@ -12,7 +12,7 @@
 | 独立准入、有界 QA Worker、加密采集、人工复核、全样本汇总 | 已实现，执行默认关闭           | 未知交付不重发；采集成功/阈值达标不等于批准                                  |
 | 历史报告/Word 草稿、同基准复测                           | 已实现                         | 草稿与比较不自动批准、不自动再执行                                           |
 | 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF  | 候选代码已实现，未部署         | `eval_0010..0012`；旧 owner 路径保持独立                                     |
-| 正式批准首切片（具名审批、职责分离、撤销/审计、只读预检/索引/链完整性与数据集面板） | 候选代码已实现，未部署 | `eval_0015`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成 |
+| 正式批准首切片（具名审批、职责分离、撤销/审计、只读预检/索引/运行级与项目级链完整性、数据集面板） | 候选代码已实现，未部署 | `eval_0015`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成 |
 | 授权配置导出与外部技术元数据隔离接收                     | 候选代码已实现，未部署         | `eval_0013..0014`；不接纳敏感输出为可信证据                                  |
 | 独立本地 QA 命令、共享核心、锁定软件分发、加密输出       | 候选代码已实现                 | 默认离线；真实发送与输出模式分别同意                                         |
 | 未完成/损坏本地输出的保留治理                            | 加密运行时和显式管理命令已实现 | 输出前 durable receipt；原 IDs/两个 hash/单独处置同意；无安全擦除保证        |
@@ -35,6 +35,7 @@
 
 ## 最近验证
 
+- **项目级批准链汇总（2026-11-15，本地）**：`GET /projects/{project}/approvals/integrity` 与 `verify_project_approval_chains` 按 run 分组复用同一链校验，只返回计数与固定 blockers；审计无批准标记 `orphan_audit`，超界返回 `unverifiable`/`project_chain_too_long`。批准仓库+路由**52 passed**（74.24s），Ruff check/format 通过；前端定向 **16 passed**、完整 **1,403 passed**，typecheck/ESLint/Prettier 通过；`approval-panel.spec.ts` 本机 Chrome 串行 **6 passed**。临时配置、测试产物与验证容器已清理；精确 SHA CI 另行记录。
 - **精确 SHA CI（调度准入运维工作台展示，2026-11-15）**：`8888825d031cf2fe56e9fc42e8dd592b46b3dc68`（含 `6c1ae4f` 模块代码）的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43673999364)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43673999388)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43673999341)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43673999394)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43673999386) 共 **5 workflows / 10 jobs 全部成功**；该 SHA 只含前端与文档变更，Blocking IO 未触发。覆盖共享有界读取器、固定拒绝展示与无自动请求。
 - **精确 SHA CI（批准面板链完整性，2026-11-15）**：`91d0a5d584eea8599e41585d68c151baec79f0c3` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43672925706)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43672925742)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43672925805)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43672925746)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43672925700)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43672925690) 共 **6 workflows / 11 jobs 全部成功**；覆盖面板显式链完整性读取、固定 blockers 与无写请求。
 - **调度准入工作台展示（2026-11-15，本地）**：新增共享有界 JSON 读取器与 `scheduling-admission.ts` 严格客户端，`ExecutionOperationsPanel` 增加独立请求锁/abort/fence 的只读区块。定向（新客户端 + 预留客户端 + 面板 DOM）**83 passed**；前端完整 **1,399 passed**；typecheck/ESLint/Prettier 通过。`execution-operations.spec.ts` 在本机 Chrome 生产构建上按 CI 模式 `workers=1` **5 passed**；并行本地运行时既有导航断言出现 1 次失败（快照未卸载），串行与单测复跑通过，未改断言、超时或重试。临时配置与测试产物已删除；精确 SHA CI 另行记录。
