@@ -6,12 +6,22 @@ from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.evaluation.execution_diagnostics import reservation_snapshot
+from app.evaluation.scheduling_safety import scheduling_admission
 from app.gateway.authz import _is_internal_caller, require_permission
 from app.gateway.deps import require_admin_user
 from app.gateway.private_route import PrivateValidationRoute
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/evaluation/operations", tags=["evaluation-operations"], route_class=PrivateValidationRoute)
+
+
+@router.get("/scheduling-admission")
+@require_permission("evaluation_operations", "read")
+async def get_scheduling_admission(request: Request):
+    await require_admin_user(request, detail="Only human administrators may inspect QA scheduling admission")
+    if _is_internal_caller(request, request.state.auth.user):
+        raise HTTPException(403, "Internal callers cannot inspect scheduling admission")
+    return scheduling_admission()
 
 
 @router.get("/reservations")

@@ -137,7 +137,10 @@ async def test_route_exposes_only_get_no_release_reclaim_expire_or_execution(wor
     state = workflow
     admin = await administrator(state.app)
     routes = [route for route in evaluation_operations.router.routes if getattr(route, "path", "").startswith("/api/evaluation/operations")]
-    assert [(route.path, route.methods) for route in routes] == [(PATH, {"GET"})]
+    assert {(route.path, frozenset(route.methods)) for route in routes} == {
+        (PATH, frozenset({"GET"})),
+        ("/api/evaluation/operations/scheduling-admission", frozenset({"GET"})),
+    }
     for method in ("post", "put", "patch", "delete"):
         response = await getattr(admin, method)(PATH)
         assert response.status_code == 405

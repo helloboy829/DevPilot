@@ -639,3 +639,11 @@ English: a pure human/judge agreement core that counts only definitive pairs, ex
 unittest **3 passed**，另补对称性/单像素/阈值边界回归；devpilot evaluation 域合计 **35 passed**（含流式真实零 TTFT 与校准顺序无关断言）、toolkit **58 passed**；分发 allowlist 同步新增源码与测试（43 个第一方成员）。未接入 App 证据/API/UI/报告，无迁移、部署或批准；CV 核心随 `5524e2d` 的 Lint/Frontend/Unit **3 workflows 全绿**通过精确 SHA CI（Unit `43658711846`）。
 
 English: a pure technical diff over equal integer pixel matrices with strict bounds and an inclusive threshold; not image decoding, perceptual quality, approval or a model call.
+
+## QA 调度准入只读诊断（2026-11-15）
+
+新增 `app.evaluation.scheduling_safety.scheduling_admission` 与管理员端点 `GET /api/evaluation/operations/scheduling-admission`：固定输出 `qa-scheduling-admission.v1`，明确 legacy scheduler 仍只覆盖 component tests、QA 链没有版本化准入合同、旧 Worker 不可再发的证明缺失；`qa_chain_admitted`、`dispatch_authorized` 与 `release_authorized` 恒为 false，固定 blockers 为 no_versioned_admission_contract / scheduler_not_bound_to_qa_execution / worker_liveness_not_established。返回独立列表副本，不读取 DB、执行仓库、配置、证据或 key。
+
+测试先红后绿：初版测试误用注册表 `api` 夹具导致 `test_accounts` 缺失；改用认证 workflow 夹具与管理员 helper 后 **5 passed**（固定投影、返回值隔离、管理员+显式权限 200/no-store、缺权限/内部 token/非管理员/匿名拒绝、POST 405）；Ruff 通过。未实现调度、释放、回收、重试或执行；无迁移、依赖、部署或真实调用。精确 SHA CI 另行记录。
+
+English: a fixed, admin-only read-only projection states that QA-chain scheduling is not admitted and the legacy scheduler remains component-tests-only. It never authorizes dispatch/release/retry and reads no database, configuration or evidence.

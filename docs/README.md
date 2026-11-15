@@ -11,6 +11,10 @@
 
 以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
 
+## 2026-11-15：QA 调度准入只读诊断（候选，未部署）
+
+[固定拒绝投影](DevPilot_Scheduling_Admission.md)：管理员显式权限读取 `qa-scheduling-admission.v1`，明确 legacy scheduler 仅覆盖 component tests、QA 链未准入；恒不授权调度/释放/重试，固定 blockers，无 DB/配置/证据读取。
+
 ## 2026-11-15：CV 图像差异纯核心（候选，未接入 App）
 
 [整数像素差异统计](DevPilot_CV_Metrics.md)：`devpilot.qa_cv_metrics` 只比较等尺寸整数像素矩阵，输出 changed/ratio/MAE/max 与 identical/within_threshold；不解码、不访问网络、不调用模型，也不是质量或批准。

@@ -144,7 +144,7 @@ def test_operations_router_exposes_only_aggregate_get():
     tree = ast.parse(path.read_text(encoding="utf-8"))
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == "router"]
     assert {node.func.attr for node in calls} == {"get"}
-    assert {node.args[0].value for node in calls} == {"/reservations"}
+    assert {node.args[0].value for node in calls} == {"/reservations", "/scheduling-admission"}
 
 
 def execution_policy():
