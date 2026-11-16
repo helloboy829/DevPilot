@@ -133,7 +133,37 @@ jobs:
           # mapping those tests silently skip and the headline capability is never
           # exercised in CI.
           DEDUPE_TEST_POSTGRES_URL: ${{ env.TEST_POSTGRES_URI }}
+          PYTEST_ADDOPTS: --junitxml=pytest-results.xml
         run: make test
+
+      - name: Annotate failed backend test names
+        if: failure()
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          report = Path("pytest-results.xml")
+          if not report.is_file():
+              print("::warning::Backend pytest report unavailable; inspect the preceding setup/domain test step.")
+              raise SystemExit(0)
+
+          def escape(value):
+              return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+          failures = [
+              case for case in ET.parse(report).iter("testcase")
+              if case.find("failure") is not None or case.find("error") is not None
+          ]
+          print(f"Backend pytest failed/error cases: {len(failures)}")
+          for case in failures[:20]:
+              # Expose identities only, never captured stdout, exception text or locals.
+              identity = f"{case.get('classname', '')}::{case.get('name', '')}"[:512]
+              print("::error title=Backend pytest failure::" + escape(identity))
+          if len(failures) > 20:
+              print(f"::error::Additional backend failed/error cases: {len(failures) - 20}")
+          PY
 
   local-qa-distribution:
     # Software-only distribution. All target/DNS/socket activity is synthetic.

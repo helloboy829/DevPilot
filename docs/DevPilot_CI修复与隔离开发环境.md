@@ -2,6 +2,12 @@
 
 > 2026-11-07。仅记录本轮已执行的工程验证；不等于生产部署验收、真实组件效果验收或安全整改全部完成。不会改 Conda base，也不操作现有业务容器。
 
+## 2026-11-16：后端失败名称摘要
+
+后端 CI 继续执行原 `make test`，仅通过 `PYTEST_ADDOPTS` 生成 JUnit 报告；失败时把至多 20 个 failure/error 用例名称写入 Actions annotations，并报告其总数。摘要不输出异常文本、捕获日志或局部变量，不改变测试范围、断言、跳过规则、重试或超时。报告缺失时明确提示检查安装/领域测试步骤，不能把缺失报告视为通过。
+
+此诊断针对公开日志 API 无法读取详情的情况：`e7e9998eb5f5f1437c92f8395346c3588169a75b` 的 Lint、Frontend Unit、Replay E2E 与 E2E 成功，Unit Tests 中的 backend-unit-tests 失败；其余三个安装/收集/分发 job 成功。摘要能力需在后续精确 SHA 的实际 Actions 中验证，不把诊断改动当作原失败已修复。
+
 ## 2026-11-09：新电脑的隔离复现基线
 
 本轮在另一台开发电脑核对远端 `main` 与本地同为 `c7ddbdc1417a589bbb544effb2e65630601823e8`。该 SHA 触发的六项 Actions 中五项成功，后端 Unit Tests `42543077340` / job `128922108984` 失败；default-install-collection 成功。下载原 job 日志确认仅合成 API → Worker 并发 2 场景失败（`1 failed / 12,291 passed / 18 skipped / 11 deselected`），不能把其他五项或前电脑的全量通过当作它的成功证据。

@@ -35,6 +35,8 @@
 
 ## 最近验证
 
+- **审批对账修复的精确 SHA CI（2026-11-16）**：`e7e9998eb5f5f1437c92f8395346c3588169a75b` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43791253784)、[Frontend Unit](https://github.com/helloboy829/DevPilot/actions/runs/43791253813)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43791253751) 和 [E2E](https://github.com/helloboy829/DevPilot/actions/runs/43791253859) 成功；[Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43791253889) 的 backend-unit-tests 失败，其余三个 job 成功。后端本地全量未结束；独立配置升级专项确认缺少 `uv` 导致 **1 failed / 9 passed**，撤销空白理由既有回归 **3 passed**。新增 CI 失败名称摘要仅改善诊断，不代表后端故障已修复。
+
 - **原 ID 对账后的状态失效修复（2026-11-16，本地 Windows）**：在 `359896f0e8759bb703e41732ef1475e45ebda3c4` 后工作区先复现对账成功仍保留旧预检/确认/项目索引，再修复状态清理。两份审批 DOM 回归 **41 passed**，前端全量 **162 文件 / 1,436 passed**，Next 生产构建通过；Chromium 正式批准流程 **9 passed / 0 retries**。首次浏览器启动因缺少锁定 Chromium 失败，安装项目对应版本后才获得实际浏览器结果。仅运行合成 API、本机回环测试服务，验证后已停止；未部署。
 
 - **后端与精确 SHA CI 续核（2026-11-16）**：现有 Python 3.12 隔离容器的领域套件 **64 + 58 passed**；Ruff check 与 format check（**1,296 文件**）通过，无缓存模式避免只读源码缓存写入。完整后端 pytest 仍在运行，尚无最终结果。`359896f0e8759bb703e41732ef1475e45ebda3c4` 的 [Frontend Unit](https://github.com/helloboy829/DevPilot/actions/runs/43788589629) 与 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43788589585) 成功，[Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43788589576) 失败（backend-unit-tests，exit 2）；其他安装/收集/分发 job 成功。失败日志 API 分别返回 403/401，未获得可归因详情，不将此 SHA 记为全绿；新修复的 CI 需另核。
