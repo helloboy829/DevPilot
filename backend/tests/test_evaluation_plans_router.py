@@ -39,8 +39,8 @@ async def test_plan_create_read_metadata_permissions_and_no_execution_api(api, m
         assert (await getattr(client, method)(stored + suffix)).status_code in {404, 405}
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
     assert (await client.get(stored)).status_code == 200
-    assert (await client.get(stored + "/audit")).status_code == 403
-    assert (await client.post(path, json=payload)).status_code == 403
+    assert (await client.get(stored + "/audit")).status_code == 200
+    assert (await client.post(path, json=payload)).status_code == 503
     app.state.actor = 2
     for target in (stored, path):
         assert (await client.get(target)).status_code == 404
@@ -55,9 +55,7 @@ async def test_plan_creation_requires_human_confirmation_and_key(api, monkeypatc
     app.state.internal = True
     assert (await client.post(path, json=payload)).status_code == 403
     app.state.internal = False
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_WRITE]
-    assert (await client.post(path, json=payload)).status_code == 403
-    app.state.permissions.append(Permissions.EVALUATION_PROJECTS_REVIEW)
+    app.state.permissions = []
     monkeypatch.delenv("DEVPILOT_REQUEST_ENCRYPTION_KEY")
     failed = await client.post(path, json=payload)
     assert failed.status_code == 503 and "SYNTHETIC" not in failed.text

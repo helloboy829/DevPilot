@@ -147,6 +147,25 @@ _ALL_PERMISSIONS: list[str] = [
 ]
 
 
+_EVALUATION_MEMBER_PERMISSIONS = (
+    Permissions.EVALUATION_PROJECTS_READ,
+    Permissions.EVALUATION_PROJECTS_WRITE,
+    Permissions.EVALUATION_PROJECTS_REVIEW,
+)
+
+
+def _evaluation_member_permissions(user: User, *, is_internal: bool) -> tuple[str, ...]:
+    """All initialized humans can work on their projects and assigned reviews.
+
+    Project ownership, case assignment and separation of duties remain enforced
+    by the evaluation repositories. Membership never grants export, operator or
+    model access, and internal agents cannot acquire human review membership.
+    """
+    if is_internal or getattr(user, "needs_setup", True) or getattr(user, "system_role", None) not in {"user", "admin"}:
+        return ()
+    return _EVALUATION_MEMBER_PERMISSIONS
+
+
 def _make_test_request_stub() -> Any:
     """Create a minimal request-like object for direct unit calls.
 
@@ -218,10 +237,12 @@ async def resolve_route_permissions(user: User, *, is_internal: bool) -> list[st
     """Return the route permissions granted to an authenticated user.
 
     Disabled authorization preserves the legacy all-permissions behavior.
-    When enabled, every registered ``resource:action`` permission is evaluated
-    independently so a provider failure affects only the route being checked.
+    Initialized human members always have evaluation project/review access.
+    Other registered permissions are evaluated independently when enabled, so a
+    provider failure affects only the operator-controlled capabilities.
     Provider instances are cached per config signature (hot-reload safe).
     """
+    member_permissions = _evaluation_member_permissions(user, is_internal=is_internal)
     config = _get_route_authorization_config()
     if config.enabled is not True:
         return list(_ALL_PERMISSIONS)
@@ -232,7 +253,7 @@ async def resolve_route_permissions(user: User, *, is_internal: bool) -> list[st
             raise ValueError("authorization is enabled but provider resolution returned None")
     except Exception:
         logger.warning("Failed to resolve authorization provider for Gateway routes", exc_info=True)
-        return [] if config.fail_closed else list(_ALL_PERMISSIONS)
+        return list(member_permissions) if config.fail_closed else list(_ALL_PERMISSIONS)
 
     # Align with Phase 1B's tool path: internal callers (IM channel workers,
     # scheduler) have system_role="internal", which is not a real RBAC role.
@@ -257,6 +278,8 @@ async def resolve_route_permissions(user: User, *, is_internal: bool) -> list[st
 
     # Evaluate all permissions in parallel (W2).
     async def _evaluate(permission: str) -> str | None:
+        if permission in member_permissions:
+            return permission
         _, action = permission.split(":", maxsplit=1)
         request = AuthzRequest(
             principal=principal,
@@ -493,8 +516,10 @@ def require_permission(
             if not auth.is_authenticated:
                 raise HTTPException(status_code=401, detail="Authentication required")
 
-            # Check permission
-            if not auth.has_permission(resource, action):
+            # Evaluation membership is a product capability for every human;
+            # cached/provider permissions cannot turn it into a reviewer role.
+            member_access = f"{resource}:{action}" in _evaluation_member_permissions(auth.user, is_internal=_is_internal_caller(request, auth.user))
+            if not member_access and not auth.has_permission(resource, action):
                 raise HTTPException(
                     status_code=403,
                     detail=f"Permission denied: {resource}:{action}",

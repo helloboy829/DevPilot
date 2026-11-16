@@ -5,7 +5,6 @@ from test_evaluation_registry_router import api as api
 from test_qa_approvals_router import setup_approval
 
 from app.evaluation.approval_capabilities import approval_capabilities
-from app.gateway.authz import Permissions
 
 
 def test_capabilities_are_a_fixed_independent_projection():
@@ -34,7 +33,7 @@ def test_capabilities_are_a_fixed_independent_projection():
 
 
 @pytest.mark.asyncio
-async def test_capability_endpoint_is_human_read_only_and_permissioned(api, monkeypatch):
+async def test_capability_endpoint_is_human_member_read_only_and_owner_scoped(api, monkeypatch):
     client, app, base, _ = api
     root, _ = await setup_approval(api, monkeypatch)
     path = base + "/approvals/capabilities"
@@ -45,8 +44,10 @@ async def test_capability_endpoint_is_human_read_only_and_permissioned(api, monk
     assert not any(secret in result.text for secret in ("document", "note", "hash", "SYNTHETIC"))
     original = app.state.permissions
     original_actor = app.state.actor
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(path)).status_code == 403
+    app.state.permissions = []
+    member_result = await client.get(path)
+    assert member_result.status_code == 200
+    assert member_result.json() == result.json()
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(path)).status_code == 403

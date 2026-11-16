@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## 所有用户均可审核（2026-11-16）
+
+项目操作与复核面向所有已登录并完成初始化的用户，不按管理员/审核人角色隐藏入口，不要求单独开通 review 权限。复核中心仅显示本人发起或明确指派的任务；盲审和仲裁是任务分工，保留双盲、项目隔离和运行内职责分离。Linux／容器为本轮主要运行验收环境，Windows 兼容性单独追踪。见[当前接续](../docs/DevPilot_Equal_Review_and_Linux_Acceptance.md)。
+
 ## Read-only scheduling admission section (2026-11-15)
 
 `ExecutionOperationsPanel` renders the scheduling-admission diagnostic in its own account-keyed section with an independent request lock, abort controller and post-await fences. Only an explicit admin click may call `GET /api/evaluation/operations/scheduling-admission`; the client requires the fixed `qa-scheduling-admission.v1` scope, `component_tests_only`, three literal `false` authorities and a unique allowlisted blocker list over the shared 16-KiB bounded JSON reader. Keep the fixed-denial text and blockers literal, never add dispatch/release/retry controls, retries, polling or persistence, and keep errors generic. [Contract](../docs/DevPilot_Scheduling_Admission.md).

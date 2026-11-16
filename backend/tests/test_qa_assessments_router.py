@@ -47,10 +47,10 @@ async def test_every_read_and_append_enforce_owner_human_permissions(api, monkey
     assert (await client.post(path, json=payload)).status_code == 200
     reads = [root + "/independent-assessment", root + "/assessments", path]
     original = app.state.permissions
-    for permissions, get_status, post_status in (([Permissions.EVALUATION_PROJECTS_READ], 403, 403), ([Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_REVIEW], 200, 403)):
+    for permissions in ([], [Permissions.EVALUATION_PROJECTS_READ], [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_REVIEW]):
         app.state.permissions = permissions
-        assert [(await client.get(p)).status_code for p in reads] == [get_status] * 3
-        assert (await client.post(path, json=payload)).status_code == post_status
+        assert [(await client.get(p)).status_code for p in reads] == [200] * 3
+        assert (await client.post(path, json=payload)).status_code == 200
     app.state.permissions = original
     app.state.internal = True
     assert [(await client.get(p)).status_code for p in reads] == [403] * 3

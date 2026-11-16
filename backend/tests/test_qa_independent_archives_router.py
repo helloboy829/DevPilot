@@ -99,11 +99,11 @@ async def test_all_seven_routes_enforce_owner_human_and_separate_permissions(api
     permissions = app.state.permissions
     for allowed in ([Permissions.EVALUATION_PROJECTS_READ], [Permissions.EVALUATION_PROJECTS_REVIEW], [Permissions.EVALUATION_PROJECTS_WRITE]):
         app.state.permissions = allowed
-        assert [(await client.get(p)).status_code for p in reads] == [403] * 5
-        assert [(await client.put(p, json=body)).status_code for p, body in writes] == [403, 403]
+        assert [(await client.get(p)).status_code for p in reads] == [200, 200, 200, 200, 404]
+        assert [(await client.put(p, json=body)).status_code for p, body in writes] == [200, 404]
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_REVIEW]
     assert [(await client.get(p)).status_code for p in reads] == [200, 200, 200, 200, 404]
-    assert [(await client.put(p, json=body)).status_code for p, body in writes] == [403, 403]
+    assert [(await client.put(p, json=body)).status_code for p, body in writes] == [200, 404]
     app.state.permissions = permissions
     app.state.internal = True
     assert [(await client.get(p)).status_code for p in reads] == [403] * 5

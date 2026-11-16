@@ -17,7 +17,9 @@
 
 ## 2. 授权、隐私与冻结对象
 
-创建必须是已认证人类 owner，具有项目 read + write + review 权限，显式 `confirmed=true`、`share_reference=true`，并提供两个复核人及一个仲裁人的规范 UUID。服务器只按这三个精确 ID 检查账号存在且完成设置，不提供账号目录或邮箱查询；不存在/不独立的指派拒绝。内部 Agent 一律不能调用这些任务路由。
+2026-11-16 更新：所有完成初始化的已登录用户均可审核，不设独立审核人角色；历史 read/write/review 名称保留为路由兼容能力，不再构成人类用户的角色门槛。任务指派和项目归属仍分别检查，盲审/仲裁是每项任务中的分工。见[当前规则](DevPilot_Equal_Review_and_Linux_Acceptance.md)。
+
+创建必须是已认证人类 owner，显式 `confirmed=true`、`share_reference=true`，并提供两个复核人及一个仲裁人的规范 UUID。服务器只按这三个精确 ID 检查账号存在且完成设置，不提供账号目录或邮箱查询；不存在/不独立的指派拒绝。内部 Agent 一律不能调用这些任务路由。
 
 - 新任务绑定 task/owner/project/run/ordinal/case hash、固定策略和三名指定账号形成 definition/subject hash。此 hash 是结构绑定，不是独立签名或正式批准。
 - 分配仅允许当前任务所需 Q、实际 A、参考答案、来源及技术观测的显式读取；不授予原项目/数据集/请求版本/其他运行的普通读取权限。原 owner-only 路由不放宽。创建前必须确保有权向这些人分享参考内容；不存在自动脱敏承诺。
@@ -47,8 +49,8 @@
 
 `/api/evaluation/review-tasks` 提供当前 owner/被指派人的有界队列；`/{task_id}` GET 为元数据。子路由：`claim` / `release` POST、`case` GET、`decisions` POST、`result?round_number=...` GET、`cancel` / `reopen` POST。
 
-- 元数据要求项目 read 权限；claim/release/case/decisions 另需 review，但被指派复核人不需要项目 write，也不会因此成为项目 owner。
-- create/cancel/reopen 需要 read + write + review 且服务层再次检查 owner；result 需要 read + review 且 owner-only。匿名、内部 Agent、未被指派第三人不获得数据。
+- 所有完成初始化的已登录用户均可查看本人发起/被指派的任务并进行领取、释放、明确打开案例和提交决定；无需配置独立 review 角色能力，也不会因此成为其他项目 owner。
+- create/cancel/reopen 与 result 由服务层检查 owner；领取、打开和决定由具体任务指派限制。匿名、内部 Agent、未被指派第三人不获得数据。
 - 不新增请求明文读取、目标执行、上传证据或模型调用入口。没有全量目录、原始请求 secret、自动送审或人工批准接口。
 
 ## 5. 迁移与验证

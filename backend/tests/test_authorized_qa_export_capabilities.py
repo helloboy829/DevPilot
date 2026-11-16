@@ -76,7 +76,8 @@ async def test_capabilities_human_owner_and_exact_read_permissions(api, monkeypa
     original = list(app.state.permissions)
     for permission in (Permissions.EVALUATION_EXPORTS_READ, Permissions.EVALUATION_PROJECTS_READ):
         app.state.permissions = [p for p in original if p != permission]
-        assert (await client.get(base + "/export-capabilities")).status_code == 403
+        expected = 403 if permission == Permissions.EVALUATION_EXPORTS_READ else 200
+        assert (await client.get(base + "/export-capabilities")).status_code == expected
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(base + "/export-capabilities")).status_code == 403

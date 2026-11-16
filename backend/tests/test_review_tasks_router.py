@@ -12,7 +12,6 @@ from test_qa_evidence_router import setup_evidence
 from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.review_tasks import ReviewTaskRepository
 from app.gateway.auth.models import User
-from app.gateway.authz import Permissions
 from app.gateway.routers import evaluation_review_tasks as routes
 
 TASK = "a" * 32
@@ -119,22 +118,17 @@ async def test_explicit_distinct_ready_human_accounts_and_reference_grant_requir
 
 
 @pytest.mark.asyncio
-async def test_task_routes_auth_human_permissions_and_owner_actions_are_separate(api, monkeypatch):
+async def test_task_routes_allow_every_member_but_keep_human_and_owner_boundaries(api, monkeypatch):
     client, app, base, _ = api
     _, payload, _ = await ready(api, monkeypatch)
     task = (await client.get(ROOT + "/" + TASK)).json()
     app.state.actor = 2
     task = (await client.get(ROOT + "/" + TASK)).json()
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
+    app.state.permissions = []
     assert (await client.get(ROOT)).status_code == 200
-    assert (await client.post(ROOT + "/" + TASK + "/claim", json=command(task))).status_code == 403
-    assert (await client.get(ROOT + "/" + TASK + "/case")).status_code == 403
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_REVIEW]
     claimed = await client.post(ROOT + "/" + TASK + "/claim", json=command(task))
     assert claimed.status_code == 200
     assert (await client.get(ROOT + "/" + TASK + "/case")).status_code == 200
-    assert (await client.post(ROOT + "/" + TASK + "/cancel", json=command(claimed.json()))).status_code == 403
-    app.state.permissions.append(Permissions.EVALUATION_PROJECTS_WRITE)
     assert (await client.post(ROOT + "/" + TASK + "/cancel", json=command(claimed.json()))).status_code == 404
     app.state.internal = True
     for path in (ROOT, ROOT + "/" + TASK, ROOT + "/" + TASK + "/case", base + "/review-tasks"):

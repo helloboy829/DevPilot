@@ -46,13 +46,13 @@ PERMISSIONS = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJ
 ACTORS = ("owner", "reviewer_a", "reviewer_b", "arbitrator", "outsider")
 
 
-def route_policy(*, deny=()):
+def route_policy(*, deny=(), allow=None):
     return AuthorizationConfig(
         enabled=True,
         fail_closed=True,
         provider=AuthorizationProviderConfig(
             use="deerflow.authz.rbac:RbacAuthorizationProvider",
-            config={"roles": {"user": {"routes": {"allow": PERMISSIONS, "deny": list(deny)}}}},
+            config={"roles": {"user": {"routes": {"allow": PERMISSIONS if allow is None else allow, "deny": list(deny)}}}},
         ),
     )
 
@@ -286,24 +286,26 @@ async def test_real_account_lookup_and_explicit_independent_sharing_are_required
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("permission", PERMISSIONS)
-async def test_real_rbac_deny_wins_and_denied_commands_do_not_advance_task(workflow, permission):
+async def test_real_login_members_review_without_rbac_grants_and_keep_task_isolation(workflow, permission):
     state = workflow
     plan = await create_plan(state, "v1", timeout_ms=5000)
     root, _ = await collect(state, plan, build="v1")
     path, original, _ = await create_task(state, root, 1)
     identities = accounts(state)
-    identities.policy["value"] = route_policy(deny=[permission])
-    if permission == Permissions.EVALUATION_PROJECTS_READ:
-        assert (await state.client.get(path)).status_code == 403
-    elif permission == Permissions.EVALUATION_PROJECTS_WRITE:
-        assert (await state.client.post(path + "/cancel", json=command(original))).status_code == 403
-    else:
-        reviewer = identities.clients["reviewer_a"]
-        task = response_json(await reviewer.get(path))
-        assert (await reviewer.post(path + "/claim", json=command(task))).status_code == 403
-        assert (await reviewer.get(path + "/case")).status_code == 403
-    identities.policy["value"] = route_policy()
+    identities.policy["value"] = route_policy(allow=[], deny=[permission])
     assert response_json(await state.client.get(path)) == original
+    reviewer = identities.clients["reviewer_a"]
+    task = response_json(await reviewer.get(path))
+    claimed = response_json(await reviewer.post(path + "/claim", json=command(task)))
+    opened = response_json(await reviewer.get(path + "/case"), sensitive=True)
+    assert opened["prior_decisions"] == []
+    assert opened["input"] == INPUTS[0] and opened["expected"] == GOLD[0] and opened["output"] == OUTPUTS[0]
+    assert all(value not in str(opened) for value in [*INPUTS[1:], *GOLD[1:], *OUTPUTS[1:]])
+    response_json(await reviewer.post(path + "/decisions", json={**command(claimed), "subject_hash": claimed["subject_hash"], "decision": "pass", "note": NOTE}))
+    assert (await identities.clients["outsider"].get(path)).status_code == 404
+    assert (await reviewer.get(root + "/cases/1")).status_code == 404
+    assert (await reviewer.post(path + "/cancel", json=command(claimed))).status_code == 404
+    assert response_json(await state.client.get(path))["revision"] > original["revision"]
     assert len(state.sent) == 3
 
 

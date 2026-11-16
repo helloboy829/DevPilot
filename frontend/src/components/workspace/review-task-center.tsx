@@ -101,8 +101,8 @@ export function ReviewTaskCenter({ zh }: { zh: boolean }) {
     <div className="min-w-0 space-y-5">
       <p className="text-muted-foreground text-sm">
         {text(
-          "跨项目显示我发起或被明确指派的独立逐条复核。列表只读元数据，证据必须领取后明确打开。不会自动加载敏感内容、通知、执行测试或调用模型；逐条结论尚未接入汇总、报告或正式验收。",
-          "Cross-project independent case tasks you own or are explicitly assigned. Lists contain metadata only; claim before explicitly opening evidence. No automatic sensitive reads, notifications, execution or model calls. Resolutions are not yet integrated into summaries, reports or formal acceptance.",
+          "所有已登录用户均可参与审核，无需单独开通审核人权限。这里显示我发起或被明确指派的复核任务，领取后可明确打开对应案例。盲审人与仲裁人是每项任务中的分工；逐条结论、评估与正式批准分别记录。",
+          "Every signed-in user can review without a separate reviewer permission. View tasks you own or are explicitly assigned, then claim a task before opening its case. Blind review and arbitration are assignments within each task. Case decisions, assessments and formal approvals are recorded separately.",
         )}
       </p>
       {error && (

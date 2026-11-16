@@ -37,8 +37,8 @@ async def test_execution_is_human_authorized_idempotent_private_and_never_sends_
     assert cancelled.status_code == 200 and cancelled.json()["reservation_held"] is False
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
     assert (await client.get(path)).status_code == 200
-    assert (await client.put(path, json=payload)).status_code == 403
-    assert (await client.post(path + "/cancel")).status_code == 403
+    assert (await client.put(path, json=payload)).status_code == 200
+    assert (await client.post(path + "/cancel")).status_code == 200
     app.state.permissions += [Permissions.EVALUATION_PROJECTS_WRITE, Permissions.EVALUATION_PROJECTS_REVIEW]
     app.state.internal = True
     assert (await client.put(path, json=payload)).status_code == 403

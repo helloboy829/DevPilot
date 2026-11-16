@@ -21,6 +21,8 @@
 
 App 可以调用 Harness 与 DevPilot，Harness 不导入 App。Gateway 的 `RunManager`、`run_agent()` 和 `StreamBridge` 承载统一 Agent 生命周期；通用定时任务复用该生命周期，不能借它绕过独立 QA 准入。QA Worker 与本地执行共用版本化 request/response/attempt/run/transport 核心，由各自适配器保留授权和耐久边界。
 
+所有完成初始化的已登录人类用户都具有项目 read/write/review 基础能力，普通用户与管理员相同，不设审核人角色。Gateway 的权限解析与路由检查均保留这一基础能力，即使旧角色配置遗漏或拒绝这些名称；项目 owner、任务精确指派与运行内独立性仍在业务仓库验证。内部 Agent 不获得人类成员资格；模型/运维/外发边界独立保留。后续审批人本人操作同样面向所有用户。详见[当前接续](../docs/DevPilot_Equal_Review_and_Linux_Acceptance.md)。
+
 中间件处理线程隔离、沙箱、工具和上下文；调整顺序或扩展边界前读[完整中间件链](../docs/Backend_Development_History.md#middleware-chain)及[扩展系统](../docs/Backend_Development_History.md#python-extension-system-runtime-slice)。第三方代码入口 `plugins` 属 operator 控制，不能进入 API 可写配置。
 
 配置推荐放在仓库根目录。主配置解析顺序为显式 `config_path` → `DEER_FLOW_CONFIG_PATH` → 当前目录 → 父目录；扩展配置使用对应的 `DEER_FLOW_EXTENSIONS_CONFIG_PATH`。显式配置路径缺失要报错，不能偷偷回退。基础设施字段按 `STARTUP_ONLY_FIELDS` 重启生效；不要把热重载视为基础设施升级。

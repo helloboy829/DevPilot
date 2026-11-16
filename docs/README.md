@@ -3,6 +3,7 @@
 ## 先看这里
 
 - [当前能力、运行状态与缺口](DevPilot_Delivery_Status.md)
+- [全民审核规则与 Linux 验收接续](DevPilot_Equal_Review_and_Linux_Acceptance.md)
 - [候选验收包与检查清单](DevPilot_Acceptance_Package.md)
 - [Windows 验收 Runbook](DevPilot_Windows_Acceptance.md)
 - [两周冲刺建议与迁移风险](DevPilot_Sprint_Plan.md)

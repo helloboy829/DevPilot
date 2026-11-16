@@ -4,6 +4,8 @@
 
 ## 范围与对象
 
+2026-11-16 权限规则更新：所有完成初始化的已登录用户均具备项目操作和审核资格，不设置审批人/审核人账号等级。现有首切片仍由项目 owner 记录具名决定；审批人本人操作属于下一阶段，不能因资格开放而声称已经实现。项目归属与下面的运行内职责分离条件保持。见[全民审核与 Linux 验收](DevPilot_Equal_Review_and_Linux_Acceptance.md)。
+
 - 对象：某项目内某个已 `recording_finished` 的执行 run 的**具体独立评估修订**（`evaluation_run_assessments` 行）。批准文档固定 `assessment_id`、`assessment_revision`、`assessment_hash`、`summary_hash`，不跟随最新复核或当前任务。
 - 决定：`approved` 或 `revoked`，由具名审批人（canonical 账号 UUID）明确给出。`revoked` 必须附理由（`note` 1–2000 字符）。
 - 记录人：当前通过鉴权与权限检查的项目 owner。审计 `actor` 记录实际写入的 owner；`approver_id` 与 `recorded_by` 分别保存决策人和记录人。

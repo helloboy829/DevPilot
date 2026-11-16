@@ -55,6 +55,7 @@ def _user(**overrides):
     values = {
         "id": "user-123",
         "system_role": "user",
+        "needs_setup": False,
         "oauth_provider": "github",
         "oauth_id": "oauth-456",
     }
@@ -205,7 +206,7 @@ async def test_route_permissions_fail_open_allows_the_failed_permission(monkeypa
 @pytest.mark.parametrize(
     ("fail_closed", "expected"),
     [
-        (True, []),
+        (True, [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_WRITE, Permissions.EVALUATION_PROJECTS_REVIEW]),
         (
             False,
             [
@@ -282,9 +283,6 @@ async def test_evaluation_transfer_permissions_apply_provider_failure_only_to_ex
         Permissions.RUNS_CREATE,
         Permissions.RUNS_READ,
         Permissions.RUNS_CANCEL,
-        Permissions.EVALUATION_PROJECTS_READ,
-        Permissions.EVALUATION_PROJECTS_WRITE,
-        Permissions.EVALUATION_PROJECTS_REVIEW,
         Permissions.EVALUATION_OPERATIONS_READ,
         Permissions.EVALUATION_EXPORTS_READ,
         Permissions.EVALUATION_EXPORTS_CREATE,
@@ -309,7 +307,7 @@ async def test_route_permissions_use_builtin_rbac_route_policy(monkeypatch):
 
     permissions = await resolve_route_permissions(_user(), is_internal=False)
 
-    assert permissions == [Permissions.THREADS_READ, Permissions.RUNS_READ]
+    assert permissions == [Permissions.THREADS_READ, Permissions.RUNS_READ, Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_WRITE, Permissions.EVALUATION_PROJECTS_REVIEW]
 
 
 @pytest.mark.asyncio

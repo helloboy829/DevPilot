@@ -1,5 +1,7 @@
 # 开发接续分析与模块计划 / Development continuation plan
 
+2026-11-16 当前执行顺序以[全民审核与 Linux 验收接续](DevPilot_Equal_Review_and_Linux_Acceptance.md)为准：所有已登录用户均可审核，不设审核人权限等级；先完成 Linux／容器运行验收，再推进审批本人操作、可靠执行与调度、指标和证据闭环。下方日期切片保留当时范围，不把 Windows 作为当前交付的必选平台。
+
 ## 当前接续：本地 QA 加密输出与保留（2026-11-11）
 
 上一模块 `e5af8fd44faa0e2726e87fae11d1e002dc33ef3f` 已推送，六项实际 Actions / 11 jobs 全部核验成功：Lint `42882229689`、Blocking `42882229556`、E2E `42882229676`、Unit `42882229441`、Replay `42882229263`、Frontend `42882229324`。这些结果只属于该 SHA，不代表当前未提交改动或部署。

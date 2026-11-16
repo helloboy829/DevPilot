@@ -34,8 +34,9 @@ async def test_save_list_metadata_no_plaintext_read_or_mutation_endpoint(api, mo
         assert result.status_code in {404, 405}
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
     assert (await client.get(stored_path)).status_code == 200
-    assert (await client.get(stored_path + "/audit")).status_code == 403
-    assert (await client.post(path, json=request_payload())).status_code == 403
+    assert (await client.get(stored_path + "/audit")).status_code == 200
+    # Membership does not bypass the independently required encryption key.
+    assert (await client.post(path, json=request_payload())).status_code == 503
     app.state.actor = 2
     assert (await client.get(stored_path)).status_code == 404
     assert (await client.get(path)).status_code == 404
@@ -59,9 +60,7 @@ async def test_save_requires_human_confirmation_permissions_and_operator_key(api
     app.state.internal = True
     assert (await client.post(path, json=request_payload())).status_code == 403
     app.state.internal = False
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_WRITE]
-    assert (await client.post(path, json=request_payload())).status_code == 403
-    app.state.permissions.append(Permissions.EVALUATION_PROJECTS_REVIEW)
+    app.state.permissions = []
     assert (await client.post(path, json=request_payload())).status_code == 200
     assert (await client.post(path, json=request_payload())).status_code == 409
 

@@ -53,7 +53,7 @@ async def setup_data(client):
 
 
 @pytest.mark.asyncio
-async def test_auth_and_permissions_are_separate_from_chat(api):
+async def test_every_authenticated_member_can_access_evaluation_without_role_grants(api):
     client, app = api
     app.state.actor = 0
     response = await client.get("/api/evaluation/projects")
@@ -61,20 +61,18 @@ async def test_auth_and_permissions_are_separate_from_chat(api):
     assert "no-store" in response.headers["cache-control"]
     app.state.actor = 1
     app.state.permissions = [Permissions.THREADS_READ, Permissions.THREADS_WRITE]
-    assert (await client.get("/api/evaluation/projects")).status_code == 403
+    assert (await client.get("/api/evaluation/projects")).status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_api_workflow_reference_gate_and_freeze(api):
     client, app = api
     path, dataset = await setup_data(client)
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
+    app.state.permissions = []
     response = await client.get(path + "/samples")
     assert response.status_code == 200
     assert "SECRET_SYNTHETIC_GOLD" not in response.text
-    assert (await client.get(path + "/references")).status_code == 403
-    assert (await client.get(path + "/audit")).status_code == 403
-    app.state.permissions.append(Permissions.EVALUATION_PROJECTS_REVIEW)
+    assert (await client.get(path + "/audit")).status_code == 200
     assert "SECRET_SYNTHETIC_GOLD" in (await client.get(path + "/references")).text
     freeze = {"revision": dataset["revision"], "content_hash": dataset["content_hash"], "reviewed": True}
     response = await client.post(path + "/freeze", json=freeze)

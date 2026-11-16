@@ -87,12 +87,12 @@ async def test_explicit_approval_read_write_permissions_and_no_store(api, monkey
     assert (await client.delete(path)).status_code == 405
     original = app.state.permissions
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(root + "/approvals")).status_code == 403
-    assert (await client.get(path)).status_code == 403
-    assert (await client.post(path, json=payload(assessment))).status_code == 403
+    assert (await client.get(root + "/approvals")).status_code == 200
+    assert (await client.get(path)).status_code == 200
+    assert (await client.post(path, json=payload(assessment))).status_code == 200
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_REVIEW]
     assert (await client.get(path)).status_code == 200
-    assert (await client.post(path, json=payload(assessment))).status_code == 403
+    assert (await client.post(path, json=payload(assessment))).status_code == 200
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(path)).status_code == 403
@@ -177,7 +177,7 @@ async def test_approval_audit_is_metadata_only_and_permissioned(api, monkeypatch
     assert (await client.get(root + "/approvals/" + APPROVAL)).status_code == 200
     original = app.state.permissions
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(root + "/approvals/audit")).status_code == 403
+    assert (await client.get(root + "/approvals/audit")).status_code == 200
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(root + "/approvals/audit")).status_code == 403
@@ -222,7 +222,7 @@ async def test_approval_preflight_reports_blockers_and_never_writes(api, monkeyp
     assert (await client.get(root + "/assessments/" + "f" * 32 + "/approval-preflight", params={"approver_id": APPROVER})).status_code == 404
     original = app.state.permissions
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(path, params={"approver_id": APPROVER})).status_code == 403
+    assert (await client.get(path, params={"approver_id": APPROVER})).status_code == 200
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(path, params={"approver_id": APPROVER})).status_code == 403
@@ -256,7 +256,7 @@ async def test_project_approval_index_is_latest_metadata_only_and_permissioned(a
     assert "document" not in index.text and "note" not in index.text
     original = app.state.permissions
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(base + "/approvals")).status_code == 403
+    assert (await client.get(base + "/approvals")).status_code == 200
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(base + "/approvals")).status_code == 403
@@ -291,7 +291,7 @@ async def test_approval_chain_integrity_is_metadata_only_and_permissioned(api, m
     assert (await client.get(root + "/approvals/" + APPROVAL)).status_code == 200
     original = app.state.permissions
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(path)).status_code == 403
+    assert (await client.get(path)).status_code == 200
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(path)).status_code == 403
@@ -316,7 +316,7 @@ async def test_project_approval_chain_summary_is_metadata_only_and_permissioned(
     original = app.state.permissions
     original_actor = app.state.actor
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(path)).status_code == 403
+    assert (await client.get(path)).status_code == 200
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(path)).status_code == 403
@@ -384,7 +384,7 @@ async def test_approval_signoff_progress_is_aggregate_and_permissioned(api, monk
     assert not any(secret in progress.text for secret in ("document", "note", "hash", "SYNTHETIC", APPROVAL, APPROVER))
     original = app.state.permissions
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(path)).status_code == 403
+    assert (await client.get(path)).status_code == 200
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(path)).status_code == 403
@@ -443,7 +443,7 @@ async def test_advisory_signoff_policy_roundtrip_and_permissions(api, monkeypatc
     original = app.state.permissions
     original_actor = app.state.actor
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(path)).status_code == 403
+    assert (await client.get(path)).status_code == 200
     app.state.permissions = original
     app.state.internal = True
     assert (await client.get(path)).status_code == 403

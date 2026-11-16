@@ -80,7 +80,7 @@ async def test_get_only_pinned_human_owner_permissions_receipt_and_namespace(api
     assert (await client.get(url.replace(doc["id"], "invalid"))).status_code == 422
     for permissions in ([Permissions.EVALUATION_PROJECTS_READ], [Permissions.EVALUATION_PROJECTS_REVIEW], [Permissions.EVALUATION_PROJECTS_WRITE]):
         app.state.permissions = permissions
-        assert (await client.get(url)).status_code == 403
+        assert (await client.get(url)).status_code == 200
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_REVIEW]
     assert (await client.get(url)).status_code == 200
     app.state.internal = True

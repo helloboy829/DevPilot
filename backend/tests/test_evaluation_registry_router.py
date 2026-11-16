@@ -82,9 +82,7 @@ async def test_registry_api_scope_permissions_internal_and_immutability(api):
     app.state.internal = True
     assert (await client.post(path, json=payload)).status_code == 403
     app.state.internal = False
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_WRITE]
-    assert (await client.post(path, json=payload)).status_code == 403
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_WRITE, Permissions.EVALUATION_PROJECTS_REVIEW]
+    app.state.permissions = []
     result = await client.post(path, json=payload)
     assert result.status_code == 200 and "no-store" in result.headers["cache-control"]
     assert "SYNTHETIC_GOLD" not in result.text and "api_token" not in result.text and "SYNTHETIC_URL" not in result.text

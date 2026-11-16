@@ -53,11 +53,11 @@ async def test_archive_permissions_owner_and_immutable_reads(api, monkeypatch):
     assert (await client.get(path)).json() == saved
     assert (await client.put(path, json=payload)).json() == saved
     assert (await client.put(base + "/retest-archives/" + uuid4().hex, json=payload)).status_code == 503
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(path)).status_code == 403
+    app.state.permissions = []
+    assert (await client.get(path)).status_code == 200
     app.state.permissions.append(Permissions.EVALUATION_PROJECTS_REVIEW)
     assert (await client.get(path)).status_code == 200
-    assert (await client.put(path, json=payload)).status_code == 403
+    assert (await client.put(path, json=payload)).status_code == 200
     app.state.internal = True
     assert (await client.get(path)).status_code == 403
     assert (await client.get(base + "/retest-archives")).status_code == 403

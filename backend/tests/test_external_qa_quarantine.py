@@ -315,12 +315,23 @@ async def test_stream_bound_before_buffering_and_duplicate_envelope_rejection(ap
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("permission", [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_WRITE, Permissions.EVALUATION_PROJECTS_REVIEW, Permissions.EVALUATION_EXPORTS_READ, Permissions.EVALUATION_EXTERNAL_QA_CREATE])
-async def test_create_requires_each_permission(api, monkeypatch, permission):
+@pytest.mark.parametrize(
+    "permission,expected_status",
+    [
+        (Permissions.EVALUATION_PROJECTS_READ, 200),
+        (Permissions.EVALUATION_PROJECTS_WRITE, 200),
+        (Permissions.EVALUATION_PROJECTS_REVIEW, 200),
+        (Permissions.EVALUATION_EXPORTS_READ, 403),
+        (Permissions.EVALUATION_EXTERNAL_QA_CREATE, 403),
+    ],
+)
+async def test_create_distinguishes_membership_from_external_grants(api, monkeypatch, permission, expected_status):
     _, source, _ = await setup_intake(api, monkeypatch)
     api[1].state.permissions.remove(permission)
     response = await api[0].put(api[2] + "/external-qa-intakes/" + uuid4().hex, json=request_for(source, *declared_pair(source)))
-    assert response.status_code == 403
+    assert response.status_code == expected_status
+    if expected_status == 200:
+        untrusted(response.json())
 
 
 @pytest.mark.asyncio
@@ -335,7 +346,9 @@ async def test_owner_project_human_and_read_permission_boundaries(api, monkeypat
     assert (await client.get(path)).status_code == (await client.get(path + "/audit")).status_code == 403
     app.state.permissions.append(Permissions.EVALUATION_EXTERNAL_QA_READ)
     app.state.permissions.remove(Permissions.EVALUATION_PROJECTS_READ)
-    assert (await client.get(path)).status_code == (await client.get(path + "/audit")).status_code == 403
+    member_read = await client.get(path)
+    assert member_read.status_code == (await client.get(path + "/audit")).status_code == 200
+    untrusted(member_read.json())
     app.state.permissions.append(Permissions.EVALUATION_PROJECTS_READ)
     app.state.actor = 2
     for url in (path, path + "/audit"):

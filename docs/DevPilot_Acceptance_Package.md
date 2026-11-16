@@ -21,7 +21,7 @@
 - [ ] 模型目录与 `DEVPILOT_MODEL_ENCRYPTION_KEY`（如启用）独立配置；不把模型 key 当作 QA 目标授权。
 - [ ] 执行策略保持默认关闭；启用需独立 operator 决定、目标 allowlist、权限与显式同意。
 - [ ] 升级前在**在线一致性备份**下完成；确认备份可恢复（SQLite 需含 WAL，恢复会导致备份后写入丢失）。
-- [ ] 账号与角色（admin / 普通 owner / 独立审阅人 / 仲裁人 / 具名审批人）按职责分离准备，至少需要 5 个不同账号才能走完独立复核＋正式批准。
+- [ ] 所有完成初始化的已登录用户均可审核，无需额外审核角色。完整流程至少准备 5 个不同账号，分别承担该运行的 owner、两名盲审、仲裁与具名审批；这些是运行内分工，不是账号权限等级。
 - [ ] 固定 Compose project、端口、卷与挂载；不启动第二个同端口栈。
 
 ## 开发与验证环境提示
@@ -40,7 +40,7 @@
 - [ ] 真实密码/JWT/CSRF 登录；匿名访问被拒。
 - [ ] 未授权账号看不到他人项目；服务端 owner 隔离生效（跨 owner 返回 404）。
 - [ ] 内部 token/非人类调用者被审阅、证据与运维路由拒绝。
-- [ ] `evaluation_projects:{read,write,review}` 与 `evaluation_operations:read` 按需授予；read 不隐含 review/write。
+- [ ] 普通用户与管理员无需额外 `evaluation_projects:{read,write,review}` 授权即可操作自己的项目和被指派任务；缺失/拒绝这些旧角色条目不阻断人类成员资格。项目归属、双盲与运行内职责分离仍生效；`evaluation_operations:read` 和数据外发边界独立验证。
 
 ### 3.2 数据与计划
 

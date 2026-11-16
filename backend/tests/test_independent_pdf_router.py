@@ -74,7 +74,7 @@ async def test_human_owner_authz_receipt_version_namespace_and_get_only(api, mon
     assert (await client.post(url, json={"markdown": "UNTRUSTED"})).status_code == 405
     for permissions in ([Permissions.EVALUATION_PROJECTS_READ], [Permissions.EVALUATION_PROJECTS_REVIEW], [Permissions.EVALUATION_PROJECTS_WRITE]):
         app.state.permissions = permissions
-        assert (await client.get(url)).status_code == 403
+        assert (await client.get(url)).status_code == 200
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_REVIEW]
     assert (await client.get(url)).status_code == 200
     app.state.internal = True

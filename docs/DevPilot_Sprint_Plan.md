@@ -1,5 +1,7 @@
 # DevPilot 两周冲刺计划
 
+2026-11-16 用户已确认[当前接续顺序](DevPilot_Equal_Review_and_Linux_Acceptance.md)：所有完成初始化的已登录用户均可审核，无独立审核角色；Linux／容器是本轮主要运行验收环境。Windows 专项单独追踪，不阻塞 Linux 交付。
+
 编制：2026-11-14。建议以 2026-11-16 至 2026-11-27 的十个工作日为窗口，按一名开发者约 **80h** 估算；这是待执行的范围建议，不是已完成记录或上线承诺。依据：[当前状态](DevPilot_Delivery_Status.md)、[业务流程与迭代方向](DevPilot_业务流程与迭代计划.md)、[工程约束](../AGENTS.md)。
 
 2026-11-14 进展：加密输出运行时与显式管理命令已实现，`7ba1484` 的 4 workflows / 8 jobs 全成功。现补充[合成 SQLite 升级与恢复演练](DevPilot_Candidate_Upgrade_Recovery.md)：真实双 ledger、39 张旧表、WAL 在线备份、`0009 → 0014` 与新路径还原；本模块最终门禁/精确 SHA CI 另行记录。候选镜像/浏览器验收、PostgreSQL 原生恢复、明文副本、更广泛崩溃产物和 Windows 仍待完成。

@@ -72,8 +72,8 @@ async def test_human_owner_review_permissions_get_only_and_bad_receipts(api, mon
     assert (await client.get(url.replace(RENDERER_ID, "qa-docx-v2"))).status_code == 404
     assert (await client.get(base + "/report-archives/invalid/exports/" + RENDERER_ID + "?archive_hash=" + "a" * 64)).status_code == 422
     assert (await client.post(url, json={"markdown": "UNTRUSTED"})).status_code == 405
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(url)).status_code == 403
+    app.state.permissions = []
+    assert (await client.get(url)).status_code == 200
     app.state.permissions.append(Permissions.EVALUATION_PROJECTS_REVIEW)
     assert (await client.get(url)).status_code == 200  # Export does not need write permission.
     app.state.internal = True

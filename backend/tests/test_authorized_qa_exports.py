@@ -452,12 +452,13 @@ async def test_bounded_stream_and_private_permission_failures_before_source_read
     response = await client.put(path, content=body(), headers={"content-type": "application/json"})
     assert response.status_code == 413 and len(streamed) == 2 and not reads
     assert "no-store" in response.headers["cache-control"]
-    for permission in (Permissions.EVALUATION_PROJECTS_WRITE, Permissions.EVALUATION_PROJECTS_REVIEW, Permissions.EVALUATION_EXPORTS_CREATE):
-        saved = app.state.permissions
-        app.state.permissions = [p for p in saved if p != permission]
-        response = await client.put(path, json=payload)
-        assert response.status_code == 403 and "no-store" in response.headers["cache-control"]
-        app.state.permissions = saved
+    # All humans have project/review membership; exporting still requires the
+    # separate data-transfer capability before any source can be read.
+    saved = app.state.permissions
+    app.state.permissions = [p for p in saved if p != Permissions.EVALUATION_EXPORTS_CREATE]
+    response = await client.put(path, json=payload)
+    assert response.status_code == 403 and "no-store" in response.headers["cache-control"]
+    app.state.permissions = saved
     assert not reads
 
 

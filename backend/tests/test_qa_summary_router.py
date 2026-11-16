@@ -21,9 +21,9 @@ async def test_summary_is_explicit_private_and_has_no_raw_evidence(api, monkeypa
     assert "SYNTHETIC" not in response.text
     assert "encrypted_payload" not in response.text
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(root + "/summary")).status_code == 403
+    assert (await client.get(root + "/summary")).status_code == 200
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_REVIEW]
-    assert (await client.get(root + "/summary")).status_code == 403
+    assert (await client.get(root + "/summary")).status_code == 200
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_REVIEW]
     assert (await client.get(root + "/summary")).status_code == 200
     app.state.internal = True

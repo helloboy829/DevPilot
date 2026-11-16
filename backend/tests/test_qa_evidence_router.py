@@ -47,11 +47,11 @@ async def test_metadata_then_explicit_human_case_review_is_private_and_revisione
     assert (await client.post(root + "/cases/1/output", json={"output": "SYNTHETIC_FORGED"})).status_code == 404
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
     assert (await client.get(root + "/cases")).status_code == 200
-    assert (await client.get(root + "/cases/1")).status_code == 403
-    assert (await client.post(root + "/cases/1/reviews", json=payload)).status_code == 403
+    assert (await client.get(root + "/cases/1")).status_code == 200
+    assert (await client.post(root + "/cases/1/reviews", json=payload)).status_code == 409
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_REVIEW]
     assert (await client.get(root + "/cases/1")).status_code == 200
-    assert (await client.post(root + "/cases/1/reviews", json=payload)).status_code == 403
+    assert (await client.post(root + "/cases/1/reviews", json=payload)).status_code == 409
     app.state.internal = True
     assert (await client.get(root + "/cases/1")).status_code == 403
     app.state.internal = False

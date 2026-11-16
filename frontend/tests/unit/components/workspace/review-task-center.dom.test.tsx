@@ -115,6 +115,7 @@ it("late queue responses are fenced after unmount", async () => {
 
 it("provides Chinese labels without automatic reads", () => {
   render(<ReviewTaskCenter zh={true} />);
+  expect(screen.getByText(/所有已登录用户均可参与审核/)).toBeTruthy();
   expect(
     screen.getByRole("button", { name: "加载 / 刷新我的复核任务" }),
   ).toBeTruthy();

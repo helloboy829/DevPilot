@@ -35,11 +35,11 @@ async def test_explicit_archive_reopen_metadata_and_permissions(api, monkeypatch
     assert (await client.put(path, json=payload)).json() == saved
     listing = await client.get(base + "/report-archives")
     assert len(listing.json()["archives"]) == 1 and "markdown" not in listing.text
-    app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ]
-    assert (await client.get(path)).status_code == 403
+    app.state.permissions = []
+    assert (await client.get(path)).status_code == 200
     app.state.permissions.append(Permissions.EVALUATION_PROJECTS_REVIEW)
     assert (await client.get(path)).status_code == 200
-    assert (await client.put(path, json=payload)).status_code == 403
+    assert (await client.put(path, json=payload)).status_code == 200
     app.state.internal = True
     assert (await client.get(path)).status_code == 403
     assert (await client.get(base + "/report-archives")).status_code == 403

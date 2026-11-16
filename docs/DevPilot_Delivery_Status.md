@@ -2,6 +2,8 @@
 
 更新：2026-11-16。本页只列当前能力、验证范围和缺口；逐轮原始记录见[交付历史](DevPilot_Delivery_History.md)。
 
+当前按用户明确要求推进[全民审核与 Linux 验收](DevPilot_Equal_Review_and_Linux_Acceptance.md)：所有完成初始化的已登录用户均可操作本人项目并参与被指派审核，无独立审核人权限等级；保留项目隔离、双盲与运行内职责分离。Linux／容器作为本轮主要交付验收环境，Windows 兼容性单独追踪。当前候选的完整运行验收与后续审批、调度、指标接入仍未完成。
+
 ## 现在能用什么
 
 下表描述仓库代码；使用需要部署相应版本并完成账号、权限和 operator 配置。
@@ -34,6 +36,12 @@
 只有重新启动并验真相应版本才能声称当前本机可用。历史健康和账号/数据保存记录见[本地升级记录](DevPilot_Local_Recovery_and_Upgrade.md)。
 
 ## 最近验证
+
+- **全民审核与 Linux 运行验收（2026-11-16，工作区）**：取消人类用户的独立项目 read/write/review 角色门槛，保留项目归属、精确任务指派、双盲和运行内职责分离。成员/权限/真实登录联合 **51 passed**；Linux 前端构建、lint/types 与 **1,436 tests** 通过，后端 Ruff **1,298 files**、Blocking IO **72 passed**。Linux 实际 Gateway/Next 在新合成 SQLite 完成迁移和 **21 次 HTTP 检查**；真实浏览器登录、审核队列与冻结数据集显示通过（0 API mock/0 retries），执行关闭、无模型/真实目标。完整后端复验与新提交 CI 另核，细节及原失败见[接续记录](DevPilot_Equal_Review_and_Linux_Acceptance.md)。这不是业务库部署或真实用户验收。
+
+  最终 Linux 完整 `make test`：领域 **65 + 58 passed**；后端 **13,593 passed / 66 skipped / 11 deselected / 7 subtests passed**（1174.15s，exit 0）。启动脚本漏传 dedupe 专项 PostgreSQL 变量的三个 skip 已单独补验 **3 passed**，不改写全量原始结果。最终成员联合 **119 passed**、Blocking IO **72 passed**、Ruff **1,298 files**；既有审核浏览器桌面/手机 **5 passed / 0 retries**（任务 API fixture，使用真实合成登录会话）。旧权限断言失败与首次无会话浏览器失败均保留；25 份变更 Python、510 份实际 editable 包源码及两份变更前端文件 hash 一致。证据已导出，仅停止本轮三个验证容器并保留依赖/构建缓存；当前模块提交与新 SHA CI 另核。
+
+- **第 90 次提交后修复的最终精确 SHA CI（2026-11-16）**：`6cc954e9e1d33bc9ab1142c1948487c05eabca6f` 的 [Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43814304844)、[Lint](https://github.com/helloboy829/DevPilot/actions/runs/43814304893)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43814304943)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43814304898) 共 **4 workflows / 9 jobs 全部成功**，含完整后端、原生 Windows 文件专项、分发与实际安装导出。成员审核新规则属于后续工作区，验证与新提交 CI 单独记录。
 
 - **Windows 本地 QA 字节一致性续修（2026-11-16，工作区）**：确认 retention/raw 输出同样受 Windows CRT 文本转换影响：receipt/hash、明文与密文大小不一致，Ctrl-Z 截断读取。五项真实文件回归先失败；补 `O_BINARY` 后全部通过，Windows Python 3.12.10 + 全部 12 个锁定 runtime wheel 的 evaluation **68 passed / 2 skipped**（POSIX symlink）、toolkit **58 passed**。不改字节预算、原 ID/hash、未知写不重试或持锁删除边界；扩展原生 Windows CI 为两套领域验证。Linux/新 SHA CI 另核。
 
