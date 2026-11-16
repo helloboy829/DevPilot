@@ -1,6 +1,6 @@
 # DevPilot 当前交付状态 / Current delivery status
 
-更新：2026-11-15。本页只列当前能力、验证范围和缺口；逐轮原始记录见[交付历史](DevPilot_Delivery_History.md)。
+更新：2026-11-16。本页只列当前能力、验证范围和缺口；逐轮原始记录见[交付历史](DevPilot_Delivery_History.md)。
 
 ## 现在能用什么
 
@@ -26,7 +26,7 @@
 | 项目               | 当前事实                                                                                  |
 | ------------------ | ----------------------------------------------------------------------------------------- |
 | Git 源码           | `main`；精确工作区提交用 `git rev-parse HEAD` 查询，不用迁移号代替                        |
-| App 候选迁移头     | `eval_0016`；本轮合成恢复矩阵尚无新 SHA CI 收据                                           |
+| App 候选迁移头     | `eval_0016`；`a5c6958` 已完成当前源码本地迁移/恢复矩阵，GitHub Unit 收据仍以该 SHA 的工作流完成状态为准 |
 | 最后留存的部署收据 | `0fd689da83a4ac7646250447fb6d044599a823c5` / `eval_0009`，属于历史验证                    |
 | 本机 Docker 观察   | 2026-11-15 观察：先前四个 `devpilot-local` 业务容器及其 `criteria-0fd689da83a4` 镜像已不在本机（外部清理，原因未核实）；不做业务恢复或镜像重建推断 |
 | 本轮操作           | 创建两个隔离 Python 3.12 容器（专项测试与 venv 恢复，仅挂载公开源码、无业务卷、无发布端口），运行专项/迁移/完整离线套件，并恢复 `backend/.venv`（Linux 3.12.16，gitignored）；两个容器均已按完整 ID 停止并删除。不部署、不复制或迁移业务 DB、不生成生产 key、不调用真实模型/目标 |
@@ -34,6 +34,8 @@
 只有重新启动并验真相应版本才能声称当前本机可用。历史健康和账号/数据保存记录见[本地升级记录](DevPilot_Local_Recovery_and_Upgrade.md)。
 
 ## 最近验证
+
+- **当前候选 SQLite 升级/恢复矩阵（2026-11-16，本地）**：在当前提交 `a5c69581a1bc59cf4ba1fc8a588964f01da74e8c` 的只读源码挂载中运行 `test_candidate_upgrade_recovery.py`、`test_review_tasks_migrations.py`、`test_qa_assessments_migrations.py`、`test_qa_independent_archives_migrations.py`、`test_authorized_qa_exports_migrations.py`、`test_external_qa_quarantine_migrations.py` 与 `test_formal_approval_migrations.py`，结果 **15 passed / 5 skipped**。覆盖 `eval_0009` 到当前 head 的顺序升级、WAL 在线备份、旧版本新路径恢复、历史表/行完整性、外键和失败回退；仅使用合成 SQLite，不代表业务部署、PostgreSQL、Windows 或无损回退。
 
 - **咨询性签核政策存储（2026-11-15，本地）**：`eval_0016` 追加 `evaluation_approval_signoff_policies`，仅 owner 人类显式、append-only revision、`required_distinct_approvers` 1–10、`advisory=true`/`enforcement=none`；签署进度可附加 `stored_policy` 与 `stored_advisory` requirement，显式查询优先。批准/审计/强制签核语义不变。批准仓库+路由+迁移 **61 passed**；迁移相关文件修复前 12 文件 **294 passed / 4 skipped**（3 项待修失败保留），修复后 recovery/quarantine **9 passed / 1 skipped**；Ruff 通过。前端完整 **1,423 passed**、E2E **9 passed**。精确 SHA CI 另行记录。
 - **精确 SHA CI（离线指标 CLI 输入上限，2026-11-15）**：`8f10c3f54efad66ea91317f820c0aa385762f660` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43715063822)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43715063809)、[Unit](https://github.com/helloboy829/DevPilot/actions/runs/43715063866) 共 **3 workflows 全部成功**；CLI 专项 **13 passed**、evaluation **62 passed**、toolkit **58 passed**。
