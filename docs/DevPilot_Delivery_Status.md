@@ -35,6 +35,8 @@
 
 ## 最近验证
 
+- **当前 SHA 前端全量单测（2026-11-16，本地 Windows）**：在 `3bb9146ae861f7f2c58c89b3ed625145baa79f12` 运行仓库根命令 `python scripts/pnpm.py test`，**162 个测试文件 / 1,435 passed**；同一工作区前端 ESLint、TypeScript check、Prettier（本轮四份文档）均通过。第一次沙箱内执行因 `spawn EPERM` 在测试收集前失败，经授权环境重跑后全量通过。该结果不代替精确 SHA GitHub Actions。
+
 - **审批工作台续查（2026-11-16，本地 Windows）**：审批 API 协议、正式批准面板和审批审核状态 DOM 回归 **43 passed**；前端 ESLint 与 TypeScript `check` 均通过。复核确认第 90 次提交后报告的审批故障已在 `a5c6958` / `5671f50` 修复；纯签核核心与 App 咨询政策边界的文档已同步，签核 requirement 明确不构成授权。未改运行代码。本轮未获得新的后端全量结果或当前 SHA GitHub Actions 状态。
 
 - **Post-90 审批故障簇回归（2026-11-16，本地隔离容器）**：在当前 `6e7c5080e5a3626bb1bab166a5dbf254470c6eb4` 源码上，对 sandbox mounts、client、MCP session pool、配置 reload、异步 sandbox provider、Local QA CLI 与 run receipt 运行 **454 passed**。源码只读挂载，`.deer-flow` 使用容器临时可写层；这只确认该失败簇，不代替完整后端套件或精确 SHA CI。当前 Windows 宿主未安装锁定 dev 依赖（`pytest_asyncio` 缺失），Docker daemon 在本次会话不可访问，因此没有新的完整套件结果。
