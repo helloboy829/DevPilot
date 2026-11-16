@@ -59,7 +59,7 @@ def _read_json(path):
     original = source.lstat()
     if not stat.S_ISREG(original.st_mode) or not 1 <= original.st_size <= _MAX_FILE_BYTES:
         raise ValueError(_ERROR)
-    descriptor = os.open(source, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    descriptor = os.open(source, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0))
     try:
         current = os.fstat(descriptor)
         if (current.st_dev, current.st_ino) != (

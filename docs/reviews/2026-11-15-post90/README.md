@@ -116,6 +116,8 @@
 
 首轮 Windows 只读源码挂载全量保留 **4 failed / 13,561 passed / 77 skipped / 11 deselected**：缺少 `uv` 的配置升级和三个本地 QA 子进程场景。后者在 Linux 文件系统公开源码中联合六项参数化场景通过；可写冻结 venv 与独占 PostgreSQL 环境另行验证，不把原失败改写为通过。
 
+PostgreSQL 修复 `e73f4aec41550227618ed0306074af166495c5a4` 已核实 **4 workflows / 8 jobs 全成功**，包括完整后端、冻结默认安装收集、软件分发与独立安装验证。此后又在原生 Windows Python 3.12.10 确认第 90 次后新增的指标 CLI 拒绝合法 CRLF JSON：`os.open` 默认文本模式转换换行，触发字节长度检查。新增对照回归先失败，补 `O_BINARY` 后专项 **14 passed / 1 skipped**；新增原生 Windows CI，精确修复 SHA 另核。此项是第三个续查缺陷，不把 Linux 的通过当作 Windows 证据。
+
 ### 保持住的边界
 
 - 此区间没有修改 Harness 生产代码；扫描没有发现新增 `Harness → app` 或 `devpilot → app` 依赖。
@@ -124,6 +126,8 @@
 - 执行诊断与调度准入仍只读，不因 deadline 释放占用或重发未知请求。保留这些限制符合现有合同。
 
 ### 已出现的设计债务
+
+以下五项保留审查时的判断。后续 `a5c6958` 已提取 `useApprovalWorkspace` 与严格 `approval-contracts`、区分 metadata/document DTO、引入 App `ApprovalService`，并把运行/项目链验证放入 `asyncio.to_thread`。因此第 2、4、5 项已有对应收敛；第 1 项由大组件收敛为 hook，但组合状态仍需持续维护；第 3 项仍是刻意保留的咨询合同，不能升级成授权判断。不要将下列历史描述当作当前代码仍完全未处理。
 
 1. **审批面板形成状态集中点。** 单文件 791 行，约 20 组 state，9 类异步操作共用 busy/epoch；每增加一种读取都复制 catch/finally 与失效规则。后续多次修复 stale/pending/consent，仍能复现上述组合缺陷。应拆分请求状态、写入状态和目标绑定逻辑，优先提取 reducer/hook/纯策略，而不是只按 JSX 外观拆组件。
 2. **跨层协议没有唯一可执行来源。** 前端将 metadata list 声明为完整 `ApprovalView[]`，实际列表不含 assessment 嵌套、counts、note 等字段；DOM fixtures 却大量使用完整批准文档。不同核心还存在 100 列表上限、1000 修订、10 观测人数的冲突。这些不是类型检查可以发现的，需要准确的列表 DTO、schema/合同测试和边界计数用例。

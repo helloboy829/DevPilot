@@ -4,19 +4,20 @@
 
 ## 1. 候选基线
 
-| 项目           | 事实                                                                      |
-| -------------- | ------------------------------------------------------------------------- |
-| App 迁移头     | `eval_0016`（正式批准两表 + 咨询签核政策表）                                               |
-| 精确源码       | 以实际 `git rev-parse HEAD` 为准；本文件不固定 SHA                          |
-| CI 收据        | 每个新 SHA 单独核验 Lint / Blocking IO / Frontend / Replay E2E / Unit      |
-| 本地门禁       | 见[当前状态](DevPilot_Delivery_Status.md)的“最近验证”；不与 CI 相加       |
-| 部署状态       | 历史部署收据停在 `eval_0009`；本机业务容器已于 2026-11-15 观察为不存在     |
+| 项目       | 事实                                                                   |
+| ---------- | ---------------------------------------------------------------------- |
+| App 迁移头 | `eval_0016`（正式批准两表 + 咨询签核政策表）                           |
+| 精确源码   | 以实际 `git rev-parse HEAD` 为准；本文件不固定 SHA                     |
+| CI 收据    | 每个新 SHA 单独核验 Lint / Blocking IO / Frontend / Replay E2E / Unit  |
+| 本地门禁   | 见[当前状态](DevPilot_Delivery_Status.md)的“最近验证”；不与 CI 相加    |
+| 部署状态   | 历史部署收据停在 `eval_0009`；本机业务容器已于 2026-11-15 观察为不存在 |
 
 验收只针对**同一 SHA** 的源码与其 CI 结果；不能用前一 SHA 的 Actions、旧镜像或历史健康记录代替。
 
 ## 2. 验收前置（operator 责任）
 
-- [ ] 私有 `config.yaml`、`extensions_config.json` 与凭据由 operator 提供；仓库内不提交。- [ ] `DEVPILOT_REQUEST_ENCRYPTION_KEY`（请求版本与证据加密）已按 secret 管理配置；缺失时只验证失败关闭。
+- [ ] 私有 `config.yaml`、`extensions_config.json` 与凭据由 operator 提供；仓库内不提交。
+- [ ] `DEVPILOT_REQUEST_ENCRYPTION_KEY`（请求版本与证据加密）已按 secret 管理配置；缺失时只验证失败关闭。
 - [ ] 模型目录与 `DEVPILOT_MODEL_ENCRYPTION_KEY`（如启用）独立配置；不把模型 key 当作 QA 目标授权。
 - [ ] 执行策略保持默认关闭；启用需独立 operator 决定、目标 allowlist、权限与显式同意。
 - [ ] 升级前在**在线一致性备份**下完成；确认备份可恢复（SQLite 需含 WAL，恢复会导致备份后写入丢失）。
@@ -25,9 +26,10 @@
 
 ## 开发与验证环境提示
 
-- `backend/.venv` 是按锁文件生成的 **Linux Python 3.12** 环境（gitignored），不能在 Windows 宿主直接执行；在 Linux 容器中把仓库挂载到 `/src` 后使用 `/src/backend/.venv/bin/python` 运行测试。
+- 当前 `backend/.venv` 是 **Linux Python 3.12** 环境（gitignored），不能在 Windows 宿主直接执行。完整测试使用 Linux 文件系统内的跟踪源码与容器内可写 venv；只复制 `git archive` 和明确修改，不挂载整个私有工作区。Windows bind mount 或只读 venv 的子进程/安装失败须单独归因，不能当作有效完整验收。
+- 在实际源码路径用 `uv sync --frozen --group dev --extra postgres` 建立环境，运行时设置 `UV_FROZEN=1`；PostgreSQL 使用独占合成库。迁移已有 venv 后必须核对 Python、pytest 等 launcher 的解释器与 editable 源码路径；只改 `PATH` 不会改写 shebang。优先在最终路径新建冻结环境，不更改宿主共享依赖。
 - Windows 原生开发需要单独准备 Python 3.12 与 uv；不要把 Docker 内生成的 venv 当作宿主环境。
-- 容器只挂载公开源码，不挂载私有配置、业务数据库或客户材料；测试结束按完整 ID 停止并删除本轮容器。
+- 容器只使用公开源码，不挂载私有配置、业务数据库或客户材料；测试结束先导出原始失败/通过日志、JUnit 与 hash，再按完整 ID 停止本轮资源。需要复用的软件缓存可保留为停止容器；只移除已确认无保留价值的本轮容器/网络，不全局清理。
 
 ## 3. 合成工作台验收清单
 
@@ -85,7 +87,7 @@
 - [ ] 运维诊断只返回聚合计数与固定状态码，不暴露 run/owner/claim/证据，不授权释放、回收或重试。
 - [ ] 运维页显示六类聚合安全分类；前端拒绝缺失/额外或与五态不一致的 `safety` 数据，且不把分类显示为释放/重试许可。
 - [ ] 运维页的调度准入区块仅在管理员显式点击后读取，显示 legacy scheduler 仅覆盖 component tests、QA 链未准入与固定 blockers；无调度/释放/重试控件，切换账号或角色时清除旧结果。
-- [ ] 未知写入不重试、不生成替代 ID；刷新只读原 ID。批准面板显式加载发现原 ID 后应清除 pending 与旧链汇总；未发现时继续保留 pending。
+- [ ] 未知写入不重试、不生成替代 ID；刷新只读原 ID。批准面板显式加载发现原 ID 后应清除 pending、旧链汇总、预检、确认与项目索引，要求重新显式加载/确认；未发现时继续保留 pending，不依据有上限的列表单独判定原 ID 不存在。
 - [ ] 本地 QA 目录残留清单只报告固定文件名与大小/修改时间，不读取内容、不发现其他文件、不删除；明文副本仍需独立人工处置。
 - [ ] 数据库/加密/权限失败返回通用错误，不回显 SQL、参数、金标或密文。
 - [ ] 缺失证据、skip 或超时不得记为通过；skip 需记录原因。
@@ -105,17 +107,17 @@
 
 ## 6. 签收记录（由验收人填写）
 
-| 项目             | 结果 | 证据（SHA / Actions / 截图或日志路径） |
-| ---------------- | ---- | -------------------------------------- |
-| 精确 SHA CI      |      |                                        |
-| 登录与 RBAC      |      |                                        |
-| 计划冻结与哈希   |      |                                        |
-| 独立复核/仲裁    |      |                                        |
-| 评估与 ALL 分母  |      |                                        |
-| 正式批准/撤销    |      |                                        |
-| 报告/复测/导出   |      |                                        |
-| 未知写对账       |      |                                        |
-| 备份与回退演练   |      |                                        |
-| Windows 验收     |      | 按 [Windows Runbook](DevPilot_Windows_Acceptance.md) 记录 |
+| 项目            | 结果 | 证据（SHA / Actions / 截图或日志路径）                    |
+| --------------- | ---- | --------------------------------------------------------- |
+| 精确 SHA CI     |      |                                                           |
+| 登录与 RBAC     |      |                                                           |
+| 计划冻结与哈希  |      |                                                           |
+| 独立复核/仲裁   |      |                                                           |
+| 评估与 ALL 分母 |      |                                                           |
+| 正式批准/撤销   |      |                                                           |
+| 报告/复测/导出  |      |                                                           |
+| 未知写对账      |      |                                                           |
+| 备份与回退演练  |      |                                                           |
+| Windows 验收    |      | 按 [Windows Runbook](DevPilot_Windows_Acceptance.md) 记录 |
 
 English: this package lists the synthetic acceptance path, checklist, rollback limits and non-claims for a source candidate. It does not authorize deployment, external data transfer, real model/target calls, production keys or formal approval; Linux/container evidence does not replace Windows or real-user acceptance.

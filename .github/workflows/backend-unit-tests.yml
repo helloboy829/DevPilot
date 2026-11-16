@@ -14,6 +14,24 @@ permissions:
   contents: read
 
 jobs:
+  windows-metrics-cli:
+    # Byte-counted file reads must also pass on the native Windows CRT.
+    # This stdlib-only suite uses synthetic files, no backend or real calls.
+    if: github.event.pull_request.draft == false
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Verify native Windows offline metrics CLI
+        env:
+          PYTHONPATH: devpilot/src
+        run: python -m unittest discover -s devpilot/src/devpilot/evaluation/tests -p test_metrics_cli.py -v
+
   default-install-collection:
     # The main job installs --extra postgres; this job proves the documented
     # contributor path (uv sync --group dev, no extras) still collects the

@@ -35,6 +35,12 @@
 
 ## 最近验证
 
+- **PostgreSQL 修复的精确 SHA CI（2026-11-16）**：`e73f4aec41550227618ed0306074af166495c5a4` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43806850401)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43806850378)、[Frontend Unit](https://github.com/helloboy829/DevPilot/actions/runs/43806850369) 与 [Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43806850382) 共 **4 workflows / 8 jobs 全部成功**，含默认安装收集、完整后端、软件分发与实际安装导出验证。原始 API 收据存于本轮 ignored 证据目录；后续 SHA 单独核验。
+
+- **离线指标 Windows CRLF 修复（2026-11-16，工作区）**：原生 Windows Python 3.12.10 下，合法 CRLF JSON 因文本模式转换换行后与原始字节大小不符而失败。新增 LF/CRLF 相同投影回归先失败，再以 `O_BINARY` 修复，CLI **14 passed / 1 skipped**（POSIX symlink）。初次沙箱临时目录 ACL 错误及扩展领域缺少 `cryptography` 的失败日志独立保留；仅指标专项通过，不是完整 Windows 验收。新增 Windows CI job 的实际收据待推送后核验。
+
+该修复在 Linux Python 3.12 冻结环境的领域 **65 + 58 passed**，全量 Ruff **1,296 文件**通过，两份变更源码与测试副本 hash 一致。复用 Python 缓存时重建内部网络并连接新 ID 后才启动；最初旧网络 ID 启动失败未运行测试。导出新日志后仅停止该容器，保留缓存和独占内部网络用于后续回归；完整后端由新 SHA CI 独立核验。
+
 - **咨询政策 PostgreSQL parity 修复（2026-11-16，工作区）**：`cab5346f28db4d79d5a8f758aed7c7007fcf6dd7` 的 [Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43793445561) 失败摘要准确定位三项 PostgreSQL 迁移 parity。独占 PostgreSQL 17 复现均为政策表重复 UNIQUE 的 `add_constraint` 差异；候选 `eval_0016` 与元数据同步移除重复声明，保留复合主键及人数/revision check。相关历史迁移、正式批准迁移及候选恢复 **17 passed**；最终标准 `make test`：领域 **64 + 58 passed**，后端 **13,580 passed / 63 skipped / 11 deselected / 40 warnings**（1045.06s，exit 0），含三项 PostgreSQL 原失败与新增数据库约束回归。Blocking IO **72 passed**，Ruff check/format **1,296 文件**通过。修复提交 CI 另核，未改断言或部署现有数据库。
 
 本轮最终验证使用 Linux 文件系统内的跟踪源码、Python 3.12.16、uv 0.13.7 冻结 dev/postgres 环境与无宿主端口的 PostgreSQL 17。三份变更 Python 文件逐一归一化 LF 后 SHA-256 与测试副本一致。完整日志/JUnit 及环境失败日志留在 ignored `.deer-flow/ci/20261116-post90-followup/`；最终 JUnit 为 **13,643 tests / 0 failures / 0 errors / 63 skipped**，SHA-256 `82c0254452164ac35308f23d53d66c74eb1b9897df7f0f1b6a9207f7db856fe8`。Linux/合成数据结果不替代 Windows、部署或用户验收。

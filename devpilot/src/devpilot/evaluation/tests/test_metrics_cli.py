@@ -68,6 +68,16 @@ class MetricsCliTest(unittest.TestCase):
         self.assertEqual(result["ttft"], {"status": "available", "ms": 120, "reason": None})
         self.assertEqual(result["approval"], "not_approved")
 
+    def test_crlf_json_has_the_same_projection_as_lf_json(self):
+        lf = self.root / "lf.json"
+        crlf = self.root / "crlf.json"
+        data = json.dumps(observation(), indent=2).encode("utf-8")
+        lf.write_bytes(data)
+        crlf.write_bytes(data.replace(b"\n", b"\r\n"))
+        expected = run("stream", "--observation", str(lf))
+        self.assertEqual((expected[0], expected[2]), (0, ""))
+        self.assertEqual(run("stream", "--observation", str(crlf)), expected)
+
     def test_unavailable_metrics_stay_null(self):
         path = self.write(
             "observation.json",

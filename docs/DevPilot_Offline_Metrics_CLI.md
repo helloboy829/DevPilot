@@ -26,6 +26,7 @@ PYTHONPATH=devpilot/src python -m devpilot.qa_metrics_cli signoff \
 ## 输入与失败关闭
 
 - 每个输入必须是普通文件（拒绝符号链接/目录），大小 **1 字节–1 MiB**；打开后复核设备/inode，读取长度必须与 `lstat` 大小一致。
+- 原始字节以二进制模式读取，LF 与 CRLF 的合法 JSON 得到相同投影；Windows CRT 不得先转换换行再按原始文件大小判为截断。
 - 严格 UTF-8 JSON；解析拒绝重复键与 `NaN`/`Infinity`，并限制嵌套深度 ≤32、节点数 ≤20,000；核心层拒绝未知字段、类型伪装、越界、非等尺寸矩阵与非法阈值。
 - 任何错误只向 stderr 输出固定 `Invalid metric input`，不反射路径、异常或输入内容；退出码 1（中断 130），不自动重试。
 - 无网络客户端、无模型调用、无 App 数据库/证据读取、无输出文件写入或删除。
@@ -38,6 +39,10 @@ PYTHONPATH=devpilot/src python -m unittest discover \
 ```
 
 覆盖四条命令的成功输出、`null` 保持、阈值边界、缺失/非法/超限/符号链接输入、未知字段和错误信息不回显；CLI 专项 **13 passed**，`evaluation` 域合计 **62 passed**，`toolkit` **58 passed**。分发成员 allowlist 为 **49** 个第一方源码成员，分发测试 **72 passed**。
+
+2026-11-16 续查：Windows Python 3.12.10 实测 CRLF 对照回归先失败，补 `O_BINARY` 后 CLI 专项 **14 passed / 1 skipped**（既有 POSIX symlink 用例）；增加原生 Windows Python 3.12 CI job，Linux 原有门禁保持。便携 Windows 环境未安装完整依赖，扩展领域尝试因缺少 `cryptography` 失败，日志保留，不算领域全量通过，也不代表整个 Windows 应用验收。
+
+同一修复的 Linux Python 3.12 冻结环境：evaluation **65 passed**、toolkit **58 passed**，全量 Ruff check/format **1,296 文件**通过；两份改动源码的 LF 归一化 SHA-256 与实际测试副本一致。完整后端仍由新 SHA 的实际 CI 核验，不挪用上一提交的全量结果。
 
 ## 明确不包含
 
