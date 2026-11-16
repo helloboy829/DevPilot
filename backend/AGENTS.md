@@ -63,6 +63,7 @@ make test                 # 领域 unittest + 排除 live 的后端 pytest
 - 保留原失败证据，不用重跑、延长 timeout、减弱断言或执行启用隐藏失败。租约测试用受控时钟/事件，不能靠过短真实时钟窗口区分执行分支。
 - Windows 保留 Selector 策略。真实子进程用 off-loop、绝对 cwd、有界退出并回收；不可删除真实 `.git`、跳过 Windows 断言或改变生产路径归一化来修测试。
 - [候选 SQLite 升级/恢复回归](../docs/DevPilot_Candidate_Upgrade_Recovery.md)覆盖真实双 ledger、ALL 旧表/行/schema、WAL 在线备份与新路径还原。只接受测试创建的临时数据；恢复旧备份会丢失之后的新写，不把合成通过当业务库、PostgreSQL 原生恢复或 Windows 验收。
+- 修改跨方言表/候选迁移时，使用 `--extra postgres` 与独占 PostgreSQL 运行 schema parity、历史保留和约束回归；未配置数据库的 skip 不能替代验证。主键已覆盖的唯一性不要再声明同列 UNIQUE，保留真实数据库的唯一性与边界测试，不能忽略反射差异来获得通过。
 
 ## 候选功能与模块合同
 

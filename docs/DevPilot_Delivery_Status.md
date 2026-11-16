@@ -23,17 +23,25 @@
 
 ## 代码、迁移与本机运行
 
-| 项目               | 当前事实                                                                                                                                                                                                                                                                         |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Git 源码           | `main`；精确工作区提交用 `git rev-parse HEAD` 查询，不用迁移号代替                                                                                                                                                                                                               |
-| App 候选迁移头     | `eval_0016`；`a5c6958` 已完成当前源码本地迁移/恢复矩阵，GitHub Unit 收据仍以该 SHA 的工作流完成状态为准                                                                                                                                                                          |
-| 最后留存的部署收据 | `0fd689da83a4ac7646250447fb6d044599a823c5` / `eval_0009`，属于历史验证                                                                                                                                                                                                           |
-| 本机 Docker 观察   | 2026-11-15 观察：先前四个 `devpilot-local` 业务容器及其 `criteria-0fd689da83a4` 镜像已不在本机（外部清理，原因未核实）；不做业务恢复或镜像重建推断                                                                                                                               |
-| 本轮操作           | 创建两个隔离 Python 3.12 容器（专项测试与 venv 恢复，仅挂载公开源码、无业务卷、无发布端口），运行专项/迁移/完整离线套件，并恢复 `backend/.venv`（Linux 3.12.16，gitignored）；两个容器均已按完整 ID 停止并删除。不部署、不复制或迁移业务 DB、不生成生产 key、不调用真实模型/目标 |
+| 项目               | 当前事实                                                                                                                                                                                                                                                       |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Git 源码           | `main`；精确工作区提交用 `git rev-parse HEAD` 查询，不用迁移号代替                                                                                                                                                                                             |
+| App 候选迁移头     | `eval_0016`；`a5c6958` 已完成当前源码本地迁移/恢复矩阵，GitHub Unit 收据仍以该 SHA 的工作流完成状态为准                                                                                                                                                        |
+| 最后留存的部署收据 | `0fd689da83a4ac7646250447fb6d044599a823c5` / `eval_0009`，属于历史验证                                                                                                                                                                                         |
+| 本机 Docker 观察   | 2026-11-15 观察：先前四个 `devpilot-local` 业务容器及其 `criteria-0fd689da83a4` 镜像已不在本机（外部清理，原因未核实）；不做业务恢复或镜像重建推断                                                                                                             |
+| 本轮操作           | 先前专项/venv 恢复容器已删除；续查另建 Python 3.12 与 PostgreSQL 17 独占验证容器，仅跟踪源码、只读依赖来源及合成临时数据库，无业务卷或发布端口。日志导出后停止本轮资源，保留停止的 Python 依赖缓存；不部署、不复制业务 DB、不生成生产 key、不调用真实模型/目标 |
 
 只有重新启动并验真相应版本才能声称当前本机可用。历史健康和账号/数据保存记录见[本地升级记录](DevPilot_Local_Recovery_and_Upgrade.md)。
 
 ## 最近验证
+
+- **咨询政策 PostgreSQL parity 修复（2026-11-16，工作区）**：`cab5346f28db4d79d5a8f758aed7c7007fcf6dd7` 的 [Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43793445561) 失败摘要准确定位三项 PostgreSQL 迁移 parity。独占 PostgreSQL 17 复现均为政策表重复 UNIQUE 的 `add_constraint` 差异；候选 `eval_0016` 与元数据同步移除重复声明，保留复合主键及人数/revision check。相关历史迁移、正式批准迁移及候选恢复 **17 passed**；最终标准 `make test`：领域 **64 + 58 passed**，后端 **13,580 passed / 63 skipped / 11 deselected / 40 warnings**（1045.06s，exit 0），含三项 PostgreSQL 原失败与新增数据库约束回归。Blocking IO **72 passed**，Ruff check/format **1,296 文件**通过。修复提交 CI 另核，未改断言或部署现有数据库。
+
+本轮最终验证使用 Linux 文件系统内的跟踪源码、Python 3.12.16、uv 0.13.7 冻结 dev/postgres 环境与无宿主端口的 PostgreSQL 17。三份变更 Python 文件逐一归一化 LF 后 SHA-256 与测试副本一致。完整日志/JUnit 及环境失败日志留在 ignored `.deer-flow/ci/20261116-post90-followup/`；最终 JUnit 为 **13,643 tests / 0 failures / 0 errors / 63 skipped**，SHA-256 `82c0254452164ac35308f23d53d66c74eb1b9897df7f0f1b6a9207f7db856fe8`。Linux/合成数据结果不替代 Windows、部署或用户验收。
+
+证据导出后，仅停止本轮 Python `eabb90fb0c91`（exit 137、OOM=false，无活动测试）和 PostgreSQL `ae32b608520b`（exit 0），再按完整 ID 移除后者与本轮内部网络。Python 停止容器保留为可复用软件/源码缓存；未清理镜像、卷或其他容器。
+
+- **首轮后端全量原始结果（2026-11-16，只读 Windows 源码挂载）**：**4 failed / 13,561 passed / 77 skipped / 11 deselected**，耗时 44:32；缺少 `uv` 导致配置升级失败，另有三个本地 QA 子进程失败。该容器已自动移除。将同一公开源码置于 Linux 文件系统后，三个 QA 场景联合参数化回归 **6 passed**；配置升级另暴露只读 venv 无法同步，未改生产逻辑。后续仅以 Git 源码归档、容器内可写冻结 venv、独占 PostgreSQL/内部网络继续验证；首次 `make test` 在启动领域测试前因 uv 重新解析可选 Tenki 元数据而失败，日志保留，再以 `UV_FROZEN=1` 执行锁定环境。环境失败与测试失败分别记录。
 
 - **审批对账修复的精确 SHA CI（2026-11-16）**：`e7e9998eb5f5f1437c92f8395346c3588169a75b` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43791253784)、[Frontend Unit](https://github.com/helloboy829/DevPilot/actions/runs/43791253813)、[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43791253751) 和 [E2E](https://github.com/helloboy829/DevPilot/actions/runs/43791253859) 成功；[Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43791253889) 的 backend-unit-tests 失败，其余三个 job 成功。后端本地全量未结束；独立配置升级专项确认缺少 `uv` 导致 **1 failed / 9 passed**，撤销空白理由既有回归 **3 passed**。新增 CI 失败名称摘要仅改善诊断，不代表后端故障已修复。
 

@@ -107,7 +107,14 @@
 
 原报告的七项可复现问题已在后续提交中处理：审批写入 pending ID 只读对账及目标状态隔离、列表上限下的 revision 来源、异步预检失效、签核策略并发冲突映射、观测人数上界、审批账号存在性及项目归属错误映射。主要修复集中在 `a5c6958`，包括在通用事务错误转换之前捕获策略插入冲突；`5671f50` 是原报告确认无效的外层捕获尝试。相关专项验证包括当前源码审批/安全/预检 **115 passed**、sign-off 与 metrics domain **22 passed**、Blocking IO **72 passed**、Local QA CLI **83 passed**，以及失败簇重跑 **454 passed**。
 
-完整后端套件尚未获得当前 Windows 工作区的有效重跑结果；此前只读挂载全量运行的失败不能归因于源码，新的容器失败簇通过也不替代完整套件或精确 SHA CI。架构结论仍是：依赖方向和共享 QA 核心边界保持，主要偏差在交付优先级和面板状态复杂度；签核人数仍是咨询性历史聚合，尚未定义为撤销后的有效签名集合，不得用于授权或强制判断。
+截至该 SHA 的失败簇验证不能替代完整套件或精确 SHA CI；后续有效全量结果见下方续查。架构结论仍是：依赖方向和共享 QA 核心边界保持，主要偏差在交付优先级和面板状态复杂度；签核人数仍是咨询性历史聚合，尚未定义为撤销后的有效签名集合，不得用于授权或强制判断。
+
+### 2026-11-16 续查：两个额外缺陷
+
+1. **对账成功仍显示写入前状态。** 显式原 ID 元数据对账清除 pending 后，旧预检、确认勾选与项目索引仍保留。`e7e9998` 已清除这些状态，真实 DOM 新回归先失败后通过，浏览器合成流程保持仅一次 POST；前端完整 **1,436 passed**，九项 Chromium 回归通过，该 SHA 前端/Lint/Replay/E2E Actions 成功。
+2. **咨询政策表重复唯一声明导致 PostgreSQL schema drift。** `4b184e0` 在 `eval_0016`/元数据中同时声明 `(project_id, revision)` 主键及相同 UNIQUE。`cab5346` 的 CI 失败摘要定位三项 PostgreSQL parity 用例；在独占 PostgreSQL 17 中复现均为同一 `add_constraint` 差异。修复只移除重复 UNIQUE，主键和人数/revision check 保持。相关 PostgreSQL/SQLite、历史保留与恢复矩阵 **17 passed**。最终标准 `make test` 在冻结环境下得到领域 **64 + 58 passed**、后端 **13,580 passed / 63 skipped / 11 deselected**（1045.06s，exit 0），三项 PostgreSQL 原失败及新增数据库约束回归均通过；Blocking IO **72 passed**，Ruff **1,296 文件**通过。修复 SHA CI 仍须独立核验，Linux 不替代 Windows 或真实用户验收。
+
+首轮 Windows 只读源码挂载全量保留 **4 failed / 13,561 passed / 77 skipped / 11 deselected**：缺少 `uv` 的配置升级和三个本地 QA 子进程场景。后者在 Linux 文件系统公开源码中联合六项参数化场景通过；可写冻结 venv 与独占 PostgreSQL 环境另行验证，不把原失败改写为通过。
 
 ### 保持住的边界
 

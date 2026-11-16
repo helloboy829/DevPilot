@@ -611,6 +611,8 @@ run_approvals = Table(
     CheckConstraint("decision IN ('approved','revoked')", name="ck_evaluation_approval_decision"),
 )
 Index("ix_evaluation_approval_run_revision", run_approvals.c.run_id, run_approvals.c.revision)
+# The composite primary key owns revision uniqueness; a duplicate UNIQUE
+# declaration does not round-trip through PostgreSQL/Alembic reflection.
 approval_signoff_policies = Table(
     "evaluation_approval_signoff_policies",
     metadata,
@@ -624,7 +626,6 @@ approval_signoff_policies = Table(
     Column("policy_hash", String(64), nullable=False),
     ForeignKeyConstraint(["project_id"], ["evaluation_projects.id"]),
     CheckConstraint("revision BETWEEN 1 AND 1000 AND required_distinct_approvers BETWEEN 1 AND 10 AND created_at_ms > 0", name="ck_evaluation_signoff_policy_bounds"),
-    UniqueConstraint("project_id", "revision", name="uq_evaluation_signoff_policy_revision"),
 )
 
 approval_audit = Table(

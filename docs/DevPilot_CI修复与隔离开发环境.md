@@ -4,9 +4,13 @@
 
 ## 2026-11-16：后端失败名称摘要
 
+后续修复统一默认收集/后端完整测试的 `uv sync --frozen` 与 `UV_FROZEN=1`，已安装软件导出验证的 `uv run` 同样冻结。CI 与隔离本地验证使用跟踪的锁文件，不在测试入口隐式解析或更新可选依赖；不改变测试选择或数据库专项的启用条件。
+
 后端 CI 继续执行原 `make test`，仅通过 `PYTEST_ADDOPTS` 生成 JUnit 报告；失败时把至多 20 个 failure/error 用例名称写入 Actions annotations，并报告其总数。摘要不输出异常文本、捕获日志或局部变量，不改变测试范围、断言、跳过规则、重试或超时。报告缺失时明确提示检查安装/领域测试步骤，不能把缺失报告视为通过。
 
-此诊断针对公开日志 API 无法读取详情的情况：`e7e9998eb5f5f1437c92f8395346c3588169a75b` 的 Lint、Frontend Unit、Replay E2E 与 E2E 成功，Unit Tests 中的 backend-unit-tests 失败；其余三个安装/收集/分发 job 成功。摘要能力需在后续精确 SHA 的实际 Actions 中验证，不把诊断改动当作原失败已修复。
+此诊断针对公开日志 API 无法读取详情的情况：`e7e9998eb5f5f1437c92f8395346c3588169a75b` 的 Lint、Frontend Unit、Replay E2E 与 E2E 成功，Unit Tests 中的 backend-unit-tests 失败；其余三个安装/收集/分发 job 成功。`cab5346f28db4d79d5a8f758aed7c7007fcf6dd7` 的 [实际 Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43793445561) 已验证摘要能力，定位 review-tasks、independent-archives 与 quarantine 的三项 PostgreSQL schema parity 失败；独占 PostgreSQL 17 复现为政策表重复 UNIQUE。诊断提交仍是失败，后续修复的精确 SHA CI 单独核验。
+
+续查本地最终标准 `make test`：领域 **64 + 58 passed**、后端 **13,580 passed / 63 skipped / 11 deselected / 40 warnings**（1045.06s，exit 0）；独占 PostgreSQL 无发布端口，测试阶段仅内部网络。原 Windows 挂载失败、uv 离线解析失败，以及迁移 venv 后 launcher 仍指向只读原环境而中断的运行日志分别保留；修正容器内软件副本的 shebang 后才获得上述有效全量结果，没有为环境问题修改生产逻辑或削弱测试。
 
 ## 2026-11-09：新电脑的隔离复现基线
 

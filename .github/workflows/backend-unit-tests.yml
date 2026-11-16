@@ -21,6 +21,8 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      UV_FROZEN: "1"
 
     steps:
       - name: Checkout
@@ -36,7 +38,7 @@ jobs:
 
       - name: Install backend dependencies (documented default)
         working-directory: backend
-        run: uv sync --group dev
+        run: uv sync --frozen --group dev
 
       - name: Collect backend tests
         working-directory: backend
@@ -107,6 +109,7 @@ jobs:
           --health-retries 5
 
     env:
+      UV_FROZEN: "1"
       TEST_POSTGRES_URI: postgresql://deerflow:deerflow@localhost:5432/deerflow_test?sslmode=disable
 
     steps:
@@ -123,7 +126,7 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: uv sync --group dev --extra postgres
+        run: uv sync --frozen --group dev --extra postgres
 
       - name: Run unit tests of backend
         working-directory: backend
@@ -236,6 +239,7 @@ jobs:
       - name: Verify synthetic API export with fresh installed offline software
         working-directory: backend
         env:
+          UV_FROZEN: "1"
           PYTHONPATH: .
           TEST_QA_SOFTWARE_ARCHIVE: ${{ runner.temp }}/local-qa-software/local-qa-distribution.zip
         run: |

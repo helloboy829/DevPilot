@@ -49,6 +49,23 @@ async def prepare_harness_tables(engine):
 
 
 @pytest.mark.asyncio
+async def test_signoff_policy_revision_and_bounds_are_enforced_by_database(api, monkeypatch):
+    client, app, _, _ = api
+    root, _ = await setup_approval(api, monkeypatch)
+    path = root.rsplit("/review-runs/", 1)[0] + "/approvals/signoff-policy"
+    assert (await client.put(path, json={"required_distinct_approvers": 2, "expected_previous_revision": 0, "confirmed": True})).status_code == 200
+    engine = app.state.evaluation_repo.sf.kw["bind"]
+    async with engine.connect() as conn:
+        row = dict((await conn.execute(select(t.approval_signoff_policies))).mappings().one())
+    for changes in ({}, {"revision": 0}, {"revision": 1001}, {"revision": 2, "required_distinct_approvers": 0}, {"revision": 2, "required_distinct_approvers": 11}):
+        with pytest.raises(IntegrityError):
+            async with engine.begin() as conn:
+                await conn.execute(insert(t.approval_signoff_policies).values({**row, **changes}))
+    async with engine.begin() as conn:
+        await conn.execute(insert(t.approval_signoff_policies).values({**row, "revision": 2}))
+
+
+@pytest.mark.asyncio
 async def test_downgrade_preserves_history_and_upgrade_restores_empty_approval_tables(api, monkeypatch):
     client, app, _, _ = api
     root, assessment = await setup_approval(api, monkeypatch)
