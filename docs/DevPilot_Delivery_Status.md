@@ -35,6 +35,8 @@
 
 ## 最近验证
 
+- **Post-90 审批故障簇回归（2026-11-16，本地隔离容器）**：在当前 `6e7c5080e5a3626bb1bab166a5dbf254470c6eb4` 源码上，对 sandbox mounts、client、MCP session pool、配置 reload、异步 sandbox provider、Local QA CLI 与 run receipt 运行 **454 passed**。源码只读挂载，`.deer-flow` 使用容器临时可写层；这只确认该失败簇，不代替完整后端套件或精确 SHA CI。当前 Windows 宿主未安装锁定 dev 依赖（`pytest_asyncio` 缺失），Docker daemon 在本次会话不可访问，因此没有新的完整套件结果。
+
 - **当前候选 SQLite 升级/恢复矩阵（2026-11-16，本地）**：在当前提交 `a5c69581a1bc59cf4ba1fc8a588964f01da74e8c` 的只读源码挂载中运行 `test_candidate_upgrade_recovery.py`、`test_review_tasks_migrations.py`、`test_qa_assessments_migrations.py`、`test_qa_independent_archives_migrations.py`、`test_authorized_qa_exports_migrations.py`、`test_external_qa_quarantine_migrations.py` 与 `test_formal_approval_migrations.py`，结果 **15 passed / 5 skipped**。覆盖 `eval_0009` 到当前 head 的顺序升级、WAL 在线备份、旧版本新路径恢复、历史表/行完整性、外键和失败回退；仅使用合成 SQLite，不代表业务部署、PostgreSQL、Windows 或无损回退。
 
 - **咨询性签核政策存储（2026-11-15，本地）**：`eval_0016` 追加 `evaluation_approval_signoff_policies`，仅 owner 人类显式、append-only revision、`required_distinct_approvers` 1–10、`advisory=true`/`enforcement=none`；签署进度可附加 `stored_policy` 与 `stored_advisory` requirement，显式查询优先。批准/审计/强制签核语义不变。批准仓库+路由+迁移 **61 passed**；迁移相关文件修复前 12 文件 **294 passed / 4 skipped**（3 项待修失败保留），修复后 recovery/quarantine **9 passed / 1 skipped**；Ruff 通过。前端完整 **1,423 passed**、E2E **9 passed**。精确 SHA CI 另行记录。
