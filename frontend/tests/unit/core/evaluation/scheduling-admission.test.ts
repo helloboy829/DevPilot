@@ -30,6 +30,8 @@ it.each([
   ["dispatch_authorized", true],
   ["release_authorized", true],
   ["blockers", ["unknown_blocker"]],
+  ["blockers", []],
+  ["blockers", ["worker_liveness_not_established"]],
   [
     "blockers",
     ["worker_liveness_not_established", "worker_liveness_not_established"],

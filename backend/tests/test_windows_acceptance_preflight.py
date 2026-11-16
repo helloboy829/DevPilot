@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import socket
 from contextlib import redirect_stdout
 from types import SimpleNamespace
 
@@ -126,3 +127,18 @@ def test_cli_returns_nonzero_when_blocked(monkeypatch):
         code = preflight.main([])
     assert code == 1
     assert "not_windows" in json.loads(output.getvalue())["blockers"]
+
+
+def test_bound_non_listening_port_is_not_available():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as occupied:
+        occupied.bind(("127.0.0.1", 0))
+        assert preflight._probe(occupied.getsockname()[1]).port_in_use is True
+
+
+def test_invalid_cli_port_is_rejected_before_host_probe(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(preflight, "_probe", lambda port: calls.append(port))
+    for port in ("0", "65536", "-1"):
+        assert preflight.main(["--port", port]) == 1
+    assert calls == []
+    assert capsys.readouterr().out == ""

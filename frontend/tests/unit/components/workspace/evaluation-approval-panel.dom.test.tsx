@@ -12,6 +12,7 @@ import { EvaluationApprovalPanel } from "@/components/workspace/evaluation-appro
 const state = rs.hoisted(() => ({
   api: {
     projectApprovals: rs.fn(),
+    approvalMetadata: rs.fn(),
     runApprovals: rs.fn(),
     runAudit: rs.fn(),
     chainIntegrity: rs.fn(),
@@ -54,8 +55,22 @@ const approval = {
   approval_hash: "f".repeat(64),
 } as const;
 
+const approvalMetadata = {
+  id: approval.id,
+  project_id: approval.project_id,
+  run_id: approval.run_id,
+  revision: approval.revision,
+  created_at_ms: approval.created_at_ms,
+  assessment_id: approval.assessment.id,
+  assessment_hash: approval.assessment.assessment_hash,
+  approver_id: approval.approver_id,
+  decision: approval.decision,
+  approval_hash: approval.approval_hash,
+};
+
 beforeEach(() => {
   for (const fn of Object.values(state.api)) fn.mockReset();
+  state.api.approvalMetadata.mockRejectedValue(new Error("not observed"));
   rs.stubGlobal("crypto", {
     randomUUID: () => "12345678-1234-4123-8123-123456789abc",
   });
@@ -417,7 +432,8 @@ it("clears a pending ID when an explicit read finds the original ID", async () =
     target: { value: run },
   });
   expect(screen.getByText(/Unknown write pending reconciliation/)).toBeTruthy();
-  state.api.runApprovals.mockResolvedValue([{ ...approval, id }]);
+  state.api.runApprovals.mockResolvedValue([{ ...approvalMetadata, id }]);
+  state.api.approvalMetadata.mockResolvedValue({ ...approvalMetadata, id });
   state.api.runAudit.mockResolvedValue([]);
   fireEvent.click(
     screen.getByRole("button", { name: "Load run approvals and audit" }),
@@ -438,7 +454,7 @@ it("keeps a pending ID when the explicit read does not find it", async () => {
     />,
   );
   state.api.runApprovals.mockResolvedValue([
-    { ...approval, id: "e".repeat(32) },
+    { ...approvalMetadata, id: "e".repeat(32) },
   ]);
   state.api.runAudit.mockResolvedValue([]);
   fireEvent.change(screen.getByLabelText("Run ID"), {

@@ -166,8 +166,7 @@ test("records an explicit approval with a generated original ID", async ({
   await page.route(
     "**/api/evaluation/projects/p1/review-runs/*/approvals/*",
     (route) => {
-      if (route.request().method() !== "POST")
-        return route.fulfill({ json: [] });
+      if (route.request().method() !== "POST") return route.fallback();
       writes.push({
         url: route.request().url(),
         body: route.request().postDataJSON(),
@@ -176,12 +175,18 @@ test("records an explicit approval with a generated original ID", async ({
         json: {
           schema: "qa-run-formal-approval.v1",
           scope: "formal_approval_decision",
-          id: "d".repeat(32),
+          id: route.request().url().split("/").pop(),
           project_id: "p1",
           run_id: run,
           revision: 1,
           created_at_ms: 1,
           recorded_by: "owner",
+          policy: {
+            id: "independent-double-blind.v1",
+            population: "all_frozen_effectiveness_samples",
+            source: "immutable_independent_assessment",
+            separation: "approver_not_owner_or_independent_reviewer",
+          },
           assessment: {
             id: assessment,
             revision: 1,
@@ -189,8 +194,9 @@ test("records an explicit approval with a generated original ID", async ({
             summary_hash: "e".repeat(64),
           },
           counts: { pass: 2, fail: 0, uncertain: 0, unreviewed: 0 },
+          technical_counts: { collected: 2 },
           human_pass_rate: { numerator: 2, denominator: 2, value: 1 },
-          criteria: { status: "not_defined" },
+          criteria: { status: "not_defined", approval: "not_approved" },
           readiness: "review_complete",
           decision: "approved",
           approver_id: approver,
@@ -278,8 +284,37 @@ test("keeps an unknown write on the same ID without retry", async ({
     (route) =>
       route.fulfill({
         json: [
-          { id, revision: 1, decision: "approved", approver_id: approver },
+          {
+            id,
+            project_id: "p1",
+            run_id: run,
+            revision: 1,
+            created_at_ms: 1,
+            assessment_id: assessment,
+            assessment_hash: hash,
+            approver_id: approver,
+            decision: "approved",
+            approval_hash: "f".repeat(64),
+          },
         ],
+      }),
+  );
+  await page.route(
+    `**/api/evaluation/projects/p1/review-runs/${run}/approvals/${id}/metadata`,
+    (route) =>
+      route.fulfill({
+        json: {
+          id,
+          project_id: "p1",
+          run_id: run,
+          revision: 1,
+          created_at_ms: 1,
+          assessment_id: assessment,
+          assessment_hash: hash,
+          approver_id: approver,
+          decision: "approved",
+          approval_hash: "f".repeat(64),
+        },
       }),
   );
   await panel

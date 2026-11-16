@@ -475,3 +475,63 @@ async def test_stored_advisory_policy_feeds_signoff_requirement(api, monkeypatch
     assert overridden["requirement"]["blockers"] == ["insufficient_approvers"]
     plain = (await client.get(path, params={"required_distinct_approvers": 1})).json()
     assert plain["requirement"]["source"] == "request_only"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("foreign", [False, True])
+async def test_approval_creation_hides_unknown_and_foreign_projects(api, monkeypatch, foreign):
+    client, app, _, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    if foreign:
+        app.state.actor = 2
+    else:
+        root = root.replace(root.split("/projects/", 1)[1].split("/", 1)[0], "f" * 32)
+
+    async def account_must_not_be_read(_):
+        pytest.fail("Project ownership must be checked before account lookup")
+
+    monkeypatch.setattr(routes, "_approver_account_ready", account_must_not_be_read)
+    response = await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment))
+    assert response.status_code == 404
+    assert "no-store" in response.headers["cache-control"]
+
+
+@pytest.mark.asyncio
+async def test_signoff_handles_more_observed_approvers_than_policy_maximum(api, monkeypatch, approver_account):
+    client, _, base, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    for index in range(11):
+        actor = str(UUID(int=100 + index))
+        approver_account[actor] = User(id=UUID(actor), email=f"signer{index}@example.com")
+        response = await client.post(root + "/approvals/" + f"{index + 100:032x}", json=payload(assessment, approver_id=actor, expected_previous_revision=index))
+        assert response.status_code == 200
+    policy = await client.put(base + "/approvals/signoff-policy", json={"required_distinct_approvers": 2, "expected_previous_revision": 0, "confirmed": True})
+    assert policy.status_code == 200
+    for params in ({}, {"required_distinct_approvers": 2}):
+        response = await client.get(root + "/approvals/sign-off", params=params)
+        assert response.status_code == 200
+        assert response.json()["distinct_approved_approvers"] == 11
+        assert response.json()["requirement"]["satisfied"] is True
+
+
+@pytest.mark.asyncio
+async def test_exact_id_metadata_reconciliation_does_not_open_documents(api, monkeypatch):
+    client, app, _, _ = api
+    root, assessment = await setup_approval(api, monkeypatch)
+    path = root + "/approvals/" + APPROVAL
+    created = await client.post(path, json=payload(assessment, note="SYNTHETIC_PRIVATE_NOTE"))
+    assert created.status_code == 200
+
+    def must_not_decode(*args):
+        pytest.fail("Metadata reconciliation must not open a sensitive document")
+
+    monkeypatch.setattr(ApprovalRepository, "_decode_approval", must_not_decode)
+    response = await client.get(path + "/metadata")
+    assert response.status_code == 200
+    assert response.json() == (await client.get(root + "/approvals")).json()[0]
+    assert response.json()["approval_hash"] == created.json()["approval_hash"]
+    assert not any(secret in response.text for secret in ("note", "document", "SYNTHETIC_PRIVATE_NOTE", "counts"))
+    assert "no-store" in response.headers["cache-control"]
+    assert (await client.get(root + "/approvals/" + "f" * 32 + "/metadata")).status_code == 404
+    app.state.actor = 2
+    assert (await client.get(path + "/metadata")).status_code == 404

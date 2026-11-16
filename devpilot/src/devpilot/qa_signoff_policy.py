@@ -7,6 +7,9 @@
 from __future__ import annotations
 
 _MAX_REQUIRED = 10
+# A run has at most 1,000 approval revisions; the policy's smaller limit
+# constrains the requested threshold, not the observed historical population.
+_MAX_OBSERVED = 1000
 _DECISIONS = frozenset({"approved", "revoked"})
 
 
@@ -22,19 +25,11 @@ def evaluate_signoff_requirement(
     revoked latest decisions and too few distinct approved approvers block.
     The result never constitutes approval.
     """
-    if required_distinct_approvers is not None and (
-        type(required_distinct_approvers) is not int
-        or not 1 <= required_distinct_approvers <= _MAX_REQUIRED
-    ):
+    if required_distinct_approvers is not None and (type(required_distinct_approvers) is not int or not 1 <= required_distinct_approvers <= _MAX_REQUIRED):
         raise ValueError("Invalid sign-off requirement")
-    if (
-        type(distinct_approved_approvers) is not int
-        or not 0 <= distinct_approved_approvers <= _MAX_REQUIRED
-    ):
+    if type(distinct_approved_approvers) is not int or not 0 <= distinct_approved_approvers <= _MAX_OBSERVED:
         raise ValueError("Invalid approved approver count")
-    if latest_decision is not None and (
-        type(latest_decision) is not str or latest_decision not in _DECISIONS
-    ):
+    if latest_decision is not None and (type(latest_decision) is not str or latest_decision not in _DECISIONS):
         raise ValueError("Invalid latest decision")
     blockers = set()
     if required_distinct_approvers is None:

@@ -1,161 +1,36 @@
+import { z } from "zod";
+
 import { evaluationApi } from "@/core/evaluation/api";
 
-export type ApprovalDecision = "approved" | "revoked";
-
-export interface ProjectApproval {
-  run_id: string;
-  id: string;
-  revision: number;
-  decision: ApprovalDecision;
-  assessment_id: string;
-  assessment_hash: string;
-  created_at_ms: number;
-}
-
-export interface ApprovalAuditEvent {
-  project_id: string;
-  run_id: string;
-  sequence: number;
-  approval_id: string;
-  revision: number;
-  actor: string;
-  action: ApprovalDecision;
-  subject_hash: string;
-  at_ms: number;
-}
-
-export interface ApprovalPreflight {
-  schema: "qa-approval-preflight.v1";
-  scope: "read_only_formal_approval_preflight";
-  project_id: string;
-  run_id: string;
-  assessment: { id: string; revision: number; assessment_hash: string };
-  approver_id: string;
-  eligible: boolean;
-  blockers: string[];
-  readiness: string;
-  criteria: { status: string };
-  separation: {
-    approver_not_owner: boolean;
-    approver_not_review_actor: boolean;
-  };
-  latest_approval: { revision: number; decision: ApprovalDecision } | null;
-  approval: "not_recorded";
-}
-
-export interface ApprovalChainIntegrity {
-  schema: "qa-approval-chain.v1";
-  scope: "approval_audit_chain_only";
-  status: "verified" | "broken";
-  approvals: number;
-  events: number;
-  blockers: string[];
-}
-
-export interface ApprovalChainSummary {
-  schema: "qa-approval-chain-summary.v1";
-  scope: "project_approval_audit_chains_only";
-  status: "verified" | "broken" | "unverifiable";
-  runs: number;
-  verified_runs: number;
-  broken_runs: number;
-  approvals: number;
-  events: number;
-  blockers: string[];
-}
-
-export interface ApprovalSignoffPolicy {
-  schema: "qa-approval-signoff-policy.v1";
-  scope: "advisory_signoff_policy_only";
-  project_id: string;
-  revision: number;
-  required_distinct_approvers: number;
-  created_at_ms: number;
-  advisory: true;
-  enforcement: "none";
-  policy_hash: string;
-}
-
-export interface ApprovalSignoffRequirement {
-  schema: "qa-signoff-requirement.v1";
-  scope: "technical_signoff_requirement_only";
-  policy: { defined: boolean; required_distinct_approvers: number | null };
-  observed: {
-    distinct_approved_approvers: number;
-    latest_decision: ApprovalDecision | null;
-  };
-  satisfied: boolean | null;
-  blockers: string[];
-  approval: "not_approved";
-  source?: "stored_advisory" | "request_only";
-}
-
-export interface ApprovalSignoffProgress {
-  schema: "qa-approval-signoff.v1";
-  scope: "approval_signoff_progress_only";
-  policy: "not_defined";
-  required_distinct_approvers: null;
-  revisions: number;
-  distinct_approvers: number;
-  distinct_approved_approvers: number;
-  approved_revisions: number;
-  revoked_revisions: number;
-  latest_revision: number | null;
-  latest_decision: ApprovalDecision | null;
-  multi_level_satisfied: null;
-  blockers: string[];
-  requirement?: ApprovalSignoffRequirement;
-  stored_policy?: ApprovalSignoffPolicy;
-}
-
-export interface ApprovalCapabilities {
-  schema: "qa-approval-capabilities.v1";
-  scope: "approval_capability_diagnostic_only";
-  approver_login: "not_implemented";
-  owner_records_on_behalf: true;
-  multi_level_policy: "advisory_only";
-  multi_level_enforcement: "not_implemented";
-  notifications: "not_implemented";
-  export: "not_implemented";
-  approval: "not_authorized";
-  blockers: string[];
-}
-
-export interface RunAssessment {
-  id: string;
-  project_id: string;
-  run_id: string;
-  revision: number;
-  created_at_ms: number;
-  summary_hash: string;
-  assessment_hash: string;
-}
-
-export interface ApprovalView {
-  schema: "qa-run-formal-approval.v1";
-  scope: "formal_approval_decision";
-  id: string;
-  project_id: string;
-  run_id: string;
-  revision: number;
-  created_at_ms: number;
-  recorded_by: string;
-  assessment: {
-    id: string;
-    revision: number;
-    assessment_hash: string;
-    summary_hash: string;
-  };
-  counts: Record<string, number>;
-  human_pass_rate: { numerator: number; denominator: number; value: number };
-  criteria: { status: string };
-  readiness: "review_complete";
-  decision: ApprovalDecision;
-  approver_id: string;
-  note: string | null;
-  approval_hash: string;
-}
-
+import {
+  approvalMetadataSchema,
+  projectApprovalSchema,
+  auditSchema,
+  assessmentSchema,
+  preflightSchema,
+  chainSchema,
+  chainSummarySchema,
+  signoffSchema,
+  capabilitiesSchema,
+  approvalViewSchema,
+  type ApprovalDecision,
+  type ApprovalMetadata,
+} from "./approval-contracts";
+export type {
+  ApprovalDecision,
+  ProjectApproval,
+  ApprovalAuditEvent,
+  ApprovalPreflight,
+  ApprovalChainIntegrity,
+  ApprovalChainSummary,
+  ApprovalSignoffPolicy,
+  ApprovalSignoffRequirement,
+  ApprovalSignoffProgress,
+  ApprovalCapabilities,
+  RunAssessment,
+  ApprovalView,
+  ApprovalMetadata,
+} from "./approval-contracts";
 export interface ApprovalCreatePayload {
   assessment_id: string;
   assessment_hash: string;
@@ -166,45 +41,103 @@ export interface ApprovalCreatePayload {
   confirmed: true;
 }
 
+const invalid = () => new Error("Invalid approval response");
+async function request<S extends z.ZodType>(
+  route: string,
+  schema: S,
+  body?: unknown,
+): Promise<z.output<S>> {
+  const parsed = schema.safeParse(
+    await evaluationApi<unknown>(route, body, "POST", 1_048_576),
+  );
+  if (!parsed.success) throw invalid();
+  return parsed.data;
+}
+function scoped<T extends { project_id: string; run_id: string }>(
+  value: T,
+  projectId: string,
+  runId: string,
+): T {
+  if (value.project_id !== projectId || value.run_id !== runId) throw invalid();
+  return value;
+}
 const projects = (projectId: string) =>
   `evaluation/projects/${encodeURIComponent(projectId)}`;
 const runs = (projectId: string, runId: string) =>
   `${projects(projectId)}/review-runs/${encodeURIComponent(runId)}`;
-
-/** Metadata-only approval reads; no document, note or evidence is requested. */
+/** Authenticated, bounded approval protocols. Reads select metadata only. */
 export const approvalApi = {
   projectApprovals(projectId: string) {
-    return evaluationApi<ProjectApproval[]>(`${projects(projectId)}/approvals`);
+    return request(
+      `${projects(projectId)}/approvals`,
+      z.array(projectApprovalSchema).max(200),
+    );
   },
   capabilities(projectId: string) {
-    return evaluationApi<ApprovalCapabilities>(
+    return request(
       `${projects(projectId)}/approvals/capabilities`,
+      capabilitiesSchema,
     );
   },
   projectChainIntegrity(projectId: string) {
-    return evaluationApi<ApprovalChainSummary>(
+    return request(
       `${projects(projectId)}/approvals/integrity`,
+      chainSummarySchema,
     );
   },
-  runApprovals(projectId: string, runId: string) {
-    return evaluationApi<ApprovalView[]>(`${runs(projectId, runId)}/approvals`);
+  async runApprovals(
+    projectId: string,
+    runId: string,
+  ): Promise<ApprovalMetadata[]> {
+    const rows = await request(
+      `${runs(projectId, runId)}/approvals`,
+      z.array(approvalMetadataSchema).max(100),
+    );
+    rows.forEach((row) => scoped(row, projectId, runId));
+    if (
+      new Set(rows.map((row) => row.id)).size !== rows.length ||
+      rows.some(
+        (row, index) => index > 0 && row.revision >= rows[index - 1]!.revision,
+      )
+    )
+      throw invalid();
+    return rows;
   },
-  runAudit(projectId: string, runId: string) {
-    return evaluationApi<ApprovalAuditEvent[]>(
+  async approvalMetadata(projectId: string, runId: string, approvalId: string) {
+    const value = scoped(
+      await request(
+        `${runs(projectId, runId)}/approvals/${encodeURIComponent(approvalId)}/metadata`,
+        approvalMetadataSchema,
+      ),
+      projectId,
+      runId,
+    );
+    if (value.id !== approvalId) throw invalid();
+    return value;
+  },
+  async runAudit(projectId: string, runId: string) {
+    const rows = await request(
       `${runs(projectId, runId)}/approvals/audit`,
+      z.array(auditSchema).max(1000),
     );
+    rows.forEach((row) => scoped(row, projectId, runId));
+    return rows;
   },
-  runAssessments(projectId: string, runId: string) {
-    return evaluationApi<RunAssessment[]>(
+  async runAssessments(projectId: string, runId: string) {
+    const rows = await request(
       `${runs(projectId, runId)}/assessments`,
+      z.array(assessmentSchema).max(100),
     );
+    rows.forEach((row) => scoped(row, projectId, runId));
+    return rows;
   },
   chainIntegrity(projectId: string, runId: string) {
-    return evaluationApi<ApprovalChainIntegrity>(
+    return request(
       `${runs(projectId, runId)}/approvals/integrity`,
+      chainSchema,
     );
   },
-  signoffProgress(
+  async signoffProgress(
     projectId: string,
     runId: string,
     requiredDistinctApprovers?: number,
@@ -213,30 +146,60 @@ export const approvalApi = {
       requiredDistinctApprovers === undefined
         ? ""
         : `?required_distinct_approvers=${requiredDistinctApprovers}`;
-    return evaluationApi<ApprovalSignoffProgress>(
+    const value = await request(
       `${runs(projectId, runId)}/approvals/sign-off${query}`,
+      signoffSchema,
     );
+    if (value.stored_policy && value.stored_policy.project_id !== projectId)
+      throw invalid();
+    return value;
   },
-  preflight(
+  async preflight(
     projectId: string,
     runId: string,
     assessmentId: string,
     approverId: string,
   ) {
     const base = `${runs(projectId, runId)}/assessments/${encodeURIComponent(assessmentId)}/approval-preflight`;
-    return evaluationApi<ApprovalPreflight>(
-      `${base}?approver_id=${encodeURIComponent(approverId)}`,
+    const value = scoped(
+      await request(
+        `${base}?approver_id=${encodeURIComponent(approverId)}`,
+        preflightSchema,
+      ),
+      projectId,
+      runId,
     );
+    if (
+      value.assessment.id !== assessmentId ||
+      value.approver_id !== approverId
+    )
+      throw invalid();
+    return value;
   },
-  create(
+  async create(
     projectId: string,
     runId: string,
     approvalId: string,
     payload: ApprovalCreatePayload,
   ) {
-    return evaluationApi<ApprovalView>(
-      `${runs(projectId, runId)}/approvals/${encodeURIComponent(approvalId)}`,
-      payload,
+    const value = scoped(
+      await request(
+        `${runs(projectId, runId)}/approvals/${encodeURIComponent(approvalId)}`,
+        approvalViewSchema,
+        payload,
+      ),
+      projectId,
+      runId,
     );
+    if (
+      value.id !== approvalId ||
+      value.revision !== payload.expected_previous_revision + 1 ||
+      value.assessment.id !== payload.assessment_id ||
+      value.assessment.assessment_hash !== payload.assessment_hash ||
+      value.approver_id !== payload.approver_id ||
+      value.decision !== payload.decision
+    )
+      throw invalid();
+    return value;
   },
 };

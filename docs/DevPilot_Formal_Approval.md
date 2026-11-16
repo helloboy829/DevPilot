@@ -17,7 +17,7 @@
 4. 若冻结计划带有 `acceptance_criteria`，评估文档内 `criteria_evaluation.status` 必须为 `met`；`not_met`/`incomplete` 一律拒绝。仅阈值达标本身不会产生批准。
 5. 职责分离：`approver_id` 不得等于项目 owner，也不得等于该 run 任一已验真任务的 reviewer_1/reviewer_2/arbitrator。任务定义会被重新验签，无法用被篡改的定义绕过。
 6. 审批人账号存在且可用：路由在项目归属校验后按精确 ID 查询本地账号，账号不存在或 `needs_setup` 未完成时拒绝写入（409）；预检以 `approver_account_not_found` 阻塞。该查询不创建账号、不枚举目录，也不授予任何权限。
-6. 显式确认：`confirmed=true`；布尔伪装（如 `1`）被拒绝。
+7. 显式确认：`confirmed=true`；布尔伪装（如 `1`）被拒绝。
 
 失败关闭：任一前提不满足返回冲突/未找到；`case PASS`、完整复核、阈值达标或审计/评估历史都不能单独合成批准。
 
@@ -26,7 +26,7 @@
 - 批准表 append-only：`(run_id, revision)` 唯一。首个记录 revision 1；撤销是新增 revision（通常 2），不改写 revision 1 的文档或 hash。
 - `expected_previous_revision` 必须等于当前该 run 最大 revision；并发首发只有一个成功，其余冲突。同一 approval ID 与完全相同的请求重放返回原回执；不同载荷复用同 ID 冲突，不生成替代 ID。
 - 每次追加写一条 `evaluation_approval_audit`（`sequence` 原子递增、`actor`、`action`、`subject_hash=approval_hash`、`at_ms`）。审计失败回滚整次追加。
-- 读取：`GET` 单个批准验证整链 hash；文档被篡改返回保护错误。列表仅返回元数据（不含 counts/document）；审计列表只返回有序技术元数据，不含 note/document/证据。
+- 读取：`GET` 单个批准验证该文档 hash；文档被篡改返回保护错误。列表仅返回元数据（不含 counts/document）；审计列表只返回有序技术元数据，不含 note/document/证据。
 
 ## API
 
@@ -41,11 +41,12 @@
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/audit` | read + review                  |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/sign-off` | read + review               |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/integrity` | read + review              |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}/metadata` | read + review（原 ID 元数据对账） |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + review                   |
 | GET  | `/api/evaluation/projects/{project}/review-runs/{run}/assessments/{assessment_id}/approval-preflight?approver_id=...` | read + review |
 | POST | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + write + review（人类）  |
 
-签核政策端点按项目追加 revision（owner 人类显式确认、`expected_previous_revision` CAS）：只保存 `required_distinct_approvers` 1–10 的**咨询政策**，`advisory=true`、`enforcement="none"`；不强制批准、不通知、不改变签署进度端点既有 `policy="not_defined"`/`multi_level_satisfied=null`。签署进度会在有已存政策时附加 `stored_policy` 与 `requirement.source="stored_advisory"`；显式查询参数优先并标记 `request_only`。能力诊断端点只返回固定投影 `qa-approval-capabilities.v1`：`approver_login=not_implemented`、`owner_records_on_behalf=true`、`multi_level_policy=advisory_only`、`multi_level_enforcement=not_implemented`、`notifications=not_implemented`、`export=not_implemented`、`approval=not_authorized` 与固定 blockers；不读取项目、批准、账号或证据，只做项目归属校验。审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。签署进度端点只返回聚合计数与固定状态：`policy="not_defined"`、`required_distinct_approvers=null`、`multi_level_satisfied=null`、revision/不同审批人/批准与撤销计数、最新 revision/decision，以及固定 blockers `multi_level_policy_not_defined`、`approver_login_not_implemented`；不返回任何 ID、hash、document 或 note，也不把多审批人计数当作多级签核已满足。可选 `required_distinct_approvers=1..10` 查询参数会附加**咨询性** `requirement`（复用纯核心），仅用于对照当前计数；不保存策略、不强制、不改变批准或 `multi_level_satisfied`。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（approval_id/revision/action/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
+签核政策端点按项目追加 revision（owner 人类显式确认、`expected_previous_revision` CAS）：只保存 `required_distinct_approvers` 1–10 的**咨询政策**，`advisory=true`、`enforcement="none"`；不强制批准、不通知、不改变签署进度端点既有 `policy="not_defined"`/`multi_level_satisfied=null`。签署进度会在有已存政策时附加 `stored_policy` 与 `requirement.source="stored_advisory"`；显式查询参数优先并标记 `request_only`。能力诊断端点只返回固定投影 `qa-approval-capabilities.v1`：`approver_login=not_implemented`、`owner_records_on_behalf=true`、`multi_level_policy=advisory_only`、`multi_level_enforcement=not_implemented`、`notifications=not_implemented`、`export=not_implemented`、`approval=not_authorized` 与固定 blockers；不读取项目、批准、账号或证据，只做项目归属校验。审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。签署进度端点只返回聚合计数与固定状态：`policy="not_defined"`、`required_distinct_approvers=null`、`multi_level_satisfied=null`、revision/不同审批人/批准与撤销计数、最新 revision/decision，以及固定 blockers `multi_level_policy_not_defined`、`approver_login_not_implemented`；不返回任何 ID、hash、document 或 note，也不把多审批人计数当作多级签核已满足。可选 `required_distinct_approvers=1..10` 查询参数会附加**咨询性** `requirement`（复用纯核心），仅用于对照当前计数；不保存策略、不强制、不改变批准或 `multi_level_satisfied`。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（project/run/approval_id/revision/action/actor/at_ms/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
 
 只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation/approver account）、`readiness`、`criteria.status`、两个分离布尔与 `latest_approval`（最新 revision/decision 元数据，若存在）；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；预检还按精确 ID 查账号，账号不存在或尚未完成初始化时追加 `approver_account_not_found` 并将 `eligible` 置为 false；未知评估返回 404；所有响应 `no-store`。创建/撤销在项目归属校验后同样要求该账号存在且可用（否则 409），只做精确 ID 查询，不提供账号目录或枚举。
 
@@ -53,7 +54,11 @@
 
 ## 工作台面板
 
-`/workspace/datasets` 的正式批准面板只在显式点击后读取：项目索引、批准能力诊断、项目级链汇总、运行批准与审计列表、运行评估元数据、只读预检、运行级链完整性检查、签署进度分别由独立按钮触发，不自动轮询或读取证据。加载运行评估只读取 `id/revision/summary_hash/assessment_hash` 元数据，选择后填入固定评估 ID/hash 并撤销确认，不读取评估文档。链完整性按钮要求 32 位十六进制 run ID，只显示 `verified`/`broken`、批准/事件计数与固定 blockers；项目级汇总只显示 run 计数、批准/事件计数与固定 blockers；批准能力诊断只显示固定未实现/仅咨询投影与 blockers；签署进度只显示 revision/不同审批人计数、最新决定与“政策未定义”blockers；可选的拟议所需审批人数只附加咨询性 requirement，并明确“不保存、不强制”，不改变批准状态。切换项目时清除项目索引、run 与评估输入；切换 run 时清除运行级结果；修改评估 ID/hash 或审批人时清除旧预检、旧错误/提示并撤销显式确认，成功写入或对账后清除预检、签署进度与旧链汇总；已加载的项目索引在成功写入后本地更新为最新 revision/decision（不额外请求），显式加载运行批准会使已显示的链完整性与签署进度快照失效，需要重新检查。创建/撤销使用页面内存 pending ID，未知结果只按原 ID 只读对账：显式加载若发现原 ID 已存在，则清除 pending、旧链汇总并提示已对账；不存在时继续保留 pending。失败不重试、不写批准或审计；面板不读取 document、note 或任何 Q/A、金标与证据。
+`/workspace/datasets` 的正式批准面板只在显式点击后读取：项目索引、批准能力诊断、项目级链汇总、运行批准与审计列表、运行评估元数据、只读预检、运行级链完整性检查、签署进度分别由独立按钮触发，不自动轮询或读取证据。加载运行评估只读取 `id/revision/summary_hash/assessment_hash` 元数据，选择后填入固定评估 ID/hash 并撤销确认，不读取评估文档。链完整性按钮要求 32 位十六进制 run ID，只显示 `verified`/`broken`、批准/事件计数与固定 blockers；项目级汇总只显示 run 计数、批准/事件计数与固定 blockers；批准能力诊断只显示固定未实现/仅咨询投影与 blockers；签署进度只显示 revision/不同审批人计数、最新决定与“政策未定义”blockers；可选的拟议所需审批人数只附加咨询性 requirement，并明确“不保存、不强制”，不改变批准状态。切换项目时清除项目索引、run 与评估输入；切换 run 时清除运行级结果；修改评估 ID/hash 或审批人时清除旧预检、旧错误/提示并撤销显式确认，成功写入或对账后清除预检、签署进度与旧链汇总；已加载的项目索引在成功写入后本地更新为最新 revision/decision（不额外请求），显式加载运行批准会使已显示的链完整性与签署进度快照失效，需要重新检查。创建/撤销使用页面内存 pending ID，未知结果只按原 ID 只读对账：显式加载若发现原 ID 已存在，则清除 pending、旧链汇总并提示已对账；未发现时继续保留 pending。对账通过原 ID 的 `/metadata` 查询完成，不受最新 100 条列表上限影响，也不打开批准文档；pending 时禁止再次 POST。失败不重试、不写批准或审计；面板不读取 document、note 或任何 Q/A、金标与证据。
+
+## 实现边界
+
+App 的 `ApprovalService` 统一账号就绪、创建与咨询策略计算编排；仓库负责归属、持久化和固定目标验真，算术复用 devpilot 纯核心。前端 `useApprovalWorkspace` 统一请求生命周期与输入失效，运行时 schema 派生 TypeScript 类型，所有审批响应有界读取并校验作用域。CAS 使用实际最大 revision，不使用列表长度。链 hash 计算在线程中执行，避免阻塞事件循环。
 
 ## 数据与迁移
 

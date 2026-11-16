@@ -8,6 +8,14 @@ from devpilot.qa_signoff_policy import evaluate_signoff_requirement
 
 
 class SignoffRequirementTest(unittest.TestCase):
+    def test_observed_population_is_independent_from_required_policy_limit(self):
+        for count in (11, 100, 1000):
+            result = evaluate_signoff_requirement(required_distinct_approvers=10, distinct_approved_approvers=count, latest_decision="approved")
+            self.assertTrue(result["satisfied"])
+            self.assertEqual(result["observed"]["distinct_approved_approvers"], count)
+        with self.assertRaises(ValueError):
+            evaluate_signoff_requirement(required_distinct_approvers=1, distinct_approved_approvers=1001, latest_decision="approved")
+
     def test_explicit_policy_is_satisfied_by_enough_approved_approvers(self):
         result = evaluate_signoff_requirement(
             required_distinct_approvers=2,

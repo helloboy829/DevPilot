@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from devpilot.qa_metrics_cli import main
 
@@ -38,6 +39,14 @@ def run(*argv):
 
 
 class MetricsCliTest(unittest.TestCase):
+    def test_short_regular_file_reads_are_drained_within_the_same_limit(self):
+        from devpilot.qa_metrics_cli import _read_json
+
+        path = self.write("short-read.json", observation())
+        original_read = os.read
+        with patch("devpilot.qa_metrics_cli.os.read", side_effect=lambda fd, size: original_read(fd, min(size, 7))):
+            self.assertEqual(_read_json(path), observation())
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.root = Path(self.directory.name)
@@ -56,9 +65,7 @@ class MetricsCliTest(unittest.TestCase):
         self.assertEqual((code, error), (0, ""))
         result = json.loads(output)
         self.assertEqual(result["schema"], "qa-stream-metrics.v1")
-        self.assertEqual(
-            result["ttft"], {"status": "available", "ms": 120, "reason": None}
-        )
+        self.assertEqual(result["ttft"], {"status": "available", "ms": 120, "reason": None})
         self.assertEqual(result["approval"], "not_approved")
 
     def test_unavailable_metrics_stay_null(self):
@@ -186,10 +193,7 @@ class MetricsCliTest(unittest.TestCase):
     def test_rejects_duplicate_keys_and_non_finite_numbers(self):
         duplicate = self.root / "duplicate.json"
         duplicate.write_text(
-            '{"required_distinct_approvers":1,'
-            '"required_distinct_approvers":2,'
-            '"distinct_approved_approvers":1,'
-            '"latest_decision":"approved"}',
+            '{"required_distinct_approvers":1,"required_distinct_approvers":2,"distinct_approved_approvers":1,"latest_decision":"approved"}',
             encoding="utf-8",
         )
         code, output, error = run("signoff", "--requirement", str(duplicate))

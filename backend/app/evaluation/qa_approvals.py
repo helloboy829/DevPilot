@@ -29,6 +29,7 @@ from app.evaluation.review_tasks import POLICY
 
 PROJECT_CHAIN_ROW_LIMIT = 5000
 PROJECT_CHAIN_RUN_LIMIT = 1000
+APPROVAL_METADATA_KEYS = ("id", "project_id", "run_id", "revision", "created_at_ms", "assessment_id", "assessment_hash", "approver_id", "decision", "approval_hash")
 
 
 def approval_identifier(value):
@@ -95,6 +96,10 @@ class SignoffPolicySet(StrictDTO):
 
 
 class ApprovalRepository(AssessmentRepository):
+    async def check_project(self, owner, project_id):
+        async with self.sf() as session:
+            await self._project(session, owner, project_id)
+
     async def _run_actors(self, session, run_id):
         actors: set[str] = set()
         rows = (await session.execute(select(t.review_tasks).where(t.review_tasks.c.run_id == run_id).order_by(t.review_tasks.c.id).limit(10001))).mappings()
@@ -184,13 +189,37 @@ class ApprovalRepository(AssessmentRepository):
     async def list_approvals(self, owner, project_id, run_id):
         async with self.sf() as session:
             await self._journal(session, owner, project_id, run_id)
-            columns = [t.run_approvals.c[key] for key in ("id", "project_id", "run_id", "revision", "created_at_ms", "assessment_id", "assessment_hash", "approver_id", "decision", "approval_hash")]
+            columns = [t.run_approvals.c[key] for key in APPROVAL_METADATA_KEYS]
             return [
                 dict(row)
                 for row in (
                     await session.execute(select(*columns).where(t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id, t.run_approvals.c.run_id == run_id).order_by(t.run_approvals.c.revision.desc()).limit(100))
                 ).mappings()
             ]
+
+    async def get_approval_metadata(self, owner, project_id, run_id, approval_id):
+        """Reconcile an original ID even when it has left the bounded list page.
+
+        This is an existence receipt, not a document integrity verification.
+        Never select the document, note or measured assessment contents.
+        """
+        approval_identifier(approval_id)
+        async with self.sf() as session:
+            await self._journal(session, owner, project_id, run_id)
+            row = (
+                (
+                    await session.execute(
+                        select(*(t.run_approvals.c[key] for key in APPROVAL_METADATA_KEYS)).where(
+                            t.run_approvals.c.owner_id == owner, t.run_approvals.c.project_id == project_id, t.run_approvals.c.run_id == run_id, t.run_approvals.c.id == approval_id
+                        )
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        if row is None:
+            raise NotFound
+        return dict(row)
 
     async def list_approval_audit(self, owner, project_id, run_id):
         async with self.sf() as session:
@@ -212,7 +241,14 @@ class ApprovalRepository(AssessmentRepository):
         for approval_row, event in zip(approvals, audit):
             try:
                 matched = (
-                    event["approval_id"] == approval_row["id"] and event["revision"] == approval_row["revision"] and event["action"] == approval_row["decision"] and hmac.compare_digest(event["subject_hash"], approval_row["approval_hash"])
+                    event["approval_id"] == approval_row["id"]
+                    and event["revision"] == approval_row["revision"]
+                    and event["action"] == approval_row["decision"]
+                    and event["actor"] == approval_row["owner_id"]
+                    and event["at_ms"] == approval_row["created_at_ms"]
+                    and event["project_id"] == approval_row["project_id"]
+                    and event["run_id"] == approval_row["run_id"]
+                    and hmac.compare_digest(event["subject_hash"], approval_row["approval_hash"])
                 )
             except (TypeError, ValueError):
                 matched = False
@@ -237,7 +273,7 @@ class ApprovalRepository(AssessmentRepository):
                 .all()
             )
             audit = (await session.execute(select(t.approval_audit).where(t.approval_audit.c.project_id == project_id, t.approval_audit.c.run_id == run_id).order_by(t.approval_audit.c.sequence).limit(1001))).mappings().all()
-        blockers = self._chain_blockers(approvals, audit)
+        blockers = await asyncio.to_thread(self._chain_blockers, approvals, audit)
         return {
             "schema": "qa-approval-chain.v1",
             "scope": "approval_audit_chain_only",
@@ -269,6 +305,9 @@ class ApprovalRepository(AssessmentRepository):
                 }
             approvals = (await session.execute(select(t.run_approvals).where(*approvals_filter).order_by(t.run_approvals.c.run_id, t.run_approvals.c.revision))).mappings().all()
             audit = (await session.execute(select(t.approval_audit).where(t.approval_audit.c.project_id == project_id).order_by(t.approval_audit.c.run_id, t.approval_audit.c.sequence))).mappings().all()
+        return await asyncio.to_thread(self._project_chain_summary, approvals, audit)
+
+    def _project_chain_summary(self, approvals, audit):
         approvals_by_run: dict[str, list] = {}
         audit_by_run: dict[str, list] = {}
         for row in approvals:
@@ -394,16 +433,18 @@ class ApprovalRepository(AssessmentRepository):
             "enforcement": "none",
         }
         policy_hash = await asyncio.to_thread(fingerprint, {"owner_id": owner, "request_hash": request_hash, "document": document})
-        try:
-            async with self._transaction() as session:
-                await self._project(session, owner, project_id)
+        async with self._transaction() as session:
+            await self._project(session, owner, project_id)
+            try:
                 await session.execute(
                     insert(t.approval_signoff_policies).values(
                         project_id=project_id, revision=revision, owner_id=owner, required_distinct_approvers=required_distinct_approvers, created_at_ms=created_at_ms, request_hash=request_hash, document=document, policy_hash=policy_hash
                     )
                 )
-        except IntegrityError:
-            raise Conflict from None
+            except IntegrityError:
+                # A rejected insert is a known conflict. Catch before the
+                # transaction wrapper maps uncertain database failures to 503.
+                raise Conflict from None
         return {**document, "policy_hash": policy_hash}
 
     async def list_project_approvals(self, owner, project_id):

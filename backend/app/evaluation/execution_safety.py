@@ -53,7 +53,7 @@ def classify_held_reservation(row, *, now_ms):
     if not isinstance(row, dict) or not set(_REQUIRED).issubset(row):
         raise ValueError("Invalid reservation row")
     state = row["state"]
-    if state not in _STATES:
+    if type(state) is not str or state not in _STATES:
         raise ValueError("Invalid reservation state")
     held = row["reservation_held"]
     if type(held) is not bool:

@@ -1,11 +1,13 @@
 import { throwGatewayApiError } from "@/core/api/errors";
 import { fetch } from "@/core/api/fetcher";
 import { getBackendBaseURL } from "@/core/config";
+import { readBoundedJSON } from "@/core/evaluation/bounded-json";
 
 export async function evaluationApi<T>(
   route: string,
   body?: unknown,
   method = "POST",
+  maximumBytes?: number,
 ): Promise<T> {
   const response = await fetch(`${getBackendBaseURL()}/api/${route}`, {
     method: body === undefined && method === "POST" ? "GET" : method,
@@ -14,11 +16,22 @@ export async function evaluationApi<T>(
       body === undefined ? undefined : { "Content-Type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
+  if (!response.ok && maximumBytes !== undefined) {
+    void response.body?.cancel().catch(() => undefined);
+    throw new Error("Evaluation operation failed");
+  }
   if (!response.ok)
     await throwGatewayApiError(
       response,
       "Operation failed; check permissions and configuration",
     );
+  if (maximumBytes !== undefined)
+    return readBoundedJSON(
+      response,
+      new AbortController().signal,
+      maximumBytes,
+      () => new Error("Invalid evaluation response"),
+    ) as Promise<T>;
   return response.json() as Promise<T>;
 }
 

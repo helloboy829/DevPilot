@@ -34,6 +34,12 @@ def row(**changes):
     return values
 
 
+@pytest.mark.parametrize("state", [[], {}, ["running"], 1, True, None])
+def test_malformed_state_has_the_same_fail_closed_contract(state):
+    with pytest.raises(ValueError, match="Invalid reservation state"):
+        classify_held_reservation(row(state=state), now_ms=1500)
+
+
 @pytest.mark.parametrize(
     ("changes", "now", "state", "terminal", "deadline_reached"),
     [

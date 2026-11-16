@@ -4,12 +4,12 @@ import asyncio
 import hmac
 import logging
 
-from devpilot.qa_signoff_policy import evaluate_signoff_requirement
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.evaluation.approval_capabilities import approval_capabilities
+from app.evaluation.approval_service import ApprovalService
 from app.evaluation.datasets import DatasetCreate, DatasetImport, FreezeRequest, ProjectCreate, parse_samples
 from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
 from app.evaluation.execution import ExecutionCreate
@@ -553,12 +553,9 @@ async def get_approval_preflight(project_id: str, run_id: str, assessment_id: st
     owner, repository = await _approval_context(request)
     approval_identifier(assessment_id)
     try:
-        result = await _result(repository.preview_approval(owner, project_id, run_id, assessment_id, approver_id))
+        result = await _result(ApprovalService(repository, _approver_account_ready).preview(owner, project_id, run_id, assessment_id, approver_id))
     except ValueError:
         raise HTTPException(422, "Invalid approval preflight request", headers={"Cache-Control": "private, no-store"}) from None
-    if not await _approver_account_ready(approver_id):
-        result["eligible"] = False
-        result["blockers"] = sorted({*result["blockers"], "approver_account_not_found"})
     return result
 
 
@@ -592,8 +589,7 @@ async def set_signoff_policy(project_id: str, payload: SignoffPolicySet, request
 @require_permission("evaluation_projects", "review")
 async def get_approval_capabilities(project_id: str, request: Request):
     owner, repository = await _approval_context(request)
-    async with repository.sf() as session:
-        await _result(repository._project(session, owner, project_id))
+    await _result(repository.check_project(owner, project_id))
     return approval_capabilities()
 
 
@@ -618,25 +614,10 @@ async def list_run_approvals(project_id: str, run_id: str, request: Request):
 @require_permission("evaluation_projects", "review")
 async def get_run_approval_signoff_progress(project_id: str, run_id: str, request: Request, required_distinct_approvers: int | None = Query(None, ge=1, le=10)):
     owner, repository = await _approval_context(request)
-    progress = await _result(repository.approval_signoff_progress(owner, project_id, run_id))
     try:
-        stored = await repository.get_signoff_policy(owner, project_id)
-    except NotFound:
-        stored = None
-    if stored is not None:
-        progress["stored_policy"] = stored
-    required = required_distinct_approvers if required_distinct_approvers is not None else (stored["required_distinct_approvers"] if stored else None)
-    if required is not None:
-        try:
-            progress["requirement"] = evaluate_signoff_requirement(
-                required_distinct_approvers=required,
-                distinct_approved_approvers=progress["distinct_approved_approvers"],
-                latest_decision=progress["latest_decision"],
-            )
-            progress["requirement"]["source"] = "request_only" if required_distinct_approvers is not None else "stored_advisory"
-        except ValueError:
-            raise HTTPException(422, "Invalid sign-off requirement", headers={"Cache-Control": "private, no-store"}) from None
-    return progress
+        return await _result(ApprovalService(repository, _approver_account_ready).signoff_progress(owner, project_id, run_id, required_distinct_approvers))
+    except ValueError:
+        raise HTTPException(422, "Invalid sign-off requirement", headers={"Cache-Control": "private, no-store"}) from None
 
 
 @router.get("/{project_id}/review-runs/{run_id}/approvals/audit")
@@ -655,6 +636,14 @@ async def get_run_approval_integrity(project_id: str, run_id: str, request: Requ
     return await _result(repository.verify_approval_chain(owner, project_id, run_id))
 
 
+@router.get("/{project_id}/review-runs/{run_id}/approvals/{approval_id}/metadata")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def get_run_approval_metadata(project_id: str, run_id: str, approval_id: str, request: Request):
+    owner, repository = await _approval_context(request)
+    return await _result(repository.get_approval_metadata(owner, project_id, run_id, approval_id))
+
+
 @router.get("/{project_id}/review-runs/{run_id}/approvals/{approval_id}")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "review")
@@ -671,12 +660,7 @@ async def get_run_approval(project_id: str, run_id: str, approval_id: str, reque
 async def create_run_approval(project_id: str, run_id: str, approval_id: str, payload: ApprovalCreate, request: Request):
     owner, repository = await _approval_context(request)
     approval_identifier(approval_id)
-    # Check ownership before the exact-ID account lookup; never expose a directory.
-    async with repository.sf() as session:
-        await repository._project(session, owner, project_id)
-    if not await _approver_account_ready(payload.approver_id):
-        raise HTTPException(409, "Resource changed, is not eligible or already exists; reload and review the current revision", headers={"Cache-Control": "private, no-store"})
-    return await _result(repository.create_approval(owner, project_id, run_id, approval_id, payload))
+    return await _result(ApprovalService(repository, _approver_account_ready).create(owner, project_id, run_id, approval_id, payload))
 
 
 async def _independent_report_context(request):

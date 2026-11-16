@@ -7,6 +7,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import delete, insert, select, update
+from sqlalchemy.exc import IntegrityError, OperationalError
 from test_dispatch_journal import prepared as prepared
 from test_qa_assessments import assessments as assessments
 from test_qa_assessments import complete as complete
@@ -494,3 +495,60 @@ async def test_advisory_signoff_policy_is_append_only_and_idempotent(tasks):
     with pytest.raises(RequestProtectionError):
         await unit.get_signoff_policy("owner", project)
     assert not any(token in json.dumps(created) for token in ("document", "note"))
+
+
+@pytest.mark.asyncio
+async def test_policy_unique_insert_conflict_is_not_an_unknown_write(tasks, monkeypatch):
+    repo, project, _, _ = await archive(tasks)
+    unit = approvals(repo)
+    session_type = unit.sf.class_
+    original = session_type.execute
+
+    async def raced_insert(session, statement, *args, **kwargs):
+        if getattr(statement, "is_insert", False) and statement.table is t.approval_signoff_policies:
+            raise IntegrityError("synthetic duplicate", {}, Exception("duplicate revision"))
+        return await original(session, statement, *args, **kwargs)
+
+    monkeypatch.setattr(session_type, "execute", raced_insert)
+    with pytest.raises(Conflict):
+        await unit.set_signoff_policy("owner", project, required_distinct_approvers=2, expected_previous_revision=0)
+    async with unit.sf() as session:
+        assert (await session.execute(select(t.approval_signoff_policies))).all() == []
+
+
+@pytest.mark.asyncio
+async def test_policy_other_database_failures_remain_unknown(tasks, monkeypatch):
+    from app.evaluation.dispatch_journal import JournalWriteUnconfirmed
+
+    repo, project, _, _ = await archive(tasks)
+    unit = approvals(repo)
+    session_type = unit.sf.class_
+    original = session_type.execute
+
+    async def failed_insert(session, statement, *args, **kwargs):
+        if getattr(statement, "is_insert", False) and statement.table is t.approval_signoff_policies:
+            raise OperationalError("synthetic database failure", {}, Exception("unavailable"))
+        return await original(session, statement, *args, **kwargs)
+
+    monkeypatch.setattr(session_type, "execute", failed_insert)
+    with pytest.raises(JournalWriteUnconfirmed):
+        await unit.set_signoff_policy("owner", project, required_distinct_approvers=2, expected_previous_revision=0)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("damage", [{"actor": "forged-owner"}, {"at_ms": 1}])
+async def test_approval_chain_detects_audit_actor_and_timestamp_tampering(tasks, damage):
+    repo, project, run, archived = await archive(tasks)
+    unit = approvals(repo)
+    await unit.create_approval("owner", project, run["id"], APPROVAL, payload(archived))
+    async with unit.sf.begin() as session:
+        await session.execute(update(t.approval_audit).values(**damage))
+    result = await unit.verify_approval_chain("owner", project, run["id"])
+    assert result["status"] == "broken"
+    assert "event_mismatch" in result["blockers"]
+
+
+@pytest.mark.parametrize("note", ["", " ", "\n\t"])
+def test_revocation_rejects_blank_reason(note):
+    with pytest.raises(ValidationError):
+        ApprovalCreate(assessment_id="a" * 32, assessment_hash="b" * 64, approver_id=APPROVER, expected_previous_revision=0, decision="revoked", note=note, confirmed=True)

@@ -18,7 +18,7 @@ const schema = z
     qa_chain_admitted: z.literal(false),
     dispatch_authorized: z.literal(false),
     release_authorized: z.literal(false),
-    blockers: z.array(blocker).max(3),
+    blockers: z.array(blocker).length(3),
   })
   .strict();
 export type SchedulingAdmission = z.infer<typeof schema>;

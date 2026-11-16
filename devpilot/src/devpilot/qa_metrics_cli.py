@@ -51,19 +51,13 @@ def _bounded(value):
         if depth > 32 or count > 20_000:
             raise ValueError(_ERROR)
         if isinstance(item, (dict, list)):
-            stack.extend(
-                (child, depth + 1)
-                for child in (item.values() if isinstance(item, dict) else item)
-            )
+            stack.extend((child, depth + 1) for child in (item.values() if isinstance(item, dict) else item))
 
 
 def _read_json(path):
     source = Path(path)
     original = source.lstat()
-    if (
-        not stat.S_ISREG(original.st_mode)
-        or not 1 <= original.st_size <= _MAX_FILE_BYTES
-    ):
+    if not stat.S_ISREG(original.st_mode) or not 1 <= original.st_size <= _MAX_FILE_BYTES:
         raise ValueError(_ERROR)
     descriptor = os.open(source, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
     try:
@@ -73,7 +67,15 @@ def _read_json(path):
             original.st_ino,
         ) or not stat.S_ISREG(current.st_mode):
             raise ValueError(_ERROR)
-        data = os.read(descriptor, _MAX_FILE_BYTES + 1)
+        chunks = []
+        size = 0
+        while size <= _MAX_FILE_BYTES:
+            chunk = os.read(descriptor, min(65_536, _MAX_FILE_BYTES + 1 - size))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            size += len(chunk)
+        data = b"".join(chunks)
     finally:
         os.close(descriptor)
     if len(data) != original.st_size or len(data) > _MAX_FILE_BYTES:

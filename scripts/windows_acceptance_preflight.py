@@ -20,10 +20,14 @@ _MIN_FREE_BYTES = 10 * 1024**3
 _ROOT = Path(__file__).resolve().parents[1]
 
 
-def evaluate_preflight(*, platform, docker_available, port_in_use, free_bytes, config_present, extensions_present, port):
-    """Return the fixed projection; inputs are supplied by the caller/probe."""
+def _validate_port(port):
     if type(port) is not int or not 1 <= port <= 65_535:
         raise ValueError(_ERROR)
+
+
+def evaluate_preflight(*, platform, docker_available, port_in_use, free_bytes, config_present, extensions_present, port):
+    """Return the fixed projection; inputs are supplied by the caller/probe."""
+    _validate_port(port)
     blockers = []
     if platform != "win32":
         blockers.append("not_windows")
@@ -55,9 +59,18 @@ def evaluate_preflight(*, platform, docker_available, port_in_use, free_bytes, c
 
 
 def _probe(port):
+    _validate_port(port)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        probe.settimeout(0.2)
-        port_in_use = probe.connect_ex(("127.0.0.1", port)) == 0
+        # A bound, non-listening or OS-reserved port is unavailable too.
+        # Connecting only detects listeners and could report a false free port.
+        if sys.platform == "win32":
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError:
+            port_in_use = True
+        else:
+            port_in_use = False
     return SimpleNamespace(
         platform=sys.platform,
         docker_available=shutil.which("docker") is not None,
@@ -77,6 +90,7 @@ def main(argv=None):
     parser.add_argument("--port", type=int, default=2026)
     try:
         args = parser.parse_args(argv)
+        _validate_port(args.port)
         probe = _probe(args.port)
         result = evaluate_preflight(
             platform=probe.platform,

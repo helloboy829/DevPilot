@@ -17,6 +17,45 @@ const mockedFetch = rs.mocked(fetcher);
 beforeEach(() => {
   mockedFetch.mockReset();
 });
+it("does not read or reflect an error body for bounded approval operations", async () => {
+  const read = rs.fn();
+  const cancel = rs.fn(async () => undefined);
+  mockedFetch.mockResolvedValueOnce({
+    ok: false,
+    body: { cancel },
+    json: read,
+    text: read,
+  } as unknown as Response);
+  await expect(
+    evaluationApi("evaluation/approvals", undefined, "POST", 16),
+  ).rejects.toThrow("Evaluation operation failed");
+  expect(read).not.toHaveBeenCalled();
+  expect(cancel).toHaveBeenCalledTimes(1);
+  expect(mockedFetch).toHaveBeenCalledTimes(1);
+});
+it("bounds approval JSON by declared and streamed bytes and rejects invalid MIME", async () => {
+  for (const response of [
+    new Response("{}", { headers: { "Content-Type": "text/html" } }),
+    new Response("{}", {
+      headers: { "Content-Type": "application/json", "Content-Length": "17" },
+    }),
+    new Response(JSON.stringify({ overflow: "x".repeat(20) }), {
+      headers: { "Content-Type": "application/json" },
+    }),
+  ]) {
+    mockedFetch.mockResolvedValueOnce(response);
+    await expect(
+      evaluationApi("evaluation/approvals", undefined, "POST", 16),
+    ).rejects.toThrow("Invalid evaluation response");
+  }
+  mockedFetch.mockResolvedValueOnce(
+    new Response("{}", { headers: { "Content-Type": "application/json" } }),
+  );
+  expect(
+    await evaluationApi("evaluation/approvals", undefined, "POST", 16),
+  ).toEqual({});
+  expect(mockedFetch).toHaveBeenCalledTimes(4);
+});
 it("uses the authenticated fetcher, no-store, and explicit methods", async () => {
   mockedFetch.mockImplementation(
     async () => new Response(JSON.stringify({ revision: 0 })),
