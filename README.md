@@ -6,6 +6,8 @@ DevPilot 基于 DeerFlow，面向 AI 组件评测：整理授权 QA 数据、冻
 
 源码已包含独立复核、评估修订、历史报告、授权外部 QA 和正式批准首切片候选；App 迁移头 `eval_0016` 尚未部署。正式批准切片要求具名审批人（账号已存在且完成初始化、非 owner、非该 run 盲审/仲裁）在完整独立复核与冻结阈值（若定义）达标后显式决定，撤销追加理由与审计，数据集面板提供显式预检、审计、只读链完整性检查与签署进度聚合；`eval_0016` 可存储仅咨询的签核政策（不强制）。它不提供审批人专属登录、强制多级签核或导出权限。本地加密输出在写入前持久化保留回执，运行期间持锁；[管理命令](docs/DevPilot_Local_QA_Retention_Commands.md)提供只读检查、单独同意的到期处置和原 ID 对账。正式批准全生命周期、lost Worker 安全处置和新 QA 调度仍未完成。旧部署收据不证明当前本机服务运行。
 
+审批面板遇到写入结果未知时，只允许按原 ID 只读对账。对账成功会清除旧预检、确认勾选和项目索引；继续操作前需显式重新加载并确认。
+
 ## 快速开始
 
 新环境推荐 Docker 开发方式。首次构建耗时取决于下载和机器性能；需要 Docker Desktop/Engine 与 Compose 插件、Git、make、Bash，以及生成配置用的 Python。Windows 建议在 WSL2 或已配置 make 的 Git Bash 中运行以下 shell 命令。已有环境请先核对 Compose project、私有配置和数据挂载，不重复初始化或另起同端口栈。
@@ -47,16 +49,16 @@ The evaluation-first sidebar keeps stable Evaluation center and AI collaboration
 
 ## Available workspace slices
 
-| Page                              | Implemented scope                                                                                                                                                            |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/workspace/evaluations`          | Default evaluation-first landing page with real component inventory and explicit remaining capabilities                                                                      |
+| Page                              | Implemented scope                                                                                                                                                                             |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/workspace/evaluations`          | Default evaluation-first landing page with real component inventory and explicit remaining capabilities                                                                                       |
 | `/workspace/datasets`             | Owner-scoped projects, QA import/review/freeze, existing-component links, immutable inventory-only submissions, frozen QA plans, revisioned human result review and the formal-approval panel |
-| `/workspace/component-tests`      | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses                                            |
-| `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery                     |
-| `/workspace/retests`              | Immutable same-benchmark comparisons of fully reviewed effectiveness runs; explicit paired evidence reads, no automatic execution or acceptance                              |
-| `/workspace/reports`              | Verified immutable multi-component QA archives and revisions, plus separate manual/Agent drafts; pinned Chinese/English templates and frozen Markdown/Word draft downloads   |
-| `/workspace/models`               | Connection profiles for OpenAI Chat, OpenAI Responses, Anthropic and Gemini; controlled parameters, encrypted write-only credentials, probes and default/report role routing |
-| Chat                              | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger                                                                       |
+| `/workspace/component-tests`      | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses                                                             |
+| `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery                                      |
+| `/workspace/retests`              | Immutable same-benchmark comparisons of fully reviewed effectiveness runs; explicit paired evidence reads, no automatic execution or acceptance                                               |
+| `/workspace/reports`              | Verified immutable multi-component QA archives and revisions, plus separate manual/Agent drafts; pinned Chinese/English templates and frozen Markdown/Word draft downloads                    |
+| `/workspace/models`               | Connection profiles for OpenAI Chat, OpenAI Responses, Anthropic and Gemini; controlled parameters, encrypted write-only credentials, probes and default/report role routing                  |
+| Chat                              | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger                                                                                        |
 
 The unified local entry point is `http://127.0.0.1:2026`. See [Install.md](Install.md), [AGENTS.md](AGENTS.md) and module guides for installation and full-stack `make dev`/Docker commands. Do not commit local configuration, credentials or customer materials.
 

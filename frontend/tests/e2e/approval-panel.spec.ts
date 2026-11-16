@@ -280,6 +280,37 @@ test("keeps an unknown write on the same ID without retry", async ({
   expect(id).toMatch(/^[0-9a-f]{32}$/);
   await expect(panel.getByRole("status")).toContainText(id!);
   await page.route(
+    "**/api/evaluation/projects/p1/review-runs/*/assessments/*/approval-preflight*",
+    (route) =>
+      route.fulfill({
+        json: {
+          schema: "qa-approval-preflight.v1",
+          scope: "read_only_formal_approval_preflight",
+          project_id: "p1",
+          run_id: run,
+          assessment: { id: assessment, revision: 1, assessment_hash: hash },
+          approver_id: approver,
+          eligible: true,
+          blockers: [],
+          readiness: "review_complete",
+          criteria: { status: "not_defined" },
+          separation: {
+            approver_not_owner: true,
+            approver_not_review_actor: true,
+          },
+          latest_approval: null,
+          approval: "not_recorded",
+        },
+      }),
+  );
+  await panel
+    .getByRole("button", { name: "Check approval eligibility", exact: true })
+    .click();
+  await expect(
+    panel.getByText(/Eligible \(explicit confirmation/),
+  ).toBeVisible();
+  await panel.getByRole("checkbox").check();
+  await page.route(
     "**/api/evaluation/projects/p1/review-runs/*/approvals",
     (route) =>
       route.fulfill({
@@ -325,6 +356,13 @@ test("keeps an unknown write on the same ID without retry", async ({
     .click();
   await expect(panel.getByText(/revision 1 · approved/)).toBeVisible();
   await expect(panel.getByRole("status")).toHaveCount(0);
+  await expect(panel.getByRole("checkbox")).not.toBeChecked();
+  await expect(
+    panel.getByRole("button", {
+      name: "Record approval / revocation",
+      exact: true,
+    }),
+  ).toBeDisabled();
   expect(posts).toBe(1);
 });
 

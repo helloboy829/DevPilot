@@ -181,9 +181,9 @@ export function useApprovalWorkspace(
         setProjectIntegrity(null);
         setSignoff(null);
         if (pending && receipt?.id === pending) {
-          setIntegrity(null);
-          setProjectIntegrity(null);
-          setSignoff(null);
+          setPreflight(null);
+          setConfirmed(false);
+          setProjectRows(null);
           setNotice(
             zh
               ? "已按原 ID 完成只读对账；未重试或更换 ID。"

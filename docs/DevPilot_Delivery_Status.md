@@ -35,11 +35,15 @@
 
 ## 最近验证
 
+- **原 ID 对账后的状态失效修复（2026-11-16，本地 Windows）**：在 `359896f0e8759bb703e41732ef1475e45ebda3c4` 后工作区先复现对账成功仍保留旧预检/确认/项目索引，再修复状态清理。两份审批 DOM 回归 **41 passed**，前端全量 **162 文件 / 1,436 passed**，Next 生产构建通过；Chromium 正式批准流程 **9 passed / 0 retries**。首次浏览器启动因缺少锁定 Chromium 失败，安装项目对应版本后才获得实际浏览器结果。仅运行合成 API、本机回环测试服务，验证后已停止；未部署。
+
+- **后端与精确 SHA CI 续核（2026-11-16）**：现有 Python 3.12 隔离容器的领域套件 **64 + 58 passed**；Ruff check 与 format check（**1,296 文件**）通过，无缓存模式避免只读源码缓存写入。完整后端 pytest 仍在运行，尚无最终结果。`359896f0e8759bb703e41732ef1475e45ebda3c4` 的 [Frontend Unit](https://github.com/helloboy829/DevPilot/actions/runs/43788589629) 与 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43788589585) 成功，[Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43788589576) 失败（backend-unit-tests，exit 2）；其他安装/收集/分发 job 成功。失败日志 API 分别返回 403/401，未获得可归因详情，不将此 SHA 记为全绿；新修复的 CI 需另核。
+
 - **当前 SHA 前端全量单测（2026-11-16，本地 Windows）**：在 `3bb9146ae861f7f2c58c89b3ed625145baa79f12` 运行仓库根命令 `python scripts/pnpm.py test`，**162 个测试文件 / 1,435 passed**；同一工作区前端 ESLint、TypeScript check、Prettier（本轮四份文档）均通过。第一次沙箱内执行因 `spawn EPERM` 在测试收集前失败，经授权环境重跑后全量通过。该结果不代替精确 SHA GitHub Actions。
 
-- **审批工作台续查（2026-11-16，本地 Windows）**：审批 API 协议、正式批准面板和审批审核状态 DOM 回归 **43 passed**；前端 ESLint 与 TypeScript `check` 均通过。复核确认第 90 次提交后报告的审批故障已在 `a5c6958` / `5671f50` 修复；纯签核核心与 App 咨询政策边界的文档已同步，签核 requirement 明确不构成授权。未改运行代码。本轮未获得新的后端全量结果或当前 SHA GitHub Actions 状态。
+- **审批工作台续查（2026-11-16，本地 Windows，前一轮）**：审批 API 协议、正式批准面板和审批审核状态 DOM 回归 **43 passed**；前端 ESLint 与 TypeScript `check` 均通过。复核确认第 90 次提交后报告的审批故障已在 `a5c6958` 修复；`5671f50` 的外层冲突捕获尝试仍无效，后由 `a5c6958` 修正事务边界。纯签核核心与 App 咨询政策边界的文档已同步，签核 requirement 明确不构成授权。该轮未改运行代码，未获得新的后端全量结果或当前 SHA GitHub Actions 状态。
 
-- **Post-90 审批故障簇回归（2026-11-16，本地隔离容器）**：在当前 `6e7c5080e5a3626bb1bab166a5dbf254470c6eb4` 源码上，对 sandbox mounts、client、MCP session pool、配置 reload、异步 sandbox provider、Local QA CLI 与 run receipt 运行 **454 passed**。源码只读挂载，`.deer-flow` 使用容器临时可写层；这只确认该失败簇，不代替完整后端套件或精确 SHA CI。当前 Windows 宿主未安装锁定 dev 依赖（`pytest_asyncio` 缺失），Docker daemon 在本次会话不可访问，因此没有新的完整套件结果。
+- **Post-90 审批故障簇回归（2026-11-16，本地隔离容器，前一轮）**：在 `6e7c5080e5a3626bb1bab166a5dbf254470c6eb4` 源码上，对 sandbox mounts、client、MCP session pool、配置 reload、异步 sandbox provider、Local QA CLI 与 run receipt 运行 **454 passed**。源码只读挂载，`.deer-flow` 使用容器临时可写层；这只确认该失败簇，不代替完整后端套件或精确 SHA CI。Windows 宿主未安装锁定 dev 依赖（`pytest_asyncio` 缺失）；当时 Docker 的沙箱访问失败，续核已通过获准的工具访问，不能据此认定 daemon 不可用。
 
 - **当前候选 SQLite 升级/恢复矩阵（2026-11-16，本地）**：在当前提交 `a5c69581a1bc59cf4ba1fc8a588964f01da74e8c` 的只读源码挂载中运行 `test_candidate_upgrade_recovery.py`、`test_review_tasks_migrations.py`、`test_qa_assessments_migrations.py`、`test_qa_independent_archives_migrations.py`、`test_authorized_qa_exports_migrations.py`、`test_external_qa_quarantine_migrations.py` 与 `test_formal_approval_migrations.py`，结果 **15 passed / 5 skipped**。覆盖 `eval_0009` 到当前 head 的顺序升级、WAL 在线备份、旧版本新路径恢复、历史表/行完整性、外键和失败回退；仅使用合成 SQLite，不代表业务部署、PostgreSQL、Windows 或无损回退。
 

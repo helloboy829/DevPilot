@@ -443,6 +443,57 @@ it("clears a pending ID when an explicit read finds the original ID", async () =
   expect(screen.queryByText(/Unknown write pending reconciliation/)).toBeNull();
 });
 
+it("invalidates preflight, consent and the project index after reconciliation", async () => {
+  const pending = new Map([[`p1:${run}`, approval.id]]);
+  render(
+    <EvaluationApprovalPanel
+      pendingApprovals={pending}
+      projectId="p1"
+      zh={false}
+    />,
+  );
+  fillTarget();
+  state.api.projectApprovals.mockResolvedValue([
+    {
+      run_id: run,
+      id: approval.id,
+      revision: 1,
+      decision: "approved",
+      assessment_id: assessment,
+      assessment_hash: hash,
+      created_at_ms: 1,
+    },
+  ]);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load project approvals" }),
+  );
+  await screen.findByRole("combobox", { name: "Approval run" });
+  state.api.preflight.mockResolvedValue({
+    eligible: true,
+    blockers: [],
+    assessment: { id: assessment, assessment_hash: hash, revision: 1 },
+    latest_approval: null,
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check approval eligibility" }),
+  );
+  await screen.findByText(/Eligible \(explicit confirmation/);
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(screen.getByRole<HTMLInputElement>("checkbox").checked).toBe(true);
+  state.api.runApprovals.mockResolvedValue([approvalMetadata]);
+  state.api.runAudit.mockResolvedValue([]);
+  state.api.approvalMetadata.mockResolvedValue(approvalMetadata);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load run approvals and audit" }),
+  );
+  await screen.findByText(/Reconciled by original ID/);
+  expect(screen.queryByText(/Eligible \(explicit confirmation/)).toBeNull();
+  expect(screen.getByRole<HTMLInputElement>("checkbox").checked).toBe(false);
+  expect(screen.queryByRole("combobox", { name: "Approval run" })).toBeNull();
+  expect(state.api.projectApprovals).toHaveBeenCalledTimes(1);
+  expect(state.api.create).not.toHaveBeenCalled();
+});
+
 it("keeps a pending ID when the explicit read does not find it", async () => {
   const id = "d".repeat(32);
   const pending = new Map([[`p1:${run}`, id]]);
