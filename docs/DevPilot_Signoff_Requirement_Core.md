@@ -4,7 +4,7 @@
 
 ## 范围
 
-`devpilot.qa_signoff_policy.evaluate_signoff_requirement` 只回答一个技术问题：**在调用方显式给出的策略下，现有聚合计数是否满足要求**。它不定义、不保存、不推断策略，也不读取批准文档、账号或审计。
+`devpilot.qa_signoff_policy.evaluate_signoff_requirement` 只回答一个技术问题：**在调用方显式给出的策略下，现有聚合计数是否满足要求**。纯核心不定义、不保存、不推断策略，也不读取批准文档、账号或审计。App 可在签署进度查询中读取项目级追加式咨询政策，或接受单次显式查询参数，然后把阈值和聚合计数传给此核心；核心本身不访问 App 或持久化层。
 
 ```python
 evaluate_signoff_requirement(

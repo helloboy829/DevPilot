@@ -21,7 +21,7 @@
 
 ## 2026-11-15：多级签核要求纯核心（候选，App 咨询接入）
 
-[显式策略下的技术判定](DevPilot_Signoff_Requirement_Core.md)：`evaluate_signoff_requirement` 只根据调用方给出的所需不同审批人数、已批准人数与最新决定返回 satisfied/固定 blockers；策略未定义时 satisfied 为 null，不存储/不强制/不读取批准文档；App 签署进度从追加式项目咨询策略读取阈值，显式查询参数优先，附加咨询性 requirement，结果不是批准。
+[显式策略下的技术判定](DevPilot_Signoff_Requirement_Core.md)：`evaluate_signoff_requirement` 只根据调用方给出的所需不同审批人数、已批准人数与最新决定返回 satisfied/固定 blockers；纯核心不存储策略、不强制、不读取批准文档。App 签署进度可从追加式项目咨询策略读取阈值，显式查询参数优先，附加咨询性 requirement；结果不是批准或授权。
 
 ## 2026-11-15：离线技术指标 CLI（候选，未接入 App）
 

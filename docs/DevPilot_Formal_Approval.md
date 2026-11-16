@@ -30,23 +30,23 @@
 
 ## API
 
-| 方法 | 路径                                                             | 权限（全部满足）                     |
-| ---- | ---------------------------------------------------------------- | ------------------------------------ |
-| GET  | `/api/evaluation/projects/{project}/approvals`                   | read + review                        |
-| GET  | `/api/evaluation/projects/{project}/approvals/capabilities`      | read + review                        |
-| GET  | `/api/evaluation/projects/{project}/approvals/signoff-policy`    | read + review                        |
-| PUT  | `/api/evaluation/projects/{project}/approvals/signoff-policy`    | read + write + review（人类）        |
-| GET  | `/api/evaluation/projects/{project}/approvals/integrity`         | read + review                        |
-| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals` | read + review                        |
-| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/audit` | read + review                  |
-| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/sign-off` | read + review               |
-| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/integrity` | read + review              |
-| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}/metadata` | read + review（原 ID 元数据对账） |
-| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + review                   |
-| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/assessments/{assessment_id}/approval-preflight?approver_id=...` | read + review |
-| POST | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}` | read + write + review（人类）  |
+| 方法 | 路径                                                                                                                  | 权限（全部满足）                  |
+| ---- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| GET  | `/api/evaluation/projects/{project}/approvals`                                                                        | read + review                     |
+| GET  | `/api/evaluation/projects/{project}/approvals/capabilities`                                                           | read + review                     |
+| GET  | `/api/evaluation/projects/{project}/approvals/signoff-policy`                                                         | read + review                     |
+| PUT  | `/api/evaluation/projects/{project}/approvals/signoff-policy`                                                         | read + write + review（人类）     |
+| GET  | `/api/evaluation/projects/{project}/approvals/integrity`                                                              | read + review                     |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals`                                                      | read + review                     |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/audit`                                                | read + review                     |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/sign-off`                                             | read + review                     |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/integrity`                                            | read + review                     |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}/metadata`                                        | read + review（原 ID 元数据对账） |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}`                                                 | read + review                     |
+| GET  | `/api/evaluation/projects/{project}/review-runs/{run}/assessments/{assessment_id}/approval-preflight?approver_id=...` | read + review                     |
+| POST | `/api/evaluation/projects/{project}/review-runs/{run}/approvals/{id}`                                                 | read + write + review（人类）     |
 
-签核政策端点按项目追加 revision（owner 人类显式确认、`expected_previous_revision` CAS）：只保存 `required_distinct_approvers` 1–10 的**咨询政策**，`advisory=true`、`enforcement="none"`；不强制批准、不通知、不改变签署进度端点既有 `policy="not_defined"`/`multi_level_satisfied=null`。签署进度会在有已存政策时附加 `stored_policy` 与 `requirement.source="stored_advisory"`；显式查询参数优先并标记 `request_only`。能力诊断端点只返回固定投影 `qa-approval-capabilities.v1`：`approver_login=not_implemented`、`owner_records_on_behalf=true`、`multi_level_policy=advisory_only`、`multi_level_enforcement=not_implemented`、`notifications=not_implemented`、`export=not_implemented`、`approval=not_authorized` 与固定 blockers；不读取项目、批准、账号或证据，只做项目归属校验。审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。签署进度端点只返回聚合计数与固定状态：`policy="not_defined"`、`required_distinct_approvers=null`、`multi_level_satisfied=null`、revision/不同审批人/批准与撤销计数、最新 revision/decision，以及固定 blockers `multi_level_policy_not_defined`、`approver_login_not_implemented`；不返回任何 ID、hash、document 或 note，也不把多审批人计数当作多级签核已满足。可选 `required_distinct_approvers=1..10` 查询参数会附加**咨询性** `requirement`（复用纯核心），仅用于对照当前计数；不保存策略、不强制、不改变批准或 `multi_level_satisfied`。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（project/run/approval_id/revision/action/actor/at_ms/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
+签核政策端点按项目追加 revision（owner 人类显式确认、`expected_previous_revision` CAS）：只保存 `required_distinct_approvers` 1–10 的**咨询政策**，`advisory=true`、`enforcement="none"`；不强制批准、不通知，也不改变签署进度端点既有 `policy="not_defined"`/`multi_level_satisfied=null`。签署进度会在有已存政策时附加 `stored_policy` 与 `requirement.source="stored_advisory"`；显式查询参数优先并标记 `request_only`。能力诊断端点只返回固定投影 `qa-approval-capabilities.v1`：`approver_login=not_implemented`、`owner_records_on_behalf=true`、`multi_level_policy=advisory_only`、`multi_level_enforcement=not_implemented`、`notifications=not_implemented`、`export=not_implemented`、`approval=not_authorized` 与固定 blockers；不读取项目、批准、账号或证据，只做项目归属校验。审计列表按 `sequence` 返回 `approval_id`、`revision`、`action`、`actor`、`subject_hash` 与 `at_ms`，最多 1000 条；不返回 document、note、counts 或证据。签署进度端点只返回聚合计数与固定状态：`policy="not_defined"`、`required_distinct_approvers=null`、`multi_level_satisfied=null`、revision/不同审批人/批准与撤销计数、最新 revision/decision，以及固定 blockers `multi_level_policy_not_defined`、`approver_login_not_implemented`；不返回任何 ID、hash、document 或 note，也不把多审批人计数当作多级签核已满足。可选 `required_distinct_approvers=1..10` 查询参数会附加**咨询性** `requirement`（复用纯核心），仅用于对照当前计数；不强制、不改变批准或 `multi_level_satisfied`，结果不授予批准或授权。链完整性端点只返回 `{status, approvals, events, blockers}`：校验 revision/sequence 连续、事件与批准一一匹配（project/run/approval_id/revision/action/actor/at_ms/subject_hash）、以及每条批准文档 hash 完整；不返回任何 ID、hash 或文档。项目级链汇总按 run 分组复用同一校验，只返回 `{status, runs, verified_runs, broken_runs, approvals, events, blockers}`；存在审计事件但无批准的行标记 `orphan_audit`。超过 5000 条批准/事件或 1000 个 run 时返回 `unverifiable` 与 `project_chain_too_long`，计数仍为真实值但不作逐 run 结论。项目级索引返回每个 run 的最新批准 revision（`run_id`、`id`、`revision`、`decision`、`assessment_id`、`assessment_hash`、`created_at_ms`），最多 200 条，不含文档/备注/计数。
 
 只读预检返回 `eligible`、固定 `blockers` 码（collection/technical/review/criteria/separation/approver account）、`readiness`、`criteria.status`、两个分离布尔与 `latest_approval`（最新 revision/decision 元数据，若存在）；不写批准或审计行，`approval` 恒为 `not_recorded`。`approver_id` 必须是 canonical 账号（否则 422）；预检还按精确 ID 查账号，账号不存在或尚未完成初始化时追加 `approver_account_not_found` 并将 `eligible` 置为 false；未知评估返回 404；所有响应 `no-store`。创建/撤销在项目归属校验后同样要求该账号存在且可用（否则 409），只做精确 ID 查询，不提供账号目录或枚举。
 
@@ -72,7 +72,7 @@ App 的 `ApprovalService` 统一账号就绪、创建与咨询策略计算编排
 ## 明确不包含
 
 - 不修改 assessment、报告/复测档案、复核决定或任何历史字节；批准不是对数据的编辑权。
-- 不引入审批人独立登录/专属审批路由、双人复核批准、多级签核、SLA、通知、外部签名或时间戳服务；签署进度端点只是聚合观察，不定义或满足任何签核政策。
+- 不引入审批人独立登录/专属审批路由、双人复核批准、强制多级签核、SLA、通知、外部签名或时间戳服务；签署进度端点可计算并展示咨询性要求，但不授权或强制批准。
 - 不把批准写进报告/复测/PDF/Word，不改变导出权限，不自动启用执行、外发或部署。
 - 无真实模型/目标调用、无生产 key、无业务数据库迁移；所有测试为合成数据。
 - 批准备注目前作为有界明文存入批准文档（与报告草稿的人工备注同类），不进入证据加密域；敏感信息不应写入 note。
