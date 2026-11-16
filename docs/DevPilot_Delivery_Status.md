@@ -35,6 +35,14 @@
 
 ## 最近验证
 
+- **Windows 本地 QA 字节一致性续修（2026-11-16，工作区）**：确认 retention/raw 输出同样受 Windows CRT 文本转换影响：receipt/hash、明文与密文大小不一致，Ctrl-Z 截断读取。五项真实文件回归先失败；补 `O_BINARY` 后全部通过，Windows Python 3.12.10 + 全部 12 个锁定 runtime wheel 的 evaluation **68 passed / 2 skipped**（POSIX symlink）、toolkit **58 passed**。不改字节预算、原 ID/hash、未知写不重试或持锁删除边界；扩展原生 Windows CI 为两套领域验证。Linux/新 SHA CI 另核。
+
+最终文件集成测试移入 `backend/tests`，保持分发成员 49；原位置触发的分发回归 **1 failed / 295 passed** 原样保留。Windows 后续文件身份误拒另复现旧 ctime 的跨 API 差异（36/200）；Windows 使用显式 birthtime 并保留设备/inode/大小/mtime 检查，POSIX 仍用 ctime。最终 Windows 两领域 **63 passed / 2 skipped** 与 **58 passed**，另六项文件字节/身份回归 **6 passed**；测试替身实现错误与原始失败均独立留存。
+
+最终 Linux 本地 QA/retention/加密输出/分发联合 **302 passed / 7 subtests passed**，Blocking IO **72 passed**，backend Ruff **1,297 文件**及三份 devpilot 修改文件检查通过（retention 保留原 88 列格式）。四份代码与测试副本 LF 归一化 hash 一致；原失败、中途格式检查与最终日志均已导出。测试结束后停止本轮 Python 缓存容器，保留独占内部网络；完整后端与原生 Windows 扩展 job 按新提交 SHA 另核。
+
+- **指标 Windows 修复精确 SHA CI（2026-11-16）**：`8b56caacf9bec8e1549a399ccca0c3ef0af5b5b6` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43810407545)、[Frontend Unit](https://github.com/helloboy829/DevPilot/actions/runs/43810407363)、[Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43810407398) 共 **3 workflows / 8 jobs 全部成功**，包含新增 `windows-metrics-cli`、完整后端与实际安装导出验证；后续字节修复 SHA 独立核验。
+
 - **PostgreSQL 修复的精确 SHA CI（2026-11-16）**：`e73f4aec41550227618ed0306074af166495c5a4` 的 [Lint](https://github.com/helloboy829/DevPilot/actions/runs/43806850401)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43806850378)、[Frontend Unit](https://github.com/helloboy829/DevPilot/actions/runs/43806850369) 与 [Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43806850382) 共 **4 workflows / 8 jobs 全部成功**，含默认安装收集、完整后端、软件分发与实际安装导出验证。原始 API 收据存于本轮 ignored 证据目录；后续 SHA 单独核验。
 
 - **离线指标 Windows CRLF 修复（2026-11-16，工作区）**：原生 Windows Python 3.12.10 下，合法 CRLF JSON 因文本模式转换换行后与原始字节大小不符而失败。新增 LF/CRLF 相同投影回归先失败，再以 `O_BINARY` 修复，CLI **14 passed / 1 skipped**（POSIX symlink）。初次沙箱临时目录 ACL 错误及扩展领域缺少 `cryptography` 的失败日志独立保留；仅指标专项通过，不是完整 Windows 验收。新增 Windows CI job 的实际收据待推送后核验。

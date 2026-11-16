@@ -257,7 +257,7 @@ class _OutputStore:
         self.lock = threading.Lock()
         self.maximum = manifest.max_total_response_bytes * 6 + manifest.request_count * 1024 + 4096
         self.size = 0
-        self.descriptor = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        self.descriptor = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
         self.run_id = run_id
         try:
             self.append({"schema": "local-qa-observations.v1", "manifest_fingerprint": manifest.fingerprint, "input_count": manifest.input_count, "request_count": manifest.request_count, "sensitive_plaintext": True})
@@ -300,7 +300,7 @@ def _write_run_receipt(directory, run_id, manifest):
         "resume_permitted": False,
     }
     encoded = (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
-    descriptor = os.open(Path(directory) / "run-receipt.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    descriptor = os.open(Path(directory) / "run-receipt.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0), 0o600)
     try:
         if os.write(descriptor, encoded) != len(encoded):
             raise OSError("Local identity receipt write unconfirmed")

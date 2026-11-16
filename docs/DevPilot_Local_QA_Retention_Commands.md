@@ -16,6 +16,10 @@ python -I -m devpilot.local_qa_retention inspect \
 
 活跃运行持有的独占 retention lease 会使检查/处置立即失败，不等待、不重试。父目录、账号、时钟、权限和文件系统必须可信；这不是恶意同用户或 hostile-filesystem 沙箱。
 
+Windows 下 receipt 与 ciphertext 使用二进制 descriptor 读取，hash 覆盖磁盘原始字节，CRLF 和 Ctrl-Z 不会被文本模式转换或截断。所有新 receipt/intent/output 同样按二进制字节写入，保持磁盘大小、预算和回执 hash 一致；不自动修复或改写旧文件。Windows 持锁删除仍须独立验收。
+
+Windows Python 3.12 的文件身份时间使用显式 birthtime，避免路径/descriptor 旧 ctime 含义不一致导致合法文件误拒；设备、inode、大小和 mtime 仍须一致，POSIX 继续检查 ctime。此比较不授予修复、续跑、重发或释放权限。
+
 ## 2. 单独同意到期处置
 
 先查看原目录的检查结果，保留原 receipt/ciphertext 两个 hash。由 operator **显式提供一个 canonical disposal UUID**，并在调用前自行保留；命令不生成 ID、不自动选择文件、不提供时间覆盖参数。先前加密输出同意不授予删除权。

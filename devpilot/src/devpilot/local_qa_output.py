@@ -116,7 +116,7 @@ def _sync_directory(path):
 
 
 def _write_exclusive(path, value):
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0), 0o600)
     try:
         if os.write(descriptor, value) != len(value):
             raise OSError(_ERROR)
@@ -252,7 +252,7 @@ class EncryptedOutputStore:
             # Identity must survive a hard exit before even the header exists.
             # The same lease excludes disposal through creation and final close.
             self.retention = create_retention_receipt(path, run_id, manifest, retention_seconds=protection.retention_seconds, now_ms=lambda: created)
-            self.descriptor = os.open(path / _FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            self.descriptor = os.open(path / _FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0), 0o600)
             _lock(self.descriptor, exclusive=True)
             self._append("header", {})
             _sync_directory(path)
@@ -431,7 +431,7 @@ def open_output(directory, *, key_file, expected_run_id, expected_manifest_finge
             destination = Path(destination).absolute()
             destination.mkdir(mode=0o700)
             _directory(destination)
-            descriptor = os.open(destination / "observations.jsonl", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            descriptor = os.open(destination / "observations.jsonl", os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0), 0o600)
             try:
                 for record in records():
                     line = _encode(record) + b"\n"

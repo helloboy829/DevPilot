@@ -86,6 +86,10 @@ CPython 3.12 的 Linux glibc x86_64/aarch64、Windows amd64、macOS arm64 有明
 
 ## 7. 验证和剩余工作 / Verification and remaining work
 
+2026-11-16 Windows 续查：本地 QA 的 raw descriptor 读写显式使用 `O_BINARY`，保证输出、receipt、intent 与 hash 都基于原始字节；Windows CRT 不再扩展 LF、转换 CRLF 或把 Ctrl-Z 当作 EOF。修复覆盖加密/明文输出、受控打开副本、运行 receipt、retention JSON 读取和 ciphertext hash。五项真实文件回归先失败，修复后通过；Windows Python 3.12.10 与 12 个逐项验 hash 的锁定 runtime wheel 下，evaluation **68 passed / 2 skipped**（既有 POSIX symlink）、toolkit **58 passed**。原始失败日志保留；此结果仍不证明 Windows 持锁删除、实际安装包、业务部署或真实目标验收。
+
+后续复验还确认 Python 3.12 Windows 的旧 `ctime` 在 `lstat`/`fstat` 上不一致，36/200 个合成文件出现误拒；Windows 改比显式 `st_birthtime_ns`，仍检查设备/inode/大小/mtime，POSIX 保留 ctime。确定性回归对这些字段的每一项变化都要求拒绝。文件集成测试移至 `backend/tests` 后，最终 Windows evaluation **63 passed / 2 skipped**、toolkit **58 passed**、字节/身份回归 **6 passed**；先前放在包目录时的计数保留为过程结果，分发成员仍为原 **49**。
+
 专项测试使用实际 shared collector/run/journal；合成 DNS 和 MockTransport，真实 socket 发送 fail closed。覆盖分离同意、全分母、发前 receipt、篡改/错 key/错 ID、权限、锁、到期、未知写入/删除和重复取消排空。分发验证从六个锁定 build wheels 建全新环境，真实 sdist → wheel → v2 archive → 新 no-system-site venv 的 12 依赖完整离线安装，执行实际 installed plaintext/encrypted CLI 与受控打开/清理，并证明缺失/篡改依赖拒绝、同输入两次产物一致。普通 pytest 的 installed-export skip 不能替代实际带 artifact 的验收。最终全量和精确 SHA CI 收据另行记录。
 
 ### English summary

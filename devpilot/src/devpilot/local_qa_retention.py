@@ -21,7 +21,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
-from .local_qa_residue import inventory_directory
 from .local_qa_output import (
     _ERROR,
     _FILE,
@@ -34,6 +33,7 @@ from .local_qa_output import (
     _maximum,
     _sync_directory,
 )
+from .local_qa_residue import inventory_directory
 
 _RECEIPT = "retention-receipt.json"
 _LOCK = "retention.lock"
@@ -64,7 +64,11 @@ def _integer(value: object, lower: int, upper: int) -> bool:
 
 
 def _identity_tuple(info):
-    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+    # Windows' legacy ctime differs between path/descriptor stat APIs on
+    # Python 3.12. Explicit birthtime consistently identifies creation there;
+    # POSIX retains ctime so metadata changes still invalidate the snapshot.
+    identity_time = info.st_birthtime_ns if os.name == "nt" else info.st_ctime_ns
+    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, identity_time
 
 
 def _regular(info, limit, *, empty=False):
@@ -92,6 +96,7 @@ def _open_regular(path, limit, *, empty=False, writable=False):
         (os.O_RDWR if writable else os.O_RDONLY)
         | getattr(os, "O_NOFOLLOW", 0)
         | getattr(os, "O_NONBLOCK", 0)
+        | getattr(os, "O_BINARY", 0)
     )
     descriptor = os.open(path, flags)
     try:
@@ -119,7 +124,13 @@ def _open_lock(directory: Path, *, exclusive: bool) -> int:
 
 def _write_exclusive(path, data):
     descriptor = os.open(
-        path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600
+        path,
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_BINARY", 0),
+        0o600,
     )
     try:
         if os.write(descriptor, data) != len(data):

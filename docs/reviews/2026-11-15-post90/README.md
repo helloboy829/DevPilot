@@ -109,7 +109,7 @@
 
 截至该 SHA 的失败簇验证不能替代完整套件或精确 SHA CI；后续有效全量结果见下方续查。架构结论仍是：依赖方向和共享 QA 核心边界保持，主要偏差在交付优先级和面板状态复杂度；签核人数仍是咨询性历史聚合，尚未定义为撤销后的有效签名集合，不得用于授权或强制判断。
 
-### 2026-11-16 续查：两个额外缺陷
+### 2026-11-16 续查：额外缺陷
 
 1. **对账成功仍显示写入前状态。** 显式原 ID 元数据对账清除 pending 后，旧预检、确认勾选与项目索引仍保留。`e7e9998` 已清除这些状态，真实 DOM 新回归先失败后通过，浏览器合成流程保持仅一次 POST；前端完整 **1,436 passed**，九项 Chromium 回归通过，该 SHA 前端/Lint/Replay/E2E Actions 成功。
 2. **咨询政策表重复唯一声明导致 PostgreSQL schema drift。** `4b184e0` 在 `eval_0016`/元数据中同时声明 `(project_id, revision)` 主键及相同 UNIQUE。`cab5346` 的 CI 失败摘要定位三项 PostgreSQL parity 用例；在独占 PostgreSQL 17 中复现均为同一 `add_constraint` 差异。修复只移除重复 UNIQUE，主键和人数/revision check 保持。相关 PostgreSQL/SQLite、历史保留与恢复矩阵 **17 passed**。最终标准 `make test` 在冻结环境下得到领域 **64 + 58 passed**、后端 **13,580 passed / 63 skipped / 11 deselected**（1045.06s，exit 0），三项 PostgreSQL 原失败及新增数据库约束回归均通过；Blocking IO **72 passed**，Ruff **1,296 文件**通过。修复 SHA CI 仍须独立核验，Linux 不替代 Windows 或真实用户验收。
@@ -117,6 +117,10 @@
 首轮 Windows 只读源码挂载全量保留 **4 failed / 13,561 passed / 77 skipped / 11 deselected**：缺少 `uv` 的配置升级和三个本地 QA 子进程场景。后者在 Linux 文件系统公开源码中联合六项参数化场景通过；可写冻结 venv 与独占 PostgreSQL 环境另行验证，不把原失败改写为通过。
 
 PostgreSQL 修复 `e73f4aec41550227618ed0306074af166495c5a4` 已核实 **4 workflows / 8 jobs 全成功**，包括完整后端、冻结默认安装收集、软件分发与独立安装验证。此后又在原生 Windows Python 3.12.10 确认第 90 次后新增的指标 CLI 拒绝合法 CRLF JSON：`os.open` 默认文本模式转换换行，触发字节长度检查。新增对照回归先失败，补 `O_BINARY` 后专项 **14 passed / 1 skipped**；新增原生 Windows CI，精确修复 SHA 另核。此项是第三个续查缺陷，不把 Linux 的通过当作 Windows 证据。
+
+指标修复 `8b56caa` 已核实 **3 workflows / 8 jobs 全成功**。同类检查进一步复现本地 QA 的 raw descriptor 输出/保留缺陷：LF 扩展使 receipt hash 和文件预算计数不同步，CRLF/Ctrl-Z 转换使原字节 hash 被拒。五项真实文件回归先失败，统一二进制模式后 Windows evaluation **68 passed / 2 skipped**、toolkit **58 passed**。这是第四个续查缺陷；不改写旧结果、不重试未知写入、不宣称 Windows 持锁删除通过。原日志与新 SHA CI 继续分别记录。
+
+最终回归还确认第五项续查缺陷：Windows Python 3.12 `lstat`/`fstat` 的旧 ctime 不同，导致合法文件身份误拒。改用 Windows 显式 birthtime、保留设备/inode/大小/mtime 与 POSIX ctime；确定性回归仍拒绝每类身份变化。文件集成测试移至 backend 后，最终 Windows 领域 **63 passed / 2 skipped**、toolkit **58 passed**、文件专项 **6 passed**；Linux 关联 **302 passed / 7 subtests passed**、Blocking IO **72 passed**、Ruff 通过。原分发成员失败和测试替身错误均保留，不将过程结果替代最终验证。
 
 ### 保持住的边界
 

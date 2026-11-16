@@ -14,9 +14,9 @@ permissions:
   contents: read
 
 jobs:
-  windows-metrics-cli:
-    # Byte-counted file reads must also pass on the native Windows CRT.
-    # This stdlib-only suite uses synthetic files, no backend or real calls.
+  windows-local-qa-files:
+    # Byte-counted reads/writes must also pass on the native Windows CRT.
+    # Locked runtime wheels and synthetic files; no backend or real calls.
     if: github.event.pull_request.draft == false
     runs-on: windows-latest
     timeout-minutes: 5
@@ -27,10 +27,20 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Verify native Windows offline metrics CLI
+      - name: Install hash-locked native runtime wheels
+        run: |
+          python -I scripts/build_local_qa_distribution.py --dependency-lock > "$env:RUNNER_TEMP/local-qa-runtime.lock"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I -m pip --isolated install --require-hashes --only-binary=:all: --index-url https://pypi.org/simple -r "$env:RUNNER_TEMP/local-qa-runtime.lock"
+      - name: Verify native Windows local QA files and pure domains
         env:
           PYTHONPATH: devpilot/src
-        run: python -m unittest discover -s devpilot/src/devpilot/evaluation/tests -p test_metrics_cli.py -v
+        run: |
+          python -m unittest discover -s devpilot/src/devpilot/evaluation/tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s devpilot/src/devpilot/toolkit/tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s backend/tests -p test_local_qa_byte_io.py -v
 
   default-install-collection:
     # The main job installs --extra postgres; this job proves the documented

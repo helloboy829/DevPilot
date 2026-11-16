@@ -103,6 +103,8 @@ The report requirements assistant now supports a bounded, visible multi-turn con
 
 Use the [current delivery matrix](docs/DevPilot_Delivery_Status.md) for code, deployment, verification and remaining work; the [implementation log](docs/DevPilot_实现进度与下一步.md) retains historical slice evidence. Owner-scoped projects, frozen QA/request plans and criteria now connect to separately authorized bounded execution, encrypted outputs, revisioned human review, all-sample summaries, immutable report drafts and same-benchmark retests. Execution remains operator-disabled locally; the implemented chain is not an independently approved dataset or formal acceptance. Independent review/arbitration and historical archives now have undeployed candidates; formal approval, safe lost-worker operations, QA-chain scheduling admission, the complete external execution/evidence lifecycle, CV/streaming metrics and reviewed knowledge promotion remain incomplete.
 
+The standalone [local QA output and retention commands](docs/DevPilot_Local_QA_Protected_Output.md) preserve raw file bytes on Windows and POSIX, so receipts, hashes and output budgets agree. Windows file checks use explicit creation time; held-file deletion and full Windows installation acceptance remain separately verified.
+
 ## Next milestones
 
 1. Close full-suite/environment regressions and run an independently observed, synthetic-only deployed workflow before requesting user acceptance.
