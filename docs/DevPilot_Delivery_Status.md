@@ -1,6 +1,6 @@
 # DevPilot 当前交付状态 / Current delivery status
 
-更新：2026-11-16。本页只列当前能力、验证范围和缺口；逐轮原始记录见[交付历史](DevPilot_Delivery_History.md)。
+更新：2026-11-17。本页只列当前能力、验证范围和缺口；逐轮原始记录见[交付历史](DevPilot_Delivery_History.md)。
 
 当前按用户明确要求推进[全民审核与 Linux 验收](DevPilot_Equal_Review_and_Linux_Acceptance.md)：所有完成初始化的已登录用户均可操作本人项目并参与被指派审核，无独立审核人权限等级；保留项目隔离、双盲与运行内职责分离。Linux／容器作为本轮主要交付验收环境，Windows 兼容性单独追踪。当前候选的完整运行验收与后续审批、调度、指标接入仍未完成。
 
@@ -13,9 +13,9 @@
 | 项目/组件、QA 导入复核冻结、请求版本、冻结计划/v2 标准                                                                      | 已实现                                       | 计划/hash 不授予执行权限；请求值与金标分离保护                                                                 |
 | 独立准入、有界 QA Worker、加密采集、人工复核、全样本汇总                                                                    | 已实现，执行默认关闭                         | 未知交付不重发；采集成功/阈值达标不等于批准                                                                    |
 | 历史报告/Word 草稿、同基准复测                                                                                              | 已实现                                       | 草稿与比较不自动批准、不自动再执行                                                                             |
-| 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF                                                                     | 候选代码已实现，未部署                       | `eval_0010..0012`；旧 owner 路径保持独立                                                                       |
-| 正式批准首切片（具名审批、审批人账号校验、职责分离、撤销/审计、只读预检/索引/运行级与项目级链完整性、签署进度、数据集面板） | 候选代码已实现，未部署                       | `eval_0015..0016`；仅 owner 记录，审批人另行具名；复核完整/阈值达标不等于批准；浏览器验收未完成                |
-| 授权配置导出与外部技术元数据隔离接收                                                                                        | 候选代码已实现，未部署                       | `eval_0013..0014`；不接纳敏感输出为可信证据                                                                    |
+| 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF                                                                     | 已部署，完整流程验收未完成                   | `eval_0010..0012`；旧 owner 路径保持独立                                                                       |
+| 正式批准首切片（具名审批、审批人账号校验、职责分离、撤销/审计、只读预检/索引/运行级与项目级链完整性、签署进度、数据集面板） | 首切片已部署，完整生命周期未完成             | `eval_0015..0016`；仅 owner 代录，审批人另行具名；审批人本人操作与完整运行验收未完成                           |
+| 授权配置导出与外部技术元数据隔离接收                                                                                        | 已部署，完整流程验收未完成                   | `eval_0013..0014`；不接纳敏感输出为可信证据                                                                    |
 | 独立本地 QA 命令、共享核心、锁定软件分发、加密输出                                                                          | 候选代码已实现                               | 默认离线；真实发送与输出模式分别同意                                                                           |
 | 未完成/损坏本地输出的保留治理                                                                                               | 加密运行时、显式管理命令与目录残留清单已实现 | 输出前 durable receipt；原 IDs/两个 hash/单独处置同意；清单仅固定文件名元数据、不读内容/不删除；无安全擦除保证 |
 | 候选 SQLite 升级与旧备份恢复演练                                                                                            | 合成回归已实现                               | 真实双 ledger、39 张历史表、WAL 在线备份与新路径还原；不是业务部署或无损回退                                   |
@@ -25,17 +25,21 @@
 
 ## 代码、迁移与本机运行
 
-| 项目               | 当前事实                                                                                                                                                                                                                                                       |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Git 源码           | `main`；精确工作区提交用 `git rev-parse HEAD` 查询，不用迁移号代替                                                                                                                                                                                             |
-| App 候选迁移头     | `eval_0016`；`a5c6958` 已完成当前源码本地迁移/恢复矩阵，GitHub Unit 收据仍以该 SHA 的工作流完成状态为准                                                                                                                                                        |
-| 最后留存的部署收据 | `0fd689da83a4ac7646250447fb6d044599a823c5` / `eval_0009`，属于历史验证                                                                                                                                                                                         |
-| 本机 Docker 观察   | 2026-11-15 观察：先前四个 `devpilot-local` 业务容器及其 `criteria-0fd689da83a4` 镜像已不在本机（外部清理，原因未核实）；不做业务恢复或镜像重建推断                                                                                                             |
-| 本轮操作           | 先前专项/venv 恢复容器已删除；续查另建 Python 3.12 与 PostgreSQL 17 独占验证容器，仅跟踪源码、只读依赖来源及合成临时数据库，无业务卷或发布端口。日志导出后停止本轮资源，保留停止的 Python 依赖缓存；不部署、不复制业务 DB、不生成生产 key、不调用真实模型/目标 |
+| 项目             | 当前事实                                                                                                                                                                                                                           |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Git 源码         | `main`；精确工作区提交用 `git rev-parse HEAD` 查询，不用迁移号代替                                                                                                                                                                 |
+| App 迁移头       | 源码与当前本机均为 `eval_0016`；本轮重建前后 ledger 不变，无新增迁移                                                                                                                                                               |
+| 当前部署收据     | `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a` / `eval_0016`；2026-11-17 按用户要求重建，源码指纹、数据保留与健康核验通过；完整业务验收仍未完成                                                                                        |
+| 本机 Docker 观察 | 实际项目为 `deer-flow`，nginx/Gateway/Redis/Frontend 四服务 healthy，入口绑定 `127.0.0.1:2026`；此前 `devpilot-local` 的消失记录属于历史，不代表当前这套服务                                                                       |
+| 本轮操作         | 运行旧基线指纹匹配 `6cc954e`；保留原配置、环境和挂载，在线备份两份 SQLite 后仅替换 Gateway/Frontend，重载原 nginx。复用未变化依赖、离线构建新代码及前端产物，保留旧镜像回退标签；未启用执行/调度、生成生产 key 或调用真实模型/目标 |
 
-只有重新启动并验真相应版本才能声称当前本机可用。历史健康和账号/数据保存记录见[本地升级记录](DevPilot_Local_Recovery_and_Upgrade.md)。
+本轮已重新观察当前服务和数据；源码部署、HTTP 冒烟与完整用户验收分别记录。详细操作及历史健康和账号/数据保存记录见[本地升级记录](DevPilot_Local_Recovery_and_Upgrade.md)。
 
 ## 最近验证
+
+- **当前版本重建与运行核验（2026-11-17）**：用户明确要求重新构建后，以 `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a` 更新当前 `deer-flow` 项目的 Gateway/Frontend；后端 **686 项**、前端 **559 项**源码及依赖定义/配置指纹全部匹配该 SHA。前端重新完成生产编译、TypeScript 与 **95 个页面生成**，启动只运行预编译 Node 服务。两份 SQLite 的 **58 + 6 张表**行数/内容摘要及 schema 与在线备份一致，完整性/外键通过，两套 ledger 不变；四份私有配置 hash、运行环境、挂载、端口与网络保持，nginx/Redis 容器身份保持。六项回环 HTTP 检查通过，涵盖健康/登录 200 与匿名业务 API 401；容器内成员辅助逻辑确认普通用户/管理员具备相同基础能力，未初始化/内部调用者不获成员资格。执行与调度仍关闭，无真实账号登录、敏感证据打开或模型/目标调用；这不是完整业务流程或真实用户验收。构建日志、备份和私有收据仅留本地 ignored 目录。
+
+- **当前运行 SHA CI（2026-11-17 重新查询）**：通过匿名 GitHub API 核实 `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a` 的 [Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43887214811)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43887215140)、[Lint](https://github.com/helloboy829/DevPilot/actions/runs/43887214810)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43887214927)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43887215069) 与 [Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43887214809) **六项工作流全部 success**；同 SHA 的定时 Nightly 为 skipped，不计入成功。本地失效 gh 凭据的 401 是查询失败，不能代表 CI 失败；后续文档提交的 CI 另核。
 
 - **全民审核与 Linux 运行验收（2026-11-16，工作区）**：取消人类用户的独立项目 read/write/review 角色门槛，保留项目归属、精确任务指派、双盲和运行内职责分离。成员/权限/真实登录联合 **51 passed**；Linux 前端构建、lint/types 与 **1,436 tests** 通过，后端 Ruff **1,298 files**、Blocking IO **72 passed**。Linux 实际 Gateway/Next 在新合成 SQLite 完成迁移和 **21 次 HTTP 检查**；真实浏览器登录、审核队列与冻结数据集显示通过（0 API mock/0 retries），执行关闭、无模型/真实目标。完整后端复验与新提交 CI 另核，细节及原失败见[接续记录](DevPilot_Equal_Review_and_Linux_Acceptance.md)。这不是业务库部署或真实用户验收。
 
@@ -153,7 +157,7 @@
 
 | 优先级 | 工作                                                   | 退出条件                                                                                                                                                                      |
 | ------ | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P0     | 当前源码 CI、环境与候选升级验收闭环                    | 精确 SHA 门禁、当前镜像源码核对、数据/配置保护、隔离迁移及回退演练；部署另行执行；清单见[候选验收包](DevPilot_Acceptance_Package.md)                                          |
+| P0     | 完整业务运行验收与后续版本门禁                         | 当前运行 SHA CI、镜像指纹及保留数据重建已核验；继续完成同版本完整多账号流程、升级/回退验收，清单见[候选验收包](DevPilot_Acceptance_Package.md)                                |
 | P1     | 本地明文副本与更广泛崩溃产物治理、Windows 验收         | 分别绑定原身份/用途/保留同意，旧目录不补造回执；新平台实际安装/锁/处置验证                                                                                                    |
 | P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；不能把 case PASS 当批准；首切片候选已实现，咨询性签核政策存储与共享纯核心已接入，强制签核未实现，审批人专属登录/通知仍未完成 |
 | P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入；只读分类合同、调度准入只读诊断与阻塞回归已实现，运维工作台提供显式只读展示；释放/真实准入仍未完成 |
@@ -161,4 +165,4 @@
 
 开发环境恢复不必等所有 P1/P2 功能完成；正式质量验收依赖独立批准及相应业务能力。具体交付以模块退出条件为准，项目整体尚未完成。
 
-English: Source capabilities, candidate migrations, exact-commit verification and observed runtime are tracked separately. Business containers were observed as absent on 2026-11-15 (external cleanup, cause unverified); no deployment or real calls were performed. Encrypted runtime retention receipts and explicit management commands are implemented; the formal-approval first slice exists as an undeployed candidate, while approver-side identity, multi-level sign-off, plaintext-copy/crash-artifact governance, Windows acceptance and safe lost-worker/scheduling operations remain open.
+English: The current `deer-flow` stack was rebuilt at `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a` on 2026-11-17 with App head `eval_0016`. Exact-SHA CI, selected runtime source fingerprints, online backups, unchanged data/configuration and HTTP health/authentication boundaries were verified. Earlier absent-container observations concerned the historical `devpilot-local` stack. Complete business acceptance, approver-side actions, enforced multi-level sign-off, plaintext/crash-artifact governance, Windows acceptance and safe lost-worker/scheduling operations remain open. Execution and scheduling stay disabled; no real model/target calls were made.
