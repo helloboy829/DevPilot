@@ -144,17 +144,8 @@ class ModelCatalog:
             if old and old.get("api_key") and (old["base_url"] != model.base_url or old["provider"] != model.provider) and model.api_key is None and not model.clear_credential:
                 raise ValueError("Endpoint/protocol changed: re-enter or explicitly clear the credential")
             row = model.model_dump()
-            api_key = (
-                None
-                if model.clear_credential
-                else model.api_key
-                if model.api_key is not None
-                else (old or {}).get("api_key")
-            )
-            if (
-                model.provider not in {"openai_compatible", "openai_responses"}
-                and not api_key
-            ):
+            api_key = None if model.clear_credential else model.api_key if model.api_key is not None else (old or {}).get("api_key")
+            if model.provider not in {"openai_compatible", "openai_responses"} and not api_key:
                 raise ValueError("This protocol requires an API key")
             row["api_key"] = api_key
             state["models"] = [entry for entry in state["models"] if entry["name"] != model.name] + [row]
@@ -189,10 +180,7 @@ class ModelCatalog:
             profile = ManagedModel.model_validate(row)
             if not profile.enabled:
                 continue
-            if (
-                profile.provider not in {"openai_compatible", "openai_responses"}
-                and not profile.api_key
-            ):
+            if profile.provider not in {"openai_compatible", "openai_responses"} and not profile.api_key:
                 raise ValueError("This protocol requires an API key")
             parameters = profile.parameters.model_dump(exclude_none=True)
             parameters["timeout"] = parameters.pop("timeout_seconds")
