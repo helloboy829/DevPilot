@@ -1,6 +1,8 @@
 const MAX_COMMAND_LENGTH = 16_384;
 const INVALID_COMMAND =
   "Unable to parse cURL command. Check its syntax and supported options.";
+const ENVIRONMENT_REFERENCE =
+  /^\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})$/;
 
 export type ModelProvider =
   | "openai_compatible"
@@ -62,7 +64,21 @@ function tokenize(command: string): string[] {
           index += 1;
         }
         started = true;
-      } else if (char === "$" || char === "`") {
+      } else if (char === "$" && next !== undefined) {
+        const reference = /^\$[A-Za-z_][A-Za-z0-9_]*/.exec(
+          command.slice(index),
+        )?.[0];
+        const bracedReference = /^\$\{[A-Za-z_][A-Za-z0-9_]*\}/.exec(
+          command.slice(index),
+        )?.[0];
+        const environmentReference = bracedReference ?? reference;
+        if (!environmentReference) invalid();
+        value += environmentReference;
+        index += environmentReference.length - 1;
+        started = true;
+      } else if (char === "$") {
+        invalid();
+      } else if (char === "`") {
         invalid();
       } else {
         value += char;
@@ -111,8 +127,14 @@ function tokenize(command: string): string[] {
   return tokens;
 }
 
-function addCredential(current: string | null, candidate: string): string {
+function addCredential(
+  current: string | null,
+  candidate: string,
+): string | null {
   const value = candidate.trim();
+  // cURL examples commonly use environment variables; never expand or store them.
+  if (ENVIRONMENT_REFERENCE.test(value)) return current;
+  if (/\$(?:[A-Za-z_]|\{)/.test(value)) invalid();
   if (
     !value ||
     value.length > 4096 ||
@@ -128,6 +150,7 @@ function validModelId(value: string | null): string | null {
   if (value === null) return null;
   const model = value.trim();
   if (!model) return null;
+  if (ENVIRONMENT_REFERENCE.test(model)) return null;
   if (model.length > 200 || /[\u0000-\u001f\u007f]/.test(model)) invalid();
   return model;
 }

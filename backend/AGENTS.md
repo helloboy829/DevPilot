@@ -60,7 +60,7 @@ make test                 # 领域 unittest + 排除 live 的后端 pytest
 - **Blocking-IO runtime gate**：使用项目 venv 的 blockbuster/pytest；异步 I/O 必须 off-loop，并覆盖取消和异常。静态扫描报错不代表干净扫描。
 - 默认/CI 禁止真实模型/API 测试。`make test-live` 仅用于已授权的真实 API 验证；`live` 仅在 pytest 启动前显式 `DEER_FLOW_RUN_LIVE_TESTS=1` 且非 CI 才可运行。配置里已有 key 或 `.env` 读取不是授权。
 - `/api/model-management/models/discover` 必须保持管理员权限和逐次 `consent: true`；仅由显式 UI 操作触发一次有界模型目录 GET，不调用推理。凭据不能进 URL、日志、错误详情或响应；禁用重定向/环境代理并限制超时、响应体和返回条数。后台只在档案 ID、协议、endpoint 均匹配时复用密钥；自定义模型 ID 永远可手动配置。相关测试只用 MockTransport。
-- 无密钥 OpenAI-compatible/Responses 档案使用 SDK 的 `workload-identity-auth` sentinel，防止环境 `OPENAI_API_KEY` 回退并省略 Authorization 头；用无网络 SDK 构造回归验证。
+- 无密钥 OpenAI-compatible/Responses 档案使用 SDK 的 `workload-identity-auth` sentinel，防止环境 `OPENAI_API_KEY` 回退并省略 Authorization 头；Anthropic/Gemini 档案必须有显式 key，不能将占位文本当凭据发送。用无网络 SDK 构造回归验证。
 - Docker 生命周期集成另需显式 `DEVPILOT_RUN_DOCKER_TESTS=1`，collection 不探测 daemon，不隐式拉镜像；测试仅操作唯一标识的隔离资源。
 - 独立软件分发从六个锁定构建工具建立新环境，校验全部 37 源码成员/原始依赖 wheel/hash，再用新 no-system-site venv 完整离线安装。artifact-dependent 的 skip 不证明已安装验收。
 - 临时 SQLite / 独占 PostgreSQL、合成身份/key/DNS/wire 与 socket 拒绝构成离线集成；不是部署、真实目标、Windows 或人工验收。数据库操作与线程工作须在重复取消后排空再 finish/close。

@@ -26,6 +26,25 @@ it("handles double-quoted JSON without evaluating the shell", () => {
   });
 });
 
+it("treats environment-variable credentials as absent without expanding them", () => {
+  const command = `curl https://relay.example/v1/chat/completions
+    -H "Content-Type: application/json"
+    -H "Authorization: Bearer $OPENAI_API_KEY"
+    -d '{"model":"relay-model","messages":[]}'`;
+  expect(parseModelCurl(command)).toEqual({
+    provider: "openai_compatible",
+    baseUrl: "https://relay.example/v1",
+    model: "relay-model",
+    apiKey: null,
+  });
+
+  expect(
+    parseModelCurl(
+      `curl https://relay.example/v1/chat/completions -H 'Authorization: Bearer \${RELAY_KEY}' -d '{"model":"$RELAY_MODEL"}'`,
+    ),
+  ).toMatchObject({ apiKey: null, model: null });
+});
+
 it("parses model IDs and credentials for the supported protocols", () => {
   expect(
     parseModelCurl(

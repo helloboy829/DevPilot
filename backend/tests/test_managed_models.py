@@ -101,6 +101,21 @@ def test_keyless_openai_profile_does_not_use_environment_key_or_send_auth(tmp_pa
     assert "synthetic-environment-secret" not in str(client.root_client.default_headers)
 
 
+@pytest.mark.parametrize("provider", ["anthropic", "gemini"])
+def test_non_openai_protocol_profiles_require_a_credential(tmp_path, provider):
+    catalog = ModelCatalog(tmp_path)
+    with pytest.raises(ValueError, match="requires an API key"):
+        catalog.save_model(
+            ManagedModel(
+                name="internal",
+                provider=provider,
+                model="local-model",
+                base_url="http://model.internal:8000",
+            ),
+            actor="admin",
+        )
+
+
 def test_profile_parameters_are_bounded_and_not_an_arbitrary_sdk_escape_hatch():
     for parameters in [{"temperature": 3.0}, {"temperature": float("nan")}, {"timeout_seconds": 1000}, {"max_retries": 3}, {"max_tokens": -1}, {"callbacks": []}, {"default_headers": {"Authorization": "synthetic"}}]:
         with pytest.raises(ValueError):

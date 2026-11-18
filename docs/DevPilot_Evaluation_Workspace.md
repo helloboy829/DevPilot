@@ -70,7 +70,7 @@ DEVPILOT_MODEL_ENCRYPTION_KEY=<由密钥管理注入的 Fernet key；不要写�
 
 ### 连接档案与切换
 
-可粘贴常见 cURL 推理命令，在浏览器填入协议、基础地址、模型 ID 和认证信息。解析器限制输入长度和选项，不执行命令，不把原始文本提交到 Gateway；未知 shell 语法会拒绝导入。OpenAI-compatible 内网模型允许不填 key，运行时不会发送 Authorization 或回退到进程环境的 `OPENAI_API_KEY`。
+可粘贴常见 cURL 推理命令，在浏览器填入协议、基础地址、模型 ID 和认证信息。解析器限制输入长度和选项，不执行命令，不把原始文本提交到 Gateway；常见 `$OPENAI_API_KEY` / `${API_KEY}` 仅按未提供凭据处理，不展开或保存变量值，其他未知 shell 语法会拒绝导入。OpenAI-compatible 内网模型允许不填 key，运行时不会发送 Authorization 或回退到进程环境的 `OPENAI_API_KEY`；Anthropic/Gemini 档案仍要求服务商 key。
 
 模型页提供协议预设、连接搜索/新增/编辑/复制、默认切换与角色路由。模型 ID 支持手动输入，也可在单独同意后请求服务商目录并从选项中选择；中转站私有 ID 不依赖目录返回。复制不携带密钥；修改已有档案的 endpoint/protocol 时必须重新输入或明确清除旧密钥。留空只在地址和协议不变时保留旧值。每次修改携带 revision，冲突先重载，不静默覆盖。
 

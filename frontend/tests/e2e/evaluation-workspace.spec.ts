@@ -270,7 +270,7 @@ test("importing a keyless cURL while editing explicitly clears the saved credent
   await page
     .getByLabel("Model cURL command", { exact: true })
     .fill(
-      'curl http://127.0.0.1:8000/v1/chat/completions -d \'{"model":"local-model","messages":[]}\'',
+      'curl http://127.0.0.1:8000/v1/chat/completions -H "Authorization: Bearer $OPENAI_API_KEY" -d \'{"model":"local-model","messages":[]}\'',
     );
   await page
     .getByRole("button", { name: "Parse and fill", exact: true })
@@ -617,7 +617,7 @@ test("connection presets offer four wire protocols and duplication never reuses 
     const body = route.request().postDataJSON();
     expect(body.model.name).toBe("synthetic-copy");
     expect(body.model.provider).toBe("gemini");
-    expect(body.model.api_key).toBeUndefined();
+    expect(body.model.api_key).toBe("synthetic-new-key");
     expect(body.model.parameters.max_tokens).toBe(100);
     await route.fulfill({
       json: {
@@ -646,6 +646,7 @@ test("connection presets offer four wire protocols and duplication never reuses 
   await page
     .getByRole("combobox", { name: "Provider adapter", exact: true })
     .selectOption("gemini");
+  await page.getByLabel("API Key", { exact: true }).fill("synthetic-new-key");
   await page.getByRole("button", { name: "Save model", exact: true }).click();
   await expect(
     page.getByText("Model profile saved", { exact: true }),

@@ -149,6 +149,7 @@ export default function ModelsPage() {
     setForm({ ...blank, parameters: { ...defaults } });
     setKey("");
     setClearKey(false);
+    setCurlCommand("");
     clearModelOptions();
   }
   function clearModelOptions() {
@@ -253,6 +254,15 @@ export default function ModelsPage() {
         .includes(search.toLowerCase()),
     ) ?? [];
   const selectedProtocol = protocols.find((p) => p.id === form.provider);
+  const requiresApiKey = !["openai_compatible", "openai_responses"].includes(
+    form.provider,
+  );
+  const hasSavedCredential = Boolean(
+    editing &&
+    catalog?.models.some(
+      (profile) => profile.name === form.name && profile.has_credential,
+    ),
+  );
   return (
     <WorkspaceContainer>
       <WorkspaceHeader>
@@ -417,6 +427,7 @@ export default function ModelsPage() {
                               setForm(editable(m));
                               setKey("");
                               setClearKey(false);
+                              setCurlCommand("");
                               clearModelOptions();
                             }}
                           >
@@ -435,6 +446,7 @@ export default function ModelsPage() {
                               });
                               setKey("");
                               setClearKey(false);
+                              setCurlCommand("");
                               clearModelOptions();
                               setMessage(
                                 zh
@@ -817,6 +829,11 @@ export default function ModelsPage() {
                         className="mt-1"
                         type="password"
                         autoComplete="new-password"
+                        required={
+                          requiresApiKey &&
+                          !key &&
+                          (!hasSavedCredential || clearKey)
+                        }
                         value={key}
                         disabled={clearKey}
                         onChange={(e) => {
