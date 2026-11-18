@@ -70,9 +70,9 @@ make test                 # 领域 unittest + 排除 live 的后端 pytest
 ## 候选功能与模块合同
 
 <details>
-<summary>展开未部署候选模块与约束入口</summary>
+<summary>展开模块合同与剩余验收边界</summary>
 
-App 候选迁移链为 `eval_0009 → eval_0010 → eval_0011 → eval_0012 → eval_0013 → eval_0014 → eval_0015 → eval_0016`，这是迁移编号，不是 Git HEAD 或批准状态。历史部署记录停在 `eval_0009`；本机是否运行另行观察。
+App 迁移链为 `eval_0009 → eval_0010 → eval_0011 → eval_0012 → eval_0013 → eval_0014 → eval_0015 → eval_0016`，这是迁移编号，不是 Git HEAD 或批准状态。2026-11-17 当前 `deer-flow` 栈已重建为 `b9a2f8d` / `eval_0016`，源码指纹、数据/配置保留和健康检查通过；完整业务运行验收仍未完成。后续运行状态须重新观察，旧 `eval_0009` 收据仅属于历史。
 
 - [独立逐条复核](../docs/DevPilot_Independent_Case_Review.md)：两名盲审、独立仲裁、窄授权与租约。
 - [独立评估修订](../docs/DevPilot_Independent_Assessments.md)和[历史报告/复测档案](../docs/DevPilot_Independent_Report_Retest_Archives.md)：ALL 冻结分母、不可变历史、显式 revision/hash；不是正式批准。

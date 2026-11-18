@@ -1,6 +1,6 @@
 # DevPilot 当前交付状态 / Current delivery status
 
-更新：2026-11-18。本页只列当前能力、验证范围和缺口；逐轮原始记录见[交付历史](DevPilot_Delivery_History.md)。
+更新：2026-11-18。本页区分已部署运行版本与尚未部署源码候选；逐轮原始记录见[交付历史](DevPilot_Delivery_History.md)。
 
 当前按用户明确要求推进[全民审核与 Linux 验收](DevPilot_Equal_Review_and_Linux_Acceptance.md)：所有完成初始化的已登录用户均可操作本人项目并参与被指派审核，无独立审核人权限等级；保留项目隔离、双盲与运行内职责分离。产品角色按“评测人员 + 管理员”理解，普通用户在代码/API 中暂保留兼容值 `user`；管理员不因管理身份获得额外项目审核门槛。Linux／容器作为主要交付验收环境，Windows 兼容性单独追踪。本人签核 `eval_0017` 是未部署候选；此前完整后端复验曾退出码为 0，但最近一次完整重跑有 2 个本地 QA 隔离子进程失败，两个节点随后定向复跑通过，故当前候选尚无全量全绿收据。签核/PostgreSQL 定向回归、前端检查和浏览器合成流程已通过；精确 SHA CI、部署和真实用户验收仍未闭环。
 
@@ -13,9 +13,10 @@
 | 项目/组件、QA 导入复核冻结、请求版本、冻结计划/v2 标准                                                                      | 已实现                                       | 计划/hash 不授予执行权限；请求值与金标分离保护                                                                 |
 | 独立准入、有界 QA Worker、加密采集、人工复核、全样本汇总                                                                    | 已实现，执行默认关闭                         | 未知交付不重发；采集成功/阈值达标不等于批准                                                                    |
 | 历史报告/Word 草稿、同基准复测                                                                                              | 已实现                                       | 草稿与比较不自动批准、不自动再执行                                                                             |
-| 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF                                                                     | 候选代码已实现，未部署                       | `eval_0010..0012`；旧 owner 路径保持独立                                                                       |
-| 正式批准与本人签核（具名决定、固定评估、职责分离、撤销/审计、签核请求、本人签署、站内事件通知与生效状态） | 候选代码已实现，验证中、未部署 | `eval_0015..0017`；所有初始化用户均可被指派，不设审批人账号角色；只分享固定汇总；多级强制、外部通知和当前 SHA CI 未闭环 |
-| 授权配置导出与外部技术元数据隔离接收                                                                                        | 候选代码已实现，未部署                       | `eval_0013..0014`；不接纳敏感输出为可信证据                                                                    |
+| 双盲复核/独立仲裁、评估修订、独立历史报告/复测 Word/PDF                                                                     | 已部署，完整流程验收未完成                   | `eval_0010..0012`；旧 owner 路径保持独立                                                                       |
+| 正式批准首切片（具名决定、固定评估、职责分离、撤销/审计、只读预检/索引及完整性、签署进度、数据集面板）                    | `eval_0015..0016` 已部署，完整生命周期验收未完成 | 首切片为 owner 代录；所有初始化用户均可被指派，不设审批人账号角色                                                                 |
+| 指派人员本人签核与站内事件通知                                                                                              | `eval_0017` 候选已实现，未部署、全量验证未通过 | 具名签署与固定汇总；多级强制、外部通知及当前 SHA CI 未闭环                                                                 |
+| 授权配置导出与外部技术元数据隔离接收                                                                                        | 已部署，完整流程验收未完成                   | `eval_0013..0014`；不接纳敏感输出为可信证据                                                                    |
 | 独立本地 QA 命令、共享核心、锁定软件分发、加密输出                                                                          | 候选代码已实现                               | 默认离线；真实发送与输出模式分别同意                                                                           |
 | 未完成/损坏本地输出的保留治理                                                                                               | 加密运行时、显式管理命令与目录残留清单已实现 | 输出前 durable receipt；原 IDs/两个 hash/单独处置同意；清单仅固定文件名元数据、不读内容/不删除；无安全擦除保证 |
 | 候选 SQLite 升级与旧备份恢复演练                                                                                            | 合成回归已实现                               | 真实双 ledger、39 张历史表、WAL 在线备份与新路径还原；不是业务部署或无损回退                                   |
@@ -25,20 +26,22 @@
 
 ## 代码、迁移与本机运行
 
-| 项目               | 当前事实                                                                                                                                                                                                                                                       |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Git 源码           | `main`；精确工作区提交用 `git rev-parse HEAD` 查询，不用迁移号代替                                                                                                                                                                                             |
-| App 候选迁移头     | 当前工作区 `eval_0017`；此前 `eval_0016` 本地迁移/恢复收据不覆盖新迁移，GitHub Unit 收据仍以精确 SHA 的工作流完成状态为准                                                                                                                                                        |
-| 最后留存的部署收据 | `0fd689da83a4ac7646250447fb6d044599a823c5` / `eval_0009`，属于历史验证                                                                                                                                                                                         |
-| 本机 Docker 观察   | 2026-11-15 观察：先前四个 `devpilot-local` 业务容器及其 `criteria-0fd689da83a4` 镜像已不在本机（外部清理，原因未核实）；不做业务恢复或镜像重建推断                                                                                                             |
-| 本轮操作           | 复用 Python 3.12 隔离测试容器 `eabb90fb0c91`，使用 PostgreSQL 17 独占验证容器 `0409629e8922` 与合成临时数据库；无业务卷或宿主发布端口。锁定驱动仅临时安装在容器 `/tmp`，不修改冻结 venv。验证完成后停止本轮 PostgreSQL 容器，保留既有 Python 测试容器与缓存；不部署、不复制业务 DB、不生成生产 key、不调用真实模型/目标 |
+| 项目                     | 当前事实                                                                                                                                                                                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Git 源码                 | `main`；精确提交用 `git rev-parse HEAD` 查询，不用迁移号代替                                                                                                                                                                                                                                  |
+| App 源码迁移头           | `eval_0017`；当前本地源码候选尚未部署，已有 `eval_0016` 部署/恢复收据不覆盖新迁移，候选 SHA CI 需单独核验                                                                                                                                                                                     |
+| 最近已知部署收据         | `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a` / `eval_0016`；2026-11-17 重建，源码指纹、数据保留和健康核验通过；完整业务验收未完成                                                                                                                                                                  |
+| 最近一次本机 Docker 观察 | 2026-11-17：项目 `deer-flow` 的 nginx/Gateway/Redis/Frontend 四服务 healthy，入口绑定 `127.0.0.1:2026`。这是当日观测；此前 `devpilot-local` 容器消失属于历史记录，不代表该部署                                                                                                                                 |
+| 本轮候选验证环境         | 复用 Python 3.12 隔离测试容器 `eabb90fb0c91` 和 PostgreSQL 17 合成验证容器 `0409629e8922`；测试使用临时库，无业务卷或宿主发布端口。PG 容器已停止，Python 测试容器和缓存保留；未部署、复制业务 DB、生成生产 key 或调用真实模型/目标 |
 
-只有重新启动并验真相应版本才能声称当前本机可用。历史健康和账号/数据保存记录见[本地升级记录](DevPilot_Local_Recovery_and_Upgrade.md)。
+2026-11-17 对 `eval_0016` 部署版本重新观察了服务和数据；`eval_0017` 仅在隔离环境验证，未部署。源码部署、HTTP 冒烟与完整用户验收分别记录。详细操作及历史健康和账号/数据保存记录见[本地升级记录](DevPilot_Local_Recovery_and_Upgrade.md)。
 
 ## 最近验证
 
 - **本人签核候选与角色边界复核（2026-11-18，Linux 合成环境）**：代码把所有完成初始化的人类账号作为评测成员；`user` 是兼容值，`admin` 仅保留平台管理门槛。管理员可参与评测，但仍受项目归属、精确任务指派、双盲及运行内职责分离约束；代码不需要独立审核人账号角色。Ruff check/format **1,306 个文件通过**、Blocking IO **72 passed**、共享 QA 领域 **65 + 58 passed**、本人签核/权限/SQLite 恢复组合 **124 passed / 1 skipped**；同一 PostgreSQL 迁移 parity 测试随后在专用合成库 **1 passed**。此前完整非 live 后端套件 **13,624 passed / 75 skipped / 11 deselected / 40 warnings / 7 subtests passed**（1757.73s，exit 0）。此前隔离快照不完整造成的 21 个失败均在补齐 Git 跟踪仓库根、当前公开包和所需环境后逐项复验通过。末尾测试清理保护修改后已补跑候选完整后端并 exit 0（详见接续记录）；修改后专属 PostgreSQL 迁移/约束套件 **3 passed**，普通用户真实认证会话的本人指派/签署/撤销 E2E **3 passed**；完整前端 Prettier、ESLint、TypeScript 检查通过。签核 API 浏览器请求为合成响应，不是业务部署验收；当前 SHA CI、部署和真实用户验收仍未完成。
 - **签核账本版本一致性补充（2026-11-18，Linux）**：新增规则：同一 run 有 v2 认证批准后拒绝新的 v1 owner 代录，旧 v1 历史读取与同 ID 幂等重放保留；v1/v2 并发写入仍由共同 run 锁和 revision CAS 串行。签核定向 **66 passed**，`user/admin` 评测权限等价回归 **1 passed**，真实 PostgreSQL 临时库的请求/签署迁移及 v2 JSON 查询 **1 passed**。最近一次完整非 live 后端重跑 **13,621 passed / 78 skipped / 11 deselected / 2 failed / 40 warnings / 7 subtests passed**；两个失败均为本地 QA 子进程用例，随后同环境定向重跑 **2 passed**。全量本轮因此不记录为通过；Ruff/format **1,306 files** 通过。新 SHA CI 待核。
+- **已部署基线重建与运行核验（2026-11-17）**：用户明确要求重新构建后，以 `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a` 更新当前 `deer-flow` 项目的 Gateway/Frontend；后端 **686 项**、前端 **559 项**源码及依赖定义/配置指纹全部匹配该 SHA。前端重新完成生产编译、TypeScript 与 **95 个页面生成**，启动只运行预编译 Node 服务。两份 SQLite 的 **58 + 6 张表**行数/内容摘要及 schema 与在线备份一致，完整性/外键通过，两套 ledger 不变；四份私有配置 hash、运行环境、挂载、端口与网络保持，nginx/Redis 容器身份保持。六项回环 HTTP 检查通过，涵盖健康/登录 200 与匿名业务 API 401；容器内成员辅助逻辑确认普通用户/管理员具备相同基础能力，未初始化/内部调用者不获成员资格。执行与调度仍关闭，无真实账号登录、敏感证据打开或模型/目标调用；这不是完整业务流程或真实用户验收。构建日志、备份和私有收据仅留本地 ignored 目录。
+- **已部署基线 SHA CI（2026-11-17 重新查询）**：通过匿名 GitHub API 核实 `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a` 的 [Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43887214811)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43887215140)、[Lint](https://github.com/helloboy829/DevPilot/actions/runs/43887214810)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43887214927)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43887215069) 与 [Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43887214809) **六项工作流全部 success**；同 SHA 的定时 Nightly 为 skipped，不计入成功。此收据只适用于 `b9a2f8d`，不能移用于 `eval_0017` 候选或本次合并提交。
 
 - **全民审核与 Linux 运行验收（2026-11-16，工作区）**：取消人类用户的独立项目 read/write/review 角色门槛，保留项目归属、精确任务指派、双盲和运行内职责分离。成员/权限/真实登录联合 **51 passed**；Linux 前端构建、lint/types 与 **1,436 tests** 通过，后端 Ruff **1,298 files**、Blocking IO **72 passed**。Linux 实际 Gateway/Next 在新合成 SQLite 完成迁移和 **21 次 HTTP 检查**；真实浏览器登录、审核队列与冻结数据集显示通过（0 API mock/0 retries），执行关闭、无模型/真实目标。完整后端复验与新提交 CI 另核，细节及原失败见[接续记录](DevPilot_Equal_Review_and_Linux_Acceptance.md)。这不是业务库部署或真实用户验收。
 
@@ -158,12 +161,12 @@
 
 | 优先级 | 工作                                                   | 退出条件                                                                                                                                                                      |
 | ------ | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P0     | 当前源码 CI、环境与候选升级验收闭环                    | 精确 SHA 门禁、当前镜像源码核对、数据/配置保护、隔离迁移及回退演练；部署另行执行；清单见[候选验收包](DevPilot_Acceptance_Package.md)                                          |
+| P0     | 完整业务运行验收与后续版本门禁                         | `b9a2f8d` 的 CI、镜像指纹及保留数据重建已核验；继续完成该运行版本的多账号流程，并为 `eval_0017` 候选完成精确 SHA 门禁及升级/回退验收，清单见[候选验收包](DevPilot_Acceptance_Package.md) |
 | P1     | 本地明文副本与更广泛崩溃产物治理、Windows 验收         | 分别绑定原身份/用途/保留同意，旧目录不补造回执；新平台实际安装/锁/处置验证                                                                                                    |
-| P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；本人签核/API/站内事件通知已有 `eval_0017` 候选，末次 Linux 完整后端复验退出码 0；PostgreSQL 约束、跨 Pod 去重和合成浏览器回归已验证，仍待精确 SHA CI、部署及真实用户验收；多级强制、外部通知、导出仍未实现 |
+| P1     | 独立版本化正式批准                                     | 固定历史来源、职责分离、审批修订/撤销及用户验收；`eval_0017` 本人签核/API/站内事件通知仍是未部署候选，最近完整后端复验有 2 项失败（定向复跑通过但不改写全量结果）；PostgreSQL 约束、跨 Pod 去重和合成浏览器回归已验证，仍待精确 SHA CI、部署及真实用户验收；多级强制、外部通知、导出仍未实现 |
 | P1     | Lost Worker 安全处置与新 QA 调度准入                   | 证明旧 Worker 不能发送后再讨论释放；未知请求绝不重发；不能沿用旧调度绕准入；只读分类合同、调度准入只读诊断与阻塞回归已实现，运维工作台提供显式只读展示；释放/真实准入仍未完成 |
 | P2     | 敏感外部证据治理、CV/流式指标/模型裁判、整改与知识闭环 | 各自授权、隔离、证据/计量与人工审查；缺失指标不填零、不判 PASS；流式 TTFT/吞吐、裁判校准与 CV 图像差异纯核心及离线 CLI 已实现，未接入 App                                     |
 
 开发环境恢复不必等所有 P1/P2 功能完成；正式质量验收依赖独立批准及相应业务能力。具体交付以模块退出条件为准，项目整体尚未完成。
 
-English: Source capabilities, candidate migrations, exact-commit verification and observed runtime are tracked separately. Business containers were observed as absent on 2026-11-15 (external cleanup, cause unverified); no deployment or real calls were performed. Encrypted runtime retention receipts and explicit management commands are implemented; the formal-approval first slice exists as an undeployed candidate, while approver-side identity, multi-level sign-off, plaintext-copy/crash-artifact governance, Windows acceptance and safe lost-worker/scheduling operations remain open.
+English: The last observed deployed runtime is `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a` / `eval_0016`, rebuilt and verified on 2026-11-17 with six successful workflows. The local source candidate is `eval_0017`; it is not deployed, and its latest full backend run had two failures whose targeted reruns passed. Candidate SHA CI, deployment, complete business acceptance, approver-side actions, enforced multi-level sign-off, plaintext/crash-artifact governance, Windows acceptance and safe lost-worker/scheduling operations remain open. Execution and scheduling stay disabled; no real model/target calls were made.
