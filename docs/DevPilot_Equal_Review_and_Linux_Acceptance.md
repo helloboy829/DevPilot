@@ -22,6 +22,8 @@
 
 阶段 1 的源码规则和 Linux 合成验收已完成并提交；业务数据部署与真实用户验收仍未完成。阶段 2 的本人签核已有 `eval_0017` 未部署候选。候选完整后端已在 Linux 隔离环境复验：测试进程退出码为 0，收集 **13,695/13,706 项，11 项按标记排除**，pytest `lastfailed` 为空。完整终端汇总在会话切换后未能取回，因此不推算通过总数；首轮环境失败及配置修正后的定向复验另有记录。本人签核/PostgreSQL 迁移专项 **3 passed**、真实认证浏览器合成流程 **3 passed**、跨 Pod 去重专项 **3 passed**。精确 SHA CI、业务数据部署和真实用户验收仍未完成。后续阶段不因成员权限调整而视为完成；真实模型/目标调用需单独授权，合成测试不代替真实用户验收。
 
+当前接续（2026-11-18）：`c7db5e2dba831ae436576f7df8ff2ce8ce4dd28f` 已推送至 `main`，仍是未部署候选。本人签核、路由、认证与迁移在 Linux 合成环境 **43 passed / 0 skipped**；本轮修复测试初始化失败时临时 PostgreSQL 库未清理的问题，修复后同组回归通过且临时库计数为 0。该 SHA 的 Unit、Lint、Frontend、Blocking IO 通过；Replay E2E 因 Chromium 安装失败而未执行浏览器步骤。真实业务库部署和用户验收仍未完成。
+
 ## 验证记录
 
 - 2026-11-17 按用户要求将当前 `deer-flow` 栈从源码指纹匹配的 `6cc954e` 重建至 `b9a2f8d` / `eval_0016`；目标 SHA 六项 CI 实际成功。原配置/环境/挂载保持，在线备份后主库 58 张表与检索库 6 张表的数据摘要、schema 和双 ledger 均一致；后端 686 项、前端 559 项所选源码/配置指纹一致，前端生产构建和 HTTP 健康/登录/匿名授权边界通过。容器内成员辅助逻辑验证通过；未执行真实账号登录或完整多账号业务链，因此阶段 1 的完整业务验收仍开放。详见[本地升级记录](DevPilot_Local_Recovery_and_Upgrade.md)。以下为此前各轮原始验证记录。
@@ -53,5 +55,7 @@
 - **候选完整后端复验（2026-11-18，Linux 隔离环境）**：测试副本由当前 `HEAD` 的 Git 跟踪文件、候选后端差异与新增后端文件构成，未复制私有配置；`make test` 对应的 evaluation **65 tests**、toolkit **58 tests** 均通过。首轮全量有 **3 failed**：配置升级子进程联网解析依赖、本地 QA 隔离子进程失败、以及直接 Python 启动缺少 `PWD`；配置变量补齐后相关定向回归 **4 passed**。使用 `UV_NO_SYNC=1`、工作目录 `PWD` 与专用 `TEST_POSTGRES_URI` 的完整非 live pytest 重跑退出码 **0**，收集 **13,695/13,706 项（11 deselected）**，`lastfailed` 为空。会话切换导致最终 pytest 汇总行未能留存，因此不推算 passed/skipped 总数。
 - **签核状态一致性补修（2026-11-18）**：v1/v2 写入共用 run 锁和全局 revision CAS；同一 run 已有 v2 后拒绝新 v1 决定，保留 v1 历史读取与幂等回执。回归覆盖 v2 后索引/有效性一致、旧 v1 重放，以及 v1/v2 并发仅一项追加。相关签核测试 **66 passed**，`user/admin` 评测权限等价 **1 passed**，PostgreSQL 迁移与 v2 JSON 查询专项 **1 passed**。最近一次完整后端复跑有 **2 个本地 QA 隔离子进程失败**；这两个节点随后定向复跑 **2 passed**，但本轮完整套件仍记为未通过。Ruff/format **1,306 files** 通过。
 - **跨 Pod 去重 PostgreSQL 复验（2026-11-18）**：使用随机名独占临时库运行 `test_multi_pod_inbound_dedupe.py`，**3 passed**；删除精确临时库后，`devpilot_%_test_%` 前缀数据库计数为 **0**，专用 PostgreSQL 容器已停止，未删除容器/卷/镜像。当前候选仍未部署，精确 SHA CI、业务库迁移和真实用户验收继续开放。
+- **本人签核候选精确 SHA CI（2026-11-18）**：`c7db5e2dba831ae436576f7df8ff2ce8ce4dd28f` 的 [Unit](https://github.com/helloboy829/DevPilot/actions/runs/44302977798)、[Lint](https://github.com/helloboy829/DevPilot/actions/runs/44302977606)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/44302977795)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/44302977957) 成功；[Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/44302978053) 在 Chromium 安装阶段失败，浏览器步骤未执行。该结果只对应此 SHA。
+- **PostgreSQL 测试清理修复（2026-11-18）**：迁移 parity 测试把 async engine 初始化放入 `try/finally`，使创建 engine 失败时也能删除刚创建的 UUID 测试库。修复版签核/认证/路由/迁移联合回归 **43 passed / 0 skipped**；测试前缀库数为 **0**。没有部署或运行真实用户业务库迁移。
 
 English: Every initialized signed-in human is an evaluation member without a reviewer role. Ownership, explicit case assignments and per-run independence remain enforced. Linux/container acceptance is the primary delivery path; Windows compatibility is tracked separately. The approval candidate now has PostgreSQL migration coverage and three authenticated browser regressions, but current-SHA CI, deployment and real-user acceptance remain open, as do scheduling and advanced evidence milestones.

@@ -130,8 +130,14 @@ async def test_postgresql_assigned_signature_migration_parity_and_constraints(ta
             conn.execute(sql.SQL(action + " DATABASE {}").format(sql.Identifier(database)))
 
     await asyncio.to_thread(database_action, "CREATE")
-    engine = create_async_engine(DatabaseConfig(backend="postgres", postgres_url=source.set(database=database).render_as_string(hide_password=False)).app_sqlalchemy_url)
+    engine = None
     try:
+        engine = create_async_engine(
+            DatabaseConfig(
+                backend="postgres",
+                postgres_url=source.set(database=database).render_as_string(hide_password=False),
+            ).app_sqlalchemy_url
+        )
         async with engine.begin() as conn:
             await conn.run_sync(lambda c: ComponentRow.__table__.create(c))
             await conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
@@ -209,5 +215,6 @@ async def test_postgresql_assigned_signature_migration_parity_and_constraints(ta
             async with engine.begin() as conn:
                 await conn.execute(insert(t.approval_request_views).values({**view_row, "request_id": "6" * 32}))
     finally:
-        await engine.dispose()
+        if engine is not None:
+            await engine.dispose()
         await asyncio.to_thread(database_action, "DROP")
