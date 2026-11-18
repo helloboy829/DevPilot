@@ -8,7 +8,6 @@
 
 所有已登录用户默认可管理自己的助手；个人 USER.md 按账号隔离，管理员可主动关闭。cURL 调试器可导出带结构指纹的参数化 JSON，请求值均为运行时引用。此切片不保存服务端请求版本、不查找凭据、不发送请求，也不是可执行脚本或评测证据。[交付与剩余边界](DevPilot_Assistants_Request_Templates.md)。
 
-
 ## 项目 / QA 数据增量（2026-11-07）
 
 导航新增 /workspace/datasets：本人项目、来源与授权声明、JSON/JSONL草稿全量导入、Q/金标/来源同屏检查、显式确认冻结与操作记录。专用 evaluation_projects:read/write/review 权限，共用持久库但独立 App Alembic版本表；未启用持久库503。当前本人自审、不调用模型、不访问来源，不等于正式双人审核或验收通过；尚未与现有组件、运行和报告建立版本关联。详见[QA最小闭环](DevPilot_QA数据最小闭环.md)。
@@ -29,17 +28,19 @@
 
 ## 2. 新 API 与权限
 
-| API | 权限与效果 |
-| --- | --- |
-| `POST /api/component-tests/debug/parse` | threads:write；仅解析、不执行 |
-| `POST /api/component-tests/debug/send` | threads:write + runs:create + consent；单次受控出站 |
-| `GET/POST /api/evaluation-schedules` | 读取本人计划；创建需写/运行权限及 consent |
-| `GET /api/reports/project/templates` | threads:read；固定版本目录 |
-| `POST /api/reports/project/preview` | threads:write；人工多组件草稿 |
-| `POST /api/reports/project/intake` | threads:write + runs:create + consent；需求文本发送给明确配置的模型 |
-| `/api/model-management` | 管理员；GET 目录，PUT models/roles，DELETE 指定模型，POST 指定模型 probe |
+| API                                     | 权限与效果                                                                                   |
+| --------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `POST /api/component-tests/debug/parse` | threads:write；仅解析、不执行                                                                |
+| `POST /api/component-tests/debug/send`  | threads:write + runs:create + consent；单次受控出站                                          |
+| `GET/POST /api/evaluation-schedules`    | 读取本人计划；创建需写/运行权限及 consent                                                    |
+| `GET /api/reports/project/templates`    | threads:read；固定版本目录                                                                   |
+| `POST /api/reports/project/preview`     | threads:write；人工多组件草稿                                                                |
+| `POST /api/reports/project/intake`      | threads:write + runs:create + consent；需求文本发送给明确配置的模型                          |
+| `/api/model-management`                 | 管理员；GET 目录，PUT models/roles，DELETE 指定模型，POST 指定模型 probe / `models/discover` |
 
 敏感新路由验证失败不回显提交值；响应禁止缓存。模型变更使用 revision 防止覆盖并发编辑。模型协议白名单扩展到 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini Developer API；保持旧 openai_compatible ID 兼容。服务商标签、地址和模型 ID 自定义；不接受任意 Python import、SDK kwargs 或认证头。YAML 模型不能从页面覆盖，同名冲突拒绝加载。
+
+`POST /api/model-management/models/discover` 仅管理员可用，必须带 `consent: true`。前端不会在打开或保存档案时自动访问供应商；用户另行勾选同意并点击获取后，Gateway 才对当前 endpoint 发起一次模型目录 GET。协议路径分别为 OpenAI-compatible `/models`、Anthropic `/v1/models`、Gemini `/v1beta/models`；Responses 与 Chat Completions 共用 OpenAI 模型目录。请求最多等待 10 秒、最多读取 512 KiB、不跟随重定向，结果仅包含最多 100 个模型 ID/名称且不缓存。凭据只走认证头；已保存凭据只在档案 ID、协议和 endpoint 均匹配时复用。目录不可用或不完整时，模型 ID 仍可手动填写，包含中转站自定义 ID；此功能不调用模型推理，也不是完整 CC Switch 兼容。
 
 ## 3. 运行配置
 
@@ -69,7 +70,9 @@ DEVPILOT_MODEL_ENCRYPTION_KEY=<由密钥管理注入的 Fernet key；不要写�
 
 ### 连接档案与切换
 
-模型页提供协议预设、连接搜索/新增/编辑/复制、默认切换与角色路由。复制不携带密钥；修改已有档案的 endpoint/protocol 时必须重新输入或明确清除旧密钥。留空只在地址和协议不变时保留旧值。每次修改携带 revision，冲突先重载，不静默覆盖。
+可粘贴常见 cURL 推理命令，在浏览器填入协议、基础地址、模型 ID 和认证信息。解析器限制输入长度和选项，不执行命令，不把原始文本提交到 Gateway；未知 shell 语法会拒绝导入。OpenAI-compatible 内网模型允许不填 key，运行时不会发送 Authorization 或回退到进程环境的 `OPENAI_API_KEY`。
+
+模型页提供协议预设、连接搜索/新增/编辑/复制、默认切换与角色路由。模型 ID 支持手动输入，也可在单独同意后请求服务商目录并从选项中选择；中转站私有 ID 不依赖目录返回。复制不携带密钥；修改已有档案的 endpoint/protocol 时必须重新输入或明确清除旧密钥。留空只在地址和协议不变时保留旧值。每次修改携带 revision，冲突先重载，不静默覆盖。
 
 受控参数：temperature 0..2、top_p (0,1]、max_tokens 1..65536、timeout_seconds 1..300、max_retries 0..2。上游模型可能有更严格限制，需单独验证。Responses 显式 store=false；Gemini 固定 API-key Developer API（vertexai=false）。连接档案并非共享服务商密钥实体；不支持 OAuth、任意 JSON 导入、自动 failover 或全 CC Switch 客户端切换。
 

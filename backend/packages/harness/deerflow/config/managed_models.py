@@ -26,6 +26,8 @@ PROVIDERS = {
     "anthropic": "langchain_anthropic:ChatAnthropic",
     "gemini": "langchain_google_genai:ChatGoogleGenerativeAI",
 }
+# The OpenAI SDK recognizes this configured-identity sentinel and omits its auth header.
+_OPENAI_NO_AUTH_API_KEY = "workload-identity-auth"
 
 
 class ModelParameters(BaseModel):
@@ -183,7 +185,7 @@ class ModelCatalog:
                 "use": PROVIDERS[profile.provider],
                 "model": profile.model,
                 "base_url": profile.base_url,
-                "api_key": profile.api_key or "not-required",
+                "api_key": profile.api_key or (_OPENAI_NO_AUTH_API_KEY if profile.provider in {"openai_compatible", "openai_responses"} else "not-required"),
                 **parameters,
             }
             if profile.provider in {"openai_compatible", "openai_responses"}:

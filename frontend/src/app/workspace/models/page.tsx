@@ -1,6 +1,14 @@
 "use client";
 
-import { Copy, Plus, Search, Settings2, ShieldCheck } from "lucide-react";
+import {
+  Copy,
+  List,
+  Plus,
+  Search,
+  Settings2,
+  ShieldCheck,
+  Terminal,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +19,7 @@ import {
   WorkspaceHeader,
 } from "@/components/workspace/workspace-container";
 import { evaluationApi } from "@/core/evaluation/api";
+import { parseModelCurl } from "@/core/evaluation/model-curl-import";
 import { useI18n } from "@/core/i18n/hooks";
 
 interface Parameters {
@@ -37,6 +46,10 @@ interface Catalog {
   revision: number;
   models: PublicModel[];
   roles: Record<string, string | null>;
+}
+interface ModelOption {
+  id: string;
+  display_name: string;
 }
 const defaults: Parameters = {
   temperature: null,
@@ -112,6 +125,11 @@ export default function ModelsPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [probeConsent, setProbeConsent] = useState(false);
+  const [modelListConsent, setModelListConsent] = useState(false);
+  const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
+  const [modelOptionsTruncated, setModelOptionsTruncated] = useState(false);
+  const [modelListStatus, setModelListStatus] = useState("");
+  const [curlCommand, setCurlCommand] = useState("");
   const [search, setSearch] = useState("");
   useEffect(() => {
     let active = true;
@@ -131,6 +149,87 @@ export default function ModelsPage() {
     setForm({ ...blank, parameters: { ...defaults } });
     setKey("");
     setClearKey(false);
+    clearModelOptions();
+  }
+  function clearModelOptions() {
+    setModelListConsent(false);
+    setModelOptions([]);
+    setModelOptionsTruncated(false);
+    setModelListStatus("");
+  }
+  function updateConnection(field: "provider" | "base_url", value: string) {
+    setForm({ ...form, [field]: value });
+    clearModelOptions();
+    setError("");
+    setMessage("");
+  }
+  function importCurlCommand() {
+    setError("");
+    setMessage("");
+    try {
+      const imported = parseModelCurl(curlCommand);
+      const savedCredential =
+        editing &&
+        catalog?.models.some(
+          (profile) => profile.name === form.name && profile.has_credential,
+        );
+      setForm((current) => ({
+        ...current,
+        provider: imported.provider,
+        base_url: imported.baseUrl,
+        model: imported.model ?? current.model,
+      }));
+      setKey(imported.apiKey ?? "");
+      setClearKey(imported.apiKey === null && Boolean(savedCredential));
+      setCurlCommand("");
+      clearModelOptions();
+      setMessage(
+        zh
+          ? "已在浏览器解析并填入配置；未执行或发送 cURL 命令。"
+          : "Parsed in this browser. The cURL command was not run or sent.",
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Unable to parse cURL command.",
+      );
+    }
+  }
+  async function discoverModelOptions() {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setModelListStatus("");
+    try {
+      const result = await evaluationApi<{
+        models: ModelOption[];
+        truncated: boolean;
+      }>("model-management/models/discover", {
+        provider: form.provider,
+        base_url: form.base_url,
+        ...(editing && form.name ? { profile_name: form.name } : {}),
+        ...(key ? { api_key: key } : {}),
+        ...(clearKey ? { clear_credential: true } : {}),
+        consent: true,
+      });
+      setModelOptions(result.models);
+      setModelOptionsTruncated(result.truncated);
+      setModelListStatus(
+        result.models.length === 0
+          ? zh
+            ? "服务端未返回模型目录，可直接填写中转站提供的模型 ID。"
+            : "No model IDs were returned. You can enter a relay model ID manually."
+          : zh
+            ? `已获取 ${result.models.length} 个模型 ID${result.truncated ? "（仅显示前 100 个）" : ""}。`
+            : `Loaded ${result.models.length} model IDs${result.truncated ? " (first 100 shown)" : ""}.`,
+      );
+    } catch (e) {
+      setModelOptions([]);
+      setModelOptionsTruncated(false);
+      setError(e instanceof Error ? e.message : "Model list request failed");
+    } finally {
+      setModelListConsent(false);
+      setBusy(false);
+    }
   }
   async function mutate(route: string, body?: unknown, method = "POST") {
     setBusy(true);
@@ -318,6 +417,7 @@ export default function ModelsPage() {
                               setForm(editable(m));
                               setKey("");
                               setClearKey(false);
+                              clearModelOptions();
                             }}
                           >
                             {zh ? "编辑" : "Edit"}
@@ -335,6 +435,7 @@ export default function ModelsPage() {
                               });
                               setKey("");
                               setClearKey(false);
+                              clearModelOptions();
                               setMessage(
                                 zh
                                   ? "已复制非凭据配置，请填写新 ID 和凭据。"
@@ -478,6 +579,36 @@ export default function ModelsPage() {
                         : "New connection profile"}
                   </h2>
                   <fieldset disabled={busy} className="space-y-4">
+                    <details className="rounded-lg border p-3">
+                      <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                        <Terminal className="size-4" />
+                        {zh
+                          ? "从 cURL 导入连接配置"
+                          : "Import connection from cURL"}
+                      </summary>
+                      <div className="mt-3 space-y-3">
+                        <textarea
+                          aria-label={
+                            zh ? "模型 cURL 命令" : "Model cURL command"
+                          }
+                          className="bg-background min-h-28 w-full resize-y rounded border p-2 font-mono text-xs"
+                          maxLength={16_384}
+                          value={curlCommand}
+                          onChange={(event) =>
+                            setCurlCommand(event.target.value)
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={busy || !curlCommand.trim()}
+                          onClick={importCurlCommand}
+                        >
+                          <Terminal className="size-4" />
+                          {zh ? "解析并填入" : "Parse and fill"}
+                        </Button>
+                      </div>
+                    </details>
                     {!editing && (
                       <div>
                         <p className="text-muted-foreground mb-2 text-xs">
@@ -500,6 +631,7 @@ export default function ModelsPage() {
                                 });
                                 setKey("");
                                 setClearKey(false);
+                                clearModelOptions();
                               }}
                             >
                               {protocol.name}
@@ -519,7 +651,6 @@ export default function ModelsPage() {
                               ? "服务商名称（可自定义）"
                               : "Provider name (customizable)",
                           ],
-                          ["model", zh ? "服务商模型 ID" : "Provider model ID"],
                           ["base_url", zh ? "API 基础地址" : "API Base URL"],
                         ] as const
                       ).map(([field, label]) => (
@@ -534,11 +665,7 @@ export default function ModelsPage() {
                           {label}
                           <Input
                             className="mt-1"
-                            required={
-                              field === "name" ||
-                              field === "model" ||
-                              field === "base_url"
-                            }
+                            required={field === "name" || field === "base_url"}
                             disabled={field === "name" && editing}
                             type={field === "base_url" ? "url" : "text"}
                             maxLength={
@@ -546,17 +673,120 @@ export default function ModelsPage() {
                                 ? 2048
                                 : field === "name"
                                   ? 64
-                                  : field === "model"
-                                    ? 200
-                                    : 100
+                                  : 100
                             }
                             value={form[field]}
-                            onChange={(e) =>
-                              setForm({ ...form, [field]: e.target.value })
-                            }
+                            onChange={(e) => {
+                              if (field === "base_url") {
+                                updateConnection(field, e.target.value);
+                              } else {
+                                setForm({ ...form, [field]: e.target.value });
+                              }
+                            }}
                           />
                         </label>
                       ))}
+                    </div>
+                    <div className="space-y-2">
+                      <label
+                        className="block text-sm font-medium"
+                        htmlFor="provider-model-id"
+                      >
+                        {zh ? "服务商模型 ID" : "Provider model ID"}
+                      </label>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input
+                          id="provider-model-id"
+                          className="min-w-0 flex-1"
+                          required
+                          maxLength={200}
+                          value={form.model}
+                          placeholder={
+                            zh
+                              ? "例如 gpt-4.1 或中转站提供的精确 ID"
+                              : "e.g. gpt-4.1 or the exact ID from your relay"
+                          }
+                          onChange={(e) =>
+                            setForm({ ...form, model: e.target.value })
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            busy || !modelListConsent || !form.base_url.trim()
+                          }
+                          onClick={() => void discoverModelOptions()}
+                        >
+                          <List className="size-4" />
+                          {zh ? "获取模型列表" : "Fetch models"}
+                        </Button>
+                      </div>
+                      <p className="text-muted-foreground text-xs leading-5">
+                        {zh
+                          ? "可从列表选择，也可手动填写中转站控制台给出的模型 ID；未提供兼容模型目录的服务商仍可使用。"
+                          : "Choose a listed ID or enter the exact ID from your relay. Providers without a compatible model directory remain usable."}
+                      </p>
+                      {modelOptions.length > 0 && (
+                        <label className="block text-sm">
+                          {zh
+                            ? "目录中的模型"
+                            : "Models from provider directory"}
+                          <select
+                            aria-label={
+                              zh ? "选择目录模型" : "Choose listed model"
+                            }
+                            className="bg-background mt-1 block w-full rounded border p-2"
+                            value={
+                              modelOptions.some(
+                                (option) => option.id === form.model,
+                              )
+                                ? form.model
+                                : ""
+                            }
+                            onChange={(e) =>
+                              setForm({ ...form, model: e.target.value })
+                            }
+                          >
+                            <option value="">
+                              {zh ? "选择模型 ID" : "Select a model ID"}
+                            </option>
+                            {modelOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.display_name} · {option.id}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      <label className="flex items-start gap-2 text-xs leading-5">
+                        <input
+                          type="checkbox"
+                          checked={modelListConsent}
+                          disabled={busy}
+                          onChange={(e) =>
+                            setModelListConsent(e.target.checked)
+                          }
+                        />
+                        {zh
+                          ? "允许 Gateway 向此地址发送一次模型目录请求；当前或已保存的密钥会放入认证头，不会调用模型推理。"
+                          : "Authorize one model-list request to this endpoint. The current or saved key may be sent in an auth header; no model inference is called."}
+                      </label>
+                      {modelListStatus && (
+                        <p
+                          role="status"
+                          className="text-muted-foreground text-xs"
+                        >
+                          {modelListStatus}
+                        </p>
+                      )}
+                      {modelOptionsTruncated && (
+                        <p className="text-muted-foreground text-xs">
+                          {zh
+                            ? "列表已截断；未显示的模型仍可手动填写。"
+                            : "The list is truncated; enter an omitted model ID manually."}
+                        </p>
+                      )}
                     </div>
                     <label className="block text-sm">
                       {zh ? "协议适配器" : "Provider adapter"}
@@ -564,7 +794,7 @@ export default function ModelsPage() {
                         className="bg-background mt-1 block w-full rounded border p-2"
                         value={form.provider}
                         onChange={(e) =>
-                          setForm({ ...form, provider: e.target.value })
+                          updateConnection("provider", e.target.value)
                         }
                       >
                         {protocols.map((p) => (
@@ -589,13 +819,22 @@ export default function ModelsPage() {
                         autoComplete="new-password"
                         value={key}
                         disabled={clearKey}
-                        onChange={(e) => setKey(e.target.value)}
+                        onChange={(e) => {
+                          setKey(e.target.value);
+                          clearModelOptions();
+                        }}
                       />
                     </label>
                     <p className="text-muted-foreground text-xs leading-5">
                       {zh
-                        ? "留空保留原密钥；更换地址或协议时必须重新填写或明确清除，防止向新地址泄露旧密钥。复制配置不会复制密钥。"
-                        : "Blank retains the existing key. Changing endpoint or protocol requires a new key or explicit removal. Duplicating a profile never copies its credential."}
+                        ? form.provider === "openai_compatible" ||
+                          form.provider === "openai_responses"
+                          ? "可选。OpenAI 兼容的内网服务可留空；不会改用平台环境中的 OPENAI_API_KEY。编辑已有配置时，留空会保留原密钥，或使用下方选项明确清除。"
+                          : "此协议通常需要服务商密钥。编辑已有配置时留空会保留原密钥；更换地址或协议前请重新填写或明确清除。复制配置不会复制密钥。"
+                        : form.provider === "openai_compatible" ||
+                            form.provider === "openai_responses"
+                          ? "Optional for local OpenAI-compatible services. Blank does not fall back to the platform OPENAI_API_KEY. On edit, blank retains the saved key unless you explicitly remove it below."
+                          : "This protocol generally requires a provider key. On edit, blank retains the saved key; re-enter or explicitly remove it when changing the endpoint or protocol. Duplicating a profile never copies its credential."}
                     </p>
                     {editing && (
                       <label className="flex items-center gap-2 text-sm">
@@ -605,6 +844,7 @@ export default function ModelsPage() {
                           onChange={(e) => {
                             setClearKey(e.target.checked);
                             setKey("");
+                            clearModelOptions();
                           }}
                         />
                         {zh

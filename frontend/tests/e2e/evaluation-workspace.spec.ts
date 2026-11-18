@@ -92,6 +92,7 @@ test("administrator adds a model and assigns the report role without key echo", 
     const { model, revision } = route.request().postDataJSON();
     expect(revision).toBe(0);
     expect(model.api_key).toBe("synthetic-secret");
+    expect(model.model).toBe("custom-relay-id");
     const metadata = { ...model };
     delete metadata.api_key;
     catalog = {
@@ -100,6 +101,22 @@ test("administrator adds a model and assigns the report role without key echo", 
       roles: {},
     };
     await route.fulfill({ json: catalog });
+  });
+  await page.route("**/api/model-management/models/discover", async (route) => {
+    const data = route.request().postDataJSON();
+    expect(data.provider).toBe("openai_compatible");
+    expect(data.base_url).toBe("https://example.test/v1");
+    expect(data.api_key).toBe("synthetic-secret");
+    expect(data.consent).toBe(true);
+    await route.fulfill({
+      json: {
+        models: [
+          { id: "synthetic-model", display_name: "Synthetic Model" },
+          { id: "custom-relay-id", display_name: "Custom Relay ID" },
+        ],
+        truncated: false,
+      },
+    });
   });
   await page.route("**/api/model-management/roles", async (route) => {
     const data = route.request().postDataJSON();
@@ -116,6 +133,25 @@ test("administrator adds a model and assigns the report role without key echo", 
     .getByLabel("API Base URL", { exact: true })
     .fill("https://example.test/v1");
   await page.getByLabel("API Key", { exact: true }).fill("synthetic-secret");
+  const fetchModels = page.getByRole("button", {
+    name: "Fetch models",
+    exact: true,
+  });
+  await expect(fetchModels).toBeDisabled();
+  await page
+    .getByRole("checkbox", { name: /Authorize one model-list request/ })
+    .check();
+  await fetchModels.click();
+  await expect(page.getByText("Loaded 2 model IDs")).toBeVisible();
+  await page
+    .getByLabel("Choose listed model", { exact: true })
+    .selectOption("synthetic-model");
+  await expect(
+    page.getByLabel("Provider model ID", { exact: true }),
+  ).toHaveValue("synthetic-model");
+  await page
+    .getByLabel("Provider model ID", { exact: true })
+    .fill("custom-relay-id");
   await page.getByRole("button", { name: "Save model", exact: true }).click();
   await expect(page.getByLabel("API Key", { exact: true })).toHaveValue("");
   await page
@@ -124,6 +160,128 @@ test("administrator adds a model and assigns the report role without key echo", 
   await expect(page.getByLabel("report_advisor", { exact: true })).toHaveValue(
     "synthetic",
   );
+});
+
+test("model cURL import fills a keyless local endpoint in the browser", async ({
+  page,
+}) => {
+  mockLangGraphAPI(page, { threads: [] });
+  let catalog = {
+    revision: 0,
+    models: [] as Record<string, unknown>[],
+    roles: {} as Record<string, string>,
+  };
+  let discoveryRequests = 0;
+  await page.route("**/api/model-management", (route) =>
+    route.fulfill({ json: catalog }),
+  );
+  await page.route("**/api/model-management/models/discover", (route) => {
+    discoveryRequests += 1;
+    return route.fulfill({ status: 500 });
+  });
+  await page.route("**/api/model-management/models", async (route) => {
+    const { model, revision } = route.request().postDataJSON();
+    expect(revision).toBe(0);
+    expect(model.provider).toBe("openai_compatible");
+    expect(model.base_url).toBe("http://127.0.0.1:8000/v1");
+    expect(model.model).toBe("Qwen3-8B");
+    expect(model.api_key).toBeUndefined();
+    expect(JSON.stringify(model)).not.toContain("curl");
+    catalog = {
+      revision: 1,
+      models: [{ ...model, has_credential: false }],
+      roles: {},
+    };
+    await route.fulfill({ json: catalog });
+  });
+
+  await page.goto("/workspace/models");
+  await page.getByText("Import connection from cURL", { exact: true }).click();
+  await page
+    .getByLabel("Configuration ID", { exact: true })
+    .fill("local-model");
+  await page
+    .getByLabel("Model cURL command", { exact: true })
+    .fill(
+      `curl http://127.0.0.1:8000/v1/chat/completions -H 'Content-Type: application/json' -d '{"model":"Qwen3-8B","messages":[]}'`,
+    );
+  await page
+    .getByRole("button", { name: "Parse and fill", exact: true })
+    .click();
+
+  await expect(page.getByLabel("API Base URL", { exact: true })).toHaveValue(
+    "http://127.0.0.1:8000/v1",
+  );
+  await expect(
+    page.getByLabel("Provider model ID", { exact: true }),
+  ).toHaveValue("Qwen3-8B");
+  await expect(page.getByLabel("API Key", { exact: true })).toHaveValue("");
+  await page.getByRole("button", { name: "Save model", exact: true }).click();
+  await expect(
+    page.getByText("Model profile saved", { exact: true }),
+  ).toBeVisible();
+  expect(discoveryRequests).toBe(0);
+});
+
+test("importing a keyless cURL while editing explicitly clears the saved credential", async ({
+  page,
+}) => {
+  mockLangGraphAPI(page, { threads: [] });
+  const profile = {
+    name: "saved",
+    display_name: "Saved connection",
+    provider_name: "Internal relay",
+    provider: "openai_responses",
+    model: "previous-model",
+    base_url: "https://relay.example/v1",
+    enabled: true,
+    has_credential: true,
+    parameters: {
+      temperature: null,
+      top_p: null,
+      max_tokens: null,
+      timeout_seconds: 60,
+      max_retries: 0,
+    },
+  };
+  await page.route("**/api/model-management", (route) =>
+    route.fulfill({ json: { revision: 1, models: [profile], roles: {} } }),
+  );
+  await page.route("**/api/model-management/models", async (route) => {
+    const { model } = route.request().postDataJSON();
+    expect(model.base_url).toBe("http://127.0.0.1:8000/v1");
+    expect(model.api_key).toBeUndefined();
+    expect(model.clear_credential).toBe(true);
+    expect(JSON.stringify(model)).not.toContain("saved-secret");
+    await route.fulfill({
+      json: {
+        revision: 2,
+        models: [
+          { ...model, clear_credential: undefined, has_credential: false },
+        ],
+        roles: {},
+      },
+    });
+  });
+
+  await page.goto("/workspace/models");
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByText("Import connection from cURL", { exact: true }).click();
+  await page
+    .getByLabel("Model cURL command", { exact: true })
+    .fill(
+      'curl http://127.0.0.1:8000/v1/chat/completions -d \'{"model":"local-model","messages":[]}\'',
+    );
+  await page
+    .getByRole("button", { name: "Parse and fill", exact: true })
+    .click();
+  await expect(
+    page.getByRole("checkbox", { name: "Explicitly remove saved credential" }),
+  ).toBeChecked();
+  await page.getByRole("button", { name: "Save model", exact: true }).click();
+  await expect(
+    page.getByText("Model profile saved", { exact: true }),
+  ).toBeVisible();
 });
 
 test("requirements require confirmation, then two components form one project draft", async ({

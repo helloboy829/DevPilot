@@ -78,6 +78,29 @@ def test_four_protocol_profiles_construct_real_sdk_without_network(tmp_path, pro
     assert public["parameters"]["max_tokens"] == 100
 
 
+@pytest.mark.parametrize("provider", ["openai_compatible", "openai_responses"])
+def test_keyless_openai_profile_does_not_use_environment_key_or_send_auth(tmp_path, monkeypatch, provider):
+    from deerflow.config.app_config import AppConfig
+    from deerflow.config.model_config import ModelConfig
+    from deerflow.models import create_chat_model
+
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-environment-secret")
+    catalog = ModelCatalog(tmp_path)
+    catalog.save_model(
+        ManagedModel(name="internal", provider=provider, model="local-model", base_url="http://model.internal:8000/v1"),
+        actor="admin",
+    )
+    settings = catalog.config_models()[0]
+    assert settings["api_key"] == "workload-identity-auth"
+
+    config = AppConfig.model_validate({"sandbox": {"use": "deerflow.sandbox.local:LocalSandboxProvider"}, "models": [ModelConfig(**settings)]})
+    client = create_chat_model(name="internal", app_config=config, attach_tracing=False)
+
+    assert client.root_client.api_key == "workload-identity-auth"
+    assert client.root_client.auth_headers == {}
+    assert "synthetic-environment-secret" not in str(client.root_client.default_headers)
+
+
 def test_profile_parameters_are_bounded_and_not_an_arbitrary_sdk_escape_hatch():
     for parameters in [{"temperature": 3.0}, {"temperature": float("nan")}, {"timeout_seconds": 1000}, {"max_retries": 3}, {"max_tokens": -1}, {"callbacks": []}, {"default_headers": {"Authorization": "synthetic"}}]:
         with pytest.raises(ValueError):
