@@ -9,12 +9,13 @@
 
 ## 2. 目标业务节点
 
-~~~text
-读取项目事实 → 提测完整性检查 → 接入候选方案 → 等待接入确认
-          → 数据方案/候选构建 → 等待数据审批 → 方案/负载审批
+```text
+读取授权材料批次 → 解析 manifest/附件并报告缺项 → 等待组件映射确认
+          → 按组件提出候选输入/可选 reference → 确定性质量检查
+          → 归档到一个项目 → 评测人员审核/冻结 → 方案/负载审批
           → 冻结并提交 Job → 等待 Worker → 解释结果/创建报告草稿
           → 人工复核/整改 → 同基准复测或报告审批 → 候选知识
-~~~
+```
 
 这些是领域阶段，不要求全部成为独立 LLM 节点；字段校验、计数、网络调用、聚合、门禁使用程序。等待采用持久引用/checkpoint 或事件唤醒，不能让模型轮询到超预算。
 
@@ -26,15 +27,15 @@
 
 ## 4. 工具契约
 
-| 工具（目标名） | 能做 | 禁止 |
-| --- | --- | --- |
-| inspect_submission | 缺项/能力建议 | 网络试探未知目标 |
-| propose_dataset / generate_candidates | 指定授权源、预算内产候选 | 直接标 approved/frozen |
-| validate_dataset | 确定性检查并产质量卡 | 自动把所有标签变可信 |
-| propose_plan / request_review | 草拟规则、负载、预算并请求审批 | approve 自己的计划 |
-| submit_approved_run | 引用冻结方案，服务端再校验 | 接收任意 URL/阈值绕审批 |
-| get_run_evidence | 已授权摘要和 case 片段 | 返回凭据/全部敏感盲测答案 |
-| draft_report / propose_knowledge | 根据事实 ID 产草稿/候选 | 发布 PASS 报告/直接推广知识 |
+| 工具（目标名）                        | 能做                                                         | 禁止                                                   |
+| ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------ |
+| inspect_submission                    | 缺项/能力建议                                                | 网络试探未知目标                                       |
+| propose_dataset / generate_candidates | 指定授权批次和组件、预算内产带来源的候选输入及可选 reference | 直接标 approved/frozen、漏掉清单组件、写入项目正式数据 |
+| validate_dataset                      | 确定性检查并产质量卡                                         | 自动把所有标签变可信                                   |
+| propose_plan / request_review         | 草拟规则、负载、预算并请求审批                               | approve 自己的计划                                     |
+| submit_approved_run                   | 引用冻结方案，服务端再校验                                   | 接收任意 URL/阈值绕审批                                |
+| get_run_evidence                      | 已授权摘要和 case 片段                                       | 返回凭据/全部敏感盲测答案                              |
+| draft_report / propose_knowledge      | 根据事实 ID 产草稿/候选                                      | 发布 PASS 报告/直接推广知识                            |
 
 Agent 工具只是业务 API 的薄适配，服务端权限与幂等不可因内部工具而跳过。工具输出带 schema_version、resource_ref、revision、warnings、blocked_reasons。
 
@@ -60,6 +61,8 @@ Agent 工具只是业务 API 的薄适配，服务端权限与幂等不可因内
 ## 8. 调试、导出、人工复核的 Agent 边界
 
 增加工具入口的目标能力：解析 RequestSpec/读取脱敏检查、提交受控 check、起草数据/方案、申请导出、查询复核进度/整理证据。工具只能调用与 UI 相同的应用服务，执行 ID 与预算由后端确定；非标准 adapter 草稿只能进入审核/测试流程，不能直接运行任意生成代码。
+
+数据构建 Agent 只读取获准的批次材料并返回 schema 限定的逐组件候选、来源定位和不确定项；不能自行把文件归档、写 reference、批准或冻结。文件提取、组件清单完整性、输入映射、质量规则、归档事务、版本/hash 和执行预算均由 App/确定性服务控制。缺少 expected 不阻止用例调用；Agent 不得根据目标原生回答反向补成金标。发送材料到模型必须有独立数据外发授权。
 
 人工 Confirmation、ReviewDecision/Adjudication、计划/负载批准和报告发布由登录 actor 经 REST 提交，Agent 无相应自批权限。Human-in-the-loop 中断只作提示，不以聊天“同意”替代持久化授权；non_interactive 模式缺授权仍阻断。
 调试目标 SSE 的首内容、LangGraph token、项目业务 SSE 是三个不同来源；不能用助手首字时间计算目标 TTFT。export/ref 与 task/ref 只传摘要，验收金标/raw 大文件不注入普通 thread memory。

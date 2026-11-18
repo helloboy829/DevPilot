@@ -55,6 +55,8 @@ Week 2 退出条件：交付可由用户复核的合成验收包、已验证候�
 
 ## 冲刺外保留项
 
+当前数据构建主线和待开发条件由[数据构建工作流](DevPilot_评测数据构建工作流.md)与[模块进度表](DevPilot_实现进度与下一步.md)维护；效果/性能工作台另见[效果规格](DevPilot_效果测试工作台设计.md)和[性能规格](DevPilot_AI性能测试工作台设计.md)。本 Sprint 文件记录的是原 80 小时建议及历史退出条件，不是当前排期或当前完成状态；不在此维护平行 backlog。
+
 敏感外部输出作为证据的导入、CV 适配、真实可观测 TTFT/TPS、模型裁判校准、整改通知、知识晋升和真实项目效果验收另行拆分。它们分别需要数据/目标/模型授权及可验证证据；技术元数据隔离接收不是上述功能的替代品。
 
 English: The proposed 80-hour sprint prioritizes a reproducible candidate baseline, runtime retention integration, isolated migration/recovery rehearsal and a synthetic acceptance package. Formal approval and safe lost-worker/scheduling operations remain separately scoped contracts; no deployment or real calls are authorized by this plan.

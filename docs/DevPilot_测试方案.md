@@ -2,7 +2,7 @@
 
 ## 授权 QA 配置导出回归候选（2026-11-10）
 
-`test_authorized_qa_exports*` 用合成数据/账号/key覆盖精确授权、数据 tier、全冻结源/预算、隐私、并发、重复取消读写排空、审计原子性/游标、损坏/体积；SQLite 外键 ON 和独占 PostgreSQL 迁移证明原表不变。独立 job 将纯分发 artifact/hash 交给 API 配置→新无系统依赖 venv 完整离线安装→实际已安装 `-I` CLI mock send/receipt/原 ID 对账，真实 socket/业务 imports 禁止。默认 skip 不是安装成功；完整门禁与精确 SHA CI 单独记录。[合同](DevPilot_Authorized_QA_Exports.md)。
+`test_authorized_qa_exports` 用合成数据/账号/key覆盖精确授权、数据 tier、全冻结源/预算、隐私、并发、重复取消读写排空、审计原子性/游标、损坏/体积；SQLite 外键 ON 和独占 PostgreSQL 迁移证明原表不变。独立 job 将纯分发 artifact/hash 交给 API 配置→新无系统依赖 venv 完整离线安装→实际已安装 `-I` CLI mock send/receipt/原 ID 对账，真实 socket/业务 imports 禁止。默认 skip 不是安装成功；完整门禁与精确 SHA CI 单独记录。[合同](DevPilot_Authorized_QA_Exports.md)。
 
 ## 报告 Agent 增补（2026-11-07）
 
@@ -27,19 +27,19 @@
 
 ## 2. 分层测试
 
-| 层次 | 必测内容 | 方法 |
-| --- | --- | --- |
-| 领域单元 | 分母守恒、空数据、阈值、缺指标、切片、容差、分位数、token 口径 | 无网络固定样本/性质测试 |
-| Transport | blocking/SSE、首内容 token、坏 JSON、半包、错误码/超时、取消、usage 缺失 | httpx fake/mock server |
-| 接入安全 | shell 注入、flags、multipart 引用、DNS rebinding、redirect、IPv4/6、CA、凭据 | parser 单测 + 受控网络集成 |
-| 数据 | 来源许可、重复/泄漏、label 冲突、PII、冻结不可变、变更失审 | 代表性原件与恶意边界输入 |
-| 业务 API | 身份/owner、审批、revision/idempotency、能力/参数上限、下载 | FastAPI 测试客户端 + SQL |
-| Job/Worker | claim/lease/fencing、重启/取消/初始化失败、重复 attempt、原子 artifact | 故障注入、进程级测试 |
-| 导出一致性 | 干净目录/独立环境、自检、受控依赖/版本、脱敏、判定能力声明、平台同核心等价 | 假服务 golden + 固定观测/可注入时钟 + 获准真实试点 |
-| 人工复核 | Q/A/expected/来源、kind/action、权限、领取/双审/仲裁、版本重算/报告 | API/并发事务 + UI 人机流程与键盘测试 |
-| 前端 | 工作流、状态、表单、审批、图像与证据、事件去重 | Rstest/DOM + Playwright |
-| 部署 | devpilot 包、SQLite/Postgres 迁移、代理 SSE、权限、备份恢复 | 干净 Docker 构建/集成环境 |
-| 领域验收 | 历史 QA/CV 项目与人工结论对照 | 冻结回放和人工审核 |
+| 层次       | 必测内容                                                                     | 方法                                               |
+| ---------- | ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| 领域单元   | 分母守恒、空数据、阈值、缺指标、切片、容差、分位数、token 口径               | 无网络固定样本/性质测试                            |
+| Transport  | blocking/SSE、首内容 token、坏 JSON、半包、错误码/超时、取消、usage 缺失     | httpx fake/mock server                             |
+| 接入安全   | shell 注入、flags、multipart 引用、DNS rebinding、redirect、IPv4/6、CA、凭据 | parser 单测 + 受控网络集成                         |
+| 数据       | 来源许可、重复/泄漏、label 冲突、PII、冻结不可变、变更失审                   | 代表性原件与恶意边界输入                           |
+| 业务 API   | 身份/owner、审批、revision/idempotency、能力/参数上限、下载                  | FastAPI 测试客户端 + SQL                           |
+| Job/Worker | claim/lease/fencing、重启/取消/初始化失败、重复 attempt、原子 artifact       | 故障注入、进程级测试                               |
+| 导出一致性 | 干净目录/独立环境、自检、受控依赖/版本、脱敏、判定能力声明、平台同核心等价   | 假服务 golden + 固定观测/可注入时钟 + 获准真实试点 |
+| 人工复核   | Q/A/expected/来源、kind/action、权限、领取/双审/仲裁、版本重算/报告          | API/并发事务 + UI 人机流程与键盘测试               |
+| 前端       | 工作流、状态、表单、审批、图像与证据、事件去重                               | Rstest/DOM + Playwright                            |
+| 部署       | devpilot 包、SQLite/Postgres 迁移、代理 SSE、权限、备份恢复                  | 干净 Docker 构建/集成环境                          |
+| 领域验收   | 历史 QA/CV 项目与人工结论对照                                                | 冻结回放和人工审核                                 |
 
 ## 3. I0 必须先补的红灯测试
 
@@ -60,10 +60,23 @@
 去重与泄漏检查按主体/来源而非仅逐行；合成集和真实集分报。检测指标使用已知小例人工核算与参考实现对照；图像增强需标注一致。
 Prompt/裁判/adapter/extractor 变更均重放校准和回归，未达标准不升级。所有测试保留版本与证据，不把试点数据回流到冻结盲测后再自证提升。
 
+## 材料构建与无预期答案执行回归（待开发）
+
+- 多组件 manifest 的完整组件分母、附件映射、共享附件引用、页/表/行/段落定位、损坏/加密/不支持材料提示人工提取；脚本和宏不会执行，压缩包路径穿越被拒绝。
+- 项目外批次按逐组件记录成功/阻断/显式排除；归档只到一个所选项目，重复提交幂等，旧项目数据和 frozen hash 不被覆盖。
+- 同批次已有组件显式映射、新组件显式关联；组件不匹配的数据集即使同项目也不能进入计划。
+- 无 expected 输入经冻结 RequestSpec 映射并执行，原生响应/HTTP 状态/时延及 hash 可读回；expected 不出现在目标请求里。基于 expected 的指标为 UNAVAILABLE，不阻断运行；缺少其他有效依据时 assessment 不得 PASS。
+- 有 expected 时按其执行金标评估；无 expected 但冻结了规则/rubric 时可按该依据评估。没有适用依据时为 NOT_EVALUATED，缺少方案必需证据时为 BLOCKED，已建立的人工/裁判复核尚未完成时为 PENDING；不得伪造分数。
+- 上传材料对模型默认不外发；授权、模型连接和数据内容 hash 不匹配时构建被阻断；提示注入内容不能改变工具权限/归档目标。
+
 ## 5. 性能度量自身的测试
 
+性能工作台还必须按[工作台实现合同](DevPilot_AI性能测试工作台设计.md)覆盖：request count 大于样本数的稳定循环映射；warmup/measurement/drain 不混样本；request_count 与 duration first-limit 语义、硬 deadline 和取消；每 ordinal 请求/原生响应证据、重复 case iteration 标识、超限/部分 artifact 写入恢复；样本小于 p99 建议门槛时 warning 而不是伪精确结论。Summary/档位结果与逐条数据库证据的 hash 和计数必须对账。
+
+第三方 AIPerf/GuideLLM adapter 只使用隔离 Mock OpenAI 服务，验证每个发出请求的 durable ACK、一对一 dispatch ID、冻结 case/iteration 映射、取消与未知写入不重发、响应 hash 和流式/usage 口径。没有真实单请求回调/账本桥接的 CLI 运行仅测外部对照，不能标记正式平台结果。
+
 用可控延迟/首 chunk/usage 的本地假服务校准时间与吞吐；验证 warmup 排除、窗口/drain 边界、重试计数、非文本 N/A、chunk≠token、每档/每重复聚合。发生器负载饱和时应标注测量失真。
-对 LLMPerf/GenAI-Perf 外部 backend 先验证 workload/token/时间口径等价，不要求数值机械相同；在可解释差异前不混用报告。
+对 AIPerf/GuideLLM 外部 backend 先验证 workload/token/时间口径等价，不要求数值机械相同；在可解释差异前不混用报告。GenAI-Perf 已退出新功能开发，只保留历史兼容口径参考，不作为新集成候选。
 真实压测必须显式 opt-in、授权窗口和硬预算，默认 CI 不访问真实组件。
 
 ## 6. 开发命令和 CI 门禁
@@ -71,11 +84,11 @@ Prompt/裁判/adapter/extractor 变更均重放校准和回归，未达标准不
 后端遵循 backend/AGENTS.md 的 TDD：先写失败测试，后实现；完整环境下模块内 make test / make lint / make format。自定义纯包两套 unittest 必须另纳入 CI，不能以 backend/tests 已跑代替。
 前端 host 命令一律经 scripts/pnpm.py，从根目录例如：
 
-~~~powershell
+```powershell
 python scripts/pnpm.py check
 python scripts/pnpm.py test
 python scripts/pnpm.py build
-~~~
+```
 
 Runner 会在 frontend 执行；E2E 依赖按 Playwright 配置安装，并测试代理后的 SSE。未具备 Python 3.12+/uv/前端依赖时如实标“未运行”，不能为通过检查修改声明或伪造记录。
 

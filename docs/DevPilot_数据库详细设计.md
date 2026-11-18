@@ -10,7 +10,7 @@ App `eval_0013` 仅追加 `evaluation_authorized_exports`、`evaluation_export_a
 
 ## 已实现追加：App 迁移 eval_0002（2026-11-07）
 
-沿用独立 `devpilot_alembic_version`，新增 `evaluation_project_components`、`evaluation_submissions`、`evaluation_registry_audit`；数据集增加 project/id 唯一索引，提测用复合外键限制组件/数据同项目，规范化版本名唯一、scope 限 inventory_only。已部署 eval_0001 不改写，Harness 账本不变。SQLite 升级与约束有测试；真实 PostgreSQL 验收仍待做。[实际字段和边界](DevPilot_项目组件与提测清单.md)优先于下方目标表名，不代表 eval_runs/reports 等已落地。
+沿用独立 `devpilot_alembic_version`，新增 `evaluation_project_components`、`evaluation_submissions`、`evaluation_registry_audit`；数据集增加 project/id 唯一索引，提测用复合外键限制组件/数据同项目，规范化版本名唯一、scope 限 `inventory_only`。已部署 `eval_0001` 不改写，Harness 账本不变。SQLite 升级与约束有测试；真实 PostgreSQL 验收仍待做。[实际字段和边界](DevPilot_项目组件与提测清单.md)优先于下方目标表名，不代表 eval_runs/reports 等已落地。
 
 ## 已实现：独立项目 / QA 账本（2026-11-07）
 
@@ -19,7 +19,6 @@ App `eval_0013` 仅追加 `evaluation_authorized_exports`、`evaluation_export_a
 ## 报告草稿切片说明（2026-11-07）
 
 本轮 `/api/reports/preview` 无状态，未新增数据库表/迁移，下载快照不等于持久化修订历史。后续模板版本、报告修订、审阅和产物实体及事务边界见 [报告模块设计第 6 节](DevPilot_报告模块设计.md)。归档上线前必须补独立权限、owner/project 隔离及不可覆盖的审批快照。
-
 
 > 2026-11-06；第 1 节当前，其余为目标逻辑模型，**尚无对应完整迁移**。复用现有 SQLAlchemy/Alembic，不再假设所有场景已用 PostgreSQL/Milvus。
 
@@ -37,42 +36,49 @@ component_tests 与 component_test_runs 位于 backend/packages/harness/deerflow
 
 所有业务对象带 id、owner_user_id、project_id（项目表自身除外）、created_at/updated_at；不可变版本仅 created_at。团队化前不凭 project_id 允许跨 owner 读取。JSON 用于冻结配置/观测扩展，不替代 FK 和授权边界。
 
-| 表 | 关键字段 / 约束 |
-| --- | --- |
-| eval_projects | name、business_status、final_verdict、revision；owner 索引 |
-| eval_submissions | project、submitter、material_artifact_id、validated_fields、revision |
-| eval_components / eval_component_versions | logical component、task_type、supplier_version、fingerprint、provenance；版本不可变 |
-| eval_endpoint_revisions | component_version_id、request_spec/schema_version/hash、adapter/extractor_version、credential_ref、destination_policy_id；不可变 |
-| eval_environment_revisions | project、公共变量、execution_zone、credential_version_ref、destination_policy_revision、hash；秘密独立引用 |
-| eval_endpoint_checks | endpoint/environment_revision、request_hash、job_id、check_findings、stream_observability、脱敏artifact_refs、status/timestamps |
-| eval_endpoint_confirmations | endpoint/check/environment refs、binding_hash、credential_version_ref、actor、valid_until、revoked_at/reason；不可覆盖 |
-| eval_credentials | owner、encrypted_secret / external_secret_ref、key_version；不经通用 to_dict 暴露 |
-| eval_source_documents | artifact_id/hash、授权/用途/敏感级别、source_version、retention、deleted_at |
-| eval_datasets / eval_dataset_versions | dataset、version、status、manifest_artifact_id/hash、quality_card、revision；unique(dataset_id,version) |
-| eval_dataset_cases | dataset_version_id、case_id、input/expected refs、split/slices、origin、source_refs、label_status；unique(version,case_id) |
-| eval_plans | revision/status、dataset_version_id、endpoint_revision_id、rubric_ref、effect/perf config、thresholds、budgets、snapshot_hash |
-| eval_approvals | subject_type/id/revision/hash、decision、actor、role、comment；审批绑定内容，不能复用到新 revision |
-| eval_runs | current_assessment_revision、plan_id、component_version_id、test_type、immutable_snapshot/hash、status、verdict、counts、started/finished、revision |
-| eval_jobs | run_id(可空)、kind、status、attempt、lease_owner、lease_until、fencing_token、heartbeat、error_code、cancel_requested |
-| eval_case_results | run_id、case_id、执行观测/错误类型、raw_artifact_id、timings、response_hash；每个逻辑 case 一个主观测，有效 outcome 来自 assessment |
-| eval_request_attempts | run_id、case_id/request_id、attempt_index、attempt_status、timings、token_source、raw_ref；unique(run,request,attempt) |
-| eval_judgments | result_id、revision、judge/rubric/model/prompt refs、verdict、evidence；自动裁判不可变，人工决定另表 |
-| eval_review_tasks | kind、subject_type/id/revision/hash、policy_ref/hash、round、required_for_acceptance、status、priority、revision；同轮subject唯一 |
-| eval_review_assignments | task_id/round、slot、assignee、status(active/submitted/expired/released)、lease_until、claim_token；独立双审slot |
-| eval_review_drafts | task/round/actor、body、revision；可清理暂存，不是正式决定 |
-| eval_review_decisions | task/assignment/round、actor、action、reason_code/comment、evidence_refs、subject_hash、supersedes_id；不可变 |
-| eval_review_resolutions | task/round、revision、policy/adjudicator、decision_refs、effective_outcome/validity、reason/evidence；不可变 |
-| eval_run_assessments | run_id、revision、judgment/resolution_refs、counts/metric_refs、verdict/blocked_reasons、aggregation_version/hash；unique(run,revision) |
-| eval_metrics | run_id、assessment_revision_ref(可空)、level/repeat/slice、name、value_nullable、unit、applicability、sample_count、aggregation_version；测量基值不改写 |
-| eval_artifacts | content_hash、storage_key、media_type、size、sensitivity、retention、publish_status；路径不由用户直接决定 |
-| eval_reports | project_id、template_version、run_assessment_refs、snapshot_hash、artifact_id、status、approved_by、supersedes_id；发布版本不可变 |
-| eval_script_exports | endpoint/confirmation_ref、plan_snapshot_ref(骨架可空)、mode、authorized_scope、core/exporter_version、manifest_hash、job/artifact_ref、status |
-| eval_external_result_imports | export_id(可空)、upload_artifact_ref、declared_manifest/environment、validation_findings、trust_status、review_approval_ref、external_run_ref；与平台证据隔离 |
-| eval_remediations | project_id、issue_refs、responsible_party、status、change_note、new_component_version_id |
-| eval_retests | baseline_run_id、new_run_id、scope(full/subset)、comparability、change_refs |
-| eval_knowledge_entries | source_refs、scope、sensitivity、status、revision、reviewer、index_version；知识版本可回滚 |
-| eval_events / eval_outbox | aggregate_id、seq、event_type、payload、delivery_status；unique(aggregate_id,seq) |
-| eval_idempotency_keys | actor/route/key、request_hash、response_resource_id、expires_at；unique(scope,key) |
+| 表                                        | 关键字段 / 约束                                                                                                                                               |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| eval_projects                             | name、business_status、final_verdict、revision；owner 索引                                                                                                    |
+| eval_submissions                          | project、submitter、material_artifact_id、validated_fields、revision                                                                                          |
+| eval_components / eval_component_versions | logical component、task_type、supplier_version、fingerprint、provenance；版本不可变                                                                           |
+| eval_endpoint_revisions                   | component_version_id、request_spec/schema_version/hash、adapter/extractor_version、credential_ref、destination_policy_id；不可变                              |
+| eval_environment_revisions                | project、公共变量、execution_zone、credential_version_ref、destination_policy_revision、hash；秘密独立引用                                                    |
+| eval_endpoint_checks                      | endpoint/environment_revision、request_hash、job_id、check_findings、stream_observability、脱敏artifact_refs、status/timestamps                               |
+| eval_endpoint_confirmations               | endpoint/check/environment refs、binding_hash、credential_version_ref、actor、valid_until、revoked_at/reason；不可覆盖                                        |
+| eval_credentials                          | owner、encrypted_secret / external_secret_ref、key_version；不经通用 to_dict 暴露                                                                             |
+| eval_source_documents                     | artifact_id/hash、授权/用途/敏感级别、source_version、retention、deleted_at                                                                                   |
+| eval_data_build_batches                   | owner、manifest_hash、状态、组件总数、归档目标 project_id（归档前可空）、revision                                                                             |
+| eval_source_artifacts / eval_extractions  | batch_id、artifact_id/hash、格式、授权快照、提取状态、定位（页/表/行/段落）、错误码                                                                           |
+| eval_component_builds                     | batch_id、manifest_component_id、component_fingerprint、构建状态、排除理由、candidate_hash                                                                    |
+| eval_candidate_cases                      | build_id、case_id、input、可选 reference、source locator、origin、generation/transform history、review status                                                 |
+| eval_datasets / eval_dataset_versions     | dataset、version、status、manifest_artifact_id/hash、quality_card、revision；unique(dataset_id,version)                                                       |
+| eval_dataset_cases / eval_references      | 冻结输入用例与可选参考答案分开；reference_status 为 not_provided/candidate/approved/rejected；唯一键绑定 dataset_version_id/case_id                           |
+| eval_dataset_component_scopes             | dataset_version_id、project_component_id、适用范围及来源构建批次；计划服务端强制校验兼容性                                                                    |
+| eval_plans                                | revision/status、dataset_version_id、endpoint_revision_id、rubric_ref、effect/perf config、thresholds、budgets、snapshot_hash                                 |
+| eval_approvals                            | subject_type/id/revision/hash、decision、actor、role、comment；审批绑定内容，不能复用到新 revision                                                            |
+| eval_runs                                 | current_assessment_revision、plan_id、component_version_id、test_type、immutable_snapshot/hash、status、verdict、counts、started/finished、revision           |
+| eval_jobs                                 | run_id(可空)、kind、status、attempt、lease_owner、lease_until、fencing_token、heartbeat、error_code、cancel_requested                                         |
+| eval_case_results                         | run_id、case_id、执行观测/错误类型、未改写的 raw_artifact_id、timings、response_hash；每个逻辑 case 一个主观测，有效 outcome 来自 assessment                  |
+| eval_request_attempts                     | run_id、case_id/request_id、attempt_index、attempt_status、timings、token_source、raw_ref；unique(run,request,attempt)                                        |
+| eval_judgments                            | result_id、revision、judge/rubric/model/prompt refs、verdict、evidence；自动裁判不可变，人工决定另表                                                          |
+| eval_review_tasks                         | kind、subject_type/id/revision/hash、policy_ref/hash、round、required_for_acceptance、status、priority、revision；同轮subject唯一                             |
+| eval_review_assignments                   | task_id/round、slot、assignee、status(active/submitted/expired/released)、lease_until、claim_token；独立双审slot                                              |
+| eval_review_drafts                        | task/round/actor、body、revision；可清理暂存，不是正式决定                                                                                                    |
+| eval_review_decisions                     | task/assignment/round、actor、action、reason_code/comment、evidence_refs、subject_hash、supersedes_id；不可变                                                 |
+| eval_review_resolutions                   | task/round、revision、policy/adjudicator、decision_refs、effective_outcome/validity、reason/evidence；不可变                                                  |
+| eval_run_assessments                      | run_id、revision、judgment/resolution_refs、counts/metric_refs、verdict/blocked_reasons、aggregation_version/hash；unique(run,revision)                       |
+| eval_metrics                              | run_id、assessment_revision_ref(可空)、level/repeat/slice、name、value_nullable、unit、applicability、sample_count、aggregation_version；测量基值不改写       |
+| eval_artifacts                            | content_hash、storage_key、media_type、size、sensitivity、retention、publish_status；路径不由用户直接决定                                                     |
+| eval_reports                              | project_id、template_version、run_assessment_refs、snapshot_hash、artifact_id、status、approved_by、supersedes_id；发布版本不可变                             |
+| eval_script_exports                       | endpoint/confirmation_ref、plan_snapshot_ref(骨架可空)、mode、authorized_scope、core/exporter_version、manifest_hash、job/artifact_ref、status                |
+| eval_external_result_imports              | export_id(可空)、upload_artifact_ref、declared_manifest/environment、validation_findings、trust_status、review_approval_ref、external_run_ref；与平台证据隔离 |
+| eval_remediations                         | project_id、issue_refs、responsible_party、status、change_note、new_component_version_id                                                                      |
+| eval_retests                              | baseline_run_id、new_run_id、scope(full/subset)、comparability、change_refs                                                                                   |
+| eval_knowledge_entries                    | source_refs、scope、sensitivity、status、revision、reviewer、index_version；知识版本可回滚                                                                    |
+| eval_events / eval_outbox                 | aggregate_id、seq、event_type、payload、delivery_status；unique(aggregate_id,seq)                                                                             |
+| eval_idempotency_keys                     | actor/route/key、request_hash、response_resource_id、expires_at；unique(scope,key)                                                                            |
+
+当前 eval_0001 的 evaluation_references.expected 为非空，现有手工导入和冻结计划继续按已交付合同工作。目标支持无 expected 用例需要追加迁移，允许 reference 缺失并保留显式缺失状态；已有参考答案、数据集 hash 和冻结计划不得静默改写。材料批次/源附件/组件候选/组件适用范围也用新增表及外键逐步迁移，不以 JSON 字段代替 owner/project/component 约束。
 
 report.status 为 draft/in_review/approved/published/retired；知识 status 为 candidate/in_review/published/retired。与运行 verdict 不混用。Job 为 queued/running/completed/failed/cancelled/interrupted，取消意图另存；Run 使用规范的完整状态含 cancelling。
 
@@ -96,6 +102,20 @@ report.status 为 draft/in_review/approved/published/retired；知识 status 为
 索引覆盖 (owner,project,created_at)、(status,lease_until)、(run,case)、(run,level,repeat,metric)、(aggregate,seq)。不要一次为任意 JSON 建索引；以查询实测选择。
 大响应、图像和轨迹存 artifact，DB 存摘要/hash/ref；敏感内容加密/限制下载。性能逐请求原始样本可分片归档，聚合可从原始记录重建。
 
+## 4.1 效果原生响应与性能逐请求数据（目标，待开发）
+
+当前真实实现中，`evaluation_dispatches` 每 ordinal 保存 dispatch 状态/HTTP status/body bytes/elapsed，`evaluation_output_evidence` 只保存加密 extractor text；不是完整 request/response body，也不是 performance metric store。新合同以[效果工作台](DevPilot_效果测试工作台设计.md)和[性能工作台](DevPilot_AI性能测试工作台设计.md)为准。
+
+以 additive App migration 引入，保留原表和旧 hash：
+
+- `evaluation_request_artifacts` 可选保存加密映射 request body 引用，以及 request hash、RequestSpec/binding hash、media type、bytes、capture/redaction profile、key version。没批准正文保留时只存 hash/重建版本引用；绝不保存 credential/header secrets。
+- `evaluation_response_artifacts` 按 `(run_id, ordinal)` 唯一绑定受控 artifact、应用层 raw body SHA-256/byte size/media type、capture/truncation 状态、header allowlist hash/key version/created time。正文不放普通 SQL 列；保留旧 output_evidence 作为独立 extractor projection。
+- `evaluation_run_metrics` 按 `(run_id, metrics_revision, profile_step_id, repeat_index, metric_key)` 保存 nullable value、unit、applicability、population/hash、sample count、quantile/aggregation version、source evidence hash。metric revision append-only，重算创建新 revision，不更新历史点。
+- `evaluation_dispatches` 增加 phase（warmup/measurement）、iteration_index、profile_step_id 和 planned/scheduled/first_content/finished 客户端时间戳；SQLite/PostgreSQL 约束与索引同步。request/dispatch ordinal 为执行事实主序，不以 case_id 唯一限制性能循环。
+- `evaluation_performance_profiles`/scenario 可以先作为冻结 plan definition 的严格 versioned section；profile 使用独立 schema_version。只有当查询/并发编辑证明 JSON definition 不足时再拆表，不能把任意 metrics/profile JSON 当作 owner/project FK 的替代物。
+
+artifact reservation 在发送前包含总响应上限和每条 max+1 截断探测；warmup 证据也受预算并带 phase 标记。崩溃/取消留下的 body 与 manifest 状态显式 partial/incomplete。不能因 raw 文件成功落地就把 DB run 标 completed；DB manifest、artifact hash、dispatch observation 和 metrics population 必须彼此对账。历史记录 `raw_response_capture=unavailable_legacy`，不可由 extracted output 回填。
+
 ## 5. 迁移与回退
 
 1. 备份旧 DB/文件，保留原表；新表以 additive migration 建立。
@@ -113,6 +133,6 @@ report.status 为 draft/in_review/approved/published/retired；知识 status 为
 ReviewTask.status 使用 queued/in_review/escalated/resolved/cancelled；assignment.status 使用 active/submitted/expired/released；Decision/Resolution 是不可变记录而非另外一套 run.status。独立任务的 decision 不以 reviewed=true 代替策略满足状态。对 cancelled/旧 round 的提交拒绝并保留审计。
 ExternalResultImport 的 trust_status=unverified/under_review/accepted/rejected；采集/校验 Job.status 独立。accepted 只表示获准按标注的范围采信，不意味 run 或项目 PASS。导出状态复用 Job.status，缺 artifact/manifest 时不能 completed。
 
-增加索引：task(project,status,priority)、task(subject_type,id,hash,kind,policy,round) 唯一；assignment(task,round,slot) 的 active 唯一与 actor 防重复；decision(task,round,actor,created_at)；assessment(run,revision) 唯一；check(endpoint,environment,created_at)、export(project,status)、import(export,trust_status)。跨 SQLite/Postgres 的条件唯一约束由迁移测试验证。
+增加索引：task(project,status,priority)、task(`subject_type`,id,hash,kind,policy,round) 唯一；assignment(task,round,slot) 的 active 唯一与 actor 防重复；decision(task,round,actor,`created_at`)；assessment(run,revision) 唯一；check(endpoint,environment,created*at)、export(project,status)、import(export,trust_status)。跨 SQLite/Postgres 的条件唯一约束由迁移测试验证。
 凭据明文不进入 RequestSpec、Confirmation hash 输入的可公开副本或 export manifest；只存版本引用。导出金标授权、外部结果采信与复核访问形成独立 audit 记录，可复用现有可审计事件设施但必须覆盖这些动作。
-以上是新增逻辑表，不代表迁移文件已经生成；具体实现与[API](DevPilot_API接口设计文档.md)及[专题](DevPilot_人工复核工作台设计.md)同 PR 落地。
+以上是新增逻辑表，不代表迁移文件已经生成；具体实现与[API](DevPilot_API接口设计文档.md)及[专题](<DevPilot*人工复核工作台设计.md>)同 PR 落地。

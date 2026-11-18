@@ -2,6 +2,10 @@
 
 日期：2026-11-07。本节为已实现切片；不等于冻结执行方案或完整提测工作流。
 
+## 材料批次归档扩展（目标，待开发）
+
+现有提测清单是项目内的 inventory-only 组件/版本快照，不等于材料构建批次或可执行数据集。目标材料包在项目外按清单逐组件构建，用户选择一个已有/新项目归档后，按组件创建待审核数据草稿；评测人员在项目内审核、冻结，之后计划才能选取同组件适用的数据版本。归档不自动确认组件兼容，已有组件需显式映射；执行计划须以服务端关系校验组件与数据集适用范围。完整生命周期见[评测数据构建与执行工作流](DevPilot_评测数据构建工作流.md)。
+
 ## 1. 体验流程
 
 入口仍为 `/workspace/datasets`（项目与数据）。先创建项目、导入并自审冻结 QA 数据，然后使用“项目组件与提测版本”：
@@ -29,15 +33,15 @@
 
 前缀 `/api/evaluation/projects/{project_id}`；权限均为 `evaluation_projects:*`。
 
-| 方法与相对路径 | 权限 | 内容 |
-| --- | --- | --- |
-| GET /component-candidates | read | 本人已登记组件的安全库存字段和指纹 |
-| GET /components | read | 当前项目组件关联 |
-| POST /components | write | `{source_component_id, kind}` |
-| GET /components/{component_id}/submissions | read | 当前组件的不可变版本列表 |
+| 方法与相对路径                              | 权限           | 内容                                                                                                 |
+| ------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------- |
+| GET /component-candidates                   | read           | 本人已登记组件的安全库存字段和指纹                                                                   |
+| GET /components                             | read           | 当前项目组件关联                                                                                     |
+| POST /components                            | write          | `{source_component_id, kind}`                                                                        |
+| GET /components/{component_id}/submissions  | read           | 当前组件的不可变版本列表                                                                             |
 | POST /components/{component_id}/submissions | write + review | `{version_label, dataset_id, dataset_revision, dataset_hash, component_fingerprint, confirmed:true}` |
-| GET /submissions/{submission_id} | read | 同项目的清单快照，不含金标/请求凭据 |
-| GET /registry-audit | review | 关联与版本创建的操作元数据（本轮无专用审计 UI） |
+| GET /submissions/{submission_id}            | read           | 同项目的清单快照，不含金标/请求凭据                                                                  |
+| GET /registry-audit                         | review         | 关联与版本创建的操作元数据（本轮无专用审计 UI）                                                      |
 
 401 未认证；403 无权限/受信任内部 Agent 禁止确认；404 不存在或非本人/不同项目；409 重复、过期、不满足冻结条件或持久内容 hash 不一致；422 非法输入；503 数据仓储不可用或数据库操作失败。共用 QA 路由的请求大小与异常脱敏边界，不返回 SQL 参数或输入原值。
 

@@ -1,6 +1,6 @@
 # DevPilot
 
-DevPilot 基于 DeerFlow，面向 AI 组件评测：整理授权 QA 数据、冻结请求/计划/标准、受控执行、人工复核，以及生成可追溯报告草稿。Agent 用于辅助建议；确定性服务负责权限、计数、预算和证据。
+DevPilot 基于 DeerFlow，面向 AI 组件评测：整理授权数据、冻结请求/计划/标准、受控执行、人工复核，以及生成可追溯报告草稿。当前数据工作台支持人工 JSON/JSONL 导入、结构校验和自审冻结；项目外材料批次、多组件候选构建、归档与审核仍待开发。目标流程允许无参考答案用例执行并留存原生响应；金标对比指标缺少参考答案时不可用。详见[评测数据构建与执行工作流](docs/DevPilot_评测数据构建工作流.md)。
 
 [当前能力与运行状态](docs/DevPilot_Delivery_Status.md) · [完整模块文档](docs/README.md) · [架构与开发指南](AGENTS.md) · [上游 DeerFlow](README_upstream.md)
 
@@ -49,16 +49,16 @@ The evaluation-first sidebar keeps stable Evaluation center and AI collaboration
 
 ## Available workspace slices
 
-| Page                              | Implemented scope                                                                                                                                                                             |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/workspace/evaluations`          | Default evaluation-first landing page with real component inventory and explicit remaining capabilities                                                                                       |
-| `/workspace/datasets`             | Owner-scoped projects, QA import/review/freeze, existing-component links, immutable inventory-only submissions, frozen QA plans, revisioned human result review and the formal-approval panel |
-| `/workspace/component-tests`      | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses                                                             |
-| `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery                                      |
-| `/workspace/retests`              | Immutable same-benchmark comparisons of fully reviewed effectiveness runs; explicit paired evidence reads, no automatic execution or acceptance                                               |
-| `/workspace/reports`              | Verified immutable multi-component QA archives and revisions, plus separate manual/Agent drafts; pinned Chinese/English templates and frozen Markdown/Word draft downloads                    |
-| `/workspace/models`               | Connection profiles for OpenAI Chat, OpenAI Responses, Anthropic and Gemini; controlled parameters, encrypted write-only credentials, probes and default/report role routing                  |
-| Chat                              | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger                                                                                        |
+| Page                              | Implemented scope                                                                                                                                                                                                                                                              |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/workspace/evaluations`          | Default evaluation-first landing page with real component inventory and explicit remaining capabilities                                                                                                                                                                        |
+| `/workspace/datasets`             | Owner-scoped projects, manual QA import/review/freeze, existing-component links, immutable inventory-only submissions, frozen QA plans, revisioned human result review and the formal-approval panel; material understanding and candidate dataset construction remain planned |
+| `/workspace/component-tests`      | Existing component registration/effect/performance prototype, plus paste/import/edit/send cURL and inspect/copy bounded responses                                                                                                                                              |
+| `/workspace/evaluation-schedules` | One-off/cron/timezone schedules, frozen bounded parameters, pause/resume/history; deterministic evaluation dispatch, not scheduled chat or push delivery                                                                                                                       |
+| `/workspace/retests`              | Immutable same-benchmark comparisons of fully reviewed effectiveness runs; explicit paired evidence reads, no automatic execution or acceptance                                                                                                                                |
+| `/workspace/reports`              | Verified immutable multi-component QA archives and revisions, plus separate manual/Agent drafts; pinned Chinese/English templates and frozen Markdown/Word draft downloads                                                                                                     |
+| `/workspace/models`               | Connection profiles for OpenAI Chat, OpenAI Responses, Anthropic and Gemini; controlled parameters, encrypted write-only credentials, probes and default/report role routing                                                                                                   |
+| Chat                              | Existing harness conversation and per-conversation model selection, not the evaluation evidence ledger                                                                                                                                                                         |
 
 The unified local entry point is `http://127.0.0.1:2026`. See [Install.md](Install.md), [AGENTS.md](AGENTS.md) and module guides for installation and full-stack `make dev`/Docker commands. Do not commit local configuration, credentials or customer materials.
 
@@ -112,10 +112,11 @@ The standalone [local QA output and retention commands](docs/DevPilot_Local_QA_P
 ## Next milestones
 
 1. Close full-suite/environment regressions and run an independently observed, synthetic-only deployed workflow before requesting user acceptance.
-2. Validate the implemented independent review/arbitration candidates and add versioned formal approval without changing frozen evidence, denominators or report history.
-3. Define lost-worker operations that cannot resend unknown deliveries or reclaim a worker still capable of sending; independently admit QA-chain scheduling.
-4. Unify remaining legacy adapters with the versioned execution boundary and finish plaintext-copy/crash-artifact governance and the separately authorized external evidence lifecycle.
-5. Add explicitly authorized/calibrated CV, streaming-performance and judge-model workflows, dataset governance and reviewed knowledge promotion.
+2. Build the missing data-construction workflow: authorized material intake, traceable candidate Q/A generation, deterministic quality checks, evaluator review and immutable dataset versions. Generated content must remain a candidate until reviewed.
+3. Validate the implemented independent review/arbitration candidates and add versioned formal approval without changing frozen evidence, denominators or report history.
+4. Define lost-worker operations that cannot resend unknown deliveries or reclaim a worker still capable of sending; independently admit QA-chain scheduling.
+5. Unify remaining legacy adapters with the versioned execution boundary and finish plaintext-copy/crash-artifact governance and the separately authorized external evidence lifecycle.
+6. Add explicitly authorized/calibrated CV, streaming-performance and judge-model workflows and reviewed knowledge promotion.
 
 Default backend `make test` excludes real-model cases. Direct pytest runs also require `DEER_FLOW_RUN_LIVE_TESTS=1` before pytest starts; existing keys or a later test-module `.env` read are not authorization. CI always blocks live cases. Local Docker lifecycle integration is separately gated by `DEVPILOT_RUN_DOCKER_TESTS=1`, never probes the daemon during collection, and never implicitly pulls an image. Authorized live tests may incur API costs and create local artifacts; see [test safety](CONTRIBUTING.md#testing).
 

@@ -4,7 +4,7 @@
 
 - [提测清单 CSV 表头](submission-template.csv)：可用 Excel 打开，填写前按组织要求调整，严禁填明文 key。
 - [结构化提测样例](submission.example.json)：域名为不可调用的 example.invalid，授权/负载未获批。
-- [数据 JSONL 样例](dataset.example.jsonl)：仅两条 synthetic 候选，pending_review、hash 未计算，不是冻结金标；expected 只供裁判，不能传目标。
+- [数据 JSONL 样例](dataset.example.jsonl)：synthetic 候选，pending_review、hash 未计算，不是冻结金标；expected/reference 可缺省且不得传目标。当前工作台仍强制 expected 非空，第三条无 expected 样例是待开发目标合同，不可直接导入现有接口。
 - [方案样例](plan.example.json)：draft，门槛只演示格式，min_cases=50，因此两条数据不能直接满足方案。
 - [请求规范样例](request-spec.example.json)：声明式输入绑定与内容流提取，不含秘密、不支持任意脚本，所有引用待创建。
 - [独立工程导出请求](script-export-request.example.json)：只是目标 API 请求样例，**不是已导出的可运行工程**；execute_only 不代表效果通过。

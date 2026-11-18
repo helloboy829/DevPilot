@@ -3,6 +3,11 @@
 ## 先看这里
 
 - [当前能力、运行状态与缺口](DevPilot_Delivery_Status.md)
+- [数据理解与 QA 数据构建待开发范围](DevPilot_数据集与指标规范.md)
+- [评测数据构建与执行工作流（目标合同）](DevPilot_评测数据构建工作流.md)
+- [效果测试工作台与逐条响应证据](DevPilot_效果测试工作台设计.md)
+- [AI 性能测试工作台与工具集成决策](DevPilot_AI性能测试工作台设计.md)
+- [模块实现进度与重构路线](DevPilot_实现进度与下一步.md)
 - [全民审核规则与 Linux 验收接续](DevPilot_Equal_Review_and_Linux_Acceptance.md)
 - [候选验收包与检查清单](DevPilot_Acceptance_Package.md)
 - [Windows 验收 Runbook](DevPilot_Windows_Acceptance.md)
@@ -11,6 +16,16 @@
 - [根开发指南](../AGENTS.md) / [后端开发指南](../backend/AGENTS.md) / [前端开发指南](../frontend/AGENTS.md)
 
 以下日期段落保留各模块原始范围；后续实现、当前验证与部署状态以上述入口为准。
+
+## 文档维护与权威来源
+
+- 当前代码/部署/候选/验证事实只以[交付状态](DevPilot_Delivery_Status.md)为准；模块级待办/实施顺序/验收状态只以[实现进度](DevPilot_实现进度与下一步.md)为准。
+- 领域规则由单一规范拥有：数据与 verdict 见[数据集与指标规范](DevPilot_数据集与指标规范.md)，数据生命周期见[数据构建工作流](DevPilot_评测数据构建工作流.md)，逐条结果访问见[效果工作台](DevPilot_效果测试工作台设计.md)，性能负载/指标/工具见[性能工作台](DevPilot_AI性能测试工作台设计.md)，API 与 schema 由相应契约文件细化。
+- [业务流程与迭代计划](DevPilot_业务流程与迭代计划.md)维护产品迭代 backlog；需求分析只维护 FR/验收要求；开发计划和冲刺文件保留历史排期/建议，不得各自复制当前实现状态。
+- [交付历史](DevPilot_Delivery_History.md)、带日期的 CI/模块收据、`docs/reviews/` 和 `docs/upstream/` 是历史证据或上游来源，不作为当前状态入口。不得因重复摘要删除真实失败、CI、迁移和回滚证据。
+- 整理文档时优先删除重复的“当前状态”段并改为链接；除确认未引用、非合同、非许可证、非证据的废弃草稿外，不批量删除文件。模块合同若被新版本替代，应保留历史并写清 superseded-by 与版本边界。
+
+当前数据能力限于人工 JSON/JSONL 导入、结构校验、自审冻结，以及将冻结数据版本绑定到 QA 计划/执行候选。项目外材料批次、多组件候选构建、项目归档、组件适用范围校验和无参考答案用例执行均为待开发目标；详见[评测数据构建与执行工作流](DevPilot_评测数据构建工作流.md)、[数据集与指标规范](DevPilot_数据集与指标规范.md)及[当前交付状态](DevPilot_Delivery_Status.md)。
 
 ## 2026-11-15：QA 调度准入只读诊断（候选，未部署）
 
@@ -184,7 +199,7 @@
 
 ## 本轮实现状态（2026-11-07）
 
-[实现进度与下一步](DevPilot_实现进度与下一步.md)：评测优先首页、模型四协议连接、报告有界多轮与[项目/QA数据最小闭环](DevPilot_QA数据最小闭环.md)已落地；完整数据治理/结果复核/耐久执行/正式报告仍待开发。该矩阵是目标路线图与当前代码之间的校准入口。
+[实现进度与下一步](DevPilot_实现进度与下一步.md)：评测优先首页、模型四协议连接、报告有界多轮与[项目/QA数据最小闭环](DevPilot_QA数据最小闭环.md)已落地；原始材料理解、QA 候选构建和完整数据治理仍待开发。该矩阵是目标路线图与当前代码之间的校准入口，当前状态以[交付状态页](DevPilot_Delivery_Status.md)为准。
 
 ## 报告 Agent 增补（2026-11-07）
 
@@ -207,7 +222,7 @@
 1. [可行性分析](DevPilot_可行性分析.md)：可行条件、范围和投入边界。
 2. [现状审计与修复清单](DevPilot_现状审计与修复清单.md)：代码证据、已复现问题与环境限制。
 3. [需求分析](DevPilot_需求分析.md) → [业务流程与迭代计划](DevPilot_业务流程与迭代计划.md)。
-4. [数据集与指标规范](DevPilot_数据集与指标规范.md)：数据质量、分母和判定的唯一规范。
+4. [数据集与指标规范](DevPilot_数据集与指标规范.md)：数据质量、分母和判定的唯一规范；材料批次、组件级归档与原生响应评估见[评测数据构建与执行工作流](DevPilot_评测数据构建工作流.md)。
 5. [系统架构](DevPilot_系统架构设计.md) → [DeerFlow 改造方案](DevPilot_基于DeerFlow的改造方案.md)。
 6. [前端交互设计](DevPilot_前端交互设计.md) → [接口调试与脚本导出](DevPilot_接口调试与脚本导出设计.md) → [人工复核工作台](DevPilot_人工复核工作台设计.md) → [材料与模板规范](DevPilot_材料与模板规范.md)。
 7. 详细设计：[LangGraph](DevPilot_LangGraph工程设计文档.md)、[Prompt](DevPilot_Prompt工程设计文档.md)、[API](DevPilot_API接口设计文档.md)、[实时通信](DevPilot_实时通信协议设计.md)、[数据库](DevPilot_数据库详细设计.md)、[知识库](DevPilot_RAG知识库与数据架构设计文档.md)。

@@ -20,7 +20,7 @@ Nginx:2026 → Next.js:3000 / FastAPI Gateway:8001；Gateway 内嵌 DeerFlow Lan
 
 ## 2. 目标：模块化单体 + 独立执行 Worker
 
-~~~text
+```text
 评测工作台（项目/调试/数据/方案/运行/复核/报告） + 上下文助手
                   │ REST + 业务事件 SSE
 FastAPI 业务层：权限/版本/审批/任务/证据/凭据引用
@@ -33,7 +33,7 @@ FastAPI 业务层：权限/版本/审批/任务/证据/凭据引用
       SQL（业务真相）+ Artifact Store（不可变证据）
                   │
       审核知识索引（权限过滤，可选向量检索）
-~~~
+```
 
 首版允许 Gateway 与 Worker 同部署进程，但必须 DB 持久化/租约/恢复；生产压测宜独立进程，避免负载影响交互和 Agent。后续扩容不需要改业务契约。
 
@@ -50,6 +50,10 @@ FastAPI 业务层：权限/版本/审批/任务/证据/凭据引用
 ### 平台工作模型与被测组件
 
 平台工作模型复用 DeerFlow 模型工厂，服务于材料理解、候选生成、辅助评审和报告；被测组件由评测执行层使用独立 RequestSpec 与目标凭据调用。模型配置、目标配置及数据外发授权不混用。当前仅新增报告助手的显式模型选择；其他阶段的角色级模型路由仍属目标设计，不能把配置了一个模型等同于业务闭环完成。
+
+### 数据构建、归档与执行评估（目标，待开发）
+
+材料包先进入项目外构建批次，解析清单与附件并按组件生成候选；一个批次归档到一个已有或新建项目，逐组件生成待审核数据草稿。评测人员浏览、修订并冻结后，计划选择组件适用的数据版本，使用冻结 RequestSpec 将输入解析为目标请求，受控调用并留存原生响应，再按适用规则、rubric、可选参考答案或人工证据评估。缺少 expected 不阻止调用或原生响应采集；仅依赖金标对比的指标不可用，其他评估也必须有独立且预先确定的依据。App 管理导入授权、批次、归档、版本和审计；Harness/LangGraph 只产结构化候选建议；确定性服务解析、校验、计量和执行门禁。此流程尚未实现，详见[评测数据构建与执行工作流](DevPilot_评测数据构建工作流.md)和[数据集与指标规范](DevPilot_数据集与指标规范.md)。
 
 ## 4. 关键边界
 
@@ -68,6 +72,14 @@ FastAPI 业务层：权限/版本/审批/任务/证据/凭据引用
 效果按 case/attempt 写证据，恢复仅重试明确允许的未完成项；目标副作用无法保证 exactly-once，Agent 场景默认不自动重放。
 性能任务重启标 interrupted，新 run 重开完整测量窗，不拼接压测。
 DB/文件无法同事务：临时写→校验 hash→原子发布→登记 manifest；失败留下可清理孤儿，不能宣称报告成功。
+
+## 效果结果和 AI 性能工作台（目标，待开发）
+
+效果运行详情复用固定 run snapshot、dispatch、evidence 和 assessment revision，但新增独立结果查询 DTO 与逐条浏览 UI。普通列表/详情不解密原始正文；输入、预期、映射请求、raw response、解析视图、自动评估和人工决定分层。明文查看使用显式短时 access ID、权限重验、审计、no-store 和上限。现有 `evaluation_output_evidence` 只有加密提取文本，不是原生 HTTP response；新捕获使用追加式 App artifact manifest，旧记录标记 `unavailable_legacy`，绝不补造。
+
+性能工作台与效果共享 dataset/RequestSpec/凭据引用、run identity、授权、durable dispatch、pinned transport 和 artifact access；不共享 effect 判分/人审分母或 legacy scheduler。纯 `devpilot` 核心确定性生成 case-cycle manifest、调度 profile 与 metric projection；App Worker 执行每次 durable dispatch ACK → 单次请求 → 原生响应 artifact/观测。MVP 闭环并发、有限 measured request count、可选 duration stop、warmup、hard deadline、drain、固定样本循环和每请求 evidence；开放速率、阶梯和 trace replay 后续接入。API event loop 与 LangGraph 不作为压力发生器。
+
+开源工具决策：Ray LLMPerf 已归档；NVIDIA 官方文档建议 GenAI-Perf 新需求迁移 AIPerf。AIPerf 是第一外部 adapter spike 候选，GuideLLM 是第二候选；它们的 direct-to-target CLI 在没有逐次 App durable dispatch/evidence 回调时只能作为外部对照，导入结果标记 external*unverified，不能成为平台 PASS/正式指标。工具版本、依赖、负载、token、量化和流式口径都须校准。详见[效果结果浏览器](DevPilot*效果测试工作台设计.md)和[性能工作台/工具评估](DevPilot_AI性能测试工作台设计.md)。
 
 ## 6. 数据与技术选型
 

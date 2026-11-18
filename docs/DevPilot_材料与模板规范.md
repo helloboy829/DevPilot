@@ -4,7 +4,6 @@
 
 新增内置中英文模板 `component-evaluation-zh/en@1.0.0`，固定版本与事实/模板快照，提供 Markdown/JSON。尚不接收 DOCX/XLSX 模板上传、不支持模板编辑、正式审批或服务端历史保存。手工事实必须标注未核验，不因模板排版生成正式验收结论。模板更新另发版本，旧版不覆盖；后续模板生命周期与映射见 [报告模块设计](DevPilot_报告模块设计.md)。
 
-
 > 2026-11-06；目标交换规范 v1.0，**当前尚无完整模板导入/渲染器**。示例是脱敏设计样例，不可直接对外发压测。
 
 ## 2026-11-07 真实材料导入补充
@@ -21,26 +20,32 @@
 
 Excel/CSV 建议一个组件版本一行，复杂样例和附件另表/文件并用 ID 引用：
 
-| 字段 | 要求 |
-| --- | --- |
-| 项目/组件名称、业务负责人 | 必填；责任方与联系方式按隐私策略 |
-| component_kind | model / agent，和任务类型分开 |
-| model_family / task_type | 如 llm / qa，cv / image_classification；支持范围按 capabilities |
-| supplier_version、部署指纹 | 必填或明确 unknown，未知时限制验收结论 |
-| 完整 cURL | 原件隔离；解析预览/脱敏；不能直接交 shell |
-| 凭据 | 经专门渠道登记 credential_ref，不写报告/常规表格 |
-| 输入/输出样例 | 成功/错误/流式片段；附件 ID/hash；样例不等于金标 |
-| 参考来源 | 原件、版本、授权/用途、可定位证据、敏感级别 |
-| 预期与验收口径 | 合理答案、容差、拒答、错误预算和关键切片 |
-| 负载许可 | 允许目标、并发/请求/时长、时间窗、费用和停止联系人 |
-| 限制 | 是否副作用/会话、网络/证书、签名、异步、输入大小 |
+| 字段                       | 要求                                                            |
+| -------------------------- | --------------------------------------------------------------- |
+| 项目/组件名称、业务负责人  | 必填；责任方与联系方式按隐私策略                                |
+| component_kind             | model / agent，和任务类型分开                                   |
+| model_family / task_type   | 如 llm / qa，cv / image_classification；支持范围按 capabilities |
+| supplier_version、部署指纹 | 必填或明确 unknown，未知时限制验收结论                          |
+| 完整 cURL                  | 原件隔离；解析预览/脱敏；不能直接交 shell                       |
+| 凭据                       | 经专门渠道登记 credential_ref，不写报告/常规表格                |
+| 输入/输出样例              | 成功/错误/流式片段；附件 ID/hash；样例不等于金标                |
+| 参考来源                   | 原件、版本、授权/用途、可定位证据、敏感级别                     |
+| 预期与验收口径             | 合理答案、容差、拒答、错误预算和关键切片                        |
+| 负载许可                   | 允许目标、并发/请求/时长、时间窗、费用和停止联系人              |
+| 限制                       | 是否副作用/会话、网络/证书、签名、异步、输入大小                |
 
 表头：[submission-template.csv](templates/submission-template.csv)（UTF-8 BOM，便于 Excel 打开）；结构化样例：[submission.example.json](templates/submission.example.json)。导入必须先预览确认；错误到文件/行/字段，合法字段不因一行错误全部丢失。原始 cURL 的密钥应提取转存或要求替换，普通下载仅提供脱敏版本。
 
 ## 2. 数据交换
 
 一条 case 一行 JSONL，[dataset.example.jsonl](templates/dataset.example.jsonl)；图像、文档用受控 artifact ID，不接受任意本地绝对路径或隐式远程下载。
-字段定义见[数据集规范](DevPilot_数据集与指标规范.md)。source_refs 必须指向已授权来源；expected/rubric 由裁判读取，不传目标。验收集 split=acceptance，synthetic 仍需审核。
+字段定义见[数据集规范](DevPilot_数据集与指标规范.md)。source_refs 必须指向已授权来源；expected/reference 与 rubric 由评估侧读取，不传目标。目标流程允许 expected 缺省：缺少 reference 不阻止执行和原生响应采集，只将依赖 reference 的指标标为 UNAVAILABLE。验收集 split=acceptance，synthetic 仍需审核。
+
+## 2026-11-19 材料包与多组件构建批次（目标，待开发）
+
+一个用户上传包可包含组件清单和关联附件。首期目标格式为 DOCX、PDF、XLSX、CSV、TXT、Markdown、JSON、JSONL；脚本只读作文本，不执行。组件清单使用稳定组件 ID；附件归属不明确时在预览中要求人工映射。系统保留文件 hash 和页/工作表/行/段落定位。不支持、加密、损坏或扫描件应显示文件级提取失败并提示人工提取，未接入连接器时使用知识库导出文件而不是访问任意 URL/本机路径。
+
+批次先独立于项目完成解析与逐组件候选构建，再一次归档到一个已有或新建项目。项目级附件可以被多组件引用，来源引用不复制丢失。批次、清单组件、附件提取和候选构建状态均按完整清单分母展示；失败或排除必须有明确状态/理由。详细状态机见[工作流合同](DevPilot_评测数据构建工作流.md)。
 
 ## 3. 方案配置
 
