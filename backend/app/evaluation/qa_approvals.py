@@ -164,14 +164,24 @@ class ApprovalRepository(AssessmentRepository):
             expected = fingerprint({"owner_id": row["owner_id"], "request_hash": row["request_hash"], "document": document})
             if not hmac.compare_digest(expected, row["approval_hash"]):
                 raise ValueError
-            if document["schema"] != "qa-run-formal-approval.v1" or document["scope"] != "formal_approval_decision":
+            version = document["schema"]
+            if version not in {"qa-run-formal-approval.v1", "qa-run-formal-approval.v2"} or document["scope"] != "formal_approval_decision":
                 raise ValueError
             if document["decision"] != row["decision"] or document["decision"] not in {"approved", "revoked"}:
                 raise ValueError
             if document["assessment"]["id"] != row["assessment_id"] or document["assessment"]["assessment_hash"] != row["assessment_hash"]:
                 raise ValueError
-            if document["approver_id"] != row["approver_id"] or document["recorded_by"] != row["owner_id"]:
+            actor = row["owner_id"] if version == "qa-run-formal-approval.v1" else row["approver_id"]
+            if document["approver_id"] != row["approver_id"] or document["recorded_by"] != actor:
                 raise ValueError
+            if version == "qa-run-formal-approval.v2":
+                authentication = document["authentication"]
+                if set(authentication) != {"mode", "request_id", "subject_hash"} or authentication["mode"] != "signed_in_approver" or actor == row["owner_id"]:
+                    raise ValueError
+                if type(authentication["request_id"]) is not str or len(authentication["request_id"]) != 32 or any(c not in "0123456789abcdef" for c in authentication["request_id"]):
+                    raise ValueError
+                if type(authentication["subject_hash"]) is not str or len(authentication["subject_hash"]) != 64 or any(c not in "0123456789abcdef" for c in authentication["subject_hash"]):
+                    raise ValueError
             if any(document[key] != row[key] for key in ("id", "project_id", "run_id", "revision", "created_at_ms")):
                 raise ValueError
             return {**document, "approval_hash": row["approval_hash"]}
@@ -240,17 +250,18 @@ class ApprovalRepository(AssessmentRepository):
             blockers.add("sequence_gap")
         for approval_row, event in zip(approvals, audit):
             try:
+                document = cls._decode_approval(dict(approval_row))
                 matched = (
                     event["approval_id"] == approval_row["id"]
                     and event["revision"] == approval_row["revision"]
                     and event["action"] == approval_row["decision"]
-                    and event["actor"] == approval_row["owner_id"]
+                    and event["actor"] == document["recorded_by"]
                     and event["at_ms"] == approval_row["created_at_ms"]
                     and event["project_id"] == approval_row["project_id"]
                     and event["run_id"] == approval_row["run_id"]
                     and hmac.compare_digest(event["subject_hash"], approval_row["approval_hash"])
                 )
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, RequestProtectionError):
                 matched = False
             if not matched:
                 blockers.add("event_mismatch")
@@ -370,7 +381,7 @@ class ApprovalRepository(AssessmentRepository):
             "latest_revision": latest["revision"] if latest else None,
             "latest_decision": latest["decision"] if latest else None,
             "multi_level_satisfied": None,
-            "blockers": ["multi_level_policy_not_defined", "approver_login_not_implemented"],
+            "blockers": ["multi_level_policy_not_defined"],
         }
 
     @staticmethod
@@ -546,6 +557,20 @@ class ApprovalRepository(AssessmentRepository):
             "note": payload.note,
         }
 
+    @staticmethod
+    async def _has_authenticated_approval(session, run_id):
+        approval_id = (
+            await session.execute(
+                select(t.run_approvals.c.id)
+                .where(
+                    t.run_approvals.c.run_id == run_id,
+                    t.run_approvals.c.document["schema"].as_string() == "qa-run-formal-approval.v2",
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        return approval_id is not None
+
     async def create_approval(self, owner, project_id, run_id, approval_id, payload):
         approval_identifier(approval_id)
         payload = ApprovalCreate.model_validate(payload.model_dump())
@@ -583,6 +608,8 @@ class ApprovalRepository(AssessmentRepository):
                 raise Conflict
             previous = (await session.execute(select(func.max(t.run_approvals.c.revision)).where(t.run_approvals.c.run_id == run_id))).scalar_one() or 0
             if previous != payload.expected_previous_revision:
+                raise Conflict
+            if await self._has_authenticated_approval(session, run_id):
                 raise Conflict
             await session.execute(insert(t.run_approvals).values(**row))
             sequence = (await session.execute(select(func.max(t.approval_audit.c.sequence)).where(t.approval_audit.c.run_id == run_id))).scalar_one() or 0

@@ -25,6 +25,17 @@ const state = rs.hoisted(() => ({
   },
 }));
 rs.mock("@/core/evaluation/approval-api", () => ({ approvalApi: state.api }));
+const signatureState = rs.hoisted(() => ({ create: rs.fn(), get: rs.fn() }));
+rs.mock("@/core/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: { id: "00000000-0000-0000-0000-000000000006", needs_setup: false },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+}));
+rs.mock("@/core/evaluation/approval-requests", () => ({
+  signatureApi: signatureState,
+}));
 
 const run = "1".repeat(32);
 const assessment = "b".repeat(32);
@@ -70,6 +81,8 @@ const approvalMetadata = {
 
 beforeEach(() => {
   for (const fn of Object.values(state.api)) fn.mockReset();
+  signatureState.create.mockReset();
+  signatureState.get.mockReset();
   state.api.approvalMetadata.mockRejectedValue(new Error("not observed"));
   rs.stubGlobal("crypto", {
     randomUUID: () => "12345678-1234-4123-8123-123456789abc",
@@ -109,7 +122,48 @@ function fillTarget() {
 
 it("does not read approvals automatically", () => {
   panel();
+  expect(
+    screen.getByRole("region", { name: "Assign an authenticated signature" }),
+  ).toBeTruthy();
   for (const fn of Object.values(state.api)) expect(fn).not.toHaveBeenCalled();
+});
+
+it("builds the signature request from the selected run, assessment and account", async () => {
+  signatureState.create.mockResolvedValue({
+    schema: "qa-approval-request.v1",
+    id: "12345678123441238123456789abcdef",
+    project_id: "p1",
+    run_id: run,
+    assessment_id: assessment,
+    assessment_hash: hash,
+    approver_id: approver,
+    created_at_ms: Date.now(),
+    expires_at_ms: Date.now() + 86_400_000,
+    subject_hash: "a".repeat(64),
+    revision: 1,
+    status: "pending",
+    latest_approval_id: null,
+  });
+  panel();
+  fillTarget();
+  fireEvent.click(screen.getByLabelText("Share this pinned aggregate summary"));
+  fireEvent.click(screen.getByLabelText("Confirm signature assignment"));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Assign signature request" }),
+  );
+  await waitFor(() => expect(signatureState.create).toHaveBeenCalledTimes(1));
+  expect(signatureState.create.mock.calls[0]).toEqual([
+    "p1",
+    run,
+    expect.stringMatching(/^[0-9a-f]{32}$/),
+    expect.objectContaining({
+      assessment_id: assessment,
+      assessment_hash: hash,
+      approver_id: approver,
+      share_summary: true,
+      confirmed: true,
+    }),
+  ]);
 });
 
 it("loads project approvals only after an explicit click", async () => {
@@ -203,7 +257,7 @@ it("requires explicit consent and records one generated ID", async () => {
     name: "Record approval / revocation",
   });
   expect(submit.disabled).toBe(true);
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   expect(submit.disabled).toBe(false);
   fireEvent.click(submit);
   await screen.findByText(/Recorded revision 1 \(approved\)/);
@@ -228,7 +282,7 @@ it("keeps an unknown write pending for same-ID reconciliation without retry", as
   state.api.create.mockRejectedValue(new Error("unknown"));
   const pending = panel();
   fillTarget();
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   fireEvent.click(
     screen.getByRole("button", { name: "Record approval / revocation" }),
   );
@@ -478,8 +532,11 @@ it("invalidates preflight, consent and the project index after reconciliation", 
     screen.getByRole("button", { name: "Check approval eligibility" }),
   );
   await screen.findByText(/Eligible \(explicit confirmation/);
-  fireEvent.click(screen.getByRole("checkbox"));
-  expect(screen.getByRole<HTMLInputElement>("checkbox").checked).toBe(true);
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
+  expect(
+    screen.getByLabelText<HTMLInputElement>("Confirm owner-recorded approval")
+      .checked,
+  ).toBe(true);
   state.api.runApprovals.mockResolvedValue([approvalMetadata]);
   state.api.runAudit.mockResolvedValue([]);
   state.api.approvalMetadata.mockResolvedValue(approvalMetadata);
@@ -488,7 +545,10 @@ it("invalidates preflight, consent and the project index after reconciliation", 
   );
   await screen.findByText(/Reconciled by original ID/);
   expect(screen.queryByText(/Eligible \(explicit confirmation/)).toBeNull();
-  expect(screen.getByRole<HTMLInputElement>("checkbox").checked).toBe(false);
+  expect(
+    screen.getByLabelText<HTMLInputElement>("Confirm owner-recorded approval")
+      .checked,
+  ).toBe(false);
   expect(screen.queryByRole("combobox", { name: "Approval run" })).toBeNull();
   expect(state.api.projectApprovals).toHaveBeenCalledTimes(1);
   expect(state.api.create).not.toHaveBeenCalled();
@@ -557,7 +617,7 @@ it("clears stale chain summaries after a recorded decision", async () => {
   await screen.findByText(
     "Project chains verified: 0 of 0 runs · 0 approvals / 0 events",
   );
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   fireEvent.click(
     screen.getByRole("button", { name: "Record approval / revocation" }),
   );
@@ -657,10 +717,7 @@ it("checks approver sign-off progress without asserting a policy", async () => {
     latest_revision: 2,
     latest_decision: "revoked",
     multi_level_satisfied: null,
-    blockers: [
-      "multi_level_policy_not_defined",
-      "approver_login_not_implemented",
-    ],
+    blockers: ["multi_level_policy_not_defined"],
   });
   panel();
   fireEvent.change(screen.getByLabelText("Run ID"), {
@@ -697,10 +754,7 @@ it("clears sign-off progress after a recorded decision", async () => {
     latest_revision: null,
     latest_decision: null,
     multi_level_satisfied: null,
-    blockers: [
-      "multi_level_policy_not_defined",
-      "approver_login_not_implemented",
-    ],
+    blockers: ["multi_level_policy_not_defined"],
   });
   state.api.create.mockResolvedValue(approval);
   panel();
@@ -714,7 +768,7 @@ it("clears sign-off progress after a recorded decision", async () => {
     }),
   );
   await screen.findByText(/Sign-off progress: 0 revisions/);
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   fireEvent.click(
     screen.getByRole("button", { name: "Record approval / revocation" }),
   );
@@ -747,7 +801,7 @@ it("updates the project index after a recorded decision", async () => {
     screen.getByRole("button", { name: "Load project approvals" }),
   );
   await screen.findByText(`${run} · r1 approved`);
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   fireEvent.click(
     screen.getByRole("button", { name: "Record approval / revocation" }),
   );
@@ -780,10 +834,7 @@ it("invalidates chain and sign-off snapshots on an explicit run reload", async (
     latest_revision: null,
     latest_decision: null,
     multi_level_satisfied: null,
-    blockers: [
-      "multi_level_policy_not_defined",
-      "approver_login_not_implemented",
-    ],
+    blockers: ["multi_level_policy_not_defined"],
   });
   panel();
   fireEvent.change(screen.getByLabelText("Run ID"), {
@@ -813,19 +864,19 @@ it("revokes explicit consent when the approval target changes", () => {
   const submit = screen.getByRole<HTMLButtonElement>("button", {
     name: "Record approval / revocation",
   });
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   expect(submit.disabled).toBe(false);
   fireEvent.change(screen.getByLabelText("Approver account"), {
     target: { value: "00000000-0000-0000-0000-000000000006" },
   });
   expect(submit.disabled).toBe(true);
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   expect(submit.disabled).toBe(false);
   fireEvent.change(screen.getByLabelText("Assessment hash"), {
     target: { value: "d".repeat(64) },
   });
   expect(submit.disabled).toBe(true);
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   expect(submit.disabled).toBe(false);
   fireEvent.change(screen.getByLabelText("Assessment ID"), {
     target: { value: "a".repeat(32) },
@@ -893,7 +944,7 @@ it("revokes consent when an assessment is selected", async () => {
   ]);
   panel();
   fillTarget();
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   fireEvent.change(screen.getByLabelText("Run ID"), {
     target: { value: run },
   });
@@ -946,10 +997,7 @@ it("checks an advisory sign-off requirement without storing a policy", async () 
     latest_revision: 1,
     latest_decision: "approved",
     multi_level_satisfied: null,
-    blockers: [
-      "multi_level_policy_not_defined",
-      "approver_login_not_implemented",
-    ],
+    blockers: ["multi_level_policy_not_defined"],
     requirement: {
       schema: "qa-signoff-requirement.v1",
       scope: "technical_signoff_requirement_only",
@@ -1009,17 +1057,16 @@ it("shows the fixed approval capability gaps only on explicit click", async () =
   state.api.capabilities.mockResolvedValue({
     schema: "qa-approval-capabilities.v1",
     scope: "approval_capability_diagnostic_only",
-    approver_login: "not_implemented",
+    approver_login: "assigned_request_only",
     owner_records_on_behalf: true,
     multi_level_policy: "advisory_only",
     multi_level_enforcement: "not_implemented",
-    notifications: "not_implemented",
+    notifications: "in_app_only",
     export: "not_implemented",
     approval: "not_authorized",
     blockers: [
-      "approver_login_not_implemented",
       "multi_level_enforcement_not_implemented",
-      "notification_not_implemented",
+      "external_notification_delivery_not_implemented",
       "approval_export_not_implemented",
     ],
   });
@@ -1028,8 +1075,10 @@ it("shows the fixed approval capability gaps only on explicit click", async () =
   fireEvent.click(
     screen.getByRole("button", { name: "Load approval capabilities" }),
   );
-  await screen.findByText(/Approval capabilities: owner records on behalf/);
-  expect(screen.getByText("approver_login_not_implemented")).toBeTruthy();
+  await screen.findByText(/every initialized user can receive an assignment/);
+  expect(
+    screen.getByText("external_notification_delivery_not_implemented"),
+  ).toBeTruthy();
   expect(state.api.capabilities).toHaveBeenCalledWith("p1");
   expect(state.api.create).not.toHaveBeenCalled();
 });
@@ -1038,11 +1087,11 @@ it("clears approval capabilities when the project changes", async () => {
   state.api.capabilities.mockResolvedValue({
     schema: "qa-approval-capabilities.v1",
     scope: "approval_capability_diagnostic_only",
-    approver_login: "not_implemented",
+    approver_login: "assigned_request_only",
     owner_records_on_behalf: true,
     multi_level_policy: "advisory_only",
     multi_level_enforcement: "not_implemented",
-    notifications: "not_implemented",
+    notifications: "in_app_only",
     export: "not_implemented",
     approval: "not_authorized",
     blockers: [],
@@ -1058,7 +1107,7 @@ it("clears approval capabilities when the project changes", async () => {
   fireEvent.click(
     screen.getByRole("button", { name: "Load approval capabilities" }),
   );
-  await screen.findByText(/Approval capabilities/);
+  await screen.findByText(/Signatures: every initialized user/);
   view.rerender(
     <EvaluationApprovalPanel
       pendingApprovals={pending}
@@ -1083,10 +1132,7 @@ it("shows a stored advisory policy revision and its requirement", async () => {
     latest_revision: 1,
     latest_decision: "approved",
     multi_level_satisfied: null,
-    blockers: [
-      "multi_level_policy_not_defined",
-      "approver_login_not_implemented",
-    ],
+    blockers: ["multi_level_policy_not_defined"],
     stored_policy: {
       schema: "qa-approval-signoff-policy.v1",
       scope: "advisory_signoff_policy_only",

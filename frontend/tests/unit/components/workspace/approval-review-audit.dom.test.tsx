@@ -25,6 +25,17 @@ const state = rs.hoisted(() => ({
     create: rs.fn(),
   },
 }));
+rs.mock("@/core/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: {
+      id: "00000000-0000-0000-0000-000000000005",
+      system_role: "user",
+      needs_setup: false,
+    },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+}));
 rs.mock("@/core/evaluation/approval-api", () => ({ approvalApi: state.api }));
 const run = "1".repeat(32);
 const assessment = "b".repeat(32);
@@ -76,13 +87,13 @@ it("review: unknown writes must remain read-only on another click", async () => 
   state.api.create.mockRejectedValue(new Error("unknown"));
   state.api.runApprovals.mockResolvedValue([]);
   const pending = setup();
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   fireEvent.click(button("Record approval / revocation"));
   await waitFor(() =>
     expect(button("Check approval eligibility").disabled).toBe(false),
   );
   expect(pending.has(`p1:${run}`)).toBe(true);
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   fireEvent.click(button("Record approval / revocation"));
   await waitFor(() =>
     expect(button("Check approval eligibility").disabled).toBe(false),
@@ -105,7 +116,7 @@ it("review: revision CAS uses the latest revision beyond a 100-row page", async 
   await waitFor(() =>
     expect(button("Check approval eligibility").disabled).toBe(false),
   );
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   fireEvent.click(button("Record approval / revocation"));
   expect(state.api.create.mock.calls[0]?.[3]?.expected_previous_revision).toBe(
     125,
@@ -164,7 +175,7 @@ it("uses a preflight revision even when the run list was not loaded", async () =
   setup();
   fireEvent.click(button("Check approval eligibility"));
   await screen.findByText(/latest revision 101/);
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByLabelText("Confirm owner-recorded approval"));
   fireEvent.click(button("Record approval / revocation"));
   expect(state.api.create.mock.calls[0]?.[3]?.expected_previous_revision).toBe(
     101,

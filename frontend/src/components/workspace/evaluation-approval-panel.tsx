@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ApprovalRequestAssignment } from "@/components/workspace/approval-request-assignment";
 import { type ApprovalDecision } from "@/core/evaluation/approval-api";
 import { useApprovalWorkspace } from "@/core/evaluation/use-approval-workspace";
 
@@ -63,8 +64,8 @@ export function EvaluationApprovalPanel({
 
   const title = zh ? "正式批准" : "Formal approvals";
   const explanation = zh
-    ? "只读元数据与显式人类决定；批准人不得是 owner 或该 run 的盲审/仲裁人。"
-    : "Metadata-only reads and an explicit human decision; the approver must not be the owner or a blind reviewer/arbitrator of this run.";
+    ? "所有已初始化用户都能承担评测和审核工作。签核请求按单次运行固定来源并保留职责分离。"
+    : "Every initialized user can evaluate and review. Signature requests pin one run's source and preserve per-run independence.";
 
   return (
     <section aria-label={title} className="space-y-4 rounded-lg border p-4">
@@ -161,8 +162,8 @@ export function EvaluationApprovalPanel({
         <div className="space-y-1 text-sm" role="status">
           <p>
             {zh
-              ? "批准能力：owner 代为记录；多级政策仅咨询；审批人登录、强制签核、通知与导出未实现。"
-              : "Approval capabilities: owner records on behalf; multi-level policy is advisory only; approver login, enforcement, notifications and export are not implemented."}
+              ? "签核能力：所有已初始化用户可接受指派；owner 代录路径保留兼容；多级强制和导出未启用，通知仅在站内显式加载。"
+              : "Signatures: every initialized user can receive an assignment; owner-recorded decisions remain for compatibility; multi-level enforcement and export are unavailable, and notices are available only in the in-app event feed."}
           </p>
           <p>{`${zh ? "批准：" : "Approval: "}${zh ? "未授权" : "not authorized"}`}</p>
           <ul className="list-disc pl-5 font-mono">
@@ -358,6 +359,15 @@ export function EvaluationApprovalPanel({
           placeholder={zh ? "审批人账号 UUID" : "Approver account UUID"}
         />
       </div>
+      <ApprovalRequestAssignment
+        projectId={projectId}
+        runId={runId}
+        assessmentId={assessmentId}
+        assessmentHash={assessmentHash}
+        approverId={approverId}
+        disabled={busy}
+        zh={zh}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
@@ -402,6 +412,7 @@ export function EvaluationApprovalPanel({
       </div>
       <label className="flex items-start gap-2 text-sm">
         <input
+          aria-label="Confirm owner-recorded approval"
           type="checkbox"
           checked={confirmed}
           onChange={(event) => setConfirmed(event.target.checked)}
@@ -412,6 +423,11 @@ export function EvaluationApprovalPanel({
             : "I confirm this is an explicit named-human decision; case PASS or a met threshold never creates approval."}
         </span>
       </label>
+      <p className="text-muted-foreground text-xs">
+        {zh
+          ? "下方旧兼容路径由 owner 代录决定；本人签核请使用上方具名指派。"
+          : "The legacy path below records a decision on behalf of the owner; use the assigned signature above for a decision recorded by the approver."}
+      </p>
       <Button
         type="button"
         disabled={

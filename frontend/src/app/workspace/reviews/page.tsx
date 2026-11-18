@@ -1,5 +1,6 @@
 "use client";
 
+import { ApprovalSignatureCenter } from "@/components/workspace/approval-signature-center";
 import { ReviewTaskCenter } from "@/components/workspace/review-task-center";
 import {
   WorkspaceBody,
@@ -20,6 +21,7 @@ export default function ReviewsPage() {
       </WorkspaceHeader>
       <WorkspaceBody>
         <main className="mx-auto w-full max-w-6xl min-w-0 p-4 md:p-6">
+          <ApprovalSignatureCenter zh={zh} />
           <ReviewTaskCenter zh={zh} />
         </main>
       </WorkspaceBody>

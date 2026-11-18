@@ -442,7 +442,7 @@ async def test_approval_signoff_progress_reports_aggregate_only(tasks):
         "latest_revision": None,
         "latest_decision": None,
         "multi_level_satisfied": None,
-        "blockers": ["multi_level_policy_not_defined", "approver_login_not_implemented"],
+        "blockers": ["multi_level_policy_not_defined"],
     }
     with pytest.raises(NotFound):
         await unit.approval_signoff_progress("owner", project, "f" * 32)

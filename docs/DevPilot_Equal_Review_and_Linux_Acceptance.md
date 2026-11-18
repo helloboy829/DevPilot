@@ -1,10 +1,10 @@
 # 全民审核与 Linux 验收接续
 
-更新：2026-11-16。按用户明确要求，所有完成账号初始化的已登录用户都具备项目操作和审核能力，无需单独开通审核人角色或授予审核权限。Linux／容器是本轮主要运行与验收环境，Windows 兼容性单独记录。
+更新：2026-11-18。按用户明确要求，所有完成账号初始化的已登录用户都具备项目操作和审核能力，无需单独开通审核人角色或授予审核权限。产品业务角色按评测人员统一，管理员保留平台管理能力；盲审、仲裁和签核仅是具体任务职责。Linux／容器是主要运行与验收环境，Windows 兼容性单独记录。
 
 ## 用户与数据边界
 
-- 普通用户和管理员具有相同的项目读写、复核资格；旧 `evaluation_projects:read/write/review` 名称保留接口兼容，但不再由角色配置决定人类用户是否具备这些能力。
+- 普通用户（产品含义为评测人员）和管理员具有相同的项目读写、复核资格；数据库/API 的 `user` 名称暂为兼容保留。旧 `evaluation_projects:read/write/review` 名称保留接口兼容，但不再由角色配置决定人类用户是否具备这些能力。
 - 所有人都能创建自己的项目并参与分配给自己的任务。其他人的项目、金标和证据仍受项目归属或精确任务指派限制。
 - 盲审、仲裁、审批是某项任务中的分工，不是账号等级。保留双盲、独立仲裁和具体运行内的职责分离，不允许 owner 将自审伪装成独立批准。
 - 匿名、未完成账号初始化者和内部 Agent 不因这项规则获得人类审核资格。
@@ -20,7 +20,7 @@
 | 3    | Lost Worker 安全处置及新 QA 调度                            | 证明旧 Worker 已失去发送能力；未知交付仅原 ID 对账；冻结计划独立准入                     |
 | 4    | 高级指标、模型裁判、敏感外部证据和整改知识闭环              | 平台执行/证据/报告接入与独立授权；缺失证据不能 PASS                                      |
 
-阶段 1 尚在推进，后续阶段不因成员权限调整而视为完成。部署现有业务数据、真实用户验收与真实模型/目标调用分别记录，不把合成测试当作这些结果。
+阶段 1 的源码规则和 Linux 合成验收已完成并提交；业务数据部署与真实用户验收仍未完成。阶段 2 的本人签核已有 `eval_0017` 未部署候选。候选完整后端已在 Linux 隔离环境复验：测试进程退出码为 0，收集 **13,695/13,706 项，11 项按标记排除**，pytest `lastfailed` 为空。完整终端汇总在会话切换后未能取回，因此不推算通过总数；首轮环境失败及配置修正后的定向复验另有记录。本人签核/PostgreSQL 迁移专项 **3 passed**、真实认证浏览器合成流程 **3 passed**、跨 Pod 去重专项 **3 passed**。精确 SHA CI、业务数据部署和真实用户验收仍未完成。后续阶段不因成员权限调整而视为完成；真实模型/目标调用需单独授权，合成测试不代替真实用户验收。
 
 ## 验证记录
 
@@ -39,6 +39,17 @@
 - 既有审核浏览器回归首次 **5 failed**：测试默认无认证服务，本轮真实认证服务在 SSR 将无会话请求转到登录页，尚未进入审核流程。原失败/页面上下文保留；给测试配置通过真实密码登录获得的合成普通账号会话后，同一已构建 Linux 应用 **5 passed / 0 retries**（8.2s），覆盖桌面/手机领取、明确打开、单次决定、跨项目未知写原 ID 对账、历史重开与仲裁不确定。任务 API 为合成 fixture；不与前述 0 API mock 的真实登录冒烟混为一项。
 - 受测 App 的 **25** 份变更 Python 文件与宿主逐一 LF 归一化 hash 一致；冻结 venv 实际通过 editable 路径加载的 Harness/Extension API/devpilot **510** 份 Python 源码也逐一一致，无旧包副本误用。Linux 前端构建/完整 check/test 原始日志已导出；完整前端 Prettier 与本轮指南/文档格式检查通过。
 - 已导出最终日志、JUnit、源码/hash 与真实浏览器收据；两份变更前端文件与受测 Linux 副本 hash 一致。确认测试全部结束后，只停止本轮 Python `eabb90fb0c9120da988d6dfced2d918718065f68f509022aa3a93ebe6f47bde7`、Node `fe84f4e716945af095ff4d4ef5b55af6015368e83bc998f53fda8032b5f49a25` 与 PostgreSQL `0409629e8922e8227d312f7e22b4549750a0387a402ca8f3676ee1f9cd1d05d8`。前两者 exit 137/OOM=false（PID 1 为缓存保活进程），PostgreSQL exit 0；保留停止的依赖/构建缓存与内部网络，不删除容器、卷或镜像，不触碰其他项目。
-- 新提交 CI 仍须按新精确 SHA 核验；候选全业务流程验收及后续阶段仍开放。
+- 全民审核模块已提交并推送 `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a`，远端 `main` 对应同一 SHA。该 SHA 的 [Unit Tests](https://github.com/helloboy829/DevPilot/actions/runs/43887214811)、[Lint](https://github.com/helloboy829/DevPilot/actions/runs/43887214810)、[Frontend](https://github.com/helloboy829/DevPilot/actions/runs/43887215140)、[Blocking IO](https://github.com/helloboy829/DevPilot/actions/runs/43887214927)、[E2E](https://github.com/helloboy829/DevPilot/actions/runs/43887215069) 与 [Replay E2E](https://github.com/helloboy829/DevPilot/actions/runs/43887214809) 共 **6 workflows / 12 jobs 全部成功**，包括完整后端、原生 Windows 文件、默认安装收集、软件分发、实际安装导出与前后端 Replay。公开 API 原始收据留在本轮 ignored 目录。一次 Python TLS 证书链观察失败后，改用系统证书只读核对同一工作流，没有关闭证书验证或重跑 CI。
+- 上述 CI 只证明 `b9a2f8d`；本段收据文档及后续改动不移用它作为自身 CI。全民审核代码模块闭环，候选全业务流程验收及审批/调度/指标后续阶段仍开放。
+- **本人签核候选与统一评测角色复核（2026-11-18，Linux 合成环境）**：`system_role` 的 `user/admin` 是兼容的系统账号分类；所有完成初始化的人类账号获得相同项目 read/write/review，管理员专属依赖仅控制平台运维入口。项目 repository 继续按当前账号做 owner 隔离，盲审/仲裁/签核是具体 run/task 的指派职责；owner 不能进入自己 run 的盲审或仲裁，v2 签核由被指派人本人登录完成。旧 v1 owner 代录仍保留并与 v2 身份链分开校验。
+- 本轮后端 Ruff **1,306 files**、Blocking IO **72 passed**、领域测试 **65 + 58 passed**；本人签核/权限/SQLite 恢复组合 **124 passed / 1 skipped**，skip 是该组合中需单独运行的 PostgreSQL 测试。专用 PostgreSQL parity **1 passed**；完整非 live 后端 **13,624 passed / 75 skipped / 11 deselected / 40 warnings / 7 subtests passed**（1757.73s，exit 0）。前端完整单测 **165 files / 1,450 passed** 与 `python scripts/pnpm.py check` 通过，为本候选工作区已有结果。
+- 完整后端的首次隔离快照不含当前仓库根文件与 editable DevPilot 源码，出现 **21 failed**；重建公开 Git 跟踪文件根后，20 项路径/环境/旧 editable 源码失败节点逐项重跑全通过，配置升级用冻结环境复验 **1 passed**，随后完整套件通过。依赖导入失败还揭示 PostgreSQL 测试在 async engine 创建前没有进入 `try/finally` 的清理窗口；已将 engine 初始化纳入清理保护，修复后的 PostgreSQL parity 再次 **1 passed**，并确认测试前缀临时数据库数为 0。末尾清理保护改动之后已补跑候选完整后端，见下条；当前精确 SHA CI 仍需重新核验。
+- 当前工作区 HEAD 仍为 `b9a2f8d3504d56dfe4a1c52da01319a82cd2b46a`，包含未提交的 `eval_0017` 候选与本轮测试/文档更新。没有部署；当前工作区 SHA CI、业务库迁移和真实用户验收仍未完成。专用 PostgreSQL 容器已停止，未删除容器/卷/镜像；此前已运行的 Python 测试容器保留。
+- **候选补充回归（2026-11-18）**：新增 `test_postgresql_assigned_signature_migration_parity_and_constraints`，使用独占 UUID 临时数据库验证 `eval_0017` PostgreSQL head schema parity、旧 Harness ledger 保留及请求/事件/视图表约束；签核迁移文件专项 **3 passed**，临时库经 finally 精确删除，确认测试前缀数据库数为 0。数据库容器是此前已核查的合成 PG 容器，本轮结束后恢复为停止状态。
+- 新增 auth-enabled Playwright 配置与本人签核浏览器规格，使用真实 Gateway 注册两个普通 `user` 并验证已登录会话；签核业务端点由浏览器路由返回合成数据。三项场景 **3 passed**：普通用户指派固定运行、本人的明确打开/确认/签署/撤销，以及未知写入仅用原 operation ID GET 对账、不重发。签核端点 API 行为仍由后端真实认证集成测试验证；该浏览器回归不调用真实模型、目标或业务库。
+- 补充回归之后完整前端 Prettier 与 `pnpm check`（ESLint + TypeScript）通过；新增 PostgreSQL 测试文件 Ruff check/format 通过。以上均针对当前未提交工作区；没有生成当前候选 SHA CI 收据，也未部署。
+- **候选完整后端复验（2026-11-18，Linux 隔离环境）**：测试副本由当前 `HEAD` 的 Git 跟踪文件、候选后端差异与新增后端文件构成，未复制私有配置；`make test` 对应的 evaluation **65 tests**、toolkit **58 tests** 均通过。首轮全量有 **3 failed**：配置升级子进程联网解析依赖、本地 QA 隔离子进程失败、以及直接 Python 启动缺少 `PWD`；配置变量补齐后相关定向回归 **4 passed**。使用 `UV_NO_SYNC=1`、工作目录 `PWD` 与专用 `TEST_POSTGRES_URI` 的完整非 live pytest 重跑退出码 **0**，收集 **13,695/13,706 项（11 deselected）**，`lastfailed` 为空。会话切换导致最终 pytest 汇总行未能留存，因此不推算 passed/skipped 总数。
+- **签核状态一致性补修（2026-11-18）**：v1/v2 写入共用 run 锁和全局 revision CAS；同一 run 已有 v2 后拒绝新 v1 决定，保留 v1 历史读取与幂等回执。回归覆盖 v2 后索引/有效性一致、旧 v1 重放，以及 v1/v2 并发仅一项追加。相关签核测试 **66 passed**，`user/admin` 评测权限等价 **1 passed**，PostgreSQL 迁移与 v2 JSON 查询专项 **1 passed**。最近一次完整后端复跑有 **2 个本地 QA 隔离子进程失败**；这两个节点随后定向复跑 **2 passed**，但本轮完整套件仍记为未通过。Ruff/format **1,306 files** 通过。
+- **跨 Pod 去重 PostgreSQL 复验（2026-11-18）**：使用随机名独占临时库运行 `test_multi_pod_inbound_dedupe.py`，**3 passed**；删除精确临时库后，`devpilot_%_test_%` 前缀数据库计数为 **0**，专用 PostgreSQL 容器已停止，未删除容器/卷/镜像。当前候选仍未部署，精确 SHA CI、业务库迁移和真实用户验收继续开放。
 
-English: Every initialized signed-in human is an evaluation member without a reviewer role. Ownership, explicit case assignments and per-run independence remain enforced. Linux/container acceptance is the primary delivery path; Windows compatibility is tracked separately. Runtime acceptance and the remaining approval, scheduling and advanced evidence milestones are still open.
+English: Every initialized signed-in human is an evaluation member without a reviewer role. Ownership, explicit case assignments and per-run independence remain enforced. Linux/container acceptance is the primary delivery path; Windows compatibility is tracked separately. The approval candidate now has PostgreSQL migration coverage and three authenticated browser regressions, but current-SHA CI, deployment and real-user acceptance remain open, as do scheduling and advanced evidence milestones.

@@ -201,11 +201,11 @@ export const capabilitiesSchema = z
   .object({
     schema: z.literal("qa-approval-capabilities.v1"),
     scope: z.literal("approval_capability_diagnostic_only"),
-    approver_login: z.literal("not_implemented"),
+    approver_login: z.literal("assigned_request_only"),
     owner_records_on_behalf: z.literal(true),
     multi_level_policy: z.literal("advisory_only"),
     multi_level_enforcement: z.literal("not_implemented"),
-    notifications: z.literal("not_implemented"),
+    notifications: z.literal("in_app_only"),
     export: z.literal("not_implemented"),
     approval: z.literal("not_authorized"),
     blockers,

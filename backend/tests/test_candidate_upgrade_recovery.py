@@ -34,7 +34,7 @@ from deerflow.persistence.bootstrap import _get_head_revision, bootstrap_schema
 from deerflow.persistence.user.model import UserRow
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.parametrize("prepared", ["eval_0009"], indirect=True)]
-REVISIONS = ("eval_0010", "eval_0011", "eval_0012", "eval_0013", "eval_0014", "eval_0015", "eval_0016")
+REVISIONS = ("eval_0010", "eval_0011", "eval_0012", "eval_0013", "eval_0014", "eval_0015", "eval_0016", "eval_0017")
 ADDITIONS = (
     {"evaluation_review_tasks", "evaluation_review_task_assignments", "evaluation_review_task_decisions", "evaluation_review_task_resolutions", "evaluation_review_task_audit"},
     {"evaluation_run_assessments"},
@@ -43,6 +43,7 @@ ADDITIONS = (
     {"evaluation_external_qa_intakes", "evaluation_external_qa_intake_audit"},
     {"evaluation_run_approvals", "evaluation_approval_audit"},
     {"evaluation_approval_signoff_policies"},
+    {"evaluation_approval_requests", "evaluation_approval_request_events", "evaluation_approval_request_views"},
 )
 PASSWORD = "SYNTHETIC_RECOVERY_PASSWORD_ONLY"
 
@@ -202,13 +203,13 @@ async def test_wal_backup_upgrade_and_independent_old_version_restore(recovery, 
     for target in versions:
         await asyncio.to_thread(upgrade, url, target)
         actual = await asyncio.to_thread(snapshot, candidate)
-        revision = "eval_0016" if target == "head" else target
+        revision = "eval_0017" if target == "head" else target
         expected_names.update(set.union(*ADDITIONS) if target == "head" else ADDITIONS[REVISIONS.index(target)])
         assert set(actual["tables"]) == expected_names
         unchanged(source.original, actual, revision)
         stages.append({"revision": revision, "tables": len(actual["tables"]), "all_historical_tables_unchanged": True})
     await asyncio.to_thread(upgrade, url, "head")
-    unchanged(source.original, await asyncio.to_thread(snapshot, candidate), "eval_0016")
+    unchanged(source.original, await asyncio.to_thread(snapshot, candidate), "eval_0017")
     await verify_reads(source, candidate)
 
     def candidate_write():
@@ -227,7 +228,7 @@ async def test_wal_backup_upgrade_and_independent_old_version_restore(recovery, 
                 "schema": "synthetic-qa-upgrade-recovery.v1",
                 "mode": mode,
                 "from": "eval_0009",
-                "to": "eval_0016",
+                "to": "eval_0017",
                 "all_historical_tables": len(source.original["tables"]),
                 "stages": stages,
                 "snapshot_sha256": digest(source.original),

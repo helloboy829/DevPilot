@@ -436,10 +436,7 @@ test("checks approver sign-off progress without a policy", async ({ page }) => {
           latest_revision: 2,
           latest_decision: "revoked",
           multi_level_satisfied: null,
-          blockers: [
-            "multi_level_policy_not_defined",
-            "approver_login_not_implemented",
-          ],
+          blockers: ["multi_level_policy_not_defined"],
           requirement: {
             schema: "qa-signoff-requirement.v1",
             scope: "technical_signoff_requirement_only",
@@ -543,17 +540,16 @@ test("shows approval capability gaps read-only", async ({ page }) => {
         json: {
           schema: "qa-approval-capabilities.v1",
           scope: "approval_capability_diagnostic_only",
-          approver_login: "not_implemented",
+          approver_login: "assigned_request_only",
           owner_records_on_behalf: true,
           multi_level_policy: "advisory_only",
           multi_level_enforcement: "not_implemented",
-          notifications: "not_implemented",
+          notifications: "in_app_only",
           export: "not_implemented",
           approval: "not_authorized",
           blockers: [
-            "approver_login_not_implemented",
             "multi_level_enforcement_not_implemented",
-            "notification_not_implemented",
+            "external_notification_delivery_not_implemented",
             "approval_export_not_implemented",
           ],
         },
@@ -565,9 +561,11 @@ test("shows approval capability gaps read-only", async ({ page }) => {
     .getByRole("button", { name: "Load approval capabilities", exact: true })
     .click();
   await expect(
-    panel.getByText(/Approval capabilities: owner records on behalf/),
+    panel.getByText(/every initialized user can receive an assignment/),
   ).toBeVisible();
-  await expect(panel.getByText("approver_login_not_implemented")).toBeVisible();
+  await expect(
+    panel.getByText("external_notification_delivery_not_implemented"),
+  ).toBeVisible();
   expect(reads).toBe(1);
   expect(writes).toEqual([]);
 });

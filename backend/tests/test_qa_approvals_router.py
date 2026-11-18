@@ -373,7 +373,7 @@ async def test_approval_signoff_progress_is_aggregate_and_permissioned(api, monk
         "latest_revision": None,
         "latest_decision": None,
         "multi_level_satisfied": None,
-        "blockers": ["multi_level_policy_not_defined", "approver_login_not_implemented"],
+        "blockers": ["multi_level_policy_not_defined"],
     }
     assert (await client.post(root + "/approvals/" + APPROVAL, json=payload(assessment))).status_code == 200
     progress = await client.get(path)

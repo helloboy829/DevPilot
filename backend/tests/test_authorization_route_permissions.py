@@ -311,6 +311,29 @@ async def test_route_permissions_use_builtin_rbac_route_policy(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_initialized_user_and_admin_share_evaluation_member_permissions(monkeypatch):
+    provider = RbacAuthorizationProvider(
+        roles={
+            "user": {"routes": {"allow": []}},
+            "admin": {"routes": {"allow": "*"}},
+        }
+    )
+    _enable_authorization(monkeypatch, provider)
+
+    evaluation_permissions = {
+        Permissions.EVALUATION_PROJECTS_READ,
+        Permissions.EVALUATION_PROJECTS_WRITE,
+        Permissions.EVALUATION_PROJECTS_REVIEW,
+    }
+    resolved = {}
+    for role in ("user", "admin"):
+        permissions = await resolve_route_permissions(_user(system_role=role), is_internal=False)
+        resolved[role] = set(permissions) & evaluation_permissions
+
+    assert resolved == {"user": evaluation_permissions, "admin": evaluation_permissions}
+
+
+@pytest.mark.asyncio
 async def test_authenticate_uses_route_permission_resolution(monkeypatch):
     user = User(email="route-authz@example.com", password_hash="hash")
     permission_resolver = AsyncMock(return_value=[Permissions.THREADS_READ])
