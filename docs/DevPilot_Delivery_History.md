@@ -2,6 +2,10 @@
 
 逐轮原始记录；日期、SHA、候选/部署和通过数均保留原语境，不代表当前状态。当前能力、运行与缺口见[当前交付状态](DevPilot_Delivery_Status.md)。
 
+## 文档架构基线（2026-11-19）
+
+文档合同/进度整理提交 `2d242b128953d3ee3b6447a0e561e95717f96491` 已推送。该精确 SHA 的 Unit Tests `44358161749`（5 jobs）、Frontend Unit Tests `44358161945`、Lint Check `44358161775` 共 **3 workflows / 7 jobs completed / success**。这是 docs/template-only 提交的 CI，不证明候选 `eval_0017` 部署、业务流程或真实目标验收。
+
 ## CI 偶发失败与重跑（2026-11-15）
 
 `a4627c6` 的 Unit Tests 第 1 次尝试在 `tests/test_qa_authenticated_workflow_api.py::test_real_rbac_deny_wins_and_denied_commands_do_not_advance_task[evaluation_projects:read]` 失败：`state.sent == []`（期望 3），其余 **13,564 passed / 19 skipped / 11 deselected / 18 warnings**（737.88s）；job 退出码 2。原始日志 **2,040,605 bytes** 从 Actions 签名 blob 导出，失败上下文显示 `dns=[('example.test', 443)]`、`bodies=[]`，即 `collect` 未产生发送。
@@ -420,7 +424,7 @@ PDF 候选已实际推送 `56c641637d3561f0fa4b5247da01c1549fc2d1d5`，精确 SH
 
 本轮接手时工作区干净，本地及实际远端 `main` 为 `8890bd061f3407b8c187ceaf388dff28aa463b4e`。该完整 SHA 实际触发四项 Actions，均成功：Unit Tests `42573792483`、Frontend Unit Tests `42573792602`、Backend Blocking IO `42573792621`、Lint Check `42573792762`；未触发 E2E，不外推其结果。较早章节保留历史状态，不是本轮运行收据。
 
-首个模块新增单独的 `independent-qa-docx-v1`：人类 owner + read/review，显式历史档案 ID/已查看 hash，复用 off-loop 存档完整性验证并 off-loop 渲染。输出只有冻结 Markdown 与公开历史 assessment 收据；不重开证据/当前任务/模板、不重算指标、不替换 owner 票，旧 `qa-docx-v1` 和历史哈希不变。前端独立下载保持大小/MIME/renderer 校验、ref 锁和迟到响应围栏，无重试或写入重发。合同见[独立 Word](DevPilot_Independent_Word_Drafts.md)；整体缺口和接续顺序见[开发计划](DevPilot_Development_Plan.md)。
+首个模块新增单独的 `independent-qa-docx-v1`：人类 owner + read/review，显式历史档案 ID/已查看 hash，复用 off-loop 存档完整性验证并 off-loop 渲染。输出只有冻结 Markdown 与公开历史 assessment 收据；不重开证据/当前任务/模板、不重算指标、不替换 owner 票，旧 `qa-docx-v1` 和历史哈希不变。前端独立下载保持大小/MIME/renderer 校验、ref 锁和迟到响应围栏，无重试或写入重发。合同见[独立 Word](DevPilot_Independent_Word_Drafts.md)；整体缺口和当时接续顺序见[开发接手记录归档](DevPilot_Development_Notes_Archive_2026-11.md)。
 
 所有依赖从跟踪源码和锁文件重建到本轮专用 Linux Python 3.12/Node 22 容器；PostgreSQL/Redis 只含合成测试数据、无业务挂载或发布端口。依赖安装后容器仅 internal 网络；不复制本机私有配置、数据库、venv 或 node_modules。本机业务容器只读健康元数据，不据此宣称新版部署。
 

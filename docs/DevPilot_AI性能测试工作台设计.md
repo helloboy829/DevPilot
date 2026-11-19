@@ -59,18 +59,18 @@
 
 ## 5. 请求级证据与数据模型
 
-每次派发至少有唯一 `dispatch_id`、run/plan/snapshot hash、case ID/hash、循环 iteration、阶段/档位、预定/实际发送时间、客户端单调耗时、attempt 状态、HTTP status、错误分类、请求/响应 byte 数、request hash、raw response hash/media type、extractor/evaluator revision、token 数及其来源、stream timing、evidence refs。每个有效响应保存受控加密的应用层原始 response body artifact；任何响应 header 只保存 allowlist 元数据。
+每次派发至少有唯一 `dispatch_id`、run/plan/snapshot hash、case ID/hash、循环 iteration、阶段/档位、预定/实际发送时间、客户端单调耗时、attempt 状态、HTTP status、错误分类、请求/响应 byte 数、实际交给 HTTP transport 的应用请求正文 hash、原生 response hash 或 captured-prefix hash/media type/capture status、extractor/evaluator revision、token 数及其来源、stream timing、evidence refs。请求 artifact 是否保存正文由冻结的 `capture_profile` 和预算决定；hash、字节数、RequestSpec/binding/adapter/serializer revision 始终必存，未留正文时只能按这些固定版本重建并验证 hash。每个收到的 response（包括 HTTP error body）均按共享 evidence policy 有界捕获；只有因未收到响应而没有 body。响应 artifact 字节定义、闭合 `capture_status`、预算、加密存储、稳定 ID 和写入恢复统一遵守[效果工作台 EVID-02 合同](DevPilot_效果测试工作台设计.md)，不另造性能专用状态或事务语义。任何响应 header 只保存 allowlist 元数据。
 
 `dispatches` 是负载发送事实，`attempts` 若将来允许人工批准的额外发送必须独立建模；MVP 不重试，同一 ordinal 只对应一次平台发送，`delivery_unknown` 永远不自动重发。性能循环导致的同一 case 多次调用通过 dispatch ordinal/iteration 区分，不覆盖上一条 evidence。
 
 建议 additive App migration：
 
-- `evaluation_response_artifacts`：`run_id/ordinal` 复合引用、artifact id、scope、sha256、bytes、media type、capture status、key version、created time；大正文在受控 artifact storage，不存大 blob 到查询行。
-- `evaluation_request_artifacts`：可选加密映射请求 body artifact、body hash、RequestSpec/binding hash、redaction profile。没有显式保存预算时仅保存 hash 和可重建版本引用。
+- `evaluation_response_artifacts`：`run_id/ordinal` 复合引用、dispatch/artifact id、scope、完整 body hash 或 captured-prefix hash（含 hash scope）、bytes、媒体类型、共享 `capture_status`、key version、receipt 与 created time；大正文在受控 artifact storage，不存大 blob 到查询行。完整 body hash 针对 transfer framing 移除后、`Content-Encoding` 解码前的 transport body；解压/字符集解码是独立有版本的解析投影并有单独展开上限。
+- `evaluation_request_artifacts`：按冻结 capture profile 可选保存加密映射请求 body artifact；实际 transport 请求正文 hash/bytes、RequestSpec/binding/adapter/serializer hash 必存。未保存原文时必须可从冻结版本确定性重建并验证 hash，否则标记不可重建。
 - `evaluation_run_metrics`：run、scenario/step/repeat、metric key、nullable value、unit、applicability、sample count、population hash、aggregation version 和 source hash；同一测量 revision 不原地覆盖。
 - 现有 dispatch journal 增加 `phase`、`iteration_index`、`profile_step_id`、scheduled/start/first-content/finished monotonic observation 和 `capture_status` 所需索引/约束。实施前检查现有复合 FK 与 SQLite/PostgreSQL parity，按迁移版本新增，不直接更改已部署迁移。
 
-artifact 总预算提前 reservation；单条响应 cap、run response-byte cap、总 artifact cap、保留期限与解密权限互相独立。大文件访问须显式授权和审计；敏感正文 no-store，不回显路径；写入未知时按同一 artifact/request ID 只读核对，绝不重新请求目标。DB/文件不能单事务时使用临时文件→内容/hash 校验→原子发布→DB manifest；留下的孤儿仅按精确 receipt 清理。
+artifact 总预算提前 reservation；单条响应 cap、run response-byte cap、总 artifact cap、保留期限与解密权限互相独立。大文件访问须显式授权和审计；敏感正文 no-store，不回显路径。请求和响应 artifact 都由共享 EVID-02 协议处理：dispatch 前分配稳定 ID 并写 `pending` manifest，response body 以同 ID 临时加密写入、校验 hash/size、原子发布，再写 durable receipt/manifest；DB 结果未知时只对同一 ID 只读对账，绝不重新请求目标或创建替代 ID。发布对象但 manifest 未确认的内容进入隔离治理；只有证实无引用并越过保留期后，才按精确 ID 清理。`pending/complete/partial/truncated/policy_skipped/not_received/write_failed/write_unknown/unavailable_legacy` 等状态对分母和 assessment blocker 的含义以共享合同为准；任何失败、未知或不完整响应都不能从冻结人口中删除。
 
 ## 6. Worker/模块架构
 
@@ -122,16 +122,13 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 
 ## 9. 开发切片与验收
 
-| 切片                      | 范围                                                                                                        | 退出条件                                                                                              |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| P1 场景契约               | profile schema、case-cycle manifest、count/duration stop、预算 preflight                                    | 无 expected 用例可选；请求数越过数据集大小按冻结序列循环；任何无上限/溢出/空数据/并发越界在调用前拒绝 |
-| P2 请求级 ledger/evidence | dispatch phase/iteration、raw response artifact、request/response hash、allowlist headers、分预算和保留审计 | 逐 ordinal 完全可对账；重复 case 不覆盖；超过预算部分 run 明示 incomplete；取消和未知提交不重发       |
-| P3 纯指标核心             | 延迟/错误/吞吐/分位数/token/stream/source/applicability                                                     | 人工可算小 fixture 对照；warmup/drain 不混入 measurement；失败/censored/p99 小样本等分支全测          |
-| P4 性能计划/授权 API      | 冻结 scenario、执行 admission、预算和 run receipt                                                           | 确认绑定 exact plan/data/endpoint snapshot，权限/目标/预算变更撤销确认，重复写原 ID 对账              |
-| P5 性能工作台             | 配置步骤、预检、阶段运行、summary、档位比较、request table/detail                                           | 计数与 DB/hash/summary 相符；可从 summary 下钻任一失败或未知请求；空/失败/取消/部分运行无假绿色       |
-| P6 AIPerf adapter spike   | 隔离适配器、合成校准、协议和依赖扫描                                                                        | 未通过五项第三方 adapter gate 前不进入生产执行选择；不加用户可任意选择工具开关                        |
-| P7 场景矩阵               | 并发/速率阶梯、重复/冷却、worker 资源监测与 benchmark compare                                               | 每档结果独立保存，可复算，不挑最好档，不把发生器瓶颈写成目标瓶颈                                      |
-| P8 多模态/Agent workload  | 图像/音频/embedding/多轮轨迹专用 schema                                                                     | 各 adapter 有 request/evidence/token/质量定义；单一 text JSON schema 不假装通用                       |
+| 切片                              | 范围                                                                                                                                                         | 退出条件                                                                                                                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PERF-01 场景与准入                | profile schema、case-cycle manifest、count/duration stop、冻结计划、admission 与预算 preflight                                                               | 无 expected 用例可选；请求数越过数据集大小按冻结序列循环；任何无上限/溢出/空数据/并发越界在调用前拒绝；确认绑定 exact plan/data/endpoint snapshot，权限/目标/预算变化撤销确认               |
+| PERF-02 worker、ledger 与指标核心 | dispatch phase/iteration、EVID-02 artifact、request/response hash、allowlist headers、预算/保留审计、延迟/错误/吞吐/分位数/token/stream/source/applicability | 逐 ordinal 完全可对账；重复 case 不覆盖；超过预算部分 run 明示 incomplete；取消和未知提交不重发；人工可算 fixture 对照；warmup/drain 不混入 measurement；失败/censored/p99 小样本等分支全测 |
+| PERF-03 性能工作台与场景矩阵      | 配置步骤、预检、阶段运行、summary、档位比较、request table/detail、并发/速率阶梯和 worker 资源                                                               | 计数与 DB/hash/summary 相符；可从 summary 下钻任一失败或未知请求；空/失败/取消/部分运行无假绿色；每档独立保存，不挑最好档，不把发生器瓶颈写成目标瓶颈                                       |
+| PERF-04 AIPerf adapter spike      | 隔离适配器、合成校准、协议和依赖扫描                                                                                                                         | 未通过第三方 adapter gate 前不进入生产执行选择；不加用户可任意选择工具开关                                                                                                                  |
+| 后续扩展                          | 图像/音频/embedding/多轮 Agent workload 专用 schema                                                                                                          | 各 adapter 先定义 request/evidence/token/质量，不以单一 text JSON schema 假装通用；独立进入 backlog 后再实现                                                                                |
 
 回归覆盖 request count 大于 N 的 exact cycle、duration 优先终止、warmup、steady window、drain 截尾、固定时间戳、延迟分位数、rate scheduling/迟到、token source、无流式 N/A、流被 buffer、cancel/lease/fence/unknown delivery、超限响应、artifact partial write 与重建。CI 只用确定性本地假服务；真实服务需有隔离手动授权的验收计划。
 

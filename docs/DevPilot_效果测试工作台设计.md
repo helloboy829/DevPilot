@@ -8,7 +8,7 @@
 
 工作台读取运行快照及不可变证据，不直接调用目标、不重跑、不修改输入/原始响应或自动生成审批。发送仍由单独授权的执行流程完成；查看敏感输入、expected/reference 和原始请求/响应都要经过独立的显式访问动作并记录审计。盲审阶段按冻结的盲审规则隐藏参考答案；获得对应任务权限且流程允许揭盲后才能访问。调用完成、结构有效、人工判定和最终批准分别显示。
 
-无 expected 的输入用例仍可执行。详情显示“无参考答案”；金标对比指标标记 `UNAVAILABLE`。若已有冻结 schema/规则/rubric 或人工评估，则显示对应依据和结果；否则显示 `NOT_EVALUATED`，绝不把请求成功显示成效果通过。
+无 expected 的输入用例仍可进行已授权调用并采集原生响应。详情显示“无参考答案”；金标对比指标标记 `UNAVAILABLE`。若已有冻结 schema/规则/rubric 或人工评估，则显示对应依据和结果；若方案将缺失的 reference 指标列为必需且无等价的独立方法，assessment 为 `BLOCKED`；没有任何适用依据时为 `NOT_EVALUATED`。这些评估状态不回头拦截授权采集，也绝不把请求成功显示成效果通过。
 
 ## 2. 用户流程与页面结构
 
@@ -34,26 +34,28 @@
 
 ### 样本列表 DTO
 
-`GET /api/evaluation/projects/{project_id}/runs/{run_id}/cases` 返回权限过滤的固定分页。响应元数据包含 `scope=effectiveness_result_list.v1`、`run_id`、`snapshot_hash`、`assessment_revision`、`next_cursor`、固定 `total` 和计数快照。每行至少包含：
+`GET /api/evaluation/projects/{project_id}/runs/{run_id}/cases` 返回权限过滤的固定分页。响应元数据包含 `scope=effectiveness_result_list.v1`、`run_id`、`snapshot_hash`、`assessment_revision`、viewer visibility scope/revision、`next_cursor`、固定 `total` 和只按当前 viewer 可见字段计算的计数快照。游标绑定可见性 scope/revision，任务/轮次/揭盲变化后旧游标失效。每行至少包含：
 
 - `case_id`、冻结 ordinal、输入摘要/hash、`reference_status`、来源引用摘要和切片。
-- `dispatch_state`、技术 kind、HTTP status、send/start/end 时间、`latency_ms`、响应字节、错误类别、请求/响应 evidence 是否存在。
+- `dispatch_state`、技术 kind、HTTP status、send/start/end 时间、`latency_ms`、响应字节、错误类别、请求/响应 evidence 是否存在及其 capture status。
 - 每个 metric 的 `value`、unit、`applicability`、分子/分母或 null reason；自动判断 revision 和判定依据 hash。
-- 最新人工决定、决定 revision、待办状态；人工结果与自动判断分字段返回。
+- 经当前用户任务/轮次/揭盲状态过滤后的人工决定摘要、决定 revision、待办状态；人工结果与自动判断分字段返回。盲审期间只返回本人可见的任务状态/本人决定，不返回其他审核者的决定、理由、身份或裁判参考答案；揭盲须由合同授权的独立状态转换产生并审计。
 
-游标绑定 run、snapshot hash、查询条件 hash 和最后一条稳定排序键；不支持客户端传入 owner。游标/排序/计数不能触发解密 reference 或响应。
+游标绑定 run、snapshot hash、查询条件 hash、viewer visibility scope/revision 和最后一条稳定排序键；不支持客户端传入 owner。游标/排序/计数不能触发解密 reference 或响应，且只能统计该 viewer 当前有权看到的字段，不能泄漏盲审决定数量。
 
 ### 单条详情 DTO
 
-`GET /api/evaluation/projects/{project_id}/runs/{run_id}/cases/{case_id}` 只返回普通元数据：case/dispatch 身份、输入摘要/hash（不含正文）、来源定位、reference 是否提供及状态、RequestSpec/binding revision、映射后请求 hash、响应 hash/大小/媒体类型、已解析输出摘要、评估指标、错误类别、技术时间和复核历史摘要。输入全文、expected/reference 内容与原始请求/响应不由列表或普通详情自动展开。
+`GET /api/evaluation/projects/{project_id}/runs/{run_id}/cases/{case_id}` 只返回普通元数据：case/dispatch 身份、输入摘要/hash（不含正文）、来源定位、reference 是否提供及状态、RequestSpec/binding revision、映射后请求 hash、response hash 或 prefix hash/大小/媒体类型/capture status、已解析输出摘要、评估指标、错误类别、技术时间和按当前用户任务/轮次/揭盲状态过滤的复核历史摘要。决定、理由、审核者身份、rubric 与 reference 按字段单独授权；盲审期间不得从 summary、列表、详情或游标计数侧信道泄露他人决定。输入全文、expected/reference 内容与原始请求/响应不由列表或普通详情自动展开。
 
-请求视图使用相同冻结数据、RequestSpec、binding 和 adapter 版本重建/校验实际发送请求，并比较 `request_body_hash`。原始请求正文若需持久留存则存加密 artifact；任何 API key、Authorization/Cookie、敏感 query、代理头都不得落库或返回。不得把 expected、rubric 私有答案或裁判上下文放入目标请求。
+每次 dispatch 都必须记录实际交给 HTTP transport 的应用请求正文 SHA-256、字节数，以及 RequestSpec、binding、adapter/serializer revision；这证明确定性重建与实际发送内容一致。原始请求正文是否保存为加密 artifact，必须由冻结的 `capture_profile` 和预算预先决定。未保存时，详情只能从冻结输入与确切版本重建，并校验重建 hash；缺版本或 hash 不符时标记不可重建，不得伪造原始请求。URL 只留 allowlist 投影的 scheme/host/port 和经审查的路径模板，不保存原始敏感 path/query、API key、Authorization/Cookie 或代理头。不得把 expected、rubric 私有答案或裁判上下文放入目标请求。
 
 ### 敏感证据打开
 
-正文通过独立动作取得：`POST /api/evaluation/projects/{project_id}/runs/{run_id}/cases/{case_id}/evidence-access`，body 为严格 DTO：证据类型（input/reference/request/response/stream）、`confirmed=true` 和当前 evidence hash。服务端重新验证项目归属与成员权限、精确任务指派和盲审阶段（reference）、运行/计划/hash、证据状态与大小，追加含访问者、对象、类型和授权依据的审计后返回短时 opaque `access_id`。随后 `GET .../evidence/{access_id}` 返回 `Cache-Control: no-store` 的受控内容或有界 Range 流。input/reference 读取与原始请求/响应读取分别授权、分别审计；reference 的明文访问不得绕过盲审。失败不返回路径、凭据或解密异常。
+正文通过独立动作取得：`POST /api/evaluation/projects/{project_id}/runs/{run_id}/cases/{case_id}/evidence-access`，body 为严格 DTO：证据类型（input/reference/request/response/stream）、`confirmed=true` 和当前 evidence hash。服务端重新验证项目归属与成员权限、精确任务指派和盲审阶段、运行/计划/hash、证据状态与大小，追加含访问者、对象、类型和授权依据的审计后返回短时 opaque `access_id`。随后 `GET .../evidence/{access_id}` 返回 `Cache-Control: no-store` 的受控内容或有界 Range 流。input/reference 读取与原始请求/响应读取分别授权、分别审计；reference 的明文访问不得绕过盲审。项目成员资格本身不授予盲审任务中的他人决定、理由或裁判答案访问权。失败不返回路径、凭据或解密异常。
 
-打开动作不修改 run/assessment。下载作为独立确认操作；不能以图片/HTML/SVG inline 渲染，不能通过未转义 Markdown 展示，二进制与超限正文走附件下载。expected/reference、rubric 私有答案和裁判上下文始终与目标请求隔离。原始响应正文必须是运行边界收到的未作语义转换的 body（传输层解压后的应用正文），同时保存 SHA-256、字节数和 `capture_status`。HTTP headers 仅保存安全 allowlist 元数据，不保存凭据、Set-Cookie、任意回显头。
+打开动作不修改 run/assessment。下载作为独立确认操作；不能以图片/HTML/SVG inline 渲染，不能通过未转义 Markdown 展示，二进制与超限正文走附件下载。expected/reference、rubric 私有答案和裁判上下文始终与目标请求隔离。原生 response artifact 的规范字节是 HTTP transfer framing 移除后、`Content-Encoding` 解码前由 transport 暴露的 response body bytes；SHA-256、字节数和上限均针对这组字节。`Content-Encoding`/charset 仅来自安全 header allowlist；解压或字符集解码形成独立、有版本的解析投影，不覆盖原始 artifact/hash，并受单独解压后大小上限约束。超过捕获上限时最多消费并计数到 `max_bytes + 1`，只保存不超过 `max_bytes` 的前缀并记录 `truncated`，不得将前缀伪称完整响应。HTTP headers 仅保存安全 allowlist 元数据，不保存凭据、Set-Cookie、任意回显头。
+
+`capture_status` 使用闭合枚举：`pending`、`complete`、`partial`、`truncated`、`policy_skipped`、`not_received`、`write_failed`、`write_unknown`、`unavailable_legacy`。`complete` 的 hash 覆盖完整规范 response body；`partial`/`truncated` 只可保存 `captured_prefix_hash` 和已捕获字节数，不能伪装成完整 response hash。`truncated` 表示超过冻结捕获上限；`partial` 表示传输/worker 中断导致 body 不完整。新 manifest 从 `pending` 进入一个终态；只允许 `write_unknown` 经同一 artifact ID 对账后确认为 `complete`、`partial`、`truncated`、`policy_skipped`、`not_received` 或 `write_failed`。`unavailable_legacy` 仅用于历史数据且为终态。dispatch 前预建稳定 artifact ID 和 `pending` manifest；响应到达后以同一 ID 写临时加密对象、校验 hash/size、原子发布对象，再写入 durable receipt/manifest。数据库结果未知时只按原 artifact ID 只读对账，不重发目标请求、不创建替代 ID；已发布但未被 manifest 引用的对象进入隔离治理，只有确定无引用且超过保留期后才可按精确 ID 清理。`write_failed`/`write_unknown` 不抹去已发生的 dispatch/响应观察，也不从冻结分母剔除；依赖完整 raw evidence 的评估为 `BLOCKED`。显式 `policy_skipped` 只有在冻结方案允许且其他判定证据足够时才可评估。旧 run 为 `unavailable_legacy`，不补造正文。
 
 ### 解析与评估视图
 
@@ -75,7 +77,7 @@
 5. `POST .../evidence-access` + `GET .../evidence/{access_id}`：双步骤明文访问、审计、短时绑定、大小/媒体类型限制。
 6. 可选 `GET /projects/{id}/runs/{run_id}/events`：仅在服务端已有确定事件源时支持显式订阅；否则用用户触发的刷新，不加入 mount-fetch、静默长轮询或自动重试。
 
-人审写接口维持既有 revision/hash CAS 和追加式决定语义。结果浏览 API 不改变复核任务权限、盲审、仲裁和签核合同；访问输入全文或参考答案不因用户属于项目成员而自动放宽既有任务指派、盲审或运行内职责分离。
+人审写接口维持既有 revision/hash CAS 和追加式决定语义。结果浏览 API 不改变复核任务权限、盲审、仲裁和签核合同；owner 复核兼容 API 不能直接充当盲审 reviewer 的证据授权。访问输入全文、参考答案或决定历史不因用户属于项目成员而自动放宽任务指派、盲审揭盲规则或运行内职责分离。
 
 ## 5. 前后端模块落点
 
@@ -92,12 +94,12 @@
 
 ## 7. 开发切片与退出条件
 
-| 切片                | 工作内容                                                                               | 退出条件                                                                               |
-| ------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| E1 结果查询合同     | RunSummary / CasePage / CaseDetail DTO、cursor、过滤与权限                             | owner 隔离、跨项目 ID、篡改 cursor/hash 均拒绝；查询不解密 expected/raw body           |
-| E2 原生 evidence    | 受控 artifact、body hash/size/content type、header allowlist、审计打开                 | 原始 body byte fixture hash 一致；超限/缺密钥/写失败不标采集完整；写入不重发目标       |
-| E3 结果浏览器       | 运行摘要、case table、分页/筛选、详情 tabs、无 evidence/无 expected/错误/部分 run 状态 | 切项目迟到响应丢弃；普通详情无敏感正文；view/download 需显式授权，键盘和窄屏可用       |
-| E4 评估与复核联动   | 自动依据、metric applicability、reference status、人工 revision 联动                   | fixture 可重算且 hash 固定；人审不覆盖 observation/automatic judgment；无依据不得 PASS |
-| E5 浏览器与数据体积 | 大响应/分页、缓存、签名访问与保留策略                                                  | no-store、越权/Range/HTML/SVG/secret 回归；大样本页面不卡顿，不自动加载正文            |
+| 权威功能 ID      | 工作内容                                                                                                 | 退出条件                                                                                                                                                           |
+| ---------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| EVID-02          | 共享 attempt 的有界原生请求/响应 evidence、稳定 artifact ID、capture ledger、加密存储/receipt 与失败恢复 | 字节层/hash fixture 一致；状态闭合；partial/truncated 仅有 prefix hash；超限/缺密钥/写失败不标完整；未知写入 exact-ID 对账且绝不重发目标；SQLite/PostgreSQL parity |
+| EFF-01           | RunSummary / CasePage / CaseDetail DTO、cursor、过滤与权限                                               | owner 隔离、跨项目 ID、篡改 cursor/hash 均拒绝；查询不解密 expected/raw body；盲审列表无他人决定侧信道                                                             |
+| EFF-02           | 分类型 evidence grant/access ID、访问审计、盲审/任务权限与有界读取                                       | 越权、错误轮次、reference 揭盲前、未知 artifact/hash 与失效 grant 均拒绝；no-store、Range/HTML/SVG/secret 回归                                                     |
+| EFF-03           | 运行摘要、case table、分页/筛选、详情 tabs、无 evidence/无 expected/错误/部分 run 状态                   | 切项目迟到响应丢弃；普通详情无敏感正文；view/download 需显式授权，键盘和窄屏可用，大样本不自动加载正文                                                             |
+| ASMT-01 / REV-01 | 自动依据、metric applicability、reference status、按任务可见的人工 revision 联动                         | fixture 可重算且 hash 固定；人审不覆盖 observation/automatic judgment；无依据不得 PASS；盲审历史按揭盲规则过滤                                                     |
 
-每个切片先添加失败后端/前端回归；合成 Mock 服务验证，无真实模型或目标默认访问。完成代码后还需准确 SHA CI 和业务端验收，不用旧 run/旧 CI 当证据。
+实现顺序与唯一功能 ID 以[模块进度](DevPilot_实现进度与下一步.md)为准；本表不另造 E1/E2 编号。每个切片先添加失败后端/前端回归；合成 Mock 服务验证，无真实模型或目标默认访问。完成代码后还需准确 SHA CI 和业务端验收，不用旧 run/旧 CI 当证据。
