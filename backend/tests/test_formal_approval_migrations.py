@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from _migration_snapshot import snapshot_rows
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
@@ -39,7 +40,7 @@ def migrate(url, target):
 
 async def rows(engine):
     async with engine.connect() as conn:
-        return {table.name: [dict(row) for row in (await conn.execute(select(table).order_by(*table.primary_key.columns))).mappings()] for table in OLD}
+        return await conn.run_sync(lambda connection: snapshot_rows(connection, OLD))
 
 
 async def prepare_harness_tables(engine):

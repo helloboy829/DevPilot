@@ -2,14 +2,13 @@
 
 import pytest
 from sqlalchemy import delete, event, insert, update
+from test_dispatch_journal import prepared as prepared
 
 from app.evaluation import tables as t
 from app.evaluation.dispatch_journal import JournalLimits, TechnicalObservation
 from app.evaluation.qa_result_cursor import InvalidResultCursor
 from app.evaluation.qa_results import ResultRepository, StaleResultCursor
 from app.evaluation.repository import NotFound
-
-pytest_plugins = ("test_dispatch_journal",)
 
 
 @pytest.mark.asyncio

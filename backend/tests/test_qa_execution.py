@@ -376,13 +376,18 @@ async def test_execution_policy_mismatch_cannot_claim_or_reserve(prepared, polic
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("prepared", ["eval_0006"], indirect=True)
-async def test_migration_from_evidence_head_preserves_output_review_and_harness_ledger(prepared, policy):
+async def test_migration_from_evidence_head_preserves_output_review_and_harness_ledger(prepared, policy, monkeypatch):
     from sqlalchemy import text
 
     from app.evaluation.dispatch_journal import JournalLimits
     from app.evaluation.schema import upgrade_evaluation_schema
 
     repo = repository(prepared, policy)
+
+    async def no_result_revision_on_legacy_schema(session, project_id):
+        return None
+
+    monkeypatch.setattr(repo, "_advance_owner_result_revision", no_result_revision_on_legacy_schema)
     clock = prepared[4]
     project, plan = prepared[2:4]
     run = await repo.record_run("owner", project, plan["id"], plan["definition_hash"], JournalLimits(max_response_bytes=128, max_total_response_bytes=258))

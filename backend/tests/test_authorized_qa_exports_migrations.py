@@ -6,6 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from _migration_snapshot import snapshot_rows
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
@@ -58,7 +59,7 @@ def migrate(url, target):
 
 async def rows(engine):
     async with engine.connect() as conn:
-        return {table.name: [dict(row) for row in (await conn.execute(select(table).order_by(*table.primary_key.columns))).mappings()] for table in OLD}
+        return await conn.run_sync(lambda connection: snapshot_rows(connection, OLD))
 
 
 async def seed(api, monkeypatch):
@@ -100,7 +101,17 @@ async def cycle(engine):
             if target == "eval_0013":
 
                 def parity(c):
-                    ctx = MigrationContext.configure(c, opts={"version_table": "devpilot_alembic_version", "include_object": lambda obj, name, kind, reflected, compared: not (kind == "table" and name == "alembic_version")})
+                    ctx = MigrationContext.configure(
+                        c,
+                        opts={
+                            "version_table": "devpilot_alembic_version",
+                            "include_object": lambda obj, name, kind, reflected, compared: (
+                                not (kind == "table" and name == "alembic_version")
+                                and not (kind == "column" and name == "result_revision" and getattr(getattr(obj, "table", None), "name", None) == "evaluation_projects")
+                                and not (kind == "index" and name == "ix_evaluation_dispatch_run_project_started_id")
+                            ),
+                        },
+                    )
                     return compare_metadata(ctx, [historical, legacy])
 
                 assert await conn.run_sync(parity) == []

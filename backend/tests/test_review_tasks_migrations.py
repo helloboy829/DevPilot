@@ -6,11 +6,12 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from _migration_snapshot import snapshot_rows
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import inspect, select, text
+from sqlalchemy import inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 from test_dispatch_journal import prepared as prepared
@@ -73,7 +74,7 @@ async def test_additive_upgrade_downgrade_and_repeat_preserve_every_previous_tab
 
     async def snapshot():
         async with engine.connect() as conn:
-            return {table.name: [dict(row) for row in (await conn.execute(select(table))).mappings()] for table in old}
+            return await conn.run_sync(lambda connection: snapshot_rows(connection, old))
 
     before = await snapshot()
     for revision in ("head", "head", "eval_0009", "head"):

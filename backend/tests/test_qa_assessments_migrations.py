@@ -6,6 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from _migration_snapshot import snapshot_rows
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
@@ -66,7 +67,7 @@ async def test_additive_upgrade_repeat_downgrade_preserve_all_previous_tables(ta
 
     async def snapshot():
         async with engine.connect() as conn:
-            return {table.name: [dict(r) for r in (await conn.execute(select(table).order_by(*table.primary_key.columns))).mappings()] for table in old}
+            return await conn.run_sync(lambda connection: snapshot_rows(connection, old))
 
     before = await snapshot()
     for down in (False, False, True, False):
