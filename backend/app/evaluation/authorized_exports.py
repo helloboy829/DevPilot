@@ -546,7 +546,15 @@ class ExportRepository(PlanRepository):
         row.update(owner_id=owner, request_hash=request_hash, document=document, encrypted_bundle=token, receipt_hash=fingerprint({"owner_id": owner, "request_hash": request_hash, "document": document}))
         try:
             async with self.sf.begin() as session:
-                locked = (await session.execute(update(t.projects).where(t.projects.c.id == project_id, t.projects.c.owner_id == owner).values(id=t.projects.c.id).returning(t.projects))).mappings().first()
+                locked = (
+                    (
+                        await session.execute(
+                            update(t.projects).where(t.projects.c.id == project_id, t.projects.c.owner_id == owner).values(id=t.projects.c.id).returning(t.projects.c.id, t.projects.c.owner_id, t.projects.c.name, t.projects.c.created_at)
+                        )
+                    )
+                    .mappings()
+                    .first()
+                )
                 if locked is None:
                     raise NotFound
                 # Sources are immutable via normal APIs; also fence unexpected direct changes.

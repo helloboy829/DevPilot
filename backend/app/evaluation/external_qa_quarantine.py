@@ -279,7 +279,15 @@ class ExternalQAIntakeRepository(EvaluationRepository):
         result = await asyncio.to_thread(_decode, row, snapshot)
         try:
             async with self.sf.begin() as session:
-                locked = (await session.execute(update(t.projects).where(t.projects.c.id == project_id, t.projects.c.owner_id == owner).values(id=t.projects.c.id).returning(t.projects))).mappings().first()
+                locked = (
+                    (
+                        await session.execute(
+                            update(t.projects).where(t.projects.c.id == project_id, t.projects.c.owner_id == owner).values(id=t.projects.c.id).returning(t.projects.c.id, t.projects.c.owner_id, t.projects.c.name, t.projects.c.created_at)
+                        )
+                    )
+                    .mappings()
+                    .first()
+                )
                 if locked is None:
                     raise NotFound
                 if _json(dict(locked)) != _json(snapshot["project"]) or _json(snapshot) != _json(await self._source(session, owner, project_id, payload.export_id, lock=True)):
