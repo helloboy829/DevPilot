@@ -8,7 +8,7 @@
 
 DAT-02/EVID-02/EFF-01 的候选源码及 `eval_0018..0020` 已随 `a3a48b6` 推送到 GitHub `main`，`05be2f0` 补齐 Ruff 格式；尚未部署。Windows 全量后端未通过，隔离 Linux 旧快照的通过记录不能代替这次提交的验证。精确 SHA、Actions 和快照证据见[交付状态](DevPilot_Delivery_Status.md)。
 
-2026-11-21 当前待提交改动已完成隔离 Linux/Python 3.12 全量 `make test`：**13,761 passed / 27 skipped / 11 deselected / 40 warnings / 7 subtests passed，exit 0，19:07**；`make lint`、`make test-blocking-io`（72 passed）和 PostgreSQL 迁移定向测试（2 passed）也通过。两次先前全量运行的 QA 独立审核用例失败本轮未复现，根因仍未知。待提交修改为 `eval_0020` DESC 索引和历史 schema 快照反射测试；当前旧 SHA `adfd6d4` 的 CI 失败仅属该 SHA，不能代替本次候选的 Actions 状态。下一步提交并推送本轮变更，按新 SHA 跟踪 Actions 终态，同时保留 `.patch-test` 不提交。详细记录见[交付状态](DevPilot_Delivery_Status.md)。
+2026-11-21 本轮全量 `make test` 在隔离 Linux/Python 3.12 通过：**13,761 passed / 27 skipped / 11 deselected / 40 warnings / 7 subtests passed，exit 0，19:07**；`make lint`、`make test-blocking-io`（72 passed）和 PostgreSQL 迁移定向测试（2 passed）也通过。修正及记录已推送，提交 SHA 为 `2d45c03f704d390653e5d5a291fe915441cb6c8c`；该 SHA 的 Unit Tests、Frontend Unit Tests、Lint Check、Backend Blocking IO 工作流均成功，详见[交付状态](DevPilot_Delivery_Status.md)。两次先前全量运行的 QA 独立审核不同用例失败本轮未复现，根因仍未知。保留 `.patch-test` 不提交。
 
 下一步先排查安装后合成 API 导出失败，再按 EFF-02 分类证据授权与访问 → EFF-03 浏览器推进，PERF-01..04 仍待开发。旧 `devpilot.toolkit.perf.perf_run()` 仍是实际 HTTP 负载发送器，不是纯指标模块；可复用的指标函数、legacy PASS/FAIL 隔离和旧入口退出门槛见功能矩阵及性能工作台合同。
 
