@@ -1,6 +1,6 @@
 # DevPilot 效果测试工作台设计
 
-> 状态：目标规格，待实现。已部署基线有冻结计划、显式执行授权、派发账本、加密提取文本和逐条人工复核。未提交/未部署的 EVID-02 工作区候选新增原生响应加密 artifact/manifest，但尚无结果查询、敏感证据访问 API 或独立效果结果浏览器；当前复核 UI 仍只显示解析后的 `output`，用户不能浏览原生响应。实现状态以[交付状态](DevPilot_Delivery_Status.md)为准。
+> 状态：目标规格，待实现。已部署基线有冻结计划、显式执行授权、派发账本、加密提取文本和逐条人工复核。已推送但未部署的 EVID-02 候选增加原生响应加密 artifact/manifest；EFF-01 元数据查询 API 也已推送，但尚无敏感证据访问 API 或独立效果结果浏览器。当前复核 UI 仍只显示解析后的 `output`，用户不能浏览原生响应。实现状态以[交付状态](DevPilot_Delivery_Status.md)为准。
 
 ## 1. 目标与边界
 
@@ -68,7 +68,7 @@
 
 `capture_status` 使用闭合枚举：`pending`、`complete`、`partial`、`truncated`、`policy_skipped`、`not_received`、`write_failed`、`write_unknown`、`unavailable_legacy`。`complete` 的 hash 覆盖完整规范 response body；`partial`/`truncated` 只可保存 `captured_prefix_hash` 和已捕获字节数，不能伪装成完整 response hash。`truncated` 表示超过冻结捕获上限；`partial` 表示传输/worker 中断导致 body 不完整。新 manifest 从 `pending` 进入一个终态；只允许 `write_unknown` 经同一 artifact ID 对账后确认为 `complete`、`partial`、`truncated`、`policy_skipped`、`not_received` 或 `write_failed`。`unavailable_legacy` 仅用于历史数据且为终态。dispatch 前预建稳定 artifact ID 和 `pending` manifest；响应到达后以同一 ID 写临时加密对象、校验 hash/size、原子发布对象，再写入 durable receipt/manifest。数据库结果未知时只按原 artifact ID 只读对账，不重发目标请求、不创建替代 ID；已发布但未被 manifest 引用的对象进入隔离治理，只有确定无引用且超过保留期后才可按精确 ID 清理。`write_failed`/`write_unknown` 不抹去已发生的 dispatch/响应观察，也不从冻结分母剔除；依赖完整 raw evidence 的评估为 `BLOCKED`。显式 `policy_skipped` 只有在冻结方案允许且其他判定证据足够时才可评估。旧 run 为 `unavailable_legacy`，不补造正文。
 
-持久性平台边界：当前工作区 artifact-store 候选在 POSIX 上先 `fsync` 临时文件，再原子发布文件名并 `fsync` 分片目录；目录同步失败不得返回成功 receipt。该保证针对支持目录 `fsync` 的本地文件系统，不自动涵盖网络文件系统或其存储控制器/硬件故障。当前非 POSIX 实现对目录同步是 no-op，因此不能声称已提供同等的崩溃持久性或 durable receipt；在完成平台专属持久化实现与故障测试前，非 POSIX 写入必须视作未通过 EVID-02 持久性验收，不能据此签核或上线。
+持久性平台边界：已推送、未部署的 artifact-store 候选在 POSIX 上先 `fsync` 临时文件，再原子发布文件名并 `fsync` 分片目录；目录同步失败不得返回成功 receipt。该保证针对支持目录 `fsync` 的本地文件系统，不自动涵盖网络文件系统或其存储控制器/硬件故障。非 POSIX 平台显式拒绝目录同步与成功的 durable receipt。在完成平台专属持久化实现与故障测试前，不能宣称该平台支持 EVID-02 持久写入。
 
 ### 解析与评估视图
 
@@ -107,9 +107,9 @@
 
 当前 `evaluation_output_evidence` 是加密提取文本，不是原生响应；新字段/表必须 additive migration。历史记录标记 `raw_response_capture=unavailable_legacy`，不从提取文本伪造原始 body，也不补造旧请求正文。
 
-当前工作区候选 `eval_0018` 已新增加密原生响应 body artifact/manifest 和 capture receipt；它记录实际请求的 hash、字节数与 contract identity，但没有保存原始 request body。2026-11-20 对应冻结候选快照完成后端离线套件及 migration/recovery/PostgreSQL 专项验证，精确范围与文件清单摘要见[交付状态](DevPilot_Delivery_Status.md)。该验证不等于提交 SHA CI、部署或业务验收；候选仍没有查询或解密接口，不能据此声称评测人员已可查看原生响应。
+已推送、未部署的候选 `eval_0018` 已新增加密原生响应 body artifact/manifest 和 capture receipt；它记录实际请求的 hash、字节数与 contract identity，但没有保存原始 request body。2026-11-20 对应冻结候选快照完成后端离线套件及 migration/recovery/PostgreSQL 专项验证，精确范围与文件清单摘要见[交付状态](DevPilot_Delivery_Status.md)。该验证不等于提交 SHA CI、部署或业务验收；结果 API 仅查询元数据，尚无正文授权读取接口，不能据此声称评测人员已可查看原生响应。
 
-实施顺序调整为：候选快照已验证的 POSIX response artifact 状态、预算和未知写入恢复保留其验证收据；补齐 request body artifact 合同及非 POSIX 等价持久化/失败关闭，并完成对应门禁后，推进权限受控结果 API、证据 access API 与 UI；旧计划只提供只读兼容展示。只有新 plan schema 显式选择 `capture_profile` 并冻结 evidence budgets 后才承诺新证据完整性。
+已提交 EFF-01 结果元数据 API；下一步先实现 EFF-02 response 正文的分类授权读取与访问审计，再接 EFF-03 工作台。未保存的 request body 继续标为不可用，非 POSIX 写入保持失败关闭；两者不以试读或伪造证据补齐。旧计划只提供只读兼容展示。只有新 plan schema 显式选择 `capture_profile` 并冻结 evidence budgets 后才承诺新证据完整性。
 
 ## 7. 开发切片与退出条件
 
