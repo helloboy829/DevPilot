@@ -264,17 +264,11 @@ async def test_deployed_0007_additive_upgrade_preserves_data_and_harness(capture
         await conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
         await conn.execute(text("INSERT INTO alembic_version VALUES ('synthetic_harness')"))
         assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0007"
-        before = {
-            table.name: [dict(row) for row in (await conn.execute(select(*(column for column in table.c if column.name != "result_revision")) if table is t.projects else select(table))).mappings()]
-            for table in preserved
-        }
+        before = {table.name: [dict(row) for row in (await conn.execute(select(*(column for column in table.c if column.name != "result_revision")) if table is t.projects else select(table))).mappings()] for table in preserved}
     await upgrade_evaluation_schema(engine)
     await upgrade_evaluation_schema(engine)
     async with engine.connect() as conn:
-        after = {
-            table.name: [dict(row) for row in (await conn.execute(select(*(column for column in table.c if column.name != "result_revision")) if table is t.projects else select(table))).mappings()]
-            for table in preserved
-        }
+        after = {table.name: [dict(row) for row in (await conn.execute(select(*(column for column in table.c if column.name != "result_revision")) if table is t.projects else select(table))).mappings()] for table in preserved}
         assert after == before
         assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "synthetic_harness"

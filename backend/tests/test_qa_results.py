@@ -380,7 +380,6 @@ async def test_run_list_rejects_revision_change_during_page_projection(prepared,
         await repository.list_runs("owner", project, limit=1)
 
 
-
 @pytest.mark.asyncio
 async def test_run_cursor_becomes_stale_when_a_visible_run_changes(prepared):
     journal, engine, project, plan, _ = prepared

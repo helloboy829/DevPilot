@@ -31,13 +31,17 @@ class EvaluationRepository:
     @staticmethod
     async def _project(session, owner, project_id):
         row = (
-            await session.execute(
-                select(t.projects.c.id, t.projects.c.owner_id, t.projects.c.name, t.projects.c.created_at).where(
-                    t.projects.c.id == project_id,
-                    t.projects.c.owner_id == owner,
+            (
+                await session.execute(
+                    select(t.projects.c.id, t.projects.c.owner_id, t.projects.c.name, t.projects.c.created_at).where(
+                        t.projects.c.id == project_id,
+                        t.projects.c.owner_id == owner,
+                    )
                 )
             )
-        ).mappings().first()
+            .mappings()
+            .first()
+        )
         if row is None:
             raise NotFound
         return dict(row)

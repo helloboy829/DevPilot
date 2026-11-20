@@ -349,9 +349,7 @@ class ResultRepository(PlanRepository):
         filters = self._run_filters(filters)
         async with self.sf() as session:
             await self._project(session, owner, project_id)
-            project_result_revision = await session.scalar(
-                select(t.projects.c.result_revision).where(t.projects.c.id == project_id)
-            )
+            project_result_revision = await session.scalar(select(t.projects.c.result_revision).where(t.projects.c.id == project_id))
             result_version = self._digest({"project_result_revision": project_result_revision})
             join = t.dispatch_runs.join(
                 t.plans,
@@ -395,10 +393,7 @@ class ResultRepository(PlanRepository):
 
             page_criteria = list(criteria)
             if after is not None:
-                page_criteria.append(
-                    (t.dispatch_runs.c.started_at_ms < after[0])
-                    | and_(t.dispatch_runs.c.started_at_ms == after[0], t.dispatch_runs.c.id > after[1])
-                )
+                page_criteria.append((t.dispatch_runs.c.started_at_ms < after[0]) | and_(t.dispatch_runs.c.started_at_ms == after[0], t.dispatch_runs.c.id > after[1]))
             columns = [t.dispatch_runs.c[name] for name in t.dispatch_runs.c.keys()]
             columns.extend(
                 [
@@ -410,15 +405,7 @@ class ResultRepository(PlanRepository):
                     t.plans.c.definition_hash.label("joined_definition_hash"),
                 ]
             )
-            candidate_rows = (
-                await session.execute(
-                    select(*columns)
-                    .select_from(join)
-                    .where(*page_criteria)
-                    .order_by(t.dispatch_runs.c.started_at_ms.desc(), t.dispatch_runs.c.id.asc())
-                    .limit(limit + 1)
-                )
-            ).mappings().all()
+            candidate_rows = (await session.execute(select(*columns).select_from(join).where(*page_criteria).order_by(t.dispatch_runs.c.started_at_ms.desc(), t.dispatch_runs.c.id.asc()).limit(limit + 1))).mappings().all()
             candidates = []
             for row in candidate_rows:
                 run = {column.name: row[column.name] for column in t.dispatch_runs.c}
@@ -431,10 +418,7 @@ class ResultRepository(PlanRepository):
                     "definition_hash": row["joined_definition_hash"],
                 }
                 candidates.append((run, plan))
-            page_items = [
-                await self._run_summary_projection(session, owner, project_id, run, plan)
-                for run, plan in candidates[:limit]
-            ]
+            page_items = [await self._run_summary_projection(session, owner, project_id, run, plan) for run, plan in candidates[:limit]]
             next_cursor = None
             if len(candidates) > limit and page_items:
                 last = candidates[limit - 1][0]
@@ -445,9 +429,7 @@ class ResultRepository(PlanRepository):
                     },
                     self._cursor_secret,
                 )
-            current_project_result_revision = await session.scalar(
-                select(t.projects.c.result_revision).where(t.projects.c.id == project_id)
-            )
+            current_project_result_revision = await session.scalar(select(t.projects.c.result_revision).where(t.projects.c.id == project_id))
             if current_project_result_revision != project_result_revision:
                 raise StaleResultCursor
             return {
