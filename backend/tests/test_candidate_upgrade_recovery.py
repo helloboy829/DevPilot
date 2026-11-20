@@ -107,23 +107,23 @@ def unchanged(before, after, revision):
     for name, rows in before["tables"].items():
         if name == "devpilot_alembic_version":
             expected = [json.dumps([revision], separators=(",", ":"))]
-        elif name == "evaluation_projects" and revision in {"eval_0019", "eval_0020"}:
+        elif name == "evaluation_projects" and revision in {"eval_0019", "eval_0020", "eval_0021"}:
             expected = sorted(json.dumps(json.loads(row) + [0], ensure_ascii=True, separators=(",", ":")) for row in rows)
         else:
             expected = rows
         assert after["tables"][name] == expected, "Historical table changed: " + name
     old_names = before["tables"].keys()
-    before_definitions = [row for row in before["definitions"] if not (revision in {"eval_0019", "eval_0020"} and row[1] == "evaluation_projects")]
+    before_definitions = [row for row in before["definitions"] if not (revision in {"eval_0019", "eval_0020", "eval_0021"} and row[1] == "evaluation_projects")]
     after_definitions = [
         row
         for row in after["definitions"]
-        if row[2] in old_names and not (revision in {"eval_0019", "eval_0020"} and row[1] == "evaluation_projects") and not (revision == "eval_0020" and row[1] == "ix_evaluation_dispatch_run_project_started_id")
+        if row[2] in old_names and not (revision in {"eval_0019", "eval_0020", "eval_0021"} and row[1] == "evaluation_projects") and not (revision in {"eval_0020", "eval_0021"} and row[1] == "ix_evaluation_dispatch_run_project_started_id")
     ]
     assert after_definitions == before_definitions
-    if revision in {"eval_0019", "eval_0020"}:
+    if revision in {"eval_0019", "eval_0020", "eval_0021"}:
         project_definition = next(row[3] for row in after["definitions"] if row[1] == "evaluation_projects")
         assert "result_revision" in project_definition
-    if revision == "eval_0020":
+    if revision in {"eval_0020", "eval_0021"}:
         index_definition = next(row[3] for row in after["definitions"] if row[1] == "ix_evaluation_dispatch_run_project_started_id")
         assert "started_at_ms" in index_definition and "project_id" in index_definition
 

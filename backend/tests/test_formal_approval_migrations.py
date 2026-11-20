@@ -20,7 +20,17 @@ from app.evaluation import tables as t
 from deerflow.persistence.component_tests.model import ComponentRow
 from deerflow.persistence.user.model import UserRow
 
-NEW = {t.run_approvals.name, t.approval_audit.name, t.approval_signoff_policies.name, t.approval_requests.name, t.approval_request_events.name, t.approval_request_views.name, t.response_artifacts.name}
+NEW = {
+    t.run_approvals.name,
+    t.approval_audit.name,
+    t.approval_signoff_policies.name,
+    t.approval_requests.name,
+    t.approval_request_events.name,
+    t.approval_request_views.name,
+    t.response_artifacts.name,
+    t.evidence_access_grants.name,
+    t.evidence_access_audit.name,
+}
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name not in NEW | {"devpilot_alembic_version"}]]
 
 

@@ -28,7 +28,7 @@ from app.evaluation.qa_approvals import ApprovalCreate
 from deerflow.config.database_config import DatabaseConfig
 from deerflow.persistence.component_tests.model import ComponentRow
 
-NEW = {t.approval_requests.name, t.approval_request_events.name, t.approval_request_views.name, t.response_artifacts.name}
+NEW = {t.approval_requests.name, t.approval_request_events.name, t.approval_request_views.name, t.response_artifacts.name, t.evidence_access_grants.name, t.evidence_access_audit.name}
 OLD = [ComponentRow.__table__, *[table for table in t.metadata.sorted_tables if table.name not in NEW]]
 
 

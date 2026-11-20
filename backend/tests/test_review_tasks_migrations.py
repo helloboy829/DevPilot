@@ -43,6 +43,8 @@ AFTER_EVAL_0009 = {
     t.approval_request_events.name,
     t.approval_request_views.name,
     t.response_artifacts.name,
+    t.evidence_access_grants.name,
+    t.evidence_access_audit.name,
 }
 
 
