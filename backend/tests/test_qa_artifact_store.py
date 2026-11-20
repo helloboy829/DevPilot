@@ -40,6 +40,12 @@ def artifact_store(tmp_path):
     return ResponseArtifactStore(tmp_path / "response-evidence", Fernet.generate_key())
 
 
+@pytest.fixture
+def range_artifact_store(tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    return ResponseArtifactStore(tmp_path / "response-evidence", Fernet.generate_key())
+
+
 def test_publish_encrypts_raw_bytes_and_returns_a_verifiable_receipt(artifact_store):
     artifact_id = "1" * 32
     body = b"\x00native response\xff"
@@ -175,6 +181,39 @@ def test_artifact_context_prevents_cross_run_reads(artifact_store):
 
     with pytest.raises(RequestProtectionError):
         artifact_store.open(artifact_id, _binding(project_id="other-project"))
+
+
+def test_open_range_returns_only_requested_inclusive_bytes(range_artifact_store):
+    artifact_id = "a" * 32
+    body = b"0123456789"
+    range_artifact_store.publish(artifact_id, body, _binding(), _metadata(body))
+
+    metadata, ranged, content_range = range_artifact_store.open_range(artifact_id, _binding(), "bytes=2-5")
+
+    assert metadata == _metadata(body)
+    assert ranged == b"2345"
+    assert content_range == "bytes 2-5/10"
+
+
+@pytest.mark.parametrize("range_header", ["bytes=5-2", "bytes=10-", "bytes=0-1,4-5", "items=0-1", "bytes=-0"])
+def test_open_range_rejects_invalid_or_unsatisfiable_ranges(range_artifact_store, range_header):
+    artifact_id = "b" * 32
+    body = b"0123456789"
+    range_artifact_store.publish(artifact_id, body, _binding(), _metadata(body))
+
+    with pytest.raises(RequestProtectionError, match="range"):
+        range_artifact_store.open_range(artifact_id, _binding(), range_header)
+
+
+def test_open_range_caps_large_end_at_frozen_body_length(range_artifact_store):
+    artifact_id = "c" * 32
+    body = b"0123456789"
+    range_artifact_store.publish(artifact_id, body, _binding(), _metadata(body))
+
+    _, ranged, content_range = range_artifact_store.open_range(artifact_id, _binding(), "bytes=7-999999")
+
+    assert ranged == b"789"
+    assert content_range == "bytes 7-9/10"
 
 
 def test_inspect_is_read_only_and_reports_only_sealed_object_metadata(artifact_store):

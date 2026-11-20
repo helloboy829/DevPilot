@@ -39,6 +39,7 @@ async def api(tmp_path):
         )
     app = FastAPI()
     app.state.evaluation_repo = EvaluationRepository(sf)
+    app.state.test_artifact_root = tmp_path / "qa-artifacts"
     app.state.actor = 1
     app.state.internal = False
     app.state.permissions = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_WRITE, Permissions.EVALUATION_PROJECTS_REVIEW]

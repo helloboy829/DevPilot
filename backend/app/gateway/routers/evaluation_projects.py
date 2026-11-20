@@ -21,7 +21,7 @@ from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.plans import AcceptancePlanCreate, PlanCreate, PlanPreflightError
 from app.evaluation.qa_approvals import ApprovalCreate, ApprovalRepository, SignoffPolicySet, approval_identifier
 from app.evaluation.qa_assessments import AssessmentCreate, AssessmentRepository
-from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
+from app.evaluation.qa_evidence import EvidenceAccessCreate, EvidenceRepository, ReviewCreate
 from app.evaluation.qa_independent_archives import IndependentArchiveCreate, IndependentReportRepository, IndependentRetestCreate, IndependentRetestRepository, independent_templates
 from app.evaluation.qa_reports import ArchiveCreate, ReportArchiveRepository, archive_templates
 from app.evaluation.qa_result_cursor import InvalidResultCursor, StaleResultCursor
@@ -341,6 +341,34 @@ async def review_case(project_id: str, run_id: str, ordinal: int, payload: Revie
     if not 1 <= ordinal <= 10_000:
         raise HTTPException(422, "Invalid case ordinal")
     return await _result(EvidenceRepository(repository.sf).review_case(owner, project_id, run_id, ordinal, payload))
+
+
+@router.post("/{project_id}/review-runs/{run_id}/cases/{ordinal}/evidence-access")
+@require_permission("evaluation_projects", "read")
+@require_permission("evaluation_projects", "review")
+async def create_response_evidence_access(project_id: str, run_id: str, ordinal: int, payload: EvidenceAccessCreate, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    if not 1 <= ordinal <= 10_000:
+        raise HTTPException(422, "Invalid case ordinal", headers={"Cache-Control": "private, no-store"})
+    return await _result(EvidenceRepository(repository.sf).create_evidence_access(owner, project_id, run_id, ordinal, payload))
+
+
+@router.get("/{project_id}/evidence/{access_id}")
+@require_permission("evaluation_projects", "read")
+async def read_response_evidence(project_id: str, access_id: str, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    try:
+        result = await _result(EvidenceRepository(repository.sf).read_evidence_access(owner, access_id, request.headers.get("range"), project_id=project_id))
+    except RequestProtectionError as exc:
+        status = 416 if "range" in str(exc).lower() else 503
+        raise HTTPException(status, "Evidence is unavailable", headers={"Cache-Control": "private, no-store"}) from None
+    headers = {"Cache-Control": "private, no-store", "Content-Disposition": 'attachment; filename="response-evidence.bin"'}
+    if result["content_range"]:
+        headers["Content-Range"] = result["content_range"]
+        headers["Accept-Ranges"] = "bytes"
+    return Response(content=result["body"], status_code=result["status_code"], media_type="application/octet-stream", headers=headers)
 
 
 async def _execution_context(request, project_id):

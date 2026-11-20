@@ -374,6 +374,56 @@ response_artifacts = Table(
 )
 Index("ix_evaluation_response_artifact_status_time", response_artifacts.c.status, response_artifacts.c.updated_at_ms)
 
+# Short-lived, actor-bound grants and metadata-only access audit. Raw tokens and
+# response bytes never enter either table.
+evidence_access_grants = Table(
+    "evaluation_evidence_access_grants",
+    metadata,
+    Column("token_hash", String(64), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("ordinal", Integer, nullable=False),
+    Column("artifact_id", String(32), nullable=False),
+    Column("actor_id", String(64), nullable=False),
+    Column("evidence_kind", String(16), nullable=False),
+    Column("evidence_hash", String(64), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("expires_at_ms", BigInteger, nullable=False),
+    Column("consumed_at_ms", BigInteger, nullable=True),
+    Column("revoked_at_ms", BigInteger, nullable=True),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    ForeignKeyConstraint(["run_id", "ordinal"], ["evaluation_dispatches.run_id", "evaluation_dispatches.ordinal"]),
+    ForeignKeyConstraint(["artifact_id"], ["evaluation_response_artifacts.id"]),
+    CheckConstraint("length(token_hash) = 64 AND token_hash = lower(token_hash)", name="ck_evaluation_evidence_grant_token_hash"),
+    CheckConstraint("evidence_kind = 'response' AND length(evidence_hash) = 64", name="ck_evaluation_evidence_grant_evidence"),
+    CheckConstraint("ordinal BETWEEN 1 AND 10000 AND length(actor_id) BETWEEN 1 AND 64", name="ck_evaluation_evidence_grant_subject"),
+    CheckConstraint("created_at_ms > 0 AND expires_at_ms > created_at_ms AND expires_at_ms - created_at_ms <= 300000", name="ck_evaluation_evidence_grant_expiry"),
+    CheckConstraint("consumed_at_ms IS NULL OR consumed_at_ms >= created_at_ms", name="ck_evaluation_evidence_grant_consumed"),
+    CheckConstraint("revoked_at_ms IS NULL OR revoked_at_ms >= created_at_ms", name="ck_evaluation_evidence_grant_revoked"),
+)
+evidence_access_audit = Table(
+    "evaluation_evidence_access_audit",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("sequence", Integer, nullable=False),
+    Column("ordinal", Integer, nullable=False),
+    Column("actor_id", String(64), nullable=False),
+    Column("evidence_kind", String(16), nullable=False),
+    Column("evidence_hash", String(64), nullable=False),
+    Column("action", String(16), nullable=False),
+    Column("authorization_basis", String(32), nullable=False),
+    Column("at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"]),
+    ForeignKeyConstraint(["run_id", "ordinal"], ["evaluation_dispatches.run_id", "evaluation_dispatches.ordinal"]),
+    UniqueConstraint("run_id", "sequence", name="uq_evaluation_evidence_audit_sequence"),
+    CheckConstraint("sequence BETWEEN 1 AND 10000000 AND ordinal BETWEEN 1 AND 10000", name="ck_evaluation_evidence_audit_sequence"),
+    CheckConstraint("evidence_kind = 'response' AND length(evidence_hash) = 64", name="ck_evaluation_evidence_audit_evidence"),
+    CheckConstraint("action IN ('granted','read') AND authorization_basis = 'project_member'", name="ck_evaluation_evidence_audit_action"),
+    CheckConstraint("length(actor_id) BETWEEN 1 AND 64 AND at_ms > 0", name="ck_evaluation_evidence_audit_actor_clock"),
+)
+
 # Independent human execution admission; journal scope remains metadata-only.
 execution_guard = Table(
     "evaluation_execution_guard",

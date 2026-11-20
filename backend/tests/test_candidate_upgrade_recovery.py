@@ -34,7 +34,7 @@ from deerflow.persistence.bootstrap import _get_head_revision, bootstrap_schema
 from deerflow.persistence.user.model import UserRow
 
 pytestmark = pytest.mark.asyncio
-REVISIONS = ("eval_0010", "eval_0011", "eval_0012", "eval_0013", "eval_0014", "eval_0015", "eval_0016", "eval_0017", "eval_0018", "eval_0019", "eval_0020")
+REVISIONS = ("eval_0010", "eval_0011", "eval_0012", "eval_0013", "eval_0014", "eval_0015", "eval_0016", "eval_0017", "eval_0018", "eval_0019", "eval_0020", "eval_0021")
 ADDITIONS = (
     {"evaluation_review_tasks", "evaluation_review_task_assignments", "evaluation_review_task_decisions", "evaluation_review_task_resolutions", "evaluation_review_task_audit"},
     {"evaluation_run_assessments"},
@@ -47,6 +47,7 @@ ADDITIONS = (
     {"evaluation_response_artifacts"},
     set(),
     set(),
+    {"evaluation_evidence_access_grants", "evaluation_evidence_access_audit"},
 )
 PASSWORD = "SYNTHETIC_RECOVERY_PASSWORD_ONLY"
 
@@ -242,13 +243,13 @@ async def test_wal_backup_upgrade_and_independent_old_version_restore(recovery, 
     for target in versions:
         await asyncio.to_thread(upgrade, url, target)
         actual = await asyncio.to_thread(snapshot, candidate)
-        revision = "eval_0020" if target == "head" else target
+        revision = "eval_0021" if target == "head" else target
         expected_names.update(set.union(*ADDITIONS) if target == "head" else ADDITIONS[REVISIONS.index(target)])
         assert set(actual["tables"]) == expected_names
         unchanged(source.original, actual, revision)
         stages.append({"revision": revision, "tables": len(actual["tables"]), "all_historical_tables_unchanged": True})
     await asyncio.to_thread(upgrade, url, "head")
-    unchanged(source.original, await asyncio.to_thread(snapshot, candidate), "eval_0020")
+    unchanged(source.original, await asyncio.to_thread(snapshot, candidate), "eval_0021")
     await verify_reads(source, candidate)
 
     def candidate_write():
@@ -267,7 +268,7 @@ async def test_wal_backup_upgrade_and_independent_old_version_restore(recovery, 
                 "schema": "synthetic-qa-upgrade-recovery.v1",
                 "mode": mode,
                 "from": "eval_0009",
-                "to": "eval_0020",
+                "to": "eval_0021",
                 "all_historical_tables": len(source.original["tables"]),
                 "stages": stages,
                 "snapshot_sha256": digest(source.original),

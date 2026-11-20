@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import secrets
 from typing import Literal
 
 from pydantic import Field, field_validator
@@ -23,7 +24,7 @@ from app.evaluation.plan_repository import _verified_inputs
 from app.evaluation.qa_artifact_store import ResponseArtifactStore
 from app.evaluation.qa_attempts import AttemptObservation
 from app.evaluation.registry import fingerprint
-from app.evaluation.repository import Conflict
+from app.evaluation.repository import Conflict, NotFound
 from app.evaluation.request_protection import RequestProtectionError
 
 
@@ -42,6 +43,19 @@ class ReviewCreate(StrictDTO):
         except UnicodeError:
             raise ValueError("Invalid review text") from None
         return value
+
+    @field_validator("confirmed", mode="before")
+    @classmethod
+    def explicit_confirmation(cls, value):
+        if value is not True:
+            raise ValueError("Explicit boolean confirmation required")
+        return value
+
+
+class EvidenceAccessCreate(StrictDTO):
+    kind: str = Field(min_length=1, max_length=16)
+    evidence_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmed: Literal[True]
 
     @field_validator("confirmed", mode="before")
     @classmethod
@@ -120,6 +134,157 @@ class EvidenceRepository(DispatchJournalRepository):
 
     def _response_artifact_store(self):
         return self.response_artifact_store if self.response_artifact_store is not None else ResponseArtifactStore.from_environment()
+
+    @staticmethod
+    async def _evidence_access_event(session, run, ordinal, actor, evidence_hash, action, at):
+        sequence = (await session.execute(select(func.max(t.evidence_access_audit.c.sequence)).where(t.evidence_access_audit.c.run_id == run["id"]))).scalar_one() or 0
+        await session.execute(
+            insert(t.evidence_access_audit).values(
+                id=secrets.token_hex(16),
+                project_id=run["project_id"],
+                run_id=run["id"],
+                sequence=sequence + 1,
+                ordinal=ordinal,
+                actor_id=actor,
+                evidence_kind="response",
+                evidence_hash=evidence_hash,
+                action=action,
+                authorization_basis="project_member",
+                at_ms=at,
+            )
+        )
+
+    async def create_evidence_access(self, actor, project_id, run_id, ordinal, payload: EvidenceAccessCreate):
+        payload = EvidenceAccessCreate.model_validate(payload.model_dump())
+        if payload.kind != "response":
+            raise Conflict
+        snapshot, _ = await self._read_verified(actor, project_id, run_id, ordinal)
+        async with self._transaction() as session:
+            run = await self._journal(session, actor, project_id, run_id, lock=True)
+            current = await self._snapshot(session, actor, project_id, run_id, ordinal, run=run)
+            if snapshot != current:
+                raise Conflict
+            artifact = (
+                (
+                    await session.execute(
+                        select(t.response_artifacts).where(
+                            t.response_artifacts.c.run_id == run_id,
+                            t.response_artifacts.c.ordinal == ordinal,
+                        )
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if artifact is None or artifact["status"] != "complete" or artifact["hash_scope"] != "full" or artifact["response_sha256"] != payload.evidence_hash or artifact["sealed_sha256"] is None or artifact["receipt_hash"] is None:
+                raise Conflict
+            dispatch = (
+                (
+                    await session.execute(
+                        select(t.dispatches).where(
+                            t.dispatches.c.run_id == run_id,
+                            t.dispatches.c.ordinal == ordinal,
+                        )
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if dispatch is None:
+                raise Conflict
+            binding = {
+                "owner_id": actor,
+                "project_id": project_id,
+                "run_id": run_id,
+                "ordinal": ordinal,
+                "sample_id": dispatch["sample_id"],
+                "plan_hash": run["plan_hash"],
+            }
+            receipt = await asyncio.to_thread(self._response_artifact_store().inspect, artifact["id"], binding)
+            if receipt is None or receipt["body_sha256"] != payload.evidence_hash or receipt["sealed_sha256"] != artifact["sealed_sha256"] or fingerprint(receipt) != artifact["receipt_hash"]:
+                raise Conflict
+            token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
+            at = self._time()
+            expires = at + 300_000
+            await session.execute(
+                insert(t.evidence_access_grants).values(
+                    token_hash=token_hash,
+                    project_id=project_id,
+                    run_id=run_id,
+                    ordinal=ordinal,
+                    artifact_id=artifact["id"],
+                    actor_id=actor,
+                    evidence_kind="response",
+                    evidence_hash=payload.evidence_hash,
+                    created_at_ms=at,
+                    expires_at_ms=expires,
+                )
+            )
+            await self._evidence_access_event(session, run, ordinal, actor, payload.evidence_hash, "granted", at)
+        return {"access_id": token, "expires_at_ms": expires, "evidence_kind": "response", "evidence_hash": payload.evidence_hash}
+
+    async def read_evidence_access(self, actor, access_id, range_header=None, *, project_id=None):
+        if type(access_id) is not str or not 32 <= len(access_id) <= 128:
+            raise NotFound
+        token_hash = hashlib.sha256(access_id.encode("ascii", errors="ignore")).hexdigest()
+        at = self._time()
+        async with self.sf() as session:
+            grant = (
+                (
+                    await session.execute(
+                        select(t.evidence_access_grants).where(
+                            t.evidence_access_grants.c.token_hash == token_hash,
+                            t.evidence_access_grants.c.actor_id == actor,
+                            t.evidence_access_grants.c.consumed_at_ms.is_(None),
+                            t.evidence_access_grants.c.revoked_at_ms.is_(None),
+                            t.evidence_access_grants.c.expires_at_ms > at,
+                        )
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if grant is None or (project_id is not None and grant["project_id"] != project_id):
+                raise NotFound
+            project_id, run_id, ordinal = grant["project_id"], grant["run_id"], grant["ordinal"]
+            artifact = (await session.execute(select(t.response_artifacts).where(t.response_artifacts.c.id == grant["artifact_id"]))).mappings().first()
+            run = (await session.execute(select(t.dispatch_runs).where(t.dispatch_runs.c.id == run_id, t.dispatch_runs.c.project_id == project_id))).mappings().first()
+            dispatch = (await session.execute(select(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ordinal))).mappings().first()
+            if artifact is None or run is None or dispatch is None or artifact["status"] != "complete" or artifact["response_sha256"] != grant["evidence_hash"]:
+                raise Conflict
+            owner = grant["actor_id"]
+            binding = {"owner_id": owner, "project_id": project_id, "run_id": run_id, "ordinal": ordinal, "sample_id": dispatch["sample_id"], "plan_hash": run["plan_hash"]}
+        snapshot, _ = await self._read_verified(actor, project_id, run_id, ordinal)
+        store = self._response_artifact_store()
+        receipt = await asyncio.to_thread(store.inspect, grant["artifact_id"], binding)
+        if receipt is None or receipt["body_sha256"] != grant["evidence_hash"] or receipt["sealed_sha256"] != artifact["sealed_sha256"] or fingerprint(receipt) != artifact["receipt_hash"]:
+            raise RequestProtectionError("Response artifact integrity check failed")
+        metadata, body, content_range = await asyncio.to_thread(store.open_range, grant["artifact_id"], binding, range_header)
+        if metadata["capture_status"] != "complete":
+            raise Conflict
+        async with self._transaction() as session:
+            run_row = await self._journal(session, actor, project_id, run_id, lock=True)
+            if snapshot != await self._snapshot(session, actor, project_id, run_id, ordinal, run=run_row):
+                raise Conflict
+            current_artifact = (await session.execute(select(t.response_artifacts).where(t.response_artifacts.c.id == grant["artifact_id"]))).mappings().first()
+            if current_artifact is None or any(current_artifact[key] != artifact[key] for key in ("status", "response_sha256", "sealed_sha256", "receipt_hash")):
+                raise Conflict
+            locked = await session.execute(
+                update(t.evidence_access_grants)
+                .where(
+                    t.evidence_access_grants.c.token_hash == token_hash,
+                    t.evidence_access_grants.c.actor_id == actor,
+                    t.evidence_access_grants.c.consumed_at_ms.is_(None),
+                    t.evidence_access_grants.c.revoked_at_ms.is_(None),
+                    t.evidence_access_grants.c.expires_at_ms > self._time(),
+                )
+                .values(consumed_at_ms=self._time())
+            )
+            if locked.rowcount != 1:
+                raise NotFound
+            await self._evidence_access_event(session, run_row, ordinal, actor, grant["evidence_hash"], "read", self._time())
+        return {"body": body, "content_type": "application/octet-stream", "status_code": 206 if content_range else 200, "content_range": content_range}
 
     async def record_request_capture(self, owner, project_id, run_id, ticket, *, body_sha256, body_bytes, contract_version):
         if (

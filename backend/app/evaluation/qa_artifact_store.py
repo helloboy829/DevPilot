@@ -225,6 +225,31 @@ class ResponseArtifactStore:
             raise RequestProtectionError("Response artifact is unavailable") from None
         return self._decode(artifact_id, sealed, binding)
 
+    def open_range(self, artifact_id: str, binding: dict, range_header: str | None) -> tuple[dict, bytes, str | None]:
+        metadata, body = self.open(artifact_id, binding)
+        if range_header is None:
+            return metadata, body, None
+        if type(range_header) is not str or len(range_header) > 128:
+            raise RequestProtectionError("Invalid response range")
+        match = re.fullmatch(r"bytes=(\d*)-(\d*)", range_header)
+        if match is None or not body:
+            raise RequestProtectionError("Invalid response range")
+        first, last = match.groups()
+        if not first and not last:
+            raise RequestProtectionError("Invalid response range")
+        if first:
+            start = int(first)
+            end = min(int(last), len(body) - 1) if last else len(body) - 1
+            if start >= len(body) or end < start:
+                raise RequestProtectionError("Invalid response range")
+        else:
+            suffix_length = int(last)
+            if suffix_length <= 0:
+                raise RequestProtectionError("Invalid response range")
+            start = max(0, len(body) - suffix_length)
+            end = len(body) - 1
+        return metadata, body[start : end + 1], f"bytes {start}-{end}/{len(body)}"
+
     def inspect(self, artifact_id: str, binding: dict) -> dict | None:
         """Read-only receipt for reconciliation; never changes or recreates data."""
         path = self._path(artifact_id)

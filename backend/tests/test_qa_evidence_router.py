@@ -13,7 +13,11 @@ from app.gateway.authz import Permissions
 
 
 async def setup_evidence(api, monkeypatch):
+    from app.evaluation.qa_artifact_store import ResponseArtifactStore
+
     client, app, base, _ = api
+    monkeypatch.setenv("DEVPILOT_QA_ARTIFACT_DIR", str(app.state.test_artifact_root))
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     path, payload = await setup_plan(api, monkeypatch)
     plan = (await client.post(path, json=payload)).json()
     repo = EvidenceRepository(app.state.evaluation_repo.sf)
@@ -98,6 +102,108 @@ async def test_unavailable_key_keeps_metadata_accessible_and_errors_private(api,
         assert response.status_code == 200 and "encrypted_payload" not in response.text
     failed = await client.get(root + "/cases/1")
     assert failed.status_code == 503 and "no-store" in failed.headers["cache-control"] and "SYNTHETIC" not in failed.text
+
+
+@pytest.mark.asyncio
+async def test_response_evidence_requires_explicit_grant_and_is_actor_bound(api, monkeypatch):
+    client, app, base, _ = api
+    root = await setup_evidence(api, monkeypatch)
+    run_id = root.rsplit("/", 1)[1]
+    cases = (await client.get(f"{base}/runs/{run_id}/cases")).json()["items"]
+    evidence_hash = cases[0]["response_evidence"]["sha256"]
+    assert cases[0]["response_evidence"]["status"] == "complete"
+    grant_path = f"{root}/cases/1/evidence-access"
+
+    def read_path(access_id):
+        return f"{base}/evidence/{access_id}"
+
+    grant = await client.post(grant_path, json={"kind": "response", "evidence_hash": evidence_hash, "confirmed": True})
+    assert grant.status_code == 200, grant.text
+    token = grant.json()["access_id"]
+    assert "SYNTHETIC_RAW_RESPONSE" not in grant.text
+
+    wrong_project_path = f"/api/evaluation/projects/{'f' * 32}/evidence/{token}"
+    assert (await client.get(wrong_project_path)).status_code == 404
+    app.state.actor = 2
+    assert (await client.get(read_path(token))).status_code == 404
+    app.state.actor = 1
+    response = await client.get(read_path(token))
+    assert response.status_code == 200
+    assert response.content == b"SYNTHETIC_RAW_RESPONSE"
+    assert "no-store" in response.headers["cache-control"]
+    assert response.headers["content-type"] == "application/octet-stream"
+    assert "attachment" in response.headers["content-disposition"]
+    assert (await client.get(read_path(token))).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_evidence_grant_requires_intact_artifact_receipt(api, monkeypatch):
+    client, _, base, _ = api
+    root = await setup_evidence(api, monkeypatch)
+    from app.evaluation.qa_artifact_store import ResponseArtifactStore
+
+    monkeypatch.setattr(ResponseArtifactStore, "inspect", lambda *_args: None)
+    run_id = root.rsplit("/", 1)[1]
+    cases = (await client.get(f"{base}/runs/{run_id}/cases")).json()["items"]
+    evidence_hash = cases[0]["response_evidence"]["sha256"]
+    response = await client.post(
+        f"{root}/cases/1/evidence-access",
+        json={"kind": "response", "evidence_hash": evidence_hash, "confirmed": True},
+    )
+    assert response.status_code == 409
+    assert "access_id" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_evidence_grant_rejects_unavailable_kind_and_stale_hash(api, monkeypatch):
+    client, _, base, _ = api
+    root = await setup_evidence(api, monkeypatch)
+    grant_path = f"{root}/cases/1/evidence-access"
+
+    unavailable = await client.post(grant_path, json={"kind": "request", "evidence_hash": "0" * 64, "confirmed": True})
+    assert unavailable.status_code == 409
+    stale = await client.post(grant_path, json={"kind": "response", "evidence_hash": "0" * 64, "confirmed": True})
+    assert stale.status_code == 409
+    assert "SYNTHETIC" not in unavailable.text + stale.text
+
+
+@pytest.mark.asyncio
+async def test_response_evidence_range_reject_does_not_consume_grant(api, monkeypatch):
+    client, _, base, _ = api
+    root = await setup_evidence(api, monkeypatch)
+    run_id = root.rsplit("/", 1)[1]
+    cases = (await client.get(f"{base}/runs/{run_id}/cases")).json()["items"]
+    evidence_hash = cases[0]["response_evidence"]["sha256"]
+    grant = await client.post(
+        f"{root}/cases/1/evidence-access",
+        json={"kind": "response", "evidence_hash": evidence_hash, "confirmed": True},
+    )
+    assert grant.status_code == 200
+    evidence_url = f"{base}/evidence/{grant.json()['access_id']}"
+
+    invalid = await client.get(evidence_url, headers={"Range": "bytes=999999-"})
+    assert invalid.status_code == 416
+    assert "no-store" in invalid.headers["cache-control"]
+
+    ranged = await client.get(evidence_url, headers={"Range": "bytes=0-3"})
+    assert ranged.status_code == 206
+    assert ranged.content == b"SYNT"
+    assert ranged.headers["content-range"] == "bytes 0-3/22"
+    assert ranged.headers["accept-ranges"] == "bytes"
+    assert (await client.get(evidence_url)).status_code == 404
+
+
+@pytest.mark.parametrize("confirmed", [False, 1, "true", None])
+@pytest.mark.asyncio
+async def test_evidence_grant_requires_literal_confirmation(api, monkeypatch, confirmed):
+    client, _, base, _ = api
+    root = await setup_evidence(api, monkeypatch)
+    response = await client.post(
+        f"{root}/cases/1/evidence-access",
+        json={"kind": "response", "evidence_hash": "0" * 64, "confirmed": confirmed},
+    )
+    assert response.status_code == 422
+    assert "no-store" in response.headers["cache-control"]
 
 
 @pytest.mark.parametrize("changes", [{"confirmed": 1}, {"confirmed": False}, {"expected_revision": True}, {"note": "SYNTHETIC_SECRET" * 2000}, {"output": "SYNTHETIC_FORGED"}])
