@@ -1,5 +1,6 @@
 """Private human-only retest API, synthetic data and no outbound requests."""
 
+import hashlib
 from uuid import UUID, uuid4
 
 import pytest
@@ -27,7 +28,30 @@ async def setup_pair(api, monkeypatch):
         clock["ms"] += 1000
         run = await repo.record_run(owner, project, plan["id"], plan["definition_hash"], JournalLimits(max_response_bytes=128, max_total_response_bytes=129))
         ticket = await repo.record_dispatch(owner, project, run["id"], 1, body_bytes=20)
-        await repo.record_attempt(owner, project, run["id"], ticket, AttemptObservation("output_collected", 200, 30, 12.0, "SYNTHETIC_OUTPUT"))
+        request_body, response_body = b"SYNTHETIC_REQUEST", b"SYNTHETIC_RAW_RESPONSE"
+        request_hash = hashlib.sha256(request_body).hexdigest()
+        await repo.record_request_capture(owner, project, run["id"], ticket, body_sha256=request_hash, body_bytes=len(request_body), contract_version="qa-json-request.v1")
+        await repo.record_attempt(
+            owner,
+            project,
+            run["id"],
+            ticket,
+            AttemptObservation(
+                "output_collected",
+                200,
+                len(response_body),
+                12.0,
+                "SYNTHETIC_OUTPUT",
+                request_body_sha256=request_hash,
+                request_body_bytes=len(request_body),
+                response_body=response_body,
+                response_capture_status="complete",
+                response_content_type="application/json",
+                response_content_encoding="identity",
+                response_body_sha256=hashlib.sha256(response_body).hexdigest(),
+                response_body_hash_scope="full",
+            ),
+        )
         root = base + "/review-runs/" + run["id"]
         case = (await client.get(root + "/cases/1")).json()
         assert (await client.post(root + "/cases/1/reviews", json={"case_hash": case["case_hash"], "expected_revision": 0, "decision": decision, "note": "Synthetic note", "confirmed": True})).status_code == 200

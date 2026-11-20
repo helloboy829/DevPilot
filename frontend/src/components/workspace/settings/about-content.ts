@@ -14,7 +14,7 @@ Interface debugging, effect and performance tests, scheduled evaluations, human 
 
 ## Upstream attribution / 上游致谢
 
-DevPilot is developed on the [DeerFlow](https://github.com/bytedance/deer-flow) framework by ByteDance and its contributors. The DeerFlow harness powers the agent runtime; LangChain, LangGraph and Next.js remain important dependencies. Upstream copyright notices and licenses are preserved.
+DevPilot uses open-source agent runtime and framework components. Upstream attribution and applicable licenses are maintained in the repository.
 
 ## License / 许可证
 

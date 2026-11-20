@@ -56,7 +56,6 @@ class TechnicalObservation(StrictDTO):
             or (self.kind == "http_error" and (self.http_status is None or success))
             or (self.kind == "policy_rejected" and (self.http_status is not None or self.body_bytes))
             or (self.kind == "output_collected" and not self.body_bytes)
-            or (self.kind in {"http_error", "unsupported_response"} and self.body_bytes != 0)
         ):
             raise ValueError("Invalid technical observation")
         return self
@@ -69,6 +68,7 @@ class DispatchTicket:
     sample_id: str = field(repr=False)
     expires_at_ms: int
     token: str = field(repr=False)
+    response_artifact_id: str = field(repr=False)
 
 
 def _positive_int(value, maximum):
@@ -166,6 +166,7 @@ class DispatchJournalRepository(PlanRepository):
                 [{"project_id": project_id, "run_id": row["id"], "ordinal": index + 1, "sample_id": sample_ids[index % len(sample_ids)], "state": "pending"} for index in range(begin, min(begin + 100, row["request_count"]))],
             )
         await self._journal_event(session, row, "run_recorded", at)
+        await self._advance_owner_result_revision(session, project_id)
         return row
 
     async def record_dispatch(self, owner, project_id, run_id, ordinal, *, body_bytes):
@@ -199,24 +200,54 @@ class DispatchJournalRepository(PlanRepository):
             raise Conflict
         token = uuid4().hex
         expiry = min(at + run["timeout_ms"] + run["lease_grace_ms"], run["deadline_ms"])
-        ticket = DispatchTicket(run_id, ordinal, attempt["sample_id"], expiry, token)
+        artifact_id = uuid4().hex
+        ticket = DispatchTicket(run_id, ordinal, attempt["sample_id"], expiry, token, artifact_id)
         await session.execute(
             update(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.ordinal == ordinal).values(state="dispatched", ticket_hash=hashlib.sha256(token.encode()).hexdigest(), dispatched_at_ms=at, lease_expires_at_ms=expiry)
         )
         await session.execute(
             update(t.dispatch_runs).where(t.dispatch_runs.c.id == run_id).values(reserved_body_bytes=run["reserved_body_bytes"] + body_bytes, reserved_response_bytes=run["reserved_response_bytes"] + reserve, revision=run["revision"] + 1)
         )
+        await session.execute(
+            insert(t.response_artifacts).values(
+                id=artifact_id,
+                project_id=project_id,
+                run_id=run_id,
+                ordinal=ordinal,
+                status="pending",
+                hash_scope="none",
+                response_sha256=None,
+                captured_prefix_sha256=None,
+                captured_bytes=0,
+                observed_bytes=0,
+                content_type=None,
+                content_encoding=None,
+                key_version=None,
+                sealed_sha256=None,
+                sealed_bytes=None,
+                receipt_hash=None,
+                created_at_ms=at,
+                updated_at_ms=at,
+            )
+        )
         await self._journal_event(session, run, "dispatch_recorded", at, ordinal=ordinal)
+        await self._advance_owner_result_revision(session, project_id)
         return ticket
 
     @staticmethod
-    async def _interrupt(session, run, at, reason):
+    async def _interrupt(session, run, at, reason, *, advance_result_revision=True):
         # A reservation could already have reached the target. NEVER reset it to
         # pending, and never make its slot available for continuing the same run.
+        uncertain_ordinals = select(t.dispatches.c.ordinal).where(t.dispatches.c.run_id == run["id"], t.dispatches.c.state == "dispatched")
+        await session.execute(
+            update(t.response_artifacts).where(t.response_artifacts.c.run_id == run["id"], t.response_artifacts.c.ordinal.in_(uncertain_ordinals), t.response_artifacts.c.status == "pending").values(status="write_unknown", updated_at_ms=at)
+        )
         await session.execute(update(t.dispatches).where(t.dispatches.c.run_id == run["id"], t.dispatches.c.state == "dispatched").values(state="delivery_unknown", kind="delivery_unknown"))
         await session.execute(update(t.dispatches).where(t.dispatches.c.run_id == run["id"], t.dispatches.c.state == "pending").values(state="not_dispatched"))
         await session.execute(update(t.dispatch_runs).where(t.dispatch_runs.c.id == run["id"]).values(status="interrupted", finished_at_ms=at, stop_reason=reason, revision=run["revision"] + 1))
         await DispatchJournalRepository._journal_event(session, run, "run_interrupted", at)
+        if advance_result_revision:
+            await DispatchJournalRepository._advance_owner_result_revision(session, run["project_id"])
 
     async def record_observation(self, owner, project_id, run_id, ticket: DispatchTicket, observation: TechnicalObservation):
         """Append technical metadata once, fenced by the unexpired dispatch token.
@@ -245,7 +276,7 @@ class DispatchJournalRepository(PlanRepository):
             or ticket.expires_at_ms != attempt["lease_expires_at_ms"]
             or ticket.sample_id != attempt["sample_id"]
             or not hmac.compare_digest(hashlib.sha256(ticket.token.encode()).hexdigest(), attempt["ticket_hash"])
-            or observation.body_bytes > run["max_response_bytes"] + (observation.kind in {"response_limit", "delivery_unknown"})
+            or observation.body_bytes > run["max_response_bytes"] + (1 if observation.kind == "response_limit" else 0)
         ):
             raise Conflict
         unknown = observation.kind == "delivery_unknown"
@@ -253,12 +284,13 @@ class DispatchJournalRepository(PlanRepository):
         await session.execute(update(t.dispatch_runs).where(t.dispatch_runs.c.id == run_id).values(revision=run["revision"] + 1))
         await self._journal_event(session, run, "observation_recorded", at, ordinal=ticket.ordinal)
         if unknown:
-            await self._interrupt(session, run, at, "delivery_unknown")
+            await self._interrupt(session, run, at, "delivery_unknown", advance_result_revision=False)
         else:
             remaining = (await session.execute(select(func.count()).select_from(t.dispatches).where(t.dispatches.c.run_id == run_id, t.dispatches.c.state.in_(["pending", "dispatched"])))).scalar_one()
             if not remaining:
                 await session.execute(update(t.dispatch_runs).where(t.dispatch_runs.c.id == run_id).values(status="recording_finished", finished_at_ms=at))
                 await self._journal_event(session, run, "run_recording_finished", at)
+        await self._advance_owner_result_revision(session, run["project_id"])
 
     async def interrupt_expired(self, owner, project_id, run_id):
         async with self._transaction() as session:

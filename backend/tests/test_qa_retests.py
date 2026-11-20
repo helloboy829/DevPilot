@@ -21,6 +21,21 @@ from app.evaluation.repository import Conflict, NotFound
 from app.evaluation.request_protection import RequestProtectionError
 
 
+def downgrade_to(url, revision):
+    from pathlib import Path
+
+    from alembic import command
+    from alembic.config import Config
+
+    from app.evaluation import schema
+
+    config = Config()
+    config.set_main_option("script_location", str(Path(schema.__file__).parent / "migrations"))
+    config.attributes.update(engine_url=url, postgres_schema="")
+    with schema._MIGRATION_LOCK:
+        command.downgrade(config, revision)
+
+
 def store(repo):
     return RetestRepository(repo.sf, protection=repo.protection, evidence_protection=repo.evidence_protection, clock_ms=repo.clock_ms)
 
@@ -210,18 +225,27 @@ async def test_additive_upgrade_preserves_reports_all_prior_rows_and_harness(cap
     async with engine.begin() as conn:
         await conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
         await conn.execute(text("INSERT INTO alembic_version VALUES ('synthetic_harness')"))
+    await asyncio.to_thread(downgrade_to, engine.url, "eval_0008")
+    async with engine.connect() as conn:
         assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0008"
         # Preserve every table actually present in the historical schema, not future metadata.
         prior_names = {name for name in await conn.run_sync(lambda sync: inspect(sync).get_table_names()) if name.startswith("evaluation_")}
         preserved = [table for table in t.metadata.sorted_tables if table.name in prior_names]
         assert {table.name for table in preserved} == prior_names
         assert t.report_archives.name in prior_names and t.retest_archives.name not in prior_names
-        before = {table.name: [dict(row) for row in (await conn.execute(select(table))).mappings()] for table in preserved}
+        before = {
+            table.name: [dict(row) for row in (await conn.execute(select(*(column for column in table.c if column.name != "result_revision")) if table is t.projects else select(table))).mappings()]
+            for table in preserved
+        }
     await upgrade_evaluation_schema(engine)
     await upgrade_evaluation_schema(engine)
     async with engine.connect() as conn:
-        assert {table.name: [dict(row) for row in (await conn.execute(select(table))).mappings()] for table in preserved} == before
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0017"
+        after = {
+            table.name: [dict(row) for row in (await conn.execute(select(*(column for column in table.c if column.name != "result_revision")) if table is t.projects else select(table))).mappings()]
+            for table in preserved
+        }
+        assert after == before
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "synthetic_harness"
     assert await archives(repo).get_archive("owner", project, saved["id"]) == saved
 

@@ -86,7 +86,10 @@ async def test_http_errors_are_not_followed_or_judged(monkeypatch, request_defin
 
     calls = install_client(monkeypatch, handle)
     result = await attempts.collect_json_attempt(request_definition, binding, None, attempts.AttemptLimits())
-    assert result.kind == "http_error" and result.output is None and result.body_bytes == 0
+    assert result.kind == "http_error" and result.output is None
+    assert result.body_bytes == len(b'{"a":"must not be collected"}')
+    assert result.response_capture_status == "complete"
+    assert result.response_body == b'{"a":"must not be collected"}'
     assert result.http_status == status and body.closed and len(calls) == 1
 
 
@@ -94,7 +97,7 @@ async def test_http_errors_are_not_followed_or_judged(monkeypatch, request_defin
     "headers", [{}, {"content-type": "text/event-stream"}, {"content-type": "text/html"}, {"content-type": "application/json", "content-encoding": "gzip"}, {"content-type": "application/json", "content-encoding": "br"}]
 )
 @pytest.mark.asyncio
-async def test_unsupported_content_is_closed_without_decoding(monkeypatch, request_definition, binding, headers):
+async def test_unsupported_content_is_captured_without_decoding(monkeypatch, request_definition, binding, headers):
     body = Body([b"not consumed"])
 
     async def handle(request):
@@ -102,7 +105,9 @@ async def test_unsupported_content_is_closed_without_decoding(monkeypatch, reque
 
     install_client(monkeypatch, handle)
     result = await attempts.collect_json_attempt(request_definition, binding, None, attempts.AttemptLimits())
-    assert result.kind == "unsupported_response" and result.output is None and result.body_bytes == 0 and body.closed
+    assert result.kind == "unsupported_response" and result.output is None
+    assert result.body_bytes == len(b"not consumed") and result.response_body == b"not consumed"
+    assert result.response_capture_status == "complete" and body.closed
 
 
 @pytest.mark.parametrize("content", [b'{"a":""}', b'{"a":"   "}', b'{"a":2}', b'{"other":"text"}', b'{"a":"one","a":"two"}', b'{"a":NaN}', b'{"a":"\xff"}', b"not json", b"{", b""])

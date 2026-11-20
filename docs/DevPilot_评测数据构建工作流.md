@@ -1,6 +1,6 @@
 # DevPilot 评测数据构建与执行工作流
 
-> 目标合同，待开发。本文明确材料批次、多组件候选、项目归档、人工审核、测试调用与结果评估的关系。当前交付事实见[交付状态](DevPilot_Delivery_Status.md)。
+> 目标合同，待开发。本文明确材料批次、多组件候选、项目归档、人工审核、测试调用与结果评估的关系。已部署 DAT-01 手工 JSON/JSONL 导入要求 expected 非空；未提交/未部署的 DAT-02 候选允许 reference 缺省并可进入授权执行。项目外材料解析、多组件候选、归档审核仍未实现；EVID-02 的原生响应 artifact 也仅在未签核候选中，当前 UI 不能浏览。交付事实见[交付状态](DevPilot_Delivery_Status.md)。
 
 ## 产品流程
 
@@ -28,6 +28,8 @@
 
 每条用例显式记录 reference_status：not_provided、candidate、approved 或 rejected。not_provided 是合法的数据状态，不等于样本无效；只有 reference_status=approved 的参考答案可供 reference 对比指标使用。用例本身的审核状态与参考答案状态分开管理。
 
+Reference 状态、revision/hash、审批和授权可见性由[数据集与指标规范](DevPilot_数据集与指标规范.md)定义。本工作流只定义迁移顺序：旧 expected 缺少独立审批证据时不得直接提升为 approved；新评测须创建 candidate reference revision 并完成审核。历史 v1 dataset/plan/run hash 原样只读校验，不重算或覆盖；旧报告保留 legacy 解释。reference 可选时不阻断已授权采集，也不将采集成功认作评估通过。
+
 质量门禁确定性检查结构、字段映射、重复/近重复、敏感信息、授权、覆盖、来源/主体/时间泄漏及数据分布。质量检查报告和人工审核决定分开记录。缺失或有歧义的来源证据、输入映射、标签和授权形成阻断或待人工处理项，不由 Agent 自行补成已验证事实。
 
 ## 归档、审核与冻结
@@ -50,7 +52,7 @@
 
 - 保留现有项目、组件、数据版本、RequestSpec、计划和执行身份链；冻结数据的 ID/revision/hash 继续作为执行快照基础。
 - 新增项目外材料批次、源文件/artifact、组件清单、解析记录、逐组件构建状态、候选数据和归档关联；文件字节放受控 artifact 存储，数据库保存授权、定位、状态和 hash。
-- 现有 JSON/JSONL 导入作为人工构建入口继续保留。QA sample 当前要求非空 expected；目标需把输入用例与可选参考答案分层，并用兼容迁移保留已有数据。
+- 现有 JSON/JSONL 导入作为人工构建入口继续保留。已部署基线的 QA sample 要求非空 expected；工作区 DAT-02 候选允许 expected 缺省/null，并允许无 reference 样本进入授权执行，但候选尚未提交、完整签核或部署。候选目前只将 expected 文本移入独立表，尚无 reference 状态、独立审批/修订/hash；其 dataset hash 仍含 expected。目标 v2 必须拆分输入/reference hash 与 revision，并在 plan、评估及授权展示处验证 approved 状态；旧 hash 仅走 v1 只读兼容，不隐式批准历史答案。
 - 扩展项目组件与数据集的适用范围校验，并使提测版本/执行计划引用对应组件的数据快照。计划选择器只展示审核冻结且兼容的数据版本。
 - 前端增加构建批次向导、组件级进度和归档后数据审核视图；现有项目数据浏览/冻结和执行计划页面逐步接入。
 - App 负责权限、作业状态、项目归档、事务、审计和不可变版本；Harness/LangGraph 负责受限的材料理解和候选建议；解析、校验和计量由确定性服务执行。Agent 不直接改业务表、不执行上传脚本、不批准数据。

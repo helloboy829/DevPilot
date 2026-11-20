@@ -53,7 +53,7 @@ FastAPI 业务层：权限/版本/审批/任务/证据/凭据引用
 
 ### 数据构建、归档与执行评估（目标，待开发）
 
-材料包先进入项目外构建批次，解析清单与附件并按组件生成候选；一个批次归档到一个已有或新建项目，逐组件生成待审核数据草稿。评测人员浏览、修订并冻结后，计划选择组件适用的数据版本，使用冻结 RequestSpec 将输入解析为目标请求，受控调用并留存原生响应，再按适用规则、rubric、可选参考答案或人工证据评估。缺少 expected 不阻止调用或原生响应采集；仅依赖金标对比的指标不可用，其他评估也必须有独立且预先确定的依据。App 管理导入授权、批次、归档、版本和审计；Harness/LangGraph 只产结构化候选建议；确定性服务解析、校验、计量和执行门禁。此流程尚未实现，详见[评测数据构建与执行工作流](DevPilot_评测数据构建工作流.md)和[数据集与指标规范](DevPilot_数据集与指标规范.md)。
+跨服务数据流为：项目外材料批次 → 项目内审核并冻结的数据版本 → 绑定版本/hash 的计划 → 经授权的持久化运行 → 独立评估。App 负责授权、项目归档、版本和审计；Harness/LangGraph 只生成结构化候选；确定性领域服务负责校验、请求映射、计量和执行门禁。缺少参考答案不应阻断已授权调用，但会影响指标适用性。生命周期、数据质量及评估语义以[评测数据构建与执行工作流](DevPilot_评测数据构建工作流.md)和[数据集与指标规范](DevPilot_数据集与指标规范.md)为准；本流程尚未实现。
 
 ## 4. 关键边界
 
@@ -75,17 +75,15 @@ DB/文件无法同事务：临时写→校验 hash→原子发布→登记 manif
 
 ## 效果结果和 AI 性能工作台（目标，待开发）
 
-效果运行详情复用固定 run snapshot、dispatch、evidence 和 assessment revision，但新增独立结果查询 DTO 与逐条浏览 UI。普通列表/详情不解密原始正文；输入、预期、映射请求、raw response、解析视图、自动评估和人工决定分层。明文查看使用显式短时 access ID、权限重验、审计、no-store 和上限。现有 `evaluation_output_evidence` 只有加密提取文本，不是原生 HTTP response；新捕获使用追加式 App artifact manifest，旧记录标记 `unavailable_legacy`，绝不补造。
+效果与性能是两个独立运行模式，共享冻结数据/请求版本、授权、持久化派发、固定 transport 和受控证据存储；不共享判分、人审分母或旧 scheduler。效果查询只读固定运行快照及评估 revision；性能运行由 App 侧 Worker 管理逐请求派发，压力发生器不放在 API event loop 或 LangGraph 中。
 
-性能工作台与效果共享 dataset/RequestSpec/凭据引用、run identity、授权、durable dispatch、pinned transport 和 artifact access；不共享 effect 判分/人审分母或 legacy scheduler。纯 `devpilot` 核心确定性生成 case-cycle manifest、调度 profile 与 metric projection；App Worker 执行每次 durable dispatch ACK → 单次请求 → 原生响应 artifact/观测。MVP 闭环并发、有限 measured request count、可选 duration stop、warmup、hard deadline、drain、固定样本循环和每请求 evidence；开放速率、阶梯和 trace replay 后续接入。API event loop 与 LangGraph 不作为压力发生器。
-
-开源工具决策：Ray LLMPerf 已归档；NVIDIA 官方文档建议 GenAI-Perf 新需求迁移 AIPerf。AIPerf 是第一外部 adapter spike 候选，GuideLLM 是第二候选；它们的 direct-to-target CLI 在没有逐次 App durable dispatch/evidence 回调时只能作为外部对照，导入结果标记 external*unverified，不能成为平台 PASS/正式指标。工具版本、依赖、负载、token、量化和流式口径都须校准。详见[效果结果浏览器](DevPilot*效果测试工作台设计.md)和[性能工作台/工具评估](DevPilot_AI性能测试工作台设计.md)。
+两个工作台的 DTO、页面、证据访问/保留、负载 profile、指标适用性和外部工具 adapter 验收，分别由[效果测试工作台](DevPilot_效果测试工作台设计.md)和[AI 性能测试工作台](DevPilot_AI性能测试工作台设计.md)定义；本节只约束跨服务复用边界。目标工作台尚未实现，能力状态以[交付状态](DevPilot_Delivery_Status.md)为准。
 
 ## 6. 数据与技术选型
 
 本地 SQLite + 文件存储；多人/并发 Worker 推荐 PostgreSQL；Redis 仅作为后续通知/速率限制/队列优化，非真相源必选项。
 检索先结构化元数据和全文；验证召回需求后选 pgvector 或专用向量库，**Milvus 非 MVP 前提**。不先引入微服务和九个常驻 Agent。
-外部压测器以可选 backend 接口集成：workload → 执行器 → 原始观测 → 统一指标，未完成等价性校准前不能混算。
+外部压测器仅作为可选 adapter 边界；未通过性能工作台定义的逐请求证据与指标等价性门禁前，不作为平台执行核心，也不与平台指标混算。工具评估细节见[AI 性能测试工作台](DevPilot_AI性能测试工作台设计.md)。
 
 ## 7. 安全与可观测性
 

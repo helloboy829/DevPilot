@@ -344,7 +344,8 @@ export function EvaluationReviewPanel({
                 ],
                 [
                   zh ? "预期 / 参考答案" : "Expected / reference",
-                  opened.expected,
+                  opened.expected ??
+                    (zh ? "未提供预期答案" : "No reference answer provided"),
                 ],
               ].map(([label, value]) => (
                 <div key={label} className="min-w-0 rounded border p-3">

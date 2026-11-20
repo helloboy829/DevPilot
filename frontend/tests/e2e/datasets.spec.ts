@@ -31,6 +31,12 @@ test("project QA data is imported, reviewed and frozen without browser persisten
       source_ref: "record:1",
       slice_tag: "default",
     },
+    {
+      sample_id: "q2",
+      input: "Synthetic unlabeled question",
+      source_ref: "record:2",
+      slice_tag: "default",
+    },
   ];
   let created = false;
   await page.route("**/api/evaluation/projects", async (route) => {
@@ -58,7 +64,7 @@ test("project QA data is imported, reviewed and frozen without browser persisten
         dataset = {
           ...dataset,
           revision: 2,
-          sample_count: 1,
+          sample_count: 2,
           content_hash: "a".repeat(64),
         };
         await route.fulfill({ json: dataset });
@@ -110,6 +116,12 @@ test("project QA data is imported, reviewed and frozen without browser persisten
     .click();
   await expect(
     page.getByRole("cell", { name: "Synthetic reference", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", {
+      name: "No reference answer provided",
+      exact: true,
+    }),
   ).toBeVisible();
   await page.getByRole("checkbox", { name: /I reviewed all samples/ }).check();
   await page

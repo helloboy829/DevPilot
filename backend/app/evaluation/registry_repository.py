@@ -81,7 +81,7 @@ class RegistryRepository(EvaluationRepository):
                     (
                         await session.execute(
                             select(t.samples, t.references.c.expected)
-                            .join(t.references, (t.samples.c.dataset_id == t.references.c.dataset_id) & (t.samples.c.sample_id == t.references.c.sample_id))
+                            .outerjoin(t.references, (t.samples.c.dataset_id == t.references.c.dataset_id) & (t.samples.c.sample_id == t.references.c.sample_id))
                             .where(t.samples.c.dataset_id == dataset["id"])
                         )
                     )

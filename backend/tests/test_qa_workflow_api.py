@@ -61,10 +61,11 @@ class Body(httpx.AsyncByteStream):
 
 
 @pytest_asyncio.fixture
-async def workflow(api, monkeypatch):
+async def workflow(api, monkeypatch, tmp_path):
     client, app, base, _ = api
     # Explicitly test-only, never a configuration fallback or a deployed key.
     monkeypatch.setenv("DEVPILOT_REQUEST_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    monkeypatch.setenv("DEVPILOT_QA_ARTIFACT_DIR", str(tmp_path / "qa-artifacts"))
     dataset = response_json(
         await client.post(
             base + "/datasets",

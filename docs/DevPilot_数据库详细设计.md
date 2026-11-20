@@ -51,11 +51,13 @@ component_tests 与 component_test_runs 位于 backend/packages/harness/deerflow
 | eval_source_artifacts / eval_extractions  | batch_id、artifact_id/hash、格式、授权快照、提取状态、定位（页/表/行/段落）、错误码                                                                           |
 | eval_component_builds                     | batch_id、manifest_component_id、component_fingerprint、构建状态、排除理由、candidate_hash                                                                    |
 | eval_candidate_cases                      | build_id、case_id、input、可选 reference、source locator、origin、generation/transform history、review status                                                 |
-| eval_datasets / eval_dataset_versions     | dataset、version、status、manifest_artifact_id/hash、quality_card、revision；unique(dataset_id,version)                                                       |
-| eval_dataset_cases / eval_references      | 冻结输入用例与可选参考答案分开；reference_status 为 not_provided/candidate/approved/rejected；唯一键绑定 dataset_version_id/case_id                           |
+| eval_datasets / eval_dataset_versions     | dataset、version、status、manifest_artifact_id/hash、input_hash、quality_card、revision；unique(dataset_id,version)                                         |
+| eval_dataset_cases                        | 冻结输入字段及其内容 hash；不含 expected/reference；unique(dataset_version_id,case_id)，冻结版本不可变                                                     |
+| eval_reference_sets                       | dataset_version_id、revision、reference_set_hash、status(draft/frozen)、created_at；同数据版本下 revision 唯一；仅含 reference 状态快照                     |
+| eval_references                           | 每 case 一行：reference_set_id、case_id、revision、reference_status、nullable body_ref/secured_payload、nullable body_hash、sensitivity；status 限 not_provided/candidate/approved/rejected；not_provided 无正文/hash；unique(reference_set_id,case_id) |
 | eval_dataset_component_scopes             | dataset_version_id、project_component_id、适用范围及来源构建批次；计划服务端强制校验兼容性                                                                    |
-| eval_plans                                | revision/status、dataset_version_id、endpoint_revision_id、rubric_ref、effect/perf config、thresholds、budgets、snapshot_hash                                 |
-| eval_approvals                            | subject_type/id/revision/hash、decision、actor、role、comment；审批绑定内容，不能复用到新 revision                                                            |
+| eval_plans                                | revision/status、dataset_version_id/input_hash、可空 reference_set_id/revision/hash、endpoint_revision_id、rubric_ref、effect/perf config、thresholds/budgets、snapshot_hash |
+| eval_approvals                            | subject_type/id/revision/hash、decision、actor、role、comment、created_at；append-only，审批绑定精确 reference revision/hash，不能复用到新 revision         |
 | eval_runs                                 | current_assessment_revision、plan_id、component_version_id、test_type、immutable_snapshot/hash、status、verdict、counts、started/finished、revision           |
 | eval_jobs                                 | run_id(可空)、kind、status、attempt、lease_owner、lease_until、fencing_token、heartbeat、error_code、cancel_requested                                         |
 | eval_case_results                         | run_id、case_id、执行观测/错误类型、未改写的 raw_artifact_id、timings、response_hash；每个逻辑 case 一个主观测，有效 outcome 来自 assessment                  |
@@ -78,7 +80,7 @@ component_tests 与 component_test_runs 位于 backend/packages/harness/deerflow
 | eval_events / eval_outbox                 | aggregate_id、seq、event_type、payload、delivery_status；unique(aggregate_id,seq)                                                                             |
 | eval_idempotency_keys                     | actor/route/key、request_hash、response_resource_id、expires_at；unique(scope,key)                                                                            |
 
-当前 eval_0001 的 evaluation_references.expected 为非空，现有手工导入和冻结计划继续按已交付合同工作。目标支持无 expected 用例需要追加迁移，允许 reference 缺失并保留显式缺失状态；已有参考答案、数据集 hash 和冻结计划不得静默改写。材料批次/源附件/组件候选/组件适用范围也用新增表及外键逐步迁移，不以 JSON 字段代替 owner/project/component 约束。
+当前 eval_0001 的 `evaluation_references.expected` 为非空；工作区 DAT-02 候选允许缺省，但仍沿用单一 dataset content hash，未实现本节的 reference set/revision/approval 关系。目标迁移采用 additive schema：新输入版本生成不含 expected 的 `input_hash`，reference set 独立 revision/hash，plan 显式固定两个可选快照；旧 `evaluation_references`、既有 dataset/plan/run hash 不原地改写或自动批准。旧数据的 v1 解释与 v2 评估准入由[数据集与指标规范](DevPilot_数据集与指标规范.md)定义。Reference 字段可由受控 artifact 引用或受保护 payload 实现，物理存储必须保留 hash/sensitivity 且不得在普通 DTO/log 中泄露明文。材料批次/源附件/组件候选/组件适用范围也用新增表及外键逐步迁移，不以 JSON 字段代替 owner/project/component 约束。
 
 report.status 为 draft/in_review/approved/published/retired；知识 status 为 candidate/in_review/published/retired。与运行 verdict 不混用。Job 为 queued/running/completed/failed/cancelled/interrupted，取消意图另存；Run 使用规范的完整状态含 cancelling。
 
@@ -104,9 +106,15 @@ report.status 为 draft/in_review/approved/published/retired；知识 status 为
 
 ## 4.1 效果原生响应与性能逐请求数据（目标，待开发）
 
+### 当前工作区候选边界（2026-11-20）
+
+未提交的 App `eval_0018` 候选新增 `evaluation_response_artifacts` manifest，并由 `app.evaluation.qa_artifact_store.ResponseArtifactStore` 将有界原生响应正文加密保存到受控文件存储。该候选记录请求正文 hash/字节数/contract identity，但不保存原始 request body；物理列 `status` 对应领域/API 合同中的 `capture_status`。2026-11-20 对应冻结候选快照完成后端离线套件和 migration/recovery/PostgreSQL 专项验证，精确范围与文件清单摘要见[交付状态](DevPilot_Delivery_Status.md)。验证不等于提交 SHA CI、部署或业务验收；候选仍未提交/部署，也没有结果查询或解密 API。
+
+本节其他目标仍未由该迁移实现：request artifact manifest、独立 run metrics、性能 dispatch phase/iteration/profile 字段及 profile/schema 持久化均待开发。候选的当前验证与交付状态以[交付状态](DevPilot_Delivery_Status.md)为准，行为和可见性以[效果工作台](DevPilot_效果测试工作台设计.md)及[性能工作台](DevPilot_AI性能测试工作台设计.md)为准。
+
 当前真实实现中，`evaluation_dispatches` 每 ordinal 保存 dispatch 状态/HTTP status/body bytes/elapsed，`evaluation_output_evidence` 只保存加密 extractor text；不是完整 request/response body，也不是 performance metric store。新合同以[效果工作台](DevPilot_效果测试工作台设计.md)和[性能工作台](DevPilot_AI性能测试工作台设计.md)为准。
 
-以 additive App migration 引入，保留原表和旧 hash：
+除上方明确列出的未提交响应 artifact 候选外，剩余数据模型以 additive App migration 逐步引入，保留原表和旧 hash：
 
 - `evaluation_request_artifacts` 可选保存加密映射 request body 引用，以及 request hash、RequestSpec/binding hash、media type、bytes、capture/redaction profile、key version。没批准正文保留时只存 hash/重建版本引用；绝不保存 credential/header secrets。
 - `evaluation_response_artifacts` 按 `(run_id, ordinal)` 唯一绑定受控 artifact、应用层 raw body SHA-256/byte size/media type、capture/truncation 状态、header allowlist hash/key version/created time。正文不放普通 SQL 列；保留旧 output_evidence 作为独立 extractor projection。
@@ -135,4 +143,4 @@ ExternalResultImport 的 trust_status=unverified/under_review/accepted/rejected�
 
 增加索引：task(project,status,priority)、task(`subject_type`,id,hash,kind,policy,round) 唯一；assignment(task,round,slot) 的 active 唯一与 actor 防重复；decision(task,round,actor,`created_at`)；assessment(run,revision) 唯一；check(endpoint,environment,created*at)、export(project,status)、import(export,trust_status)。跨 SQLite/Postgres 的条件唯一约束由迁移测试验证。
 凭据明文不进入 RequestSpec、Confirmation hash 输入的可公开副本或 export manifest；只存版本引用。导出金标授权、外部结果采信与复核访问形成独立 audit 记录，可复用现有可审计事件设施但必须覆盖这些动作。
-以上是新增逻辑表，不代表迁移文件已经生成；具体实现与[API](DevPilot_API接口设计文档.md)及[专题](<DevPilot*人工复核工作台设计.md>)同 PR 落地。
+以上是新增逻辑表，不代表迁移文件已经生成；具体实现与[API](DevPilot_API接口设计文档.md)及[专题](<DevPilot_人工复核工作台设计.md>)同 PR 落地。

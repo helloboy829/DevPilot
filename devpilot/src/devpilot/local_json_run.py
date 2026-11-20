@@ -306,7 +306,7 @@ class LocalJSONJournal:
             or elapsed < 0
             or (value.kind in {"output_collected", "unsupported_response", "response_limit", "invalid_output"} and not success)
             or (value.kind == "http_error" and (status is None or success))
-            or (value.kind in {"http_error", "unsupported_response", "policy_rejected"} and size != 0)
+            or (value.kind == "policy_rejected" and size != 0)
             or (value.kind == "policy_rejected" and status is not None)
             or (value.kind == "output_collected" and (size == 0 or type(value.output) is not str))
             or (value.kind != "output_collected" and value.output is not None)

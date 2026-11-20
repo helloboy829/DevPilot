@@ -34,7 +34,7 @@ export interface ReviewCase {
   plan_label: string;
   state: string;
   input: string;
-  expected: string;
+  expected: string | null;
   output: string | null;
   source_ref: string;
   slice_tag: string;

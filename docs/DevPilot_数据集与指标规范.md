@@ -2,7 +2,7 @@
 
 ## 当前实现范围与待开发项（2026-11-19）
 
-[项目与 QA 数据最小闭环](DevPilot_QA数据最小闭环.md)已实现本人项目、来源/授权声明、严格 JSON/JSONL 导入、Q/预期/来源并排检查和确认冻结。当前已实现导入要求 expected 非空；项目外材料批次、附件理解、多组件候选、归档、质量治理和数据审核仍待开发。目标流程将输入用例与可选参考答案分层：无 expected 可执行并保留原生响应，也可按独立规则、rubric 或人工证据评估；缺少参考答案只使金标依赖指标不可用，不能自动 PASS。后续计划/执行代码已按 dataset ID、revision 和 hash 绑定冻结数据；具体目标见[评测数据构建与执行工作流](DevPilot_评测数据构建工作流.md)，不代表能力已交付。
+[项目与 QA 数据最小闭环](DevPilot_QA数据最小闭环.md)已实现本人项目、来源/授权声明、严格 JSON/JSONL 导入、Q/预期/来源并排检查和确认冻结。当前已部署基线要求 expected 非空；未部署的 DAT-02 工作区候选已放宽为可省略或 null，并允许无 expected 用例进入授权执行，但尚未构成当前可用能力。项目外材料批次、附件理解、多组件候选、归档、质量治理和数据审核仍待开发。目标流程将输入用例与可选参考答案分层：无 expected 可执行并保留原生响应，也可按独立规则、rubric 或人工证据评估；缺少参考答案只使金标依赖指标不可用，不能自动 PASS。后续计划/执行代码已按 dataset ID、revision 和 hash 绑定冻结数据；具体目标见[评测数据构建与执行工作流](DevPilot_评测数据构建工作流.md)，不代表能力已交付。
 
 > 2026-11-06；**目标契约，待实现**。本文件为数据质量、计数、状态和通过判定的唯一规范；不得由 Prompt 或前端自行改写。
 
@@ -41,6 +41,12 @@
 
 每条 case 至少：case_id、task_type、input、source_refs、origin(real/synthetic/benchmark)、split、slices、label_status、rubric_ref、sensitivity、content_hash；expected/reference 为可选的独立记录，reference_status 显式采用 not_provided / candidate / approved / rejected。用例审核状态与参考答案审核状态分开。
 label_status 采用 unreviewed / pending_review / approved / rejected；输入用例可在没有 expected 时用于请求和性能采集。冻结的效果评估项仍须冻结其判定依据；依赖 reference 的指标在 reference 缺失时为 UNAVAILABLE，不得按零分或 PASS 处理。
+
+Reference 生命周期与完整性：reference 是独立版本化对象。每次创建/替换正文都生成新 revision 和 canonical content hash；审批决定绑定该 revision/hash、审核人、时间和决定。正文变化必须回到 candidate，不能覆盖既有审核记录；撤销批准也作为新决定/事件追加。`not_provided` 不创建正文/hash；candidate、rejected 均不能供金标指标使用。历史数据迁移若无独立审批证据，不得把旧 expected 自动标为 approved。
+
+新版本用 `input_hash` 覆盖输入/来源字段（至少 case_id、task_type、input、source_refs、slice/split），不含 expected；reference-set 使用独立 revision/hash，`reference_set_hash` 覆盖 case_id、reference revision/status 与正文 hash。冻结计划绑定输入数据版本/hash 及可选 reference-set 版本/hash。只允许使用计划快照内 approved 的 reference。缺失、candidate、rejected 的 case 不得从冻结总体分母静默剔除：全量 reference 指标有必需项未批准时为 UNAVAILABLE，且必需依据缺失使总体 assessment BLOCKED；若计划评估子集，必须预先冻结 case ID 集合、hash 与分母。历史 v1 dataset/plan/run hash 按原序列化规则只读校验，不重算或覆盖；v1 到 v2 的映射见[数据构建工作流迁移说明](DevPilot_评测数据构建工作流.md)。
+
+Reference 可见性属于独立用途授权：盲审决定提交并锁定前，盲审 DTO/API 不得返回 reference 正文、状态或可推断答案的信息。reference 审核、自动评估及人工 reveal 分别授权和审计；任何获准 reveal 均需记录用途。reference 不进入被测组件请求。
 图像另记 asset ID/hash、尺寸、标注坐标约定、类别字典；多轮 Agent 另记初始环境、目标、轨迹约束与 reset 策略。
 
 质量卡至少包含：

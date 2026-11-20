@@ -1,8 +1,8 @@
 """Synthetic-only encrypted output evidence and append-only human review."""
 
 import asyncio
+import hashlib
 import json
-from dataclasses import replace
 
 import pytest
 import pytest_asyncio
@@ -15,23 +15,64 @@ from test_dispatch_journal import prepared  # noqa: F401
 from app.evaluation import tables as t
 from app.evaluation.dispatch_journal import JournalLimits, JournalWriteUnconfirmed
 from app.evaluation.evidence_protection import EvidenceProtection
+from app.evaluation.qa_artifact_store import ResponseArtifactStore
 from app.evaluation.qa_attempts import AttemptObservation
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
+from app.evaluation.qa_results import ResultRepository, StaleResultCursor
 from app.evaluation.repository import Conflict, NotFound
 from app.evaluation.request_protection import RequestProtectionError
 
 
 @pytest_asyncio.fixture
-async def captured(prepared):  # noqa: F811
+async def captured(prepared, tmp_path):  # noqa: F811
     original, engine, project, plan, clock = prepared
-    repo = EvidenceRepository(original.sf, protection=original.protection, evidence_protection=EvidenceProtection(Fernet.generate_key()), clock_ms=lambda: clock["ms"])
+    target_revision = None
+    async with engine.connect() as conn:
+        target_revision = (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one()
+    if target_revision != "eval_0020":
+        from app.evaluation.schema import upgrade_evaluation_schema
+
+        await upgrade_evaluation_schema(engine)
+    key = Fernet.generate_key()
+    repo = EvidenceRepository(
+        original.sf,
+        protection=original.protection,
+        evidence_protection=EvidenceProtection(key),
+        response_artifact_store=ResponseArtifactStore(tmp_path / "qa-artifacts", key),
+        clock_ms=lambda: clock["ms"],
+    )
     run = await repo.record_run("owner", project, plan["id"], plan["definition_hash"], JournalLimits(max_response_bytes=128, max_total_response_bytes=258))
     ticket = await repo.record_dispatch("owner", project, run["id"], 1, body_bytes=30)
+    request_hash = hashlib.sha256(b"SYNTHETIC_REQUEST").hexdigest()
+    await repo.record_request_capture("owner", project, run["id"], ticket, body_sha256=request_hash, body_bytes=16, contract_version="qa-json-request.v1")
     yield repo, engine, project, plan, run, ticket, clock
 
 
 def observation(**changes):
-    return replace(AttemptObservation("output_collected", 200, 35, 10.0, "SYNTHETIC_OUTPUT"), **changes)
+    kind = changes.pop("kind", "output_collected")
+    status = changes.pop("http_status", 200)
+    body_bytes = changes.pop("body_bytes", 35)
+    output = changes.pop("output", "SYNTHETIC_OUTPUT")
+    raw_body = changes.pop("response_body", b"S" * body_bytes if status is not None else b"")
+    capture_status = changes.pop("response_capture_status", "complete" if status is not None else "not_received")
+    request_hash = changes.pop("request_body_sha256", hashlib.sha256(b"SYNTHETIC_REQUEST").hexdigest())
+    request_bytes = changes.pop("request_body_bytes", 16)
+    return AttemptObservation(
+        kind,
+        status,
+        body_bytes,
+        changes.pop("elapsed_ms", 10.0),
+        output,
+        request_body_sha256=request_hash,
+        request_body_bytes=request_bytes,
+        response_body=raw_body,
+        response_capture_status=capture_status,
+        response_content_type="application/json" if status is not None else None,
+        response_content_encoding="identity" if status is not None else None,
+        response_body_sha256=hashlib.sha256(raw_body).hexdigest() if capture_status != "not_received" else None,
+        response_body_hash_scope="full" if capture_status == "complete" else "prefix" if capture_status in {"partial", "truncated"} else "none",
+        **changes,
+    )
 
 
 def review(case, **changes):
@@ -41,11 +82,35 @@ def review(case, **changes):
 @pytest.mark.asyncio
 async def test_atomic_capture_is_encrypted_immutable_and_not_a_verdict(captured):
     repo, engine, project, plan, run, ticket, _ = captured
-    await repo.record_attempt("owner", project, run["id"], ticket, observation())
+    attempt = observation()
+    await repo.record_attempt("owner", project, run["id"], ticket, attempt)
     async with engine.connect() as conn:
         evidence = dict((await conn.execute(select(t.output_evidence))).mappings().one())
+        artifact = dict((await conn.execute(select(t.response_artifacts).where(t.response_artifacts.c.id == ticket.response_artifact_id))).mappings().one())
         assert "SYNTHETIC_OUTPUT" not in json.dumps(evidence)
         assert "SYNTHETIC_GOLD" not in json.dumps(evidence)
+        assert artifact["status"] == "complete"
+        assert artifact["request_body_sha256"] == attempt.request_body_sha256
+        assert artifact["request_body_bytes"] == attempt.request_body_bytes
+        assert artifact["request_contract_version"] == "qa-json-request.v1"
+        assert artifact["response_sha256"] == attempt.response_body_sha256
+        assert artifact["captured_bytes"] == len(attempt.response_body)
+        assert artifact["sealed_sha256"] and artifact["receipt_hash"]
+    artifact_binding = {"owner_id": "owner", "project_id": project, "run_id": run["id"], "ordinal": 1, "sample_id": ticket.sample_id, "plan_hash": run["plan_hash"]}
+    stored = repo.response_artifact_store._path(ticket.response_artifact_id).read_bytes()
+    assert attempt.response_body not in stored
+    assert repo.response_artifact_store.open(ticket.response_artifact_id, artifact_binding) == (
+        {
+            "capture_status": "complete",
+            "hash_scope": "full",
+            "body_sha256": attempt.response_body_sha256,
+            "observed_bytes": attempt.response_body_bytes,
+            "http_status": attempt.http_status,
+            "content_type": "application/json",
+            "content_encoding": "identity",
+        },
+        attempt.response_body,
+    )
     with pytest.raises(Conflict):
         await repo.record_attempt("owner", project, run["id"], ticket, observation())
     case = await repo.open_case("owner", project, run["id"], 1)
@@ -63,6 +128,114 @@ async def test_atomic_capture_is_encrypted_immutable_and_not_a_verdict(captured)
     assert metadata["cases"][0]["has_output_evidence"]
     assert metadata["cases"][0]["review_decision"] is None
     assert (await repo.list_runs("owner", project))[0]["id"] == run["id"]
+
+
+@pytest.mark.asyncio
+async def test_raw_artifact_write_failure_preserves_the_observed_http_result(captured, monkeypatch):
+    repo, engine, project, _, run, ticket, _ = captured
+
+    def fail_write(*_args):
+        raise OSError("synthetic storage failure")
+
+    monkeypatch.setattr(repo.response_artifact_store, "publish", fail_write)
+    attempt = observation()
+    await repo.record_attempt("owner", project, run["id"], ticket, attempt)
+
+    async with engine.connect() as conn:
+        artifact = dict((await conn.execute(select(t.response_artifacts).where(t.response_artifacts.c.id == ticket.response_artifact_id))).mappings().one())
+        dispatch = dict((await conn.execute(select(t.dispatches).where(t.dispatches.c.run_id == run["id"], t.dispatches.c.ordinal == ticket.ordinal))).mappings().one())
+    assert artifact["status"] == "write_unknown"
+    assert artifact["hash_scope"] == "full" and artifact["response_sha256"] == attempt.response_body_sha256
+    assert artifact["captured_bytes"] == len(attempt.response_body)
+    assert artifact["sealed_sha256"] is None and artifact["receipt_hash"] is None
+    assert dispatch["kind"] == "output_collected" and dispatch["body_bytes"] == attempt.response_body_bytes
+    result = await repo.reconcile_response_artifact("owner", project, run["id"], 1)
+    assert result["status"] == "write_failed" and result["reconciled"] is True
+
+
+@pytest.mark.asyncio
+async def test_publish_then_error_reconciles_the_same_artifact_id(captured, monkeypatch):
+    repo, engine, project, _, run, ticket, _ = captured
+    original = repo.response_artifact_store.publish
+
+    def publish_then_raise(*args):
+        original(*args)
+        raise OSError("synthetic lost write receipt")
+
+    monkeypatch.setattr(repo.response_artifact_store, "publish", publish_then_raise)
+    await repo.record_attempt("owner", project, run["id"], ticket, observation())
+
+    async with engine.connect() as conn:
+        artifact = dict((await conn.execute(select(t.response_artifacts).where(t.response_artifacts.c.id == ticket.response_artifact_id))).mappings().one())
+    assert artifact["status"] == "write_unknown"
+    result = await repo.reconcile_response_artifact("owner", project, run["id"], 1)
+    assert result["status"] == "complete" and result["reconciled"] is True
+
+
+@pytest.mark.asyncio
+async def test_reconcile_after_interruption_advances_result_revision_and_stales_cursor(captured, monkeypatch):
+    repo, engine, project, _, run, _, _ = captured
+    ticket = await repo.record_dispatch("owner", project, run["id"], 2, body_bytes=30)
+
+    def fail_write(*_args):
+        raise OSError("synthetic storage failure")
+
+    monkeypatch.setattr(repo.response_artifact_store, "publish", fail_write)
+    await repo.record_attempt("owner", project, run["id"], ticket, observation())
+    await repo.interrupt_journal("owner", project, run["id"])
+
+    results = ResultRepository(repo.sf, cursor_secret="synthetic-result-cursor-secret")
+    first_page = await results.list_cases("owner", project, run["id"], limit=1)
+    assert first_page["next_cursor"] is not None
+    async with engine.connect() as connection:
+        revision_before = (await connection.execute(select(t.dispatch_runs.c.revision).where(t.dispatch_runs.c.id == run["id"]))).scalar_one()
+
+    await repo.reconcile_response_artifact("owner", project, run["id"], 2)
+
+    async with engine.connect() as connection:
+        revision_after = (await connection.execute(select(t.dispatch_runs.c.revision).where(t.dispatch_runs.c.id == run["id"]))).scalar_one()
+    assert revision_after == revision_before + 1
+    with pytest.raises(StaleResultCursor):
+        await results.list_cases("owner", project, run["id"], limit=1, cursor=first_page["next_cursor"])
+
+
+@pytest.mark.asyncio
+async def test_unrequested_unknown_without_object_reconciles_to_write_failed(prepared, tmp_path):  # noqa: F811
+    from cryptography.fernet import Fernet
+
+    original, _, project, plan, clock = prepared
+    key = Fernet.generate_key()
+    repo = EvidenceRepository(
+        original.sf,
+        protection=original.protection,
+        evidence_protection=EvidenceProtection(key),
+        response_artifact_store=ResponseArtifactStore(tmp_path / "qa-artifacts", key),
+        clock_ms=lambda: clock["ms"],
+    )
+    run = await repo.record_run("owner", project, plan["id"], plan["definition_hash"], JournalLimits(max_response_bytes=128, max_total_response_bytes=258))
+    ticket = await repo.record_dispatch("owner", project, run["id"], 1, body_bytes=30)
+    await repo.interrupt_journal("owner", project, run["id"])
+
+    result = await repo.reconcile_response_artifact("owner", project, run["id"], 1)
+
+    assert result["status"] == "write_failed" and result["reconciled"] is True
+    async with repo.sf() as session:
+        artifact = dict((await session.execute(select(t.response_artifacts).where(t.response_artifacts.c.id == ticket.response_artifact_id))).mappings().one())
+    assert artifact["request_body_sha256"] is None
+    assert artifact["request_body_bytes"] is None and artifact["request_contract_version"] is None
+
+
+@pytest.mark.asyncio
+async def test_stale_ticket_does_not_publish_a_raw_artifact(captured):
+    repo, engine, project, _, run, ticket, clock = captured
+    clock["ms"] = ticket.expires_at_ms
+
+    with pytest.raises(Conflict):
+        await repo.record_attempt("owner", project, run["id"], ticket, observation())
+
+    assert not repo.response_artifact_store._path(ticket.response_artifact_id).exists()
+    async with engine.connect() as conn:
+        assert not (await conn.execute(select(t.output_evidence))).all()
 
 
 @pytest.mark.asyncio
@@ -356,7 +529,7 @@ async def test_additive_migration_matches_metadata_and_preserves_harness(capture
         for table in (t.output_evidence, t.case_reviews):
             columns = await conn.run_sync(lambda c: inspect(c).get_columns(table.name))
             assert {row["name"] for row in columns} == set(table.c.keys())
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0017"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "synthetic_harness"
     assert (await repo.open_case("owner", project, run["id"], 1))["output"] == "SYNTHETIC_OUTPUT"
 
@@ -364,11 +537,26 @@ async def test_additive_migration_matches_metadata_and_preserves_harness(capture
 @pytest.mark.parametrize("prepared", ["eval_0005"], indirect=True)
 @pytest.mark.asyncio
 async def test_deployed_eval_0005_upgrade_keeps_existing_dispatch_rows(prepared):  # noqa: F811
+    from pathlib import Path
+
+    from alembic import command
+    from alembic.config import Config
+
+    from app.evaluation import schema
     from app.evaluation.schema import upgrade_evaluation_schema
 
-    repo, engine, project, plan, _ = prepared
+    repo, engine, project, plan, clock = prepared
+    await upgrade_evaluation_schema(engine)
     run = await repo.record_run("owner", project, plan["id"], plan["definition_hash"], JournalLimits(max_response_bytes=128, max_total_response_bytes=258))
-    ticket = await repo.record_dispatch("owner", project, run["id"], 1, body_bytes=20)
+    await repo.record_dispatch("owner", project, run["id"], 1, body_bytes=20)
+    at = clock["ms"]
+    async with repo.sf.begin() as session:
+        await session.execute(update(t.dispatches).where(t.dispatches.c.run_id == run["id"], t.dispatches.c.ordinal == 1).values(state="dispatched", ticket_hash="a" * 64, dispatched_at_ms=at, lease_expires_at_ms=at + 1000))
+    config = Config()
+    config.set_main_option("script_location", str(Path(schema.__file__).parent / "migrations"))
+    config.attributes.update(engine_url=engine.url, postgres_schema="")
+    with schema._MIGRATION_LOCK:
+        await asyncio.to_thread(command.downgrade, config, "eval_0005")
     async with engine.connect() as conn:
         assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0005"
         before = [dict(row) for row in (await conn.execute(select(t.dispatches))).mappings()]
@@ -379,5 +567,12 @@ async def test_deployed_eval_0005_upgrade_keeps_existing_dispatch_rows(prepared)
         assert [dict(row) for row in (await conn.execute(select(t.dispatches))).mappings()] == before
         assert not (await conn.execute(select(t.output_evidence))).all()
         assert not (await conn.execute(select(t.case_reviews))).all()
+        legacy = (await conn.execute(select(t.response_artifacts).where(t.response_artifacts.c.run_id == run["id"]))).mappings().all()
+        assert len(legacy) == run["request_count"]
+        assert all(row["status"] == "unavailable_legacy" for row in legacy)
+    run = await repo.record_run("owner", project, plan["id"], plan["definition_hash"], JournalLimits(max_response_bytes=128, max_total_response_bytes=258))
+    ticket = await repo.record_dispatch("owner", project, run["id"], 1, body_bytes=20)
+    request_hash = hashlib.sha256(b"SYNTHETIC_REQUEST").hexdigest()
+    await evidence.record_request_capture("owner", project, run["id"], ticket, body_sha256=request_hash, body_bytes=16, contract_version="qa-json-request.v1")
     await evidence.record_attempt("owner", project, run["id"], ticket, observation())
     assert (await evidence.open_case("owner", project, run["id"], 1))["output"] == "SYNTHETIC_OUTPUT"

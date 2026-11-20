@@ -195,7 +195,7 @@ docker exec devpilot-ci-node sh -lc 'cd /workspace/frontend && CI=1 SKIP_ENV_VAL
 
 ## 2026-11-07：项目组件与不可变提测清单最终验证
 
-本轮为 owner 项目的非可执行库存关联：已有组件 → 项目组件 → 同项目 frozen QA revision/hash → 多个不可变提测版本。新增 App 迁移 eval*0002，不改写已部署 eval_0001 或 Harness 账本；没有 RequestSpec 锁定、执行批准、真实接口调用、结果裁判或报告证据关联。所有测试仅用合成数据和 mock。详见[提测清单实现](DevPilot*项目组件与提测清单.md)。
+本轮为 owner 项目的非可执行库存关联：已有组件 → 项目组件 → 同项目 frozen QA revision/hash → 多个不可变提测版本。新增 App 迁移 eval_0002，不改写已部署 eval_0001 或 Harness 账本；没有 RequestSpec 锁定、执行批准、真实接口调用、结果裁判或报告证据关联。所有测试仅用合成数据和 mock。详见[提测清单实现](DevPilot_项目组件与提测清单.md)。
 
 ### 本地回归
 

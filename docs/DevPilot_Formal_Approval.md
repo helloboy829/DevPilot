@@ -22,6 +22,13 @@
 - `eval_0017` 增加请求、事件和明确打开视图凭据三张表。候选需完成 SQLite/PostgreSQL parity、历史恢复、完整后端/前端检查、合成登录流程及当前 SHA CI；没有部署或真实业务数据迁移。
 - 能力诊断随候选更新为 `approver_login=assigned_request_only`、`notifications=in_app_only`；多级强制、外部通知投递和批准导出仍是 blocker。签署进度不再把已实现的本人登录签署列为未实现。
 
+### 请求生命周期与实现边界（`eval_0017`）
+
+- 状态迁移仅为 `pending → approved`、`pending → cancelled`、`approved → revoked`；请求 revision 依次为 1、2、2、3。请求过期不写入新状态或事件：待办仍可显示 `pending`，但只读有效性投影返回 `expired`，且不能打开摘要或批准。owner 仍可取消未签请求；取消与过期分别表示显式操作和时间资格失效。
+- 创建请求的到期时间必须晚于当前时间且不超过创建时刻后 30 天。批准摘要必须由被指派审批人显式打开；视图凭据最多有效 10 分钟，并且不晚于请求到期时间。批准时重新核对请求 revision、视图归属/哈希/有效期及固定 assessment 来源；新鲜度或期限不符即冲突，不追加签核。
+- 每个 run 最多 1,000 个签核请求，每个请求最多 100 个摘要视图。审批人 inbox 与双方可见的通知读取各最多返回最近 100 项，并提供 `truncated`；当前 UI 会提示“仅显示最新 100 项/条”，没有分页游标，较旧请求可按原 ID 加载。通知只是由请求事件生成的站内读取投影，没有已读状态、后台投递或外部 outbox。
+- 请求事件与正式批准、审计记录在同一数据库事务内提交。POST 返回未确认/存储错误时，客户端必须保留原请求、视图或 operation ID，只能经对应 GET 对账；不能生成新 ID 重发。相同 ID 与相同 actor/action/request hash 返回原回执，不同负载冲突。
+
 ## 写入前提（缺一不可）
 
 1. run 当前状态为 `recording_finished`，且被固定 assessment 文档内的 `run_status` 也是 `recording_finished`。

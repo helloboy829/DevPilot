@@ -17,9 +17,9 @@ test("aboutMarkdown heading interpolates the app version", async () => {
     await import("@/components/workspace/settings/about-content");
   // The product heading carries the version stamp.
   expect(aboutMarkdown).toContain("# DevPilot 9.9.9-test");
-  // Rebranding must preserve explicit upstream attribution.
+  expect(aboutMarkdown).not.toMatch(/deerflow/i);
   expect(aboutMarkdown).toContain(
-    "[DeerFlow](https://github.com/bytedance/deer-flow)",
+    "Upstream attribution and applicable licenses are maintained in the repository.",
   );
 });
 

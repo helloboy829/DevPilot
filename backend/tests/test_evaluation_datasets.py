@@ -182,7 +182,7 @@ async def test_app_migrations_coexist_with_harness_restart(tmp_path):
         await upgrade_evaluation_schema(get_engine())
         assert (await EvaluationRepository(get_session_factory()).list_projects("owner"))[0]["id"] == created["id"]
         async with get_engine().connect() as conn:
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0017"
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar() == "eval_0020"
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar() != "eval_0001"
     finally:
         await close_engine()
@@ -216,6 +216,27 @@ def test_unicode_size_depth_unknown_fields_and_stable_hash():
     b = parse_samples(DatasetImport(revision=4, format="jsonl", content=content()[1:-1]))
     assert dataset_hash(source().model_dump(), "baseline", a) == dataset_hash(source().model_dump(), "baseline", b)
     assert dataset_hash(source().model_dump(), "acceptance", a) != dataset_hash(source().model_dump(), "baseline", a)
+
+
+def test_legacy_expected_dataset_hash_remains_byte_compatible():
+    from app.evaluation.datasets import dataset_hash
+
+    assert dataset_hash(source().model_dump(), "baseline", samples()) == "bb167cecef15bf51dfaa235c6f2bdf83d4872fe3a036d9a40d133fbb1bc7cc52"
+
+
+@pytest.mark.asyncio
+async def test_dataset_without_reference_can_be_imported_read_and_frozen(repo):
+    repository, _ = repo
+    project = await repository.create_project("owner", "Synthetic project")
+    dataset = await repository.create_dataset("owner", project["id"], "Unlabeled QA", "baseline", source())
+    raw = json.dumps([{"sample_id": "q1", "input": "Synthetic question", "source_ref": "record:1"}])
+
+    imported = await repository.replace_samples("owner", project["id"], dataset["id"], dataset["revision"], samples(raw))
+    assert (await repository.read_samples("owner", project["id"], dataset["id"]))[0]["input"] == "Synthetic question"
+    assert (await repository.read_samples("owner", project["id"], dataset["id"], references=True))[0]["expected"] is None
+
+    frozen = await repository.freeze("owner", project["id"], dataset["id"], imported["revision"], imported["content_hash"])
+    assert frozen["status"] == "frozen"
 
 
 @pytest.mark.asyncio

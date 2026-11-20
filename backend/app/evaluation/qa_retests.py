@@ -222,7 +222,7 @@ class RetestRepository(SummaryRepository):
             locked = (await session.execute(update(t.projects).where(t.projects.c.id == project_id, t.projects.c.owner_id == owner).values(id=t.projects.c.id).returning(t.projects))).mappings().first()
             if locked is None:
                 raise NotFound
-            if dict(locked) != project:
+            if any(locked[key] != value for key, value in project.items()):
                 raise Conflict
             existing = await self._retest_row(session, owner, project_id, retest_id)
             if existing:

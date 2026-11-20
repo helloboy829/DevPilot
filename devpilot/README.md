@@ -49,7 +49,7 @@ Gateway 的 `backend/app/component_tests/service.py` 调用 toolkit；不是已�
 
 ## 目标边界（待实施）
 
-本包承担纯领域 schema、数据质量、指标/门禁、适配器、报告事实模型。业务持久化、鉴权、审批、调度与 DeerFlow 工具桥接置 backend/app；模型调用通过协议注入，不扩散对 app/harness 的反向依赖。既有 evaluation runner 和文本 judge 的惰性 deerflow import 属迁移遗留。
+本包承担纯领域 schema、数据质量、指标/门禁、适配器、报告事实模型。业务持久化、鉴权、审批、调度与宿主 Agent runtime 的工具桥接置 backend/app；模型调用通过协议注入，不扩散对 app/harness 的反向依赖。既有 evaluation runner 和文本 judge 中的上游兼容 import 属迁移遗留。
 七字段 taskScore/codeScore 等只用于历史编码产物，不作为 CV/QA/Agent 统一验收标准。未被版本管理的 skills/custom 不属于已交付功能；领域技能需可打包、可测试、可追踪。
 
 ## 文档和测试

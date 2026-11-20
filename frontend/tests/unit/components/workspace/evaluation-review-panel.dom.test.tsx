@@ -72,7 +72,7 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
-async function ready() {
+async function ready(reference = "SYNTHETIC_GOLD") {
   fireEvent.click(
     screen.getByRole("button", { name: "Load / refresh review runs" }),
   );
@@ -83,7 +83,7 @@ async function ready() {
   fireEvent.click(screen.getByRole("button", { name: "Load cases" }));
   await screen.findByRole("button", { name: /Open case 1/ });
   fireEvent.click(screen.getByRole("button", { name: /Open case 1/ }));
-  await screen.findByText("SYNTHETIC_GOLD");
+  await screen.findByText(reference);
 }
 async function confirm() {
   fireEvent.change(screen.getByLabelText("Review note"), {
@@ -196,6 +196,17 @@ it("prevents pass when output evidence is absent even if technical metadata says
     screen.getByRole<HTMLInputElement>("radio", { name: "Pass" }).disabled,
   ).toBe(true);
   expect(screen.getByText("No immutable output evidence")).toBeTruthy();
+});
+it("labels a missing reference answer explicitly", async () => {
+  const original = state.api.getMockImplementation()!;
+  state.api.mockImplementation((route: string, body?: unknown) =>
+    route.endsWith("/cases/1")
+      ? Promise.resolve({ ...detail, expected: null })
+      : original(route, body),
+  );
+  render(<EvaluationReviewPanel projectId="p1" zh={false} />);
+  await ready("No reference answer provided");
+  expect(screen.getByText("No reference answer provided")).toBeTruthy();
 });
 it("discards sensitive details and pending responses across project changes", async () => {
   const view = render(

@@ -1,6 +1,7 @@
 import { StarFilledIcon, GitHubLogoIcon } from "@radix-ui/react-icons";
 import Link from "next/link";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { DEFAULT_LOCALE, type Locale } from "@/core/i18n/locale";
@@ -32,8 +33,9 @@ export async function Header({ className, homeURL, locale }: HeaderProps) {
           href={homeURL ?? "https://github.com/helloboy829/DevPilot"}
           target={isExternalHome ? "_blank" : "_self"}
           rel={isExternalHome ? "noopener noreferrer" : undefined}
-          className="font-serif text-xl whitespace-nowrap"
+          className="flex items-center gap-2 font-serif text-xl whitespace-nowrap"
         >
+          <BrandLogo size="compact" alt="" />
           DevPilot
         </a>
       </div>

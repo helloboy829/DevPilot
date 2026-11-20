@@ -2,6 +2,8 @@
 
 > 实现校准（2026-11-09）：[候选实现](DevPilot_Independent_Case_Review.md)已提供明确指派的双盲/仲裁与历史轮次，仅授予冻结 case；现增加 `/workspace/reviews` 中心和项目内联分配/详情，共用同一服务，候选 `eval_0010` 未部署。assessment/汇总/报告接入、正式批准和下述完整团队治理仍未实现。下文入口 `/workspace/evaluation/reviews` 是目标设计，不是当前路由；旧切片说明保留其历史边界。
 
+> 合同优先级（2026-11-20）：本文件描述目标产品体验和后续迭代；当前独立任务 API 的实际资源、权限、状态、双盲和失败语义以[独立逐条人工复核](DevPilot_Independent_Case_Review.md)及当前源码为准。当前任务在创建时固定两名 reviewer 与一名 arbitrator，不等同于下文可配置团队分配/抽样/assessment 重算目标；正式签核另见[正式批准首切片](DevPilot_Formal_Approval.md)。目标设计与当前窄任务实现不一致时，不得把目标项当成已实现能力。
+
 ## 2026-11-08 实现校准
 
 已交付的当前范围见[加密输出证据与人工复核](DevPilot_QA_Evidence_Review.md)：App 增量迁移 eval_0006，输出与技术观测原子落库、owner 自复核、敏感详情审计和追加修订。项目 API 的 review-runs 元数据、cases 分页、单条详情与 reviews 追加已实现；没有执行/上传输出路由。下文的团队分配、领取、仲裁、自动裁判、报告正式证据引用等仍是目标设计，不应据此认为已经贯通。独立执行准入与 Worker 仍待接入。

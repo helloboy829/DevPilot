@@ -601,7 +601,7 @@ def test_new_file_permissions_are_owner_only(tmp_path):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("kind,status,size", [("http_error", 503, 0), ("unsupported_response", 200, 0), ("response_limit", 200, 129), ("invalid_output", 200, 8), ("policy_rejected", None, 0)])
+@pytest.mark.parametrize("kind,status,size", [("http_error", 503, 12), ("unsupported_response", 200, 12), ("response_limit", 200, 129), ("invalid_output", 200, 8), ("policy_rejected", None, 0)])
 async def test_all_technical_non_successes_keep_all_frozen_ordinals_not_pass(tmp_path, kind, status, size):
     owned = journal(tmp_path)
     recorded = []

@@ -40,6 +40,7 @@ import type {
   MemoryFactPatchInput,
   UserMemory,
 } from "@/core/memory/types";
+import { createMemoryExportFileName } from "@/core/settings/memory-export";
 import { SafeStreamdown } from "@/core/streamdown/components";
 import { streamdownPlugins } from "@/core/streamdown/plugins";
 import { pathOfThread } from "@/core/threads/utils";
@@ -391,7 +392,7 @@ export function MemorySettingsPage() {
     try {
       setIsExporting(true);
       const exportedMemory = await exportMemory();
-      const fileName = `deerflow-memory-${(exportedMemory.lastUpdated || new Date().toISOString()).replace(/[:.]/g, "-")}.json`;
+      const fileName = createMemoryExportFileName(exportedMemory.lastUpdated);
       const blob = new Blob([JSON.stringify(exportedMemory, null, 2)], {
         type: "application/json",
       });

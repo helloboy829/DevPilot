@@ -203,6 +203,28 @@ async def test_expiry_ends_run_never_reclaims_slots_or_requeues_attempts(prepare
 
 
 @pytest.mark.asyncio
+async def test_owner_result_revision_advances_atomically_for_journal_changes(prepared):
+    repo, engine, project, plan, _ = prepared
+
+    async def revision():
+        async with engine.connect() as connection:
+            return await connection.scalar(select(t.projects.c.result_revision).where(t.projects.c.id == project))
+
+    initial = await revision()
+    run = await repo.record_run("owner", project, plan["id"], plan["definition_hash"], JournalLimits(max_response_bytes=16, max_total_response_bytes=34))
+    assert await revision() == initial + 1
+
+    ticket = await repo.record_dispatch("owner", project, run["id"], 1, body_bytes=20)
+    assert await revision() == initial + 2
+
+    await repo.record_observation("owner", project, run["id"], ticket, observed())
+    assert await revision() == initial + 3
+
+    await repo.interrupt_journal("owner", project, run["id"])
+    assert await revision() == initial + 4
+
+
+@pytest.mark.asyncio
 async def test_deadline_without_dispatch_marks_all_not_dispatched(prepared):
     repo, _, project, _, clock = prepared
     run = await record(prepared)
@@ -336,7 +358,7 @@ async def test_journal_survives_repeat_migration(prepared):
     assert (await repo.list_dispatches("owner", project, run["id"]))[0]["state"] == "dispatched"
     await repo.record_observation("owner", project, run["id"], ticket, observed())
     async with engine.connect() as conn:
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0017"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
 
 
 @pytest.mark.asyncio
@@ -528,8 +550,11 @@ async def test_deployed_eval_0004_upgrade_preserves_old_rows_and_harness_ledger(
     await upgrade_evaluation_schema(engine)
     async with engine.connect() as conn:
         for name in preserved:
-            assert (await conn.execute(text('SELECT * FROM "' + name + '"'))).all() == before[name]
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0017"
+            expected = before[name]
+            if name == t.projects.name:
+                expected = [tuple(row) + (0,) for row in expected]
+            assert (await conn.execute(text('SELECT * FROM "' + name + '"'))).all() == expected
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
         assert not (await conn.execute(text("PRAGMA foreign_key_check"))).all()
     run = await record(prepared)
     assert len(await repo.list_dispatches("owner", project, run["id"])) == 2

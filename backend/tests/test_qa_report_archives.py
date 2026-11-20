@@ -19,6 +19,21 @@ from app.evaluation.repository import Conflict, NotFound
 from app.evaluation.request_protection import RequestProtectionError
 
 
+def downgrade_to(url, revision):
+    from pathlib import Path
+
+    from alembic import command
+    from alembic.config import Config
+
+    from app.evaluation import schema
+
+    config = Config()
+    config.set_main_option("script_location", str(Path(schema.__file__).parent / "migrations"))
+    config.attributes.update(engine_url=url, postgres_schema="")
+    with schema._MIGRATION_LOCK:
+        command.downgrade(config, revision)
+
+
 def archives(repo):
     return ReportArchiveRepository(repo.sf, protection=repo.protection, evidence_protection=repo.evidence_protection, clock_ms=repo.clock_ms)
 
@@ -243,18 +258,25 @@ async def test_deployed_0007_additive_upgrade_preserves_data_and_harness(capture
 
     first = await complete(captured)
     repo, engine, project, _, _, _, _ = captured
+    await asyncio.to_thread(downgrade_to, engine.url, "eval_0007")
     preserved = (t.projects, t.request_versions, t.plans, t.output_evidence, t.case_reviews, t.dispatches, t.dispatch_runs, t.executions, t.execution_guard)
     async with engine.begin() as conn:
         await conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
         await conn.execute(text("INSERT INTO alembic_version VALUES ('synthetic_harness')"))
         assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0007"
-        before = {table.name: [dict(row) for row in (await conn.execute(select(table))).mappings()] for table in preserved}
+        before = {
+            table.name: [dict(row) for row in (await conn.execute(select(*(column for column in table.c if column.name != "result_revision")) if table is t.projects else select(table))).mappings()]
+            for table in preserved
+        }
     await upgrade_evaluation_schema(engine)
     await upgrade_evaluation_schema(engine)
     async with engine.connect() as conn:
-        after = {table.name: [dict(row) for row in (await conn.execute(select(table))).mappings()] for table in preserved}
+        after = {
+            table.name: [dict(row) for row in (await conn.execute(select(*(column for column in table.c if column.name != "result_revision")) if table is t.projects else select(table))).mappings()]
+            for table in preserved
+        }
         assert after == before
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0017"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "synthetic_harness"
         columns = await conn.run_sync(lambda c: inspect(c).get_columns(t.report_archives.name))
         assert {column["name"] for column in columns} == set(t.report_archives.c.keys())

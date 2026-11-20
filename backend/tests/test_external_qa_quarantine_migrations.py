@@ -27,7 +27,17 @@ from deerflow.config.database_config import DatabaseConfig
 from deerflow.persistence.component_tests.model import ComponentRow
 from deerflow.persistence.user.model import UserRow
 
-NEW = {t.external_qa_intakes.name, t.external_qa_intake_audit.name, t.run_approvals.name, t.approval_audit.name, t.approval_signoff_policies.name, t.approval_requests.name, t.approval_request_events.name, t.approval_request_views.name}
+NEW = {
+    t.external_qa_intakes.name,
+    t.external_qa_intake_audit.name,
+    t.run_approvals.name,
+    t.approval_audit.name,
+    t.approval_signoff_policies.name,
+    t.approval_requests.name,
+    t.approval_request_events.name,
+    t.approval_request_views.name,
+    t.response_artifacts.name,
+}
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name not in NEW]]
 
 
@@ -71,7 +81,7 @@ async def cycle(engine):
         async with engine.connect() as conn:
             names = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
             assert NEW.isdisjoint(names) if target == "eval_0013" else NEW.issubset(names)
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0013" if target == "eval_0013" else "eval_0017")
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0013" if target == "eval_0013" else "eval_0020")
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
             if target == "head":
 

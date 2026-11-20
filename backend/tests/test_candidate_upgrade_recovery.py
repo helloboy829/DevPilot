@@ -33,8 +33,8 @@ from app.gateway.auth.password import hash_password_async, verify_password_async
 from deerflow.persistence.bootstrap import _get_head_revision, bootstrap_schema
 from deerflow.persistence.user.model import UserRow
 
-pytestmark = [pytest.mark.asyncio, pytest.mark.parametrize("prepared", ["eval_0009"], indirect=True)]
-REVISIONS = ("eval_0010", "eval_0011", "eval_0012", "eval_0013", "eval_0014", "eval_0015", "eval_0016", "eval_0017")
+pytestmark = pytest.mark.asyncio
+REVISIONS = ("eval_0010", "eval_0011", "eval_0012", "eval_0013", "eval_0014", "eval_0015", "eval_0016", "eval_0017", "eval_0018", "eval_0019", "eval_0020")
 ADDITIONS = (
     {"evaluation_review_tasks", "evaluation_review_task_assignments", "evaluation_review_task_decisions", "evaluation_review_task_resolutions", "evaluation_review_task_audit"},
     {"evaluation_run_assessments"},
@@ -44,6 +44,9 @@ ADDITIONS = (
     {"evaluation_run_approvals", "evaluation_approval_audit"},
     {"evaluation_approval_signoff_policies"},
     {"evaluation_approval_requests", "evaluation_approval_request_events", "evaluation_approval_request_views"},
+    {"evaluation_response_artifacts"},
+    set(),
+    set(),
 )
 PASSWORD = "SYNTHETIC_RECOVERY_PASSWORD_ONLY"
 
@@ -58,6 +61,11 @@ def config(url):
 def upgrade(url, revision):
     with schema._MIGRATION_LOCK:
         command.upgrade(config(url), revision)
+
+
+def downgrade(url, revision):
+    with schema._MIGRATION_LOCK:
+        command.downgrade(config(url), revision)
 
 
 def quote(name):
@@ -89,17 +97,34 @@ def backup(source, destination):
         pass
     with closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as original, closing(sqlite3.connect(destination)) as copied:
         original.backup(copied)
-    with destination.open("rb") as descriptor:
+    with destination.open("rb+") as descriptor:
         os.fsync(descriptor.fileno())
 
 
 def unchanged(before, after, revision):
     assert before["tables"].keys() <= after["tables"].keys()
     for name, rows in before["tables"].items():
-        expected = [json.dumps([revision], separators=(",", ":"))] if name == "devpilot_alembic_version" else rows
+        if name == "devpilot_alembic_version":
+            expected = [json.dumps([revision], separators=(",", ":"))]
+        elif name == "evaluation_projects" and revision in {"eval_0019", "eval_0020"}:
+            expected = sorted(json.dumps(json.loads(row) + [0], ensure_ascii=True, separators=(",", ":")) for row in rows)
+        else:
+            expected = rows
         assert after["tables"][name] == expected, "Historical table changed: " + name
     old_names = before["tables"].keys()
-    assert [row for row in after["definitions"] if row[2] in old_names] == before["definitions"]
+    before_definitions = [row for row in before["definitions"] if not (revision in {"eval_0019", "eval_0020"} and row[1] == "evaluation_projects")]
+    after_definitions = [
+        row
+        for row in after["definitions"]
+        if row[2] in old_names and not (revision in {"eval_0019", "eval_0020"} and row[1] == "evaluation_projects") and not (revision == "eval_0020" and row[1] == "ix_evaluation_dispatch_run_project_started_id")
+    ]
+    assert after_definitions == before_definitions
+    if revision in {"eval_0019", "eval_0020"}:
+        project_definition = next(row[3] for row in after["definitions"] if row[1] == "evaluation_projects")
+        assert "result_revision" in project_definition
+    if revision == "eval_0020":
+        index_definition = next(row[3] for row in after["definitions"] if row[1] == "ix_evaluation_dispatch_run_project_started_id")
+        assert "started_at_ms" in index_definition and "project_id" in index_definition
 
 
 @dataclass
@@ -117,15 +142,32 @@ class RecoverySource:
 @pytest_asyncio.fixture
 async def recovery(captured, monkeypatch):
     def denied(*args, **kwargs):
-        raise AssertionError("Synthetic SQLite recovery must not use DNS or sockets")
+        raise AssertionError("Synthetic SQLite recovery must not use DNS or non-loopback sockets")
+
+    def allow_loopback_socketpair(method):
+        original = getattr(socket.socket, method)
+
+        def guarded(sock, address, *args, **kwargs):
+            host = address[0] if isinstance(address, tuple) and address else None
+            if host not in {"127.0.0.1", "::1"}:
+                return denied(sock, address, *args, **kwargs)
+            return original(sock, address, *args, **kwargs)
+
+        return guarded
 
     monkeypatch.setattr(socket, "getaddrinfo", denied)
     for name in ("connect", "connect_ex", "sendto"):
-        monkeypatch.setattr(socket.socket, name, denied)
+        monkeypatch.setattr(socket.socket, name, allow_loopback_socketpair(name))
     repo, engine, project, _, _, _, _ = captured
+    assert engine.url.get_backend_name() == "sqlite"
     # Real Harness bootstrap creates its actual tables and real revision ledger.
     # The existing fixture's App database is pinned to deployed eval_0009.
+    # Windows Proactor loops use loopback TCP socketpairs for their local wakeup pipes.
     await bootstrap_schema(engine, backend="sqlite")
+    first, second = await pair(captured)
+    report = await archives(repo).create_archive("owner", project, uuid4().hex, payload(first))
+    retest = await store(repo).create_retest("owner", project, uuid4().hex, request(first, second))
+    await asyncio.to_thread(downgrade, engine.url, "eval_0009")
     path = Path(engine.url.database).resolve()
     anchor = await asyncio.to_thread(sqlite3.connect, path, check_same_thread=False, isolation_level=None)
     try:
@@ -135,9 +177,6 @@ async def recovery(captured, monkeypatch):
         async with repo.sf.begin() as session:
             for ordinal, role in enumerate(("admin", "user", "user")):
                 session.add(UserRow(id=str(UUID(int=100 + ordinal)), email=f"synthetic-recovery-{ordinal}@example.invalid", password_hash=password_hash, system_role=role, token_version=10 + ordinal, needs_setup=ordinal == 2))
-        first, second = await pair(captured)
-        report = await archives(repo).create_archive("owner", project, uuid4().hex, payload(first))
-        retest = await store(repo).create_retest("owner", project, uuid4().hex, request(first, second))
         await asyncio.to_thread(anchor.execute, "PRAGMA wal_checkpoint(TRUNCATE)")
         # A real committed account change exists only in WAL, with an idle anchor.
         await asyncio.to_thread(anchor.execute, "UPDATE users SET token_version=19 WHERE id=?", (str(UUID(int=100)),))
@@ -203,13 +242,13 @@ async def test_wal_backup_upgrade_and_independent_old_version_restore(recovery, 
     for target in versions:
         await asyncio.to_thread(upgrade, url, target)
         actual = await asyncio.to_thread(snapshot, candidate)
-        revision = "eval_0017" if target == "head" else target
+        revision = "eval_0020" if target == "head" else target
         expected_names.update(set.union(*ADDITIONS) if target == "head" else ADDITIONS[REVISIONS.index(target)])
         assert set(actual["tables"]) == expected_names
         unchanged(source.original, actual, revision)
         stages.append({"revision": revision, "tables": len(actual["tables"]), "all_historical_tables_unchanged": True})
     await asyncio.to_thread(upgrade, url, "head")
-    unchanged(source.original, await asyncio.to_thread(snapshot, candidate), "eval_0017")
+    unchanged(source.original, await asyncio.to_thread(snapshot, candidate), "eval_0020")
     await verify_reads(source, candidate)
 
     def candidate_write():
@@ -228,7 +267,7 @@ async def test_wal_backup_upgrade_and_independent_old_version_restore(recovery, 
                 "schema": "synthetic-qa-upgrade-recovery.v1",
                 "mode": mode,
                 "from": "eval_0009",
-                "to": "eval_0017",
+                "to": "eval_0020",
                 "all_historical_tables": len(source.original["tables"]),
                 "stages": stages,
                 "snapshot_sha256": digest(source.original),

@@ -1,8 +1,8 @@
 # 独立逐条人工复核 / Independent case review
 
-> 后续独立评估切片（2026-11-09）：新增全冻结样本评估预览及不可变修订 API，候选 head `eval_0011`，旧 owner 汇总/报告/复测不切换；原任务切片与 UI 记录保持历史范围。见[独立评估合同](DevPilot_Independent_Assessments.md)。部署仍为 `eval_0009`。
+> 本文维护独立逐条复核的行为合同；当前源码、部署与业务验收状态以[交付状态](DevPilot_Delivery_Status.md)为准。第 5、6 节的测试计数和候选说明属于 2026-11-09 历史切片，不是当前候选的验证结果。
 
-日期：2026-11-09。状态：**工作区后端/API 与共享复核中心/内联 UI 候选，未提交、未部署**。App 候选 head 为 `eval_0010`；最近核验的运行部署仍为 `0fd689da83a4ac7646250447fb6d044599a823c5` / `eval_0009`。不得用历史 Actions 或页面冒烟代替本切片验证。
+2026-11-09 历史快照：当时逐条复核后端/API 与共享复核中心/内联 UI 尚未提交或部署，候选 head 为 `eval_0010`，当时运行部署为 `0fd689da83a4ac7646250447fb6d044599a823c5` / `eval_0009`。同日后续 `eval_0011` 候选新增全冻结样本评估预览及不可变修订 API，未切换旧 owner 汇总/报告/复测，见[独立评估合同](DevPilot_Independent_Assessments.md)。
 
 ## 1. 已实现与未实现
 
@@ -53,7 +53,7 @@
 - create/cancel/reopen 与 result 由服务层检查 owner；领取、打开和决定由具体任务指派限制。匿名、内部 Agent、未被指派第三人不获得数据。
 - 不新增请求明文读取、目标执行、上传证据或模型调用入口。没有全量目录、原始请求 secret、自动送审或人工批准接口。
 
-## 5. 迁移与验证
+## 5. 迁移边界与历史验证（2026-11-09）
 
 `eval_0010` 只追加 task/assignment/decision/resolution/audit 五表及两个索引，不编辑已部署迁移，也不改 Harness ledger。升级真实部署前须另行授权、一致性备份、账号/数据/配置保留和独立核验；本轮没有迁移生产数据库。降级测试只在专用合成库执行，不能据此擅自降级真实已填充复核表。
 
@@ -65,7 +65,7 @@
 
 以上计数属于后端切片；当时没有前端源码改动或新增页面。后续界面验证另列，不能将历史证据冒称本轮重跑。没有提交、远端 CI、生产部署、真实认证浏览器验收或真实模型/目标效果验收。
 
-English: this candidate provides explicitly assigned two-human blind case review and third-person arbitration through a shared backend service and human-only APIs. Narrow immutable grants do not confer project membership. Decisions, rounds, deterministic resolutions and audit are separate; missing/technical evidence cannot PASS. The later workspace candidate adds a shared review-center and inline UI. Assessment/summary/report integration, formal approval, deployment and permission to make real model/target calls are still excluded.
+English: The case-review slice provides explicitly assigned two-human blind review and third-person arbitration through a shared backend service and human-only APIs. Narrow immutable grants do not confer project membership; missing or technical evidence cannot PASS. The shared review center and inline UI are described below. Case resolution does not change the legacy owner summary/report/retest path, grant formal approval, or authorize real model/target calls. The dated verification notes are historical; see Delivery Status for deployment and acceptance.
 
 ## 6. 共享复核中心与内联界面候选（2026-11-09）
 

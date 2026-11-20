@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from sqlalchemy import update
 from test_dispatch_journal import prepared as prepared  # noqa: F401
 from test_qa_evidence import observation, review
+from test_qa_execution import synthetic_observation
 
 from app.evaluation import tables as t
 from app.evaluation.criteria import EffectivenessCriteria, assess_criteria
@@ -21,7 +22,7 @@ from app.evaluation.dispatch_journal import JournalLimits
 from app.evaluation.evidence_protection import EvidenceProtection
 from app.evaluation.execution import ExecutionCreate, ExecutionPolicy, ExecutionRepository, QAExecutionWorker
 from app.evaluation.plans import AcceptancePlanCreate, PlanCreate
-from app.evaluation.qa_attempts import AttemptObservation
+from app.evaluation.qa_artifact_store import ResponseArtifactStore
 from app.evaluation.qa_reports import ArchiveCreate, ReportArchiveRepository
 from app.evaluation.qa_retests import _same_benchmark
 from app.evaluation.qa_summary import SummaryRepository
@@ -140,13 +141,15 @@ async def test_verified_summary_and_report_keep_frozen_criteria_not_approval(ass
 
 
 @pytest.mark.asyncio
-async def test_v2_criteria_survive_separate_admission_worker_and_human_review(assessed, monkeypatch):
+async def test_v2_criteria_survive_separate_admission_worker_and_human_review(assessed, monkeypatch, tmp_path):
     summary_repo, _, project, _, plan, _, _ = assessed
+    artifact_key = Fernet.generate_key()
     repo = ExecutionRepository(
         summary_repo.sf,
         policy=ExecutionPolicy(enabled=True, max_response_bytes=128),
         protection=summary_repo.protection,
         evidence_protection=summary_repo.evidence_protection,
+        response_artifact_store=ResponseArtifactStore(tmp_path / "qa-artifacts", artifact_key),
         config_getter=lambda: SimpleNamespace(evaluation_http={"allowed_hosts": ["example.test"]}),
         clock_ms=summary_repo.clock_ms,
     )
@@ -155,11 +158,15 @@ async def test_v2_criteria_survive_separate_admission_worker_and_human_review(as
     admitted = await repo.admit("owner", project, uuid4().hex, payload)
     calls = []
 
-    async def collect(request, *args):
+    async def collect(request, *args, capture_state=None, on_request_ready=None):
+        assert capture_state is not None
         calls.append(request.to_request().body)
         assert "SYNTHETIC_INPUT" in calls[-1] and "GOLD" not in calls[-1]
         assert "acceptance_criteria" not in calls[-1]
-        return AttemptObservation("output_collected", 200, 30, 1.0, "SYNTHETIC_ACTUAL")
+        result = synthetic_observation(request)
+        if on_request_ready is not None:
+            await on_request_ready(result.request_body_sha256, result.request_body_bytes, "qa-json-request.v1")
+        return result
 
     monkeypatch.setattr("app.evaluation.execution.collect_json_attempt", collect)
     assert await QAExecutionWorker(repo, repo.config_getter).run_once()

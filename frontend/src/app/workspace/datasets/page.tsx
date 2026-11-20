@@ -464,8 +464,8 @@ export default function DatasetsPage() {
                       </h2>
                       <p className="text-muted-foreground text-sm">
                         {zh
-                          ? "最多 500 条、UTF-8 内容 500 KB；每条需要 sample_id、input、expected、source_ref。拒绝重复 ID / 规范化问题及空金标；任一错误则整批不写入。请勿包含密钥或不必要的个人信息。"
-                          : "Up to 500 samples and 500 KB UTF-8 content. Required: sample_id, input, expected, source_ref. Duplicate IDs / normalized questions and empty answers are rejected atomically. Do not include credentials or unnecessary personal data."}
+                          ? "最多 500 条、UTF-8 内容 500 KB；每条需要 sample_id、input、source_ref，expected 可省略或为 null。提供的答案不能为空；重复 ID / 规范化问题或任一错误都会使整批不写入。请勿包含密钥或不必要的个人信息。"
+                          : "Up to 500 samples and 500 KB UTF-8 content. Required: sample_id, input, source_ref. expected may be omitted or null; provided answers cannot be empty. Duplicate IDs / normalized questions or any invalid sample reject the entire import. Do not include credentials or unnecessary personal data."}
                       </p>
                       <label className="grid gap-2 text-sm">
                         {zh ? "格式" : "Format"}
@@ -558,7 +558,9 @@ export default function DatasetsPage() {
                               {[
                                 "ID",
                                 zh ? "输入 Q" : "Input Q",
-                                zh ? "预期答案" : "Reference answer",
+                                zh
+                                  ? "预期 / 参考答案（可选）"
+                                  : "Expected / reference answer (optional)",
                                 zh ? "来源 / 切片" : "Source / slice",
                               ].map((heading) => (
                                 <th key={heading} className="p-3">
@@ -580,7 +582,10 @@ export default function DatasetsPage() {
                                   {s.input}
                                 </td>
                                 <td className="p-3 break-words whitespace-pre-wrap">
-                                  {s.expected}
+                                  {s.expected ??
+                                    (zh
+                                      ? "未提供预期答案"
+                                      : "No reference answer provided")}
                                 </td>
                                 <td className="p-3 break-words whitespace-pre-wrap">
                                   {s.source_ref}
@@ -606,8 +611,8 @@ export default function DatasetsPage() {
                             onChange={(e) => setReviewed(e.target.checked)}
                           />
                           {zh
-                            ? "我已检查所有样本、预期答案与来源，并确认冻结当前版本（允许本人自审，不是独立双人审核）。"
-                            : "I reviewed all samples, reference answers and sources and confirm this version (self-review, not independent two-person approval)."}
+                            ? "我已检查所有样本、已提供的预期答案（如有）与来源，并确认冻结当前版本（允许本人自审，不是独立双人审核）。"
+                            : "I reviewed all samples, provided reference answers if present, and sources, and confirm this version (self-review, not independent two-person approval)."}
                         </label>
                         <Button
                           disabled={

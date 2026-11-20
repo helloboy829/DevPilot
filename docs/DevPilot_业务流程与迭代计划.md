@@ -48,8 +48,9 @@
 | 复测     | 新版本和整改说明                | 同冻结基准重跑、差异分析                 | 部分复测不能全量放行                                  |
 | 知识     | 材料/难例/评语                  | 脱敏、归纳、候选经验                     | 审核后发布，评估后推广                                |
 
-项目业务状态：draft → preparing → ready → running → reviewing → accepted → closed；reviewing → remediation → preparing 为整改循环。材料/来源不足留 preparing，运行异常转 reviewing 处理，不自动接受。accepted 需报告审批，不因单运行 PASS 自动触发。closed 是归档动作，不能抹去最终 verdict。
-计划状态与数据一致：draft → in_review → approved → frozen → retired；驳回进入新修订。任何变更均使关联旧审批失效。
+**目标项目业务状态机（待开发，不是当前 API/数据库状态）**：draft → preparing → ready → running → reviewing → accepted → closed；reviewing → remediation → preparing 为整改循环。材料/来源不足留 preparing，运行异常转 reviewing 处理，不自动接受。accepted 需报告审批，不因单运行 PASS 自动触发。closed 是归档动作，不能抹去最终 verdict。当前 `evaluation_projects` 只有 ID、owner、名称和创建时间，没有该状态字段或对应转换接口。
+
+**目标计划生命周期（待开发，不是当前计划状态字段）**：draft → in_review → approved → frozen → retired；驳回进入新修订，任何变更均使关联旧审批失效。当前 `evaluation_plans` 保存不可变的 `frozen_definition_only` 定义；创建计划时即写入定义并记录 `plan_frozen`，没有通用编辑、送审、批准或退役状态流。后续实现需将目标审批生命周期建模为显式、可审计的修订/审批资源，不得把当前创建即冻结行为描述成已实现此流程。
 
 ## 2. 旧里程碑名称（历史路线，仅作概念映射）
 

@@ -5,7 +5,7 @@ import hmac
 from uuid import uuid4
 
 from devpilot.qa_json_binding import QAJSONBinding
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.evaluation import tables as t
@@ -48,6 +48,14 @@ def _preflight(frozen, inputs, payload):
 
 
 class PlanRepository(RequestVersionRepository):
+    @staticmethod
+    async def _advance_owner_result_revision(session, project_id):
+        await session.execute(
+            update(t.projects)
+            .where(t.projects.c.id == project_id)
+            .values(result_revision=t.projects.c.result_revision + 1)
+        )
+
     async def create_plan(self, owner, project_id, component_id, payload: PlanCreate | AcceptancePlanCreate):
         with_criteria = isinstance(payload, AcceptancePlanCreate)
         create_model = AcceptancePlanCreate if with_criteria else PlanCreate

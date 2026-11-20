@@ -22,6 +22,27 @@ from app.evaluation import tables as t
 from deerflow.config.database_config import DatabaseConfig
 
 TASK_TABLES = {table.name for table in (t.review_tasks, t.review_task_assignments, t.review_task_decisions, t.review_task_resolutions, t.review_task_audit)}
+AFTER_EVAL_0009 = {
+    t.run_assessments.name,
+    t.review_tasks.name,
+    t.review_task_assignments.name,
+    t.review_task_decisions.name,
+    t.review_task_resolutions.name,
+    t.review_task_audit.name,
+    t.independent_report_archives.name,
+    t.independent_retest_archives.name,
+    t.exports.name,
+    t.export_audit.name,
+    t.external_qa_intakes.name,
+    t.external_qa_intake_audit.name,
+    t.run_approvals.name,
+    t.approval_audit.name,
+    t.approval_signoff_policies.name,
+    t.approval_requests.name,
+    t.approval_request_events.name,
+    t.approval_request_views.name,
+    t.response_artifacts.name,
+}
 
 
 def migrate(url, revision):
@@ -48,7 +69,7 @@ async def test_additive_upgrade_downgrade_and_repeat_preserve_every_previous_tab
         await conn.execute(text("INSERT INTO alembic_version VALUES ('SYNTHETIC_HARNESS')"))
     async with engine.connect() as conn:
         previous_names = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
-    old = [table for table in t.metadata.sorted_tables if table.name in previous_names]
+    old = [table for table in t.metadata.sorted_tables if table.name in previous_names and table.name not in AFTER_EVAL_0009]
 
     async def snapshot():
         async with engine.connect() as conn:
@@ -60,7 +81,7 @@ async def test_additive_upgrade_downgrade_and_repeat_preserve_every_previous_tab
         assert await snapshot() == before
         async with engine.connect() as conn:
             tables = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
-            expected = "eval_0009" if revision == "eval_0009" else "eval_0017"
+            expected = "eval_0009" if revision == "eval_0009" else "eval_0020"
             assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == expected
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
             assert TASK_TABLES.isdisjoint(tables) if revision == "eval_0009" else TASK_TABLES.issubset(tables)
@@ -102,7 +123,7 @@ async def test_postgresql_owned_database_schema_parity_and_harness_ledger():
                 return compare_metadata(context, t.metadata)
 
             assert await conn.run_sync(compare) == []
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0017"
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
         await asyncio.to_thread(migrate, engine.url, "eval_0009")
         async with engine.connect() as conn:

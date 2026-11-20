@@ -41,6 +41,7 @@ APP_TABLES = [
         t.approval_requests.name,
         t.approval_request_events.name,
         t.approval_request_views.name,
+        t.response_artifacts.name,
     }
 ]
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in APP_TABLES if table.name not in NEW]]

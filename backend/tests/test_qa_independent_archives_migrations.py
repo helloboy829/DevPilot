@@ -27,6 +27,21 @@ from deerflow.persistence.component_tests.model import ComponentRow
 from deerflow.persistence.user.model import UserRow
 
 NEW = {t.independent_report_archives.name, t.independent_retest_archives.name}
+AFTER_EVAL_0011 = {
+    t.independent_report_archives.name,
+    t.independent_retest_archives.name,
+    t.exports.name,
+    t.export_audit.name,
+    t.external_qa_intakes.name,
+    t.external_qa_intake_audit.name,
+    t.run_approvals.name,
+    t.approval_audit.name,
+    t.approval_signoff_policies.name,
+    t.approval_requests.name,
+    t.approval_request_events.name,
+    t.approval_request_views.name,
+    t.response_artifacts.name,
+}
 
 
 def migrate(url, target):
@@ -47,6 +62,7 @@ async def seed_legacy(tasks):
     first = await frozen(tasks, second_decision="fail")
     second = await second_archive(tasks)
     engine, project = tasks[2], tasks[3]
+    await asyncio.to_thread(migrate, engine.url, "eval_0011")
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: UserRow.__table__.create(c))
         await conn.execute(insert(UserRow.__table__).values(id=str(uuid4()), email="synthetic@example.invalid", password_hash="SYNTHETIC_PASSWORD_HASH", system_role="user"))
@@ -86,7 +102,7 @@ async def seed_legacy(tasks):
         )
         names = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
     assert NEW.isdisjoint(names)
-    old = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name in names]]
+    old = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name in names and table.name not in AFTER_EVAL_0011]]
     return first, second, old
 
 
@@ -100,7 +116,7 @@ async def cycle(engine, old, before):
         async with engine.connect() as conn:
             names = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
             assert NEW.isdisjoint(names) if target == "eval_0011" else NEW.issubset(names)
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0011" if target == "eval_0011" else "eval_0017")
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0011" if target == "eval_0011" else "eval_0020")
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
             if target == "head":
 

@@ -60,6 +60,15 @@
 去重与泄漏检查按主体/来源而非仅逐行；合成集和真实集分报。检测指标使用已知小例人工核算与参考实现对照；图像增强需标注一致。
 Prompt/裁判/adapter/extractor 变更均重放校准和回归，未达标准不升级。所有测试保留版本与证据，不把试点数据回流到冻结盲测后再自证提升。
 
+## 效果结果浏览器回归（EFF-01/03，待开发）
+
+- 用超过 200 个运行的 fixture 验证运行列表不硬截断；同一开始时间按 run ID 稳定排序，前插新运行不导致已取页重复或漏项。owner/项目隔离及 effectiveness mode 过滤在数据库查询和接口层均覆盖。
+- 用超过两页的冻结 case 清单验证 ordinal keyset 分页：重复 case ID 不允许出现在 effectiveness 冻结计划中；每行与本 run ordinal 的 dispatch、artifact、技术状态严格关联。故意删除/错绑 dispatch slot 后，该样本仍计入固定分母并产生 blocker，不伪造 evidence 或结果。
+- 对空结果筛选、count/status/review 多重筛选断言 total、matched_total 和本页长度分别准确；按唯一 ordinal 聚合，不因 reviews revisions 或多个 evidence 关联放大计数。筛选不得接受 reference/private decision/自由文本字段，不得泄露盲审字段计数。
+- 翻页期间改变可见结果、权限或 assessment projection version，下一页返回 stale-cursor 409；UI 丢弃整个旧页链及当前明文，保留筛选条件，等待显式刷新。畸形/篡改 cursor 或 cursor 与过滤器不匹配返回 422；跨项目、跨 run、撤权按 404/403 owner guard 处理。禁止自动重试并拼接新旧页面。
+- 对列表/普通详情装 spy，证明不解密 expected、input、request、response、parsed output 或理由；摘要仅使用允许的结构化元数据。敏感内容须按类型、hash、当前授权显式打开；切换对象、租约失效、权限撤销和 late response 都清除/丢弃明文。
+- UI 覆盖 50 默认/200 上限、筛选重置游标、上一页/下一页、空页、错误重载、运行中 snapshot 更新提示、键盘操作与窄屏布局。所有行为使用合成 fixture/Mock API，不调用真实模型或目标。
+
 ## 材料构建与无预期答案执行回归（待开发）
 
 - 多组件 manifest 的完整组件分母、附件映射、共享附件引用、页/表/行/段落定位、损坏/加密/不支持材料提示人工提取；脚本和宏不会执行，压缩包路径穿越被拒绝。
@@ -76,6 +85,7 @@ Prompt/裁判/adapter/extractor 变更均重放校准和回归，未达标准不
 第三方 AIPerf/GuideLLM adapter 只使用隔离 Mock OpenAI 服务，验证每个发出请求的 durable ACK、一对一 dispatch ID、冻结 case/iteration 映射、取消与未知写入不重发、响应 hash 和流式/usage 口径。没有真实单请求回调/账本桥接的 CLI 运行仅测外部对照，不能标记正式平台结果。
 
 用可控延迟/首 chunk/usage 的本地假服务校准时间与吞吐；验证 warmup 排除、窗口/drain 边界、重试计数、非文本 N/A、chunk≠token、每档/每重复聚合。发生器负载饱和时应标注测量失真。
+性能指标 fixture 固定使用 `nearest_rank.v1`：n=1、n=20 的 p50/p95/p99、小于 100 样本不展示 p99、空/非有限观测、无插值和显示舍入均有手算期望值。覆盖 count-only 窗口延长到全部终态、duration-first-limit 后 drain 不延长窗口但终态仍归测量 cohort、warmup 排除、hard deadline 的 unknown/right-censor、零窗口速率不可用；attempt/success QPS 与 token throughput 均按冻结 cohort hash 和实际单调窗口秒数独立复算。
 对 AIPerf/GuideLLM 外部 backend 先验证 workload/token/时间口径等价，不要求数值机械相同；在可解释差异前不混用报告。GenAI-Perf 已退出新功能开发，只保留历史兼容口径参考，不作为新集成候选。
 真实压测必须显式 opt-in、授权窗口和硬预算，默认 CI 不访问真实组件。
 

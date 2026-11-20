@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import time
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Literal
 from urllib.parse import urlsplit
@@ -26,7 +28,7 @@ from app.evaluation.datasets import StrictDTO
 from app.evaluation.dispatch_journal import JournalLimits, _positive_int
 from app.evaluation.plan_repository import _preflight, _verified_inputs
 from app.evaluation.plans import PlanCreate
-from app.evaluation.qa_attempts import collect_json_attempt
+from app.evaluation.qa_attempts import AttemptCaptureState, AttemptObservation, collect_json_attempt
 from app.evaluation.qa_evidence import EvidenceRepository
 from app.evaluation.registry import fingerprint
 from app.evaluation.repository import Conflict, NotFound
@@ -161,6 +163,7 @@ class ExecutionRepository(EvidenceRepository):
                 raise Conflict
             # Ensure evidence storage is available BEFORE any admitted dispatch.
             self._evidence_protection()
+            self._response_artifact_store().ensure_available()
             return frozen
 
         frozen = await asyncio.to_thread(open_request)
@@ -370,6 +373,7 @@ class QAExecutionWorker:
     async def run_once(self):
         claim = None
         completed = False
+        ticket_context = ContextVar("qa_attempt_ticket", default=None)
 
         async def claim_and_remember():
             nonlocal claim
@@ -383,10 +387,70 @@ class QAExecutionWorker:
             binding = QAJSONBinding.from_dict(prepared.plan["definition"]["binding"])
 
             async def reserve(ordinal, body_bytes):
-                return await _drained_database(self.repo.reserve_attempt(claim, ordinal, body_bytes=body_bytes))
+                ticket = await _drained_database(self.repo.reserve_attempt(claim, ordinal, body_bytes=body_bytes))
+                ticket_context.set(ticket)
+                return ticket
 
             async def collect(spec, checked_binding, attempt_limits):
-                return await collect_json_attempt(spec, checked_binding, self.config_getter(), attempt_limits)
+                ticket = ticket_context.get()
+                if ticket is None:
+                    raise Conflict
+
+                async def record_request_capture(body_sha256, body_bytes, contract_version):
+                    await _drained_database(
+                        self.repo.record_request_capture(
+                            claim.owner,
+                            claim.project_id,
+                            run["id"],
+                            ticket,
+                            body_sha256=body_sha256,
+                            body_bytes=body_bytes,
+                            contract_version=contract_version,
+                        )
+                    )
+
+                capture_state = AttemptCaptureState()
+                started = time.perf_counter()
+                try:
+                    return await collect_json_attempt(
+                        spec,
+                        checked_binding,
+                        self.config_getter(),
+                        attempt_limits,
+                        capture_state=capture_state,
+                        on_request_ready=record_request_capture,
+                    )
+                except asyncio.CancelledError:
+                    if capture_state.response_capture_status in {"partial", "complete", "truncated"}:
+                        status = capture_state.http_status
+                        if status is None:
+                            kind = "delivery_unknown"
+                        elif not 200 <= status < 300:
+                            kind = "http_error"
+                        elif capture_state.response_capture_status == "truncated":
+                            kind = "response_limit"
+                        else:
+                            kind = "invalid_output"
+                        interrupted = AttemptObservation(
+                            kind=kind,
+                            http_status=status,
+                            body_bytes=capture_state.response_body_bytes,
+                            elapsed_ms=(time.perf_counter() - started) * 1000,
+                            output=None,
+                            request_body_sha256=capture_state.request_body_sha256,
+                            request_body_bytes=capture_state.request_body_bytes,
+                            response_body=capture_state.response_body,
+                            response_capture_status=capture_state.response_capture_status,
+                            response_content_type=capture_state.response_content_type,
+                            response_content_encoding=capture_state.response_content_encoding,
+                            response_body_sha256=capture_state.response_body_sha256,
+                            response_body_hash_scope=capture_state.response_body_hash_scope,
+                        )
+                        try:
+                            await _drained_database(self.repo.record_attempt(claim.owner, claim.project_id, run["id"], ticket, interrupted))
+                        except Exception:
+                            pass
+                    raise
 
             async def record(ticket, observation):
                 await _drained_database(self.repo.record_attempt(claim.owner, claim.project_id, run["id"], ticket, observation))

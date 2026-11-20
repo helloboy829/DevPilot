@@ -1,6 +1,7 @@
 """Pinned pure JSON request projection; no export/transport or admission power."""
 
 import asyncio
+import hashlib
 import subprocess
 import sys
 from dataclasses import FrozenInstanceError
@@ -149,6 +150,7 @@ async def test_app_delegates_to_pinned_preparation_once_and_encodes_inside_clien
     original = frozen(body='{"q":"\u7b54\U0001f642"}', headers=(("Content-Type", "application/json"),))
     prepared = []
     encoded = []
+    timeline = []
     entered_client = False
     prepare = qa_json_attempt.QAJSONRequest
     get_content = QAJSONRequest.content.fget
@@ -167,6 +169,7 @@ async def test_app_delegates_to_pinned_preparation_once_and_encodes_inside_clien
     monkeypatch.setattr(QAJSONRequest, "content", property(content))
 
     async def handle(sent):
+        timeline.append("send")
         assert sent.content == original.body.encode("utf-8")
         assert sent.headers["accept-encoding"] == "identity"
         return httpx.Response(200, headers={"content-type": "application/json"}, stream=Body([b'{"a":"ok"}']))
@@ -181,9 +184,27 @@ async def test_app_delegates_to_pinned_preparation_once_and_encodes_inside_clien
         return client(*args, **kwargs)
 
     monkeypatch.setattr(qa_attempts, "evaluation_client", enter)
-    result = await qa_attempts.collect_json_attempt(original, QAJSONBinding("/q", "/a"), None, qa_attempts.AttemptLimits())
+
+    request_receipts = []
+
+    async def request_ready(body_sha256, body_bytes, contract_version):
+        assert entered_client
+        assert encoded == prepared
+        timeline.append("request_identity")
+        request_receipts.append((body_sha256, body_bytes, contract_version))
+
+    result = await qa_attempts.collect_json_attempt(
+        original,
+        QAJSONBinding("/q", "/a"),
+        None,
+        qa_attempts.AttemptLimits(),
+        on_request_ready=request_ready,
+    )
     assert result.kind == "output_collected" and result.output == "ok"
     assert len(calls) == 1 and encoded == prepared
+    content = original.body.encode("utf-8")
+    assert request_receipts == [(hashlib.sha256(content).hexdigest(), len(content), VERSION)]
+    assert timeline == ["request_identity", "send"]
 
 
 @pytest.mark.asyncio

@@ -24,6 +24,8 @@ from app.evaluation.qa_assessments import AssessmentCreate, AssessmentRepository
 from app.evaluation.qa_evidence import EvidenceRepository, ReviewCreate
 from app.evaluation.qa_independent_archives import IndependentArchiveCreate, IndependentReportRepository, IndependentRetestCreate, IndependentRetestRepository, independent_templates
 from app.evaluation.qa_reports import ArchiveCreate, ReportArchiveRepository, archive_templates
+from app.evaluation.qa_result_cursor import InvalidResultCursor, StaleResultCursor
+from app.evaluation.qa_results import ResultRepository
 from app.evaluation.qa_retests import RetestCreate, RetestRepository
 from app.evaluation.qa_summary import SummaryRepository
 from app.evaluation.registry import ComponentLinkCreate, SubmissionCreate
@@ -89,12 +91,21 @@ def _require_human(request):
 async def _result(operation):
     try:
         return await operation
+    except StaleResultCursor:
+        raise HTTPException(409, "Results changed while paging; reload the result list") from None
+    except InvalidResultCursor:
+        raise HTTPException(422, "Invalid result cursor or filter") from None
     except NotFound:
         raise HTTPException(404, "Project, component, dataset, submission, request version or plan not found") from None
     except PlanPreflightError:
         raise HTTPException(422, "QA request preflight failed; check mapping, sample coverage and budgets") from None
     except Conflict:
         raise HTTPException(409, "Resource changed, is not eligible or already exists; reload and review the current revision") from None
+
+
+def _reject_unknown_query_params(request, allowed):
+    if set(request.query_params.keys()) - allowed:
+        raise HTTPException(422, "Unsupported query parameter")
 
 
 @router.get("")
@@ -384,6 +395,84 @@ async def cancel_execution(project_id: str, execution_id: str, request: Request)
     _require_human(request)
     owner, repository = await _execution_context(request, project_id)
     return await _result(repository.cancel(owner, project_id, execution_id))
+
+
+@router.get("/{project_id}/runs")
+@require_permission("evaluation_projects", "read")
+async def list_effectiveness_runs(
+    project_id: str,
+    request: Request,
+    component_id: str | None = Query(default=None, min_length=1, max_length=80),
+    dataset_id: str | None = Query(default=None, min_length=1, max_length=80),
+    plan_id: str | None = Query(default=None, min_length=1, max_length=80),
+    status: str | None = Query(default=None, min_length=1, max_length=80),
+    limit: int = Query(default=50, ge=1, le=200),
+    cursor: str | None = Query(default=None, max_length=4096),
+):
+    _reject_unknown_query_params(request, {"component_id", "dataset_id", "plan_id", "status", "limit", "cursor"})
+    owner, repository = await _context(request)
+    return await _result(
+        ResultRepository(repository.sf).list_runs(
+            owner,
+            project_id,
+            filters={"component_id": component_id, "dataset_id": dataset_id, "plan_id": plan_id, "status": status},
+            limit=limit,
+            cursor=cursor,
+        )
+    )
+
+
+@router.get("/{project_id}/runs/{run_id}")
+@require_permission("evaluation_projects", "read")
+async def get_effectiveness_run(project_id: str, run_id: str, request: Request):
+    _reject_unknown_query_params(request, set())
+    owner, repository = await _context(request)
+    return await _result(ResultRepository(repository.sf).get_run(owner, project_id, run_id))
+
+
+@router.get("/{project_id}/runs/{run_id}/cases")
+@require_permission("evaluation_projects", "read")
+async def list_effectiveness_run_cases(
+    project_id: str,
+    run_id: str,
+    request: Request,
+    integrity_status: str | None = Query(default=None, min_length=1, max_length=40),
+    dispatch_state: str | None = Query(default=None, min_length=1, max_length=40),
+    kind: str | None = Query(default=None, min_length=1, max_length=40),
+    http_status: int | None = Query(default=None, ge=100, le=599),
+    reference_status: str | None = Query(default=None, min_length=1, max_length=40),
+    limit: int = Query(default=50, ge=1, le=200),
+    cursor: str | None = Query(default=None, max_length=4096),
+):
+    _reject_unknown_query_params(
+        request,
+        {"integrity_status", "dispatch_state", "kind", "http_status", "reference_status", "limit", "cursor"},
+    )
+    owner, repository = await _context(request)
+    return await _result(
+        ResultRepository(repository.sf).list_cases(
+            owner,
+            project_id,
+            run_id,
+            filters={
+                "integrity_status": integrity_status,
+                "dispatch_state": dispatch_state,
+                "kind": kind,
+                "http_status": http_status,
+                "reference_status": reference_status,
+            },
+            limit=limit,
+            cursor=cursor,
+        )
+    )
+
+
+@router.get("/{project_id}/runs/{run_id}/cases/{case_id}")
+@require_permission("evaluation_projects", "read")
+async def get_effectiveness_run_case(project_id: str, run_id: str, case_id: str, request: Request):
+    _reject_unknown_query_params(request, set())
+    owner, repository = await _context(request)
+    return await _result(ResultRepository(repository.sf).get_case(owner, project_id, run_id, case_id))
 
 
 async def _report_context(request):

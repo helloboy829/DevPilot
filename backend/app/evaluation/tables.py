@@ -10,6 +10,7 @@ projects = Table(
     Column("owner_id", String(64), nullable=False, index=True),
     Column("name", String(160), nullable=False),
     Column("created_at", String(40), nullable=False),
+    Column("result_revision", Integer, nullable=False, server_default="0"),
 )
 datasets = Table(
     "evaluation_datasets",
@@ -234,6 +235,16 @@ dispatches = Table(
     CheckConstraint("state IN ('pending','dispatched','observed','delivery_unknown','not_dispatched')", name="ck_evaluation_dispatch_state"),
 )
 Index("ix_evaluation_dispatch_state_lease", dispatches.c.run_id, dispatches.c.state, dispatches.c.lease_expires_at_ms)
+Index("ix_evaluation_dispatch_run_project_started_id", dispatch_runs.c.project_id, dispatch_runs.c.started_at_ms.desc(), dispatch_runs.c.id.asc())
+
+
+def _request_body_sha256_constraint():
+    cleaned = "request_body_sha256"
+    for character in "0123456789abcdef":
+        cleaned = f"replace({cleaned}, '{character}', '')"
+    return f"request_body_sha256 IS NOT NULL AND length(request_body_sha256) = 64 AND request_body_sha256 = lower(request_body_sha256) AND length({cleaned}) = 0"
+
+
 dispatch_audit = Table(
     "evaluation_dispatch_audit",
     metadata,
@@ -281,6 +292,87 @@ case_reviews = Table(
     CheckConstraint("ordinal BETWEEN 1 AND 10000 AND revision BETWEEN 1 AND 100 AND created_at_ms > 0", name="ck_evaluation_review_bounds"),
     CheckConstraint("decision IN ('pass','fail','uncertain')", name="ck_evaluation_review_decision"),
 )
+
+# Raw response bytes live in encrypted object storage; this row is the durable
+# manifest and receipt, not a queryable copy of the response body.
+response_artifacts = Table(
+    "evaluation_response_artifacts",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("ordinal", Integer, nullable=False),
+    Column("status", String(24), nullable=False),
+    Column("hash_scope", String(8), nullable=False),
+    Column("request_body_sha256", String(64), nullable=True),
+    Column("request_body_bytes", Integer, nullable=True),
+    Column("request_contract_version", String(32), nullable=True),
+    Column("response_sha256", String(64), nullable=True),
+    Column("captured_prefix_sha256", String(64), nullable=True),
+    Column("captured_bytes", Integer, nullable=False),
+    Column("observed_bytes", Integer, nullable=False),
+    Column("content_type", String(127), nullable=True),
+    Column("content_encoding", String(16), nullable=True),
+    Column("key_version", String(16), nullable=True),
+    Column("sealed_sha256", String(64), nullable=True),
+    Column("sealed_bytes", Integer, nullable=True),
+    Column("receipt_hash", String(64), nullable=True),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("updated_at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id"], ["evaluation_projects.id"], name="fk_evaluation_response_artifact_project"),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_dispatch_runs.project_id", "evaluation_dispatch_runs.id"], name="fk_evaluation_response_artifact_run"),
+    ForeignKeyConstraint(["run_id", "ordinal"], ["evaluation_dispatches.run_id", "evaluation_dispatches.ordinal"], name="fk_evaluation_response_artifact_dispatch"),
+    UniqueConstraint("run_id", "ordinal", name="uq_evaluation_response_artifact_dispatch"),
+    CheckConstraint("ordinal BETWEEN 1 AND 10000", name="ck_evaluation_response_artifact_ordinal"),
+    CheckConstraint(
+        "status IN ('pending','complete','partial','truncated','policy_skipped','not_received','write_failed','write_unknown','unavailable_legacy')",
+        name="ck_evaluation_response_artifact_status",
+    ),
+    CheckConstraint("hash_scope IN ('none','full','prefix')", name="ck_evaluation_response_artifact_hash_scope"),
+    CheckConstraint(
+        "((request_body_sha256 IS NULL AND request_body_bytes IS NULL AND request_contract_version IS NULL) OR "
+        f"({_request_body_sha256_constraint()} AND request_body_bytes BETWEEN 0 AND 262144 AND request_contract_version IS NOT NULL AND length(request_contract_version) BETWEEN 1 AND 32))",
+        name="ck_evaluation_response_artifact_request_identity",
+    ),
+    CheckConstraint(
+        "((hash_scope = 'none' AND response_sha256 IS NULL AND captured_prefix_sha256 IS NULL) OR "
+        "(hash_scope = 'full' AND response_sha256 IS NOT NULL AND length(response_sha256) = 64 AND captured_prefix_sha256 IS NULL) OR "
+        "(hash_scope = 'prefix' AND response_sha256 IS NULL AND captured_prefix_sha256 IS NOT NULL AND length(captured_prefix_sha256) = 64))",
+        name="ck_evaluation_response_artifact_hash",
+    ),
+    CheckConstraint(
+        "((sealed_sha256 IS NULL AND sealed_bytes IS NULL AND key_version IS NULL AND receipt_hash IS NULL) OR "
+        "(sealed_sha256 IS NOT NULL AND length(sealed_sha256) = 64 "
+        "AND sealed_bytes BETWEEN captured_bytes + 28 AND captured_bytes + 2113 "
+        "AND key_version IS NOT NULL AND length(key_version) BETWEEN 1 AND 16 "
+        "AND receipt_hash IS NOT NULL AND length(receipt_hash) = 64))",
+        name="ck_evaluation_response_artifact_sealed_receipt",
+    ),
+    CheckConstraint(
+        "captured_bytes BETWEEN 0 AND 1048576 AND observed_bytes BETWEEN 0 AND 1048577 AND observed_bytes >= captured_bytes",
+        name="ck_evaluation_response_artifact_bytes",
+    ),
+    CheckConstraint("content_type IS NULL OR length(content_type) BETWEEN 1 AND 127", name="ck_evaluation_response_artifact_content_type"),
+    CheckConstraint("content_encoding IS NULL OR content_encoding IN ('identity','gzip','deflate','br','zstd','compress','other')", name="ck_evaluation_response_artifact_content_encoding"),
+    CheckConstraint(
+        "((status = 'pending' AND hash_scope = 'none' AND sealed_sha256 IS NULL) OR "
+        "(status = 'complete' AND hash_scope = 'full' AND sealed_sha256 IS NOT NULL AND captured_bytes = observed_bytes) OR "
+        "(status IN ('partial','truncated') AND hash_scope = 'prefix' AND sealed_sha256 IS NOT NULL) OR "
+        "(status IN ('policy_skipped','not_received','unavailable_legacy') AND hash_scope = 'none' AND sealed_sha256 IS NULL) OR "
+        "status IN ('write_failed','write_unknown'))",
+        name="ck_evaluation_response_artifact_state",
+    ),
+    CheckConstraint(
+        "status NOT IN ('complete','partial','truncated','not_received') OR (request_body_sha256 IS NOT NULL AND request_body_bytes IS NOT NULL AND request_contract_version IS NOT NULL)",
+        name="ck_evaluation_response_artifact_request_recorded",
+    ),
+    CheckConstraint(
+        "status != 'write_failed' OR request_body_sha256 IS NOT NULL OR (request_body_bytes IS NULL AND request_contract_version IS NULL AND hash_scope = 'none' AND captured_bytes = 0 AND observed_bytes = 0)",
+        name="ck_evaluation_response_artifact_write_failed_identity",
+    ),
+    CheckConstraint("created_at_ms > 0 AND updated_at_ms >= created_at_ms AND updated_at_ms <= 253402300799000", name="ck_evaluation_response_artifact_clock"),
+)
+Index("ix_evaluation_response_artifact_status_time", response_artifacts.c.status, response_artifacts.c.updated_at_ms)
 
 # Independent human execution admission; journal scope remains metadata-only.
 execution_guard = Table(

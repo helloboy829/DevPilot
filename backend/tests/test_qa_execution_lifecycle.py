@@ -163,7 +163,10 @@ async def test_real_worker_repeated_shutdown_keeps_quota_until_network_and_datab
     entered, leave, draining, release = (asyncio.Event() for _ in range(4))
     sends, drained = [], []
 
-    async def collect(*args):
+    async def collect(*args, capture_state=None, on_request_ready=None):
+        assert capture_state is not None
+        if on_request_ready is not None:
+            await on_request_ready("a" * 64, 1, "qa-json-request.v1")
         sends.append(asyncio.current_task())
         if len(sends) == 2:
             entered.set()
@@ -184,7 +187,11 @@ async def test_real_worker_repeated_shutdown_keeps_quota_until_network_and_datab
 
     task = asyncio.create_task(lifetime())
     try:
-        await asyncio.wait_for(entered.wait(), 5)
+        try:
+            await asyncio.wait_for(entered.wait(), 5)
+        except TimeoutError:
+            state = await repo.get_execution("owner", prepared[2], row["id"])
+            pytest.fail(f"worker did not reach the collector: state={state['state']}, reservation_held={state['reservation_held']}, collector_calls={len(sends)}")
         leave.set()
         await asyncio.wait_for(draining.wait(), 5)
         for _ in range(3):
@@ -196,6 +203,9 @@ async def test_real_worker_repeated_shutdown_keeps_quota_until_network_and_datab
             assert not drained
     finally:
         release.set()
+        if not entered.is_set():
+            leave.set()
+            task.cancel()
         result = await asyncio.gather(task, return_exceptions=True)
     assert isinstance(result[0], asyncio.CancelledError)
     assert len(sends) == len(drained) == 2

@@ -32,9 +32,25 @@
 
 这些字段仍是目标设计，不表示当前 router 已接受它们。[业务依据](DevPilot_历史材料分析与设计校准.md)。
 
-## 1. 当前实际接口
+## 1. 当前已注册接口
 
-router：backend/app/gateway/routers/component_tests.py。
+以下路由来自 Gateway 当前注册的 router。路由存在只证明 HTTP 入口已挂载，不代表关联能力已形成端到端闭环；候选、部分实现和仅骨架能力仍以[交付状态](DevPilot_Delivery_Status.md)及对应领域合同为准。资源 DTO、权限和状态细节由领域 owner 维护，本节只提供方法/路径族索引。
+
+| 当前路由族 | 已注册方法与路径范围 | 责任模块 / 合同边界 |
+| --- | --- | --- |
+| 项目、数据集与组件登记 | GET/POST /api/evaluation/projects；/api/evaluation/projects/{project_id}/datasets...、component-candidates、components...、submissions...、registry-audit | evaluation_projects.py；数据集见[QA 数据最小闭环](DevPilot_QA数据最小闭环.md)，组件与提测清单见[组件与提测清单](DevPilot_项目组件与提测清单.md)。DAT-02 的 reference 独立审批/hash 尚未由当前候选实现。 |
+| RequestSpec 与计划 | /api/evaluation/projects/{project_id}/components/{component_id}/request-versions...、request-versions/{version_id}...、components/{component_id}/plans...、plans/{plan_id}... | evaluation_projects.py；计划准入和绑定约束见[QA JSON Binding](DevPilot_QA_JSON_Binding.md)及[数据库详细设计](DevPilot_数据库详细设计.md)。冻结计划不等于执行授权。 |
+| 运行结果与当前人工复核 | /api/evaluation/projects/{project_id}/review-runs...，包含 summary、cases、单条 case 与 cases/{ordinal}/reviews；/execution-policy、/execution-runs... | evaluation_projects.py；运行、原生证据及 owner 自复核见[加密输出证据与人工复核](DevPilot_QA_Evidence_Review.md)。这不是效果工作台 EFF-01/02/03：目前没有其完整结果 DTO、分类 evidence grant/access API 或浏览器。执行准入和 Worker 仍受独立 gate 约束。 |
+| 报告、复测与独立评估/签核 | /api/evaluation/projects/{project_id}/report-templates...、report-archives...、retest-archives...、review-runs/{run_id}/independent-assessment、assessments...、approvals...、independent-report-archives...、independent-retest-archives... | evaluation_projects.py；报告/复测按各自存档合同读写；签核策略、审计和本人权限见[全民审核与 Linux 验收](DevPilot_Equal_Review_and_Linux_Acceptance.md)。此路由清单不代表全部报告导出、通知或部署验收已完成。 |
+| 独立复核任务 | GET/POST /api/evaluation/projects/{project_id}/review-tasks[/{task_id}]；GET /api/evaluation/review-tasks、/{task_id}、/{task_id}/case、/{task_id}/result；POST /{task_id}/claim、/release、/decisions、/cancel、/reopen | evaluation_review_tasks.py；当前窄任务合同见[独立逐条人工复核](DevPilot_Independent_Case_Review.md)，产品工作台目标见[人工复核工作台](DevPilot_人工复核工作台设计.md)。创建时固定两名复核人和一名仲裁人；没有通用 assignment、adjudication、history 路由。 |
+| 签核请求 | POST /api/evaluation/projects/{project_id}/review-runs/{run_id}/approval-requests/{request_id}；GET /api/evaluation/approval-requests、/notifications、/{request_id}、/{request_id}/state、/{request_id}/operations/{operation_id}、/{request_id}/views/{view_id}；POST /{request_id}/views/{view_id}、/{request_id}/decisions/{operation_id}、/{request_id}/cancellations/{operation_id} | evaluation_approval_requests.py；本人签署、固定汇总视图、撤销、事件通知及旧 owner 代录边界见[正式批准首切片](DevPilot_Formal_Approval.md)。这与逐条独立复核任务不是同一资源或结论。 |
+| 授权导出 | /api/evaluation/projects/{project_id}/export-capabilities、exports/{export_id}、exports/{export_id}/bundle、exports/{export_id}/audit | evaluation_exports.py；默认关闭，须满足精确 operator grant 和人类授权；细节见[授权 QA 导出](DevPilot_Authorized_QA_Exports.md)。 |
+| 外部 QA 技术声明隔离接收 | /api/evaluation/projects/{project_id}/external-qa-intakes/{intake_id} 与 /audit | evaluation_external_qa.py；只保存隔离技术元数据声明，不接收外部结果/证据或生成平台 run，见[外部 QA 隔离接收](DevPilot_External_QA_Quarantine.md)。 |
+| 只读运维与旧调度兼容 | /api/evaluation/operations/scheduling-admission、reservations；/api/evaluation-schedules 的 GET/POST | evaluation_operations.py、evaluation_schedules.py；前者只读诊断不释放/重排/重试，后者是 legacy schedule 入口，不是 QA durable worker。 |
+
+### Legacy 组件测试 API
+
+router：backend/app/gateway/routers/component_tests.py。此路由继续服务旧组件测试，不是新版 QA/performance 核心。
 
 | 方法                 | 当前路径                                            | 说明                    |
 | -------------------- | --------------------------------------------------- | ----------------------- |
@@ -45,13 +61,15 @@ router：backend/app/gateway/routers/component_tests.py。
 | GET                  | /api/component-tests/runs/{run_id}/report           | JSON 报告               |
 
 当前传输：openai_chat、dify_chat、dify_workflow、http_post；不能据此推断已有任意 CV/multipart/cURL 导入。
-接口目前允许的 validation_type 多于真正实现的类型，需按审计 F03 修复。旧 API 不自动拥有新版审批/数据冻结保证。
+接口目前允许的 validation_type 多于真正实现的类型，需按审计 F03 修复。旧 API 不自动拥有新版审批/数据冻结保证。新效果浏览 EFF-01..03、性能工作台 PERF-01..04、项目外材料构建 DAT-03 的目标接口仍未注册；具体目标见本文件后续章节与领域 owner 合同。
 
 ## 2. 新版统一约定
 
 前缀 /api/evaluation。复用现有认证，所有资源通过服务端身份解析项目权限；不接收客户端 user_id 充当授权依据。当前 owner 隔离基础上扩展项目角色须显式建模。
 JSON schema_version 固定；时间 UTC ISO8601，单位写入字段名；NaN/Infinity 拒绝；分页 cursor/limit 且限额。列表返回 items/next_cursor，详情返回资源对象，不另套 data。
 PATCH 带 If-Match/expected_revision；冲突 409。创建执行/导入/通知等副作用请求带 Idempotency-Key；同键同 body 返回既有结果，同键异 body 为 409，scope 绑定 actor/route。
+
+本文拥有 API 方法、相对路径、通用认证/分页/幂等/错误协议及兼容边界。效果和性能资源的领域请求/响应字段、状态语义与资源级授权分别由[效果工作台](DevPilot_效果测试工作台设计.md)和[AI 性能工作台](DevPilot_AI性能测试工作台设计.md)拥有；下方路由表是映射摘要，不构成并行 DTO 定义。实现时从各领域合同生成/校验 wire schema，并通过契约测试保持路径与 DTO 一致。
 
 ## 3. 目标资源与动作
 
@@ -122,7 +140,8 @@ check/generation/import/report 等后台操作返回 202 + job_id/status_url；�
 | GET       | `/projects/{id}/performance-runs/{run_id}/requests`                               | 游标列表；每条为一条 planned dispatch，显示 case/iteration/phase/step/attempt、错误、延迟和证据存在性；失败/未知不隐藏 |
 | GET       | `/projects/{id}/performance-runs/{run_id}/requests/{dispatch_id}`                 | 逐请求非敏感完整观测、token 来源和 evidence manifest；默认不返回正文                                                   |
 | GET       | `/projects/{id}/performance-runs/{run_id}/metrics`                                | 只读不可变 metrics revision，按阶段/档位/repeat/metric 展开值、单位、population、样本数和缺失原因                      |
-| POST/GET  | `/projects/{id}/performance-runs/{run_id}/requests/{dispatch_id}/evidence-access` | 复用效果证据授权/短时读取合同；未知写入只允许原 ID GET 对账，不重发请求                                                |
+| POST      | `/projects/{id}/performance-runs/{run_id}/requests/{dispatch_id}/evidence-access` | 绑定 dispatch/evidence hash/type，重新鉴权并追加审计，显式申请短时 opaque access_id；不得触发请求重发                              |
+| GET       | `/projects/{id}/performance-runs/{run_id}/evidence/{access_id}`                 | 使用授权时绑定的 evidence 与短时凭据读取 no-store、有界正文/Range；过期、权限变化或 hash 不符时拒绝，不返回路径/解密细节           |
 
 MVP profile 要求固定 concurrency、有限 measured request_count、warmup_count、可选 duration cap、timeout、hard wall deadline、drain 和字节预算。请求数超过 dataset case count 时服务端生成 `case_id`/`iteration_index`/`ordinal` manifest/hash；不能由浏览器每次临时选择。可选 duration 提前触发 first-limit stop：停止新派发后 drain 已在途请求，stop_reason 与截尾数入账。具体公式与外部工具接入 gate 见[AI 性能工作台](DevPilot_AI性能测试工作台设计.md)。
 
@@ -182,6 +201,8 @@ cURL 只做解析，不调用系统 curl；凭据提取后存 credential_ref，�
 ## 7. 接口调试与脚本导出资源（目标）
 
 以下均在 /api/evaluation 下，沿用权限/分页/revision/idempotency 契约；人和 Agent 调用相同服务，Agent 无权自行批准目的地或确认。
+
+本节 `external-result-imports` 是尚待实现的外部运行结果/证据导入与人工采信目标，不是当前 API。当前已实现的 `external-qa-intakes` 仅持久化隔离的技术元数据声明，不接收外部输出/证据、不建立平台 run，也没有本节定义的 reviews/采信能力；详见[外部 QA 技术元数据隔离接收](DevPilot_External_QA_Quarantine.md)。两者不得按路由名称或 `NOT_EVALUATED` 标签互相替代。
 
 | 方法 / 相对路径                                                            | 作用与前置条件                                                                                    |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

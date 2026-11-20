@@ -46,7 +46,7 @@ async def api(tmp_path):
     @app.middleware("http")
     async def auth(request: Request, call_next):
         if app.state.actor:
-            user = User(id=UUID(int=app.state.actor), email="fixture@example.com", password_hash="x", system_role="user")
+            user = User(id=UUID(int=app.state.actor), email="fixture@example.com", password_hash="x", system_role="user", needs_setup=False)
             request.state.user = user
             request.state.auth_source = AUTH_SOURCE_INTERNAL if app.state.internal else AUTH_SOURCE_AUTH_DISABLED
             request.state.auth = AuthContext(user=user, permissions=app.state.permissions)

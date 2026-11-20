@@ -46,7 +46,7 @@ class DatasetCreate(StrictDTO):
 class QASample(StrictDTO):
     sample_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,80}$")
     input: str = Field(min_length=1, max_length=10_000)
-    expected: str = Field(min_length=1, max_length=10_000)
+    expected: str | None = Field(default=None, min_length=1, max_length=10_000)
     source_ref: str = Field(min_length=1, max_length=500)
     slice_tag: str = Field(default="default", min_length=1, max_length=80)
 
@@ -89,4 +89,4 @@ def parse_samples(payload: DatasetImport) -> list[QASample]:
 
 
 def dataset_hash(source: dict, purpose: str, samples: list[QASample]) -> str:
-    return dataset_fingerprint(source, purpose, [s.model_dump() for s in samples])
+    return dataset_fingerprint(source, purpose, [s.model_dump(exclude_none=True) for s in samples])

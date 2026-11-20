@@ -13,14 +13,16 @@
 | 资料                                                                                                                                        | 本次用途                                                                       | 不作出的推论                                                               |
 | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
 | [DeerFlow 官方 README](https://github.com/bytedance/deer-flow/blob/main/README.md)                                                          | 核对 harness、skills、sub-agents、sandbox 的产品边界                           | 不能据此声明本 fork 已完成评测闭环或与远端当前 main 完全一致               |
-| [Ray LLMPerf 官方 README](https://github.com/ray-project/llmperf/blob/main/README.md)                                                       | 并发负载、逐请求与汇总记录、token 延迟/吞吐参考；注意其 tokenizer/测试文本约定 | 非直接移植脚本；不默认其 workload 代表本用户业务；尚未集成                 |
-| [NVIDIA GenAI-Perf 官方 README / Metrics](https://github.com/triton-inference-server/perf_analyzer/blob/main/genai-perf/README.md#metrics)  | 区分 TTFT、ITL、request latency、每用户和整体 token throughput                 | 本项目“首非空内容”和成功请求统计是自定义口径；与其数值不可未经对齐直接排名 |
+| [Ray LLMPerf 官方 README](https://github.com/ray-project/llmperf/blob/main/README.md)                                                       | 历史并发负载与 token 延迟/吞吐参考                                                 | 仓库已归档；当前工具选型见性能工作台 owner 文档。                          |
+| [NVIDIA GenAI-Perf 官方 README / Metrics](https://github.com/triton-inference-server/perf_analyzer/blob/main/genai-perf/README.md#metrics)  | 历史 TTFT、ITL、request latency、每用户和整体 token throughput 定义参考       | NVIDIA 已将其 phased out 并指向 AIPerf；当前新集成评估与 adapter gate 以[AI 性能工作台](DevPilot_AI性能测试工作台设计.md#7-开源工具评估2026-11-20)为准 |
 | [scikit-learn 模型评估文档](https://scikit-learn.org/stable/modules/model_evaluation.html)                                                  | 分类 accuracy、precision、recall、F1、宏/微平均等专项指标                      | 用户业务通过率不等于所有任务只有 accuracy；不能省略关键类                  |
 | [COCO 官方评测说明](https://cocodataset.org/#detection-eval)                                                                                | 检测需专用数据格式/标注/评估协议                                               | 自定义检测任务必须固定自己的 IoU、类别和匹配，不泛称已兼容 COCO            |
 | [Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena](https://arxiv.org/abs/2306.05685)                                                  | 裁判的位置、篇幅、自偏好等风险与人工校准必要性                                 | 论文中的一致性结果不能当成本项目准确率保证                                 |
 | [OWASP SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html) | allowlist、DNS/连接地址、重定向、应用与网络双层控制                            | 业务需要内网组件，因此采用管理员授权内网策略，不是一刀切拒绝私网           |
 
 读取备注：NVIDIA 单独 docs/metrics.md 路径返回 404，采用官方 README 的 Metrics 章节；COCO 动态页面只用于核对官方评测入口，具体检测算法实现仍需在开发时锁定并校准。以上是方法与风险依据，不替代本地代码证据。
+
+动态 AI 性能工具的许可证、release、依赖和接入决策由[AI 性能工作台设计](DevPilot_AI性能测试工作台设计.md#7-开源工具评估2026-11-20)单点维护；本表中 LLMPerf/GenAI-Perf 仅保留历史方法依据，不能作为当前集成选择或已集成声明。
 
 ## 2. ADR（本轮设计基线；实现按阶段验收）
 

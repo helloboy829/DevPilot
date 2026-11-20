@@ -25,7 +25,7 @@ export interface DatasetVersion {
 export interface QASample {
   sample_id: string;
   input: string;
-  expected: string;
+  expected?: string | null;
   source_ref: string;
   slice_tag: string;
 }

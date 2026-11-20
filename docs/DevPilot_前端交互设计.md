@@ -22,7 +22,7 @@
 
 ### 效果结果浏览器与逐请求证据（目标，待开发）
 
-结果浏览不是现有人工复核页的同义词。运行页先显示固定快照、整体 verdict、ALL 分母和 blocker；样本表支持状态/指标/来源/reference/复核过滤和稳定分页；逐条详情分开显示输入、映射后请求、原生 response body、extractor 解析、冻结评估依据、技术观测和人工决定历史。列表/普通详情只返回元数据；打开敏感请求或原始响应需单独权限动作、审计和 no-store 访问。参考答案缺失不隐藏 response；金标指标显示 UNAVAILABLE，其他依据不足时为 NOT*EVALUATED/BLOCKED，而不是 PASS。完整 DTO/API/access 流程见[效果测试工作台设计](DevPilot*效果测试工作台设计.md)。
+结果浏览不是现有人工复核页的同义词。运行页先显示固定快照、整体 verdict、ALL 分母和 blocker；样本表支持状态/指标/来源/reference/复核过滤和稳定分页；逐条详情分开显示输入、映射后请求、原生 response body、extractor 解析、冻结评估依据、技术观测和人工决定历史。列表/普通详情只返回元数据；打开敏感请求或原始响应需单独权限动作、审计和 no-store 访问。参考答案缺失不隐藏 response；金标指标显示 UNAVAILABLE，其他依据不足时为 NOT_EVALUATED/BLOCKED，而不是 PASS。完整 DTO/API/access 流程见[效果测试工作台设计](DevPilot_效果测试工作台设计.md)。
 
 ### 性能工作台（目标，待开发）
 

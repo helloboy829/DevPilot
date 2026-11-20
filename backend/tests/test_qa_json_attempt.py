@@ -1,13 +1,14 @@
 """Shared bounded single-attempt execution: synthetic I/O, no run authority."""
 
 import asyncio
+import hashlib
 from contextlib import asynccontextmanager
 from dataclasses import FrozenInstanceError
 
 import httpx
 import pytest
 from devpilot.pinned_http import EvaluationPolicyError
-from devpilot.qa_json_attempt import AttemptLimits, AttemptObservation, collect_json_attempt
+from devpilot.qa_json_attempt import AttemptCaptureState, AttemptLimits, AttemptObservation, collect_json_attempt
 from devpilot.qa_json_binding import QAJSONBinding
 from devpilot.request_versions import FrozenRequest
 
@@ -107,7 +108,7 @@ async def test_single_send_response_classification_and_close(status):
     assert result.kind == ("output_collected" if status < 300 else "http_error")
     assert result.http_status == status and result.elapsed_ms >= 0
     assert result.output == ("SYNTHETIC_OUTPUT" if status < 300 else None)
-    assert result.body_bytes == (24 if status < 300 else 0)
+    assert result.body_bytes == 24
     assert [item[0] for item in trace] == ["create", "send", "close"] and body.closed
     assert trace[0] == ("create", "https://example.test/qa", 30)
     assert "SYNTHETIC" not in repr(result) and "example.test" not in repr(result)
@@ -417,3 +418,154 @@ asyncio.run(main())
 async def test_no_implicit_default_client_factory():
     with pytest.raises(TypeError):
         await collect_json_attempt(request(), QAJSONBinding("/q", "/a"), AttemptLimits())
+
+
+@pytest.mark.asyncio
+async def test_attempt_and_caller_capture_state_keep_raw_body_and_exact_request_hash():
+    raw = b'{"a":"SYNTHETIC_RAW_RESPONSE"}'
+    body = Body([raw])
+    trace = []
+
+    async def handle(sent):
+        assert sent.content == request().to_request().body.encode()
+        return httpx.Response(200, headers={"content-type": "application/json; charset=utf-8"}, stream=body)
+
+    state = AttemptCaptureState()
+    result = await collect_json_attempt(request(), QAJSONBinding("/q", "/a"), AttemptLimits(), client_factory=client_factory(handle, trace), capture_state=state)
+
+    assert result.kind == "output_collected" and result.output == "SYNTHETIC_RAW_RESPONSE"
+    assert result.request_body_sha256 == __import__("hashlib").sha256(request().to_request().body.encode()).hexdigest()
+    assert result.request_body_bytes == len(request().to_request().body.encode())
+    assert result.response_body == raw and result.response_body_bytes == len(raw)
+    assert result.response_capture_status == "complete"
+    assert result.response_body_sha256 == hashlib.sha256(raw).hexdigest() and result.response_body_hash_scope == "full"
+    assert result.response_content_type == "application/json" and result.response_content_encoding == "identity"
+    assert state.request_body_sha256 == result.request_body_sha256
+    assert state.request_body_bytes == result.request_body_bytes
+    assert state.http_status == 200 and state.response_body == raw
+    assert state.response_body_bytes == len(raw) and state.response_capture_status == "complete"
+    assert state.response_body_sha256 == result.response_body_sha256 and state.response_body_hash_scope == "full"
+    assert "SYNTHETIC_RAW_RESPONSE" not in repr(state) + repr(result)
+    assert body.closed and len([item for item in trace if item[0] == "send"]) == 1
+
+
+@pytest.mark.parametrize(
+    "status,headers,raw,expected_kind,expected_capture",
+    [
+        (503, {"content-type": "text/plain"}, b"synthetic upstream error", "http_error", "complete"),
+        (200, {"content-type": "text/event-stream"}, b"data: synthetic", "unsupported_response", "complete"),
+        (200, {"content-type": "application/json"}, b"0123456789", "response_limit", "truncated"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_attempt_captures_error_unsupported_and_truncated_response_bodies(status, headers, raw, expected_kind, expected_capture):
+    body = Body([raw])
+
+    async def handle(sent):
+        return httpx.Response(status, headers=headers, stream=body)
+
+    state = AttemptCaptureState()
+    maximum = 4 if expected_capture == "truncated" else 64
+    result = await collect_json_attempt(request(), QAJSONBinding("/q", "/a"), AttemptLimits(max_response_bytes=maximum), client_factory=client_factory(handle, []), capture_state=state)
+
+    assert result.kind == expected_kind
+    assert result.response_capture_status == expected_capture
+    expected_prefix = raw[:maximum] if expected_capture == "truncated" else raw
+    assert result.response_body == expected_prefix == state.response_body
+    assert result.response_body_bytes == state.response_body_bytes
+    assert result.response_body_sha256 == hashlib.sha256(expected_prefix).hexdigest()
+    assert result.response_body_hash_scope == ("prefix" if expected_capture == "truncated" else "full")
+    assert state.http_status == status and body.closed
+
+
+@pytest.mark.parametrize("cancel", [False, True])
+@pytest.mark.asyncio
+async def test_partial_prefix_survives_transport_error_and_cancellation(cancel):
+    entered = asyncio.Event()
+    never = asyncio.Event()
+    prefix = b"partial synthetic response"
+
+    class Interrupted(Body):
+        async def __aiter__(self):
+            yield prefix
+            entered.set()
+            if cancel:
+                await never.wait()
+            raise httpx.ReadError("SYNTHETIC_READ_ERROR")
+
+    body = Interrupted([])
+
+    async def handle(sent):
+        return httpx.Response(200, headers={"content-type": "application/json"}, stream=body)
+
+    state = AttemptCaptureState()
+    task = asyncio.create_task(collect_json_attempt(request(), QAJSONBinding("/q", "/a"), AttemptLimits(max_response_bytes=64), client_factory=client_factory(handle, []), capture_state=state))
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        if cancel:
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        else:
+            result = await task
+            assert result.kind == "delivery_unknown"
+            assert result.response_capture_status == "partial" and result.response_body == prefix
+            assert result.response_body_sha256 == hashlib.sha256(prefix).hexdigest() and result.response_body_hash_scope == "prefix"
+    finally:
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+    assert state.http_status == 200
+    assert state.response_body == prefix and state.response_body_bytes == len(prefix)
+    assert state.response_capture_status == "partial"
+    assert state.response_body_sha256 == hashlib.sha256(prefix).hexdigest() and state.response_body_hash_scope == "prefix"
+    assert body.closed and "synthetic" not in repr(state)
+
+
+@pytest.mark.asyncio
+async def test_response_headers_without_body_eof_are_partial_with_empty_prefix():
+    entered = asyncio.Event()
+    never = asyncio.Event()
+
+    class WaitingBody(Body):
+        async def __aiter__(self):
+            entered.set()
+            await never.wait()
+            yield b"unreachable"
+
+    body = WaitingBody([])
+
+    async def handle(sent):
+        return httpx.Response(200, headers={"content-type": "application/json"}, stream=body)
+
+    state = AttemptCaptureState()
+    task = asyncio.create_task(collect_json_attempt(request(), QAJSONBinding("/q", "/a"), AttemptLimits(), client_factory=client_factory(handle, []), capture_state=state))
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    finally:
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+    assert body.closed and state.http_status == 200
+    assert state.response_capture_status == "partial" and state.response_body == b""
+    assert state.response_body_sha256 == hashlib.sha256(b"").hexdigest()
+    assert state.response_body_hash_scope == "prefix"
+
+
+@pytest.mark.asyncio
+async def test_no_http_response_marks_capture_not_received():
+    async def handle(sent):
+        raise httpx.ConnectError("SYNTHETIC_CONNECT")
+
+    state = AttemptCaptureState()
+    result = await collect_json_attempt(request(), QAJSONBinding("/q", "/a"), AttemptLimits(), client_factory=client_factory(handle, []), capture_state=state)
+
+    assert result.kind == "delivery_unknown" and result.http_status is None
+    assert result.response_capture_status == "not_received" and result.response_body == b""
+    assert result.response_body_sha256 is None and result.response_body_hash_scope == "none"
+    assert state.response_capture_status == "not_received" and state.http_status is None

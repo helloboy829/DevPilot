@@ -42,11 +42,13 @@ def test_fixed_version_and_sensitive_result_and_buffer_are_not_log_dtos():
 
 
 @pytest.mark.parametrize("status", [100, 199, 300, 301, 307, 400, 401, 429, 500, 599, 600, 999])
-def test_http_failure_precedes_media_and_length_and_never_reads(status):
+def test_http_failure_precedes_media_and_still_captures_bounded_body(status):
     state = QAJSONResponseBuffer(QAJSONBinding("/q", "/a"), http_status=status, content_type="text/html", content_encoding="gzip", content_length="99999999", max_response_bytes=16)
-    assert state.terminal and state.finish() == ResponseResult("http_error", 0, None)
-    with pytest.raises(ValueError, match="Response buffer is closed"):
-        state.feed(b"SYNTHETIC_SECRET")
+    assert not state.terminal
+    state.feed(b"error")
+    result = state.finish()
+    assert result == ResponseResult("http_error", 5, None)
+    assert result.captured_body == b"error" and result.capture_status == "complete"
 
 
 @pytest.mark.parametrize("media", ["application/json", "Application/JSON; charset=UTF-8", " application/vnd.example+json ", "application/problem+json;charset=utf-8"])
@@ -69,20 +71,23 @@ def test_supported_json_media_keeps_literal_output(media):
         ("application/json", ""),
     ],
 )
-def test_unsupported_framing_precedes_length_without_consuming(media, encoding):
+def test_unsupported_framing_precedes_length_but_still_captures_body(media, encoding):
     state = QAJSONResponseBuffer(QAJSONBinding("/q", "/a"), http_status=200, content_type=media, content_encoding=encoding, content_length="99999", max_response_bytes=16)
-    assert state.terminal and state.finish() == ResponseResult("unsupported_response", 0, None)
+    assert not state.terminal
+    state.feed(b"unsupported")
+    result = state.finish()
+    assert result == ResponseResult("unsupported_response", 11, None)
+    assert result.captured_body == b"unsupported" and result.capture_status == "complete"
 
 
-@pytest.mark.parametrize("declared,early", [("17", True), ("9" * 21, True), ("000000000000000000000", True), ("16", False), ("0", False), ("", False), ("nonsense", False), ("+17", False), (" 17 ", False), ("\u0661\u0667", False)])
-def test_content_length_is_only_an_early_rejection_not_a_body_budget(declared, early):
+@pytest.mark.parametrize("declared", ["17", "9" * 21, "000000000000000000000", "16", "0", "", "nonsense", "+17", " 17 ", "\u0661\u0667"])
+def test_content_length_never_bypasses_actual_bounded_capture(declared):
     state = buffer(maximum=16, content_length=declared)
-    assert state.terminal is early
-    if early:
-        assert state.finish() == ResponseResult("response_limit", 0, None)
-    else:
-        state.feed(b"x" * 50000)
-        assert state.finish() == ResponseResult("response_limit", 17, None)
+    assert not state.terminal
+    state.feed(b"x" * 50000)
+    result = state.finish()
+    assert result == ResponseResult("response_limit", 17, None)
+    assert result.captured_body == b"x" * 16 and result.capture_status == "truncated"
 
 
 @pytest.mark.parametrize("size", [1, 2, 3, 7, 16, 50000])
@@ -156,14 +161,72 @@ def test_existing_binding_semantics_are_shared(pointer, raw, expected):
 
 
 @pytest.mark.parametrize(
+    "status,content_type,content_encoding,raw,expected_kind",
+    [
+        (200, "application/json; charset=utf-8", "identity", b'{"a":"ok"}', "output_collected"),
+        (200, "text/html", "gzip", b"<html>synthetic</html>", "unsupported_response"),
+        (502, "text/plain", "identity", b"upstream synthetic error", "http_error"),
+        (200, "application/json", "identity", b"not-json", "invalid_output"),
+    ],
+)
+def test_response_result_preserves_bounded_raw_body_independent_of_parse_result(status, content_type, content_encoding, raw, expected_kind):
+    state = QAJSONResponseBuffer(QAJSONBinding("/q", "/a"), http_status=status, content_type=content_type, content_encoding=content_encoding, max_response_bytes=128)
+    state.feed(raw)
+    result = state.finish()
+
+    assert result.kind == expected_kind
+    assert result.captured_body == raw
+    assert result.capture_status == "complete"
+    assert result.response_content_type == (content_type.split(";", 1)[0].strip().lower() if content_type.startswith("application/") else None)
+    assert result.response_content_encoding == content_encoding
+    assert raw.decode("utf-8", errors="ignore") not in repr(result)
+
+
+def test_response_limit_keeps_only_bounded_prefix_and_distinguishes_observed_bytes():
+    state = buffer(maximum=4)
+    state.feed(b"abcdefgh")
+    result = state.finish()
+
+    assert result.kind == "response_limit"
+    assert result.body_bytes == 5
+    assert result.captured_body == b"abcd"
+    assert result.capture_status == "truncated"
+
+
+def test_content_length_hint_does_not_skip_raw_prefix_capture():
+    state = buffer(maximum=4, content_length="999")
+    assert not state.terminal
+    state.feed(b"abcdefgh")
+    result = state.finish()
+
+    assert result.capture_status == "truncated"
+    assert result.captured_body == b"abcd"
+    assert result.body_bytes == 5
+
+
+def test_untrusted_header_values_are_not_reflected_in_capture_metadata():
+    state = QAJSONResponseBuffer(
+        QAJSONBinding("/q", "/a"),
+        http_status=200,
+        content_type="application/json\r\nX-Synthetic: secret",
+        content_encoding="gzip, x-synthetic-secret",
+    )
+    state.feed(b'{"a":"ok"}')
+    result = state.finish()
+
+    assert result.response_content_type is None
+    assert result.response_content_encoding == "other"
+
+
+@pytest.mark.parametrize(
     "status,headers,raw,maximum,kind,count",
     [
         (200, {"content-type": "application/json"}, b'{"a":"ok"}', 64, "output_collected", 10),
         (201, {"content-type": "application/problem+json"}, b'{"a":"ok"}', 10, "output_collected", 10),
-        (302, {"content-type": "application/json"}, b'{"a":"x"}', 64, "http_error", 0),
-        (200, {"content-type": "text/event-stream"}, b"data: x", 64, "unsupported_response", 0),
-        (200, {"content-type": "application/json", "content-encoding": "gzip"}, b"compressed", 64, "unsupported_response", 0),
-        (200, {"content-type": "application/json", "content-length": "1000"}, b"x", 16, "response_limit", 0),
+        (302, {"content-type": "application/json"}, b'{"a":"x"}', 64, "http_error", 9),
+        (200, {"content-type": "text/event-stream"}, b"data: x", 64, "unsupported_response", 7),
+        (200, {"content-type": "application/json", "content-encoding": "gzip"}, b"compressed", 64, "unsupported_response", 10),
+        (200, {"content-type": "application/json", "content-length": "1000"}, b"x", 16, "invalid_output", 1),
         (200, {"content-type": "application/json"}, b"x" * 100, 16, "response_limit", 17),
         (200, {"content-type": "application/json", "content-length": "1"}, b"x" * 100, 16, "response_limit", 17),
         (200, {"content-type": "application/json"}, b'{"a":""}', 64, "invalid_output", 8),

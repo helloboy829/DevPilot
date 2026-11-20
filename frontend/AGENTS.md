@@ -146,7 +146,7 @@ Evaluation pages render the component-tests entry only in WorkspaceNavChatList, 
 
 `/workspace/reports` and `src/core/reports/` provide bilingual manual, unverified report drafts using the authenticated/CSRF-aware fetch wrapper. Template selection pins id+version. Clear previews/downloads after field, locale or template changes; lock edits during generation and discard stale responses. Keep facts out of localStorage, query persistence, URLs and chat; Markdown preview is text, not injected HTML. Downloads use fixed filenames and temporary Blob URLs. The optional report agent panel checks availability without invoking a model. Each request consumes explicit aggregate-metric consent. Advice is plain text and requires a separate inclusion confirmation; field/template/locale edits clear advice, confirmation and downloads. In-flight controls lock and stale responses are discarded. No server persistence, formal approval UI, DOCX/PDF or template editor. Tests live in `tests/unit/core/reports/` and `tests/e2e/reports.spec.ts`; see [report design](../docs/DevPilot_报告模块设计.md).
 
-This file provides guidance to AI coding agents (Claude Code, Codex, and others) when working with the DeerFlow frontend. It is the source of truth; the sibling `CLAUDE.md` imports it via `@AGENTS.md`.
+This file provides guidance to AI coding agents (Claude Code, Codex, and others) when working with the DevPilot frontend. It is the source of truth; the sibling `CLAUDE.md` imports it via `@AGENTS.md`.
 
 ## Material and CI calibration (2026-11-07)
 
@@ -170,8 +170,18 @@ metrics as zero or completed as PASS. Hide non-core navigation before removing
 upstream routes; preserve authentication, artifact access, and legacy history.
 Read [debug/export](../docs/DevPilot_接口调试与脚本导出设计.md) and
 [human review](../docs/DevPilot_人工复核工作台设计.md). The review center and
-inline result review must share task state and detail components, showing the
-component/version, complete Q/A, expected criteria and source evidence. Never
+inline result review share task state and reusable detail components, but each
+view renders only the server-authorized projection for the current actor,
+assignment and round. For independent review, the owner must explicitly grant
+reference sharing when creating the task, and the assigned reviewer must hold a
+valid lease and explicitly open the case before Q/A/reference/source evidence
+is returned. The blind policy hides other reviewers' identities, reasons and
+decisions; it does not defer an explicitly shared reference to arbitration.
+An owner-side self-review grant does not expand an assignment. Keep
+component/version, case context and authorized source evidence visible. The
+current access contract is
+[independent case review](../docs/DevPilot_Independent_Case_Review.md); this
+clarifies the 2026-11-06 UX direction below for task-scoped visibility. Never
 turn a technical error into PASS via a UI override. Export capability remains
 disabled until standalone packaging and semantic-equivalence tests pass.
 The I0 core-report contract (2026-11-07) adds pass_rate, not_run, metric sample
@@ -183,7 +193,7 @@ scripts/pnpm.py runner (for example, python scripts/pnpm.py check from repo root
 
 ## Project Overview
 
-DeerFlow Frontend is a Next.js 16 web interface for an AI agent system. It communicates with a LangGraph-based backend to provide thread-based AI conversations with streaming responses, artifacts, and a skills/tools system.
+DevPilot Frontend is a Next.js 16 web interface for an AI agent system. It communicates with a LangGraph-based backend to provide thread-based AI conversations with streaming responses, artifacts, and a skills/tools system.
 
 **Stack**: Next.js 16, React 19, TypeScript 5.8, Tailwind CSS 4, pnpm 10.26.2. Requires Node.js 22+ and pnpm 10.26.2+.
 

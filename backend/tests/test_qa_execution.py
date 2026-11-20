@@ -1,18 +1,21 @@
 """Synthetic execution admission and real collector wiring; no external targets."""
 
 import asyncio
+import hashlib
+from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from cryptography.fernet import Fernet
-from sqlalchemy import select, update
+from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from test_dispatch_journal import prepared as prepared
 
 from app.evaluation import tables as t
 from app.evaluation.evidence_protection import EvidenceProtection
 from app.evaluation.execution import ExecutionCreate, ExecutionPolicy, ExecutionRepository, QAExecutionWorker
+from app.evaluation.qa_artifact_store import ResponseArtifactStore
 from app.evaluation.qa_attempts import AttemptObservation
 from app.evaluation.repository import Conflict, NotFound
 
@@ -28,13 +31,38 @@ def policy():
 
 def repository(prepared, policy):
     old, _, _, _, clock = prepared
+    key = Fernet.generate_key()
     return ExecutionRepository(
         old.sf,
         policy=policy,
         protection=old.protection,
-        evidence_protection=EvidenceProtection(Fernet.generate_key()),
+        evidence_protection=EvidenceProtection(key),
+        response_artifact_store=ResponseArtifactStore(Path(prepared[1].url.database).parent / "qa-artifacts", key),
         config_getter=lambda: SimpleNamespace(evaluation_http={"allowed_hosts": ["example.test"]}),
         clock_ms=lambda: clock["ms"],
+    )
+
+
+def synthetic_observation(request, *, kind="output_collected", status=200, body_bytes=35, output="SYNTHETIC_ACTUAL"):
+    from devpilot.qa_json_request import QAJSONRequest
+
+    content = QAJSONRequest(request).content
+    body = b"S" * body_bytes if status is not None else b""
+    capture_status = "complete" if status is not None else "not_received"
+    return AttemptObservation(
+        kind,
+        status,
+        body_bytes,
+        1.0,
+        output,
+        request_body_sha256=hashlib.sha256(content).hexdigest(),
+        request_body_bytes=len(content),
+        response_body=body,
+        response_capture_status=capture_status,
+        response_content_type="application/json" if status is not None else None,
+        response_content_encoding="identity" if status is not None else None,
+        response_body_sha256=hashlib.sha256(body).hexdigest() if status is not None else None,
+        response_body_hash_scope="full" if status is not None else "none",
     )
 
 
@@ -107,11 +135,11 @@ async def test_worker_renders_input_only_and_records_actual_output_for_human_rev
     row = await admit(repo, prepared)
     calls = []
 
-    async def collect(request, binding, config, limits):
+    async def collect(request, binding, config, limits, **kwargs):
         spec = request.to_request()
         calls.append(spec.body)
         assert "SYNTHETIC_INPUT" in spec.body and "GOLD" not in spec.body
-        return AttemptObservation("output_collected", 200, 35, 2.0, "SYNTHETIC_ACTUAL")
+        return synthetic_observation(request)
 
     monkeypatch.setattr("app.evaluation.execution.collect_json_attempt", collect)
     worker = QAExecutionWorker(repo, lambda: SimpleNamespace())
@@ -126,16 +154,64 @@ async def test_worker_renders_input_only_and_records_actual_output_for_human_rev
 
 
 @pytest.mark.asyncio
+async def test_unlabeled_dataset_can_execute_but_never_auto_passes(prepared, policy, monkeypatch):
+    from app.evaluation.datasets import QASample, SourceDeclaration
+    from app.evaluation.plans import PlanCreate
+
+    old, _, project, existing_plan, _ = prepared
+    component_id = existing_plan["definition"]["component_id"]
+    version = await old.get_request_version("owner", project, existing_plan["definition"]["request_version_id"])
+    dataset = await old.create_dataset("owner", project, "Unlabeled QA", "acceptance", SourceDeclaration(label="Synthetic", reference="synthetic://local", authorization_basis="Synthetic tests only", attested=True))
+    changed = await old.replace_samples("owner", project, dataset["id"], dataset["revision"], [QASample(sample_id="q1", input="SYNTHETIC_INPUT", expected=None, source_ref="synthetic://local")])
+    dataset = await old.freeze("owner", project, dataset["id"], changed["revision"], changed["content_hash"])
+    plan = await old.create_plan(
+        "owner",
+        project,
+        component_id,
+        PlanCreate.model_validate(
+            {
+                "version_label": "Unlabeled plan",
+                "request_version_id": version["id"],
+                "request_protected_hash": version["protected_hash"],
+                "dataset_id": dataset["id"],
+                "dataset_revision": dataset["revision"],
+                "dataset_hash": dataset["content_hash"],
+                "binding": {"schema": "qa-json-binding.v1", "input_pointer": "/q", "output_pointer": "/a"},
+                "response_mode": "json_text",
+                "limits": {"mode": "effectiveness", "concurrency": 1, "request_count": 1, "timeout_ms": 1000, "wall_time_ms": 10000, "max_total_body_bytes": 10000},
+                "confirmed": True,
+            }
+        ),
+    )
+    repo = repository(prepared, policy)
+    await repo.initialize()
+    execution = await repo.admit("owner", project, uuid4().hex, consent(plan))
+
+    async def collect(request, binding, config, limits, **kwargs):
+        assert request.to_request().body == '{"q":"SYNTHETIC_INPUT"}'
+        return synthetic_observation(request, body_bytes=20)
+
+    monkeypatch.setattr("app.evaluation.execution.collect_json_attempt", collect)
+    assert await QAExecutionWorker(repo, lambda: SimpleNamespace()).run_once()
+    state = await repo.get_execution("owner", project, execution["id"])
+    assert state["state"] == "collected"
+    case = await repo.open_case("owner", project, state["run_id"], 1)
+    assert case["expected"] is None and case["output"] == "SYNTHETIC_ACTUAL"
+    assert case["review_revision"] == 0
+    assert (await repo.list_cases("owner", project, state["run_id"]))["counts"] == {"pass": 0, "fail": 0, "uncertain": 0, "unreviewed": 1}
+
+
+@pytest.mark.asyncio
 async def test_unknown_delivery_stops_whole_run_without_retry(prepared, policy, monkeypatch):
     repo = repository(prepared, policy)
     await repo.initialize()
     row = await admit(repo, prepared)
     count = 0
 
-    async def collect(*args):
+    async def collect(*args, **kwargs):
         nonlocal count
         count += 1
-        return AttemptObservation("delivery_unknown", None, 0, 1.0, None)
+        return synthetic_observation(args[0], kind="delivery_unknown", status=None, body_bytes=0, output=None)
 
     monkeypatch.setattr("app.evaluation.execution.collect_json_attempt", collect)
     await QAExecutionWorker(repo, lambda: SimpleNamespace()).run_once()
@@ -184,7 +260,15 @@ async def test_expired_claim_is_never_reclaimed_or_quota_released(prepared, poli
 async def test_global_quota_serializes_independent_sessions(prepared, policy):
     repo = repository(prepared, policy.model_copy(update={"max_active_runs": 1}))
     await repo.initialize()
-    other = ExecutionRepository(async_sessionmaker(prepared[1], expire_on_commit=False), policy=repo.policy, protection=repo.protection, evidence_protection=repo.evidence_protection, config_getter=repo.config_getter, clock_ms=repo.clock_ms)
+    other = ExecutionRepository(
+        async_sessionmaker(prepared[1], expire_on_commit=False),
+        policy=repo.policy,
+        protection=repo.protection,
+        evidence_protection=repo.evidence_protection,
+        response_artifact_store=repo.response_artifact_store,
+        config_getter=repo.config_getter,
+        clock_ms=repo.clock_ms,
+    )
     results = await asyncio.gather(admit(repo, prepared), admit(other, prepared), return_exceptions=True)
     assert sum(isinstance(row, dict) for row in results) == 1
     assert sum(isinstance(row, Conflict) for row in results) == 1
@@ -259,7 +343,7 @@ async def test_running_cancel_drains_in_flight_tasks_before_releasing_quota(prep
     entered, drained = asyncio.Event(), asyncio.Event()
     active = 0
 
-    async def collect(*args):
+    async def collect(*args, **kwargs):
         nonlocal active
         active += 1
         entered.set()
@@ -296,27 +380,39 @@ async def test_migration_from_evidence_head_preserves_output_review_and_harness_
     from sqlalchemy import text
 
     from app.evaluation.dispatch_journal import JournalLimits
-    from app.evaluation.qa_evidence import ReviewCreate
     from app.evaluation.schema import upgrade_evaluation_schema
 
     repo = repository(prepared, policy)
+    clock = prepared[4]
     project, plan = prepared[2:4]
     run = await repo.record_run("owner", project, plan["id"], plan["definition_hash"], JournalLimits(max_response_bytes=128, max_total_response_bytes=258))
-    ticket = await repo.record_dispatch("owner", project, run["id"], 1, body_bytes=30)
-    await repo.record_attempt("owner", project, run["id"], ticket, AttemptObservation("output_collected", 200, 35, 1.0, "SYNTHETIC_ACTUAL"))
-    opened = await repo.open_case("owner", project, run["id"], 1)
-    await repo.review_case("owner", project, run["id"], 1, ReviewCreate(case_hash=opened["case_hash"], expected_revision=0, decision="uncertain", note="Synthetic migration review", confirmed=True))
+    at = clock["ms"]
+    async with repo.sf.begin() as session:
+        await session.execute(
+            update(t.dispatches)
+            .where(t.dispatches.c.run_id == run["id"], t.dispatches.c.ordinal == 1)
+            .values(state="observed", ticket_hash="a" * 64, dispatched_at_ms=at, lease_expires_at_ms=at + 1000, kind="output_collected", http_status=200, body_bytes=35, elapsed_ms=1.0)
+        )
+        await session.execute(insert(t.output_evidence).values(run_id=run["id"], ordinal=1, project_id=project, encrypted_payload="synthetic-ciphertext", protected_hash="b" * 64, observation_hash="c" * 64, created_at_ms=at))
+        await session.execute(
+            insert(t.case_reviews).values(
+                run_id=run["id"], ordinal=1, revision=1, project_id=project, case_hash="d" * 64, decision="uncertain", reviewer_id="owner", encrypted_payload="synthetic-review-ciphertext", protected_hash="e" * 64, created_at_ms=at
+            )
+        )
     async with prepared[1].begin() as conn:
         await conn.execute(text("CREATE TABLE alembic_version (version_num TEXT PRIMARY KEY)"))
         await conn.execute(text("INSERT INTO alembic_version VALUES ('SYNTHETIC_HARNESS_LEDGER')"))
     await upgrade_evaluation_schema(prepared[1])
     async with prepared[1].connect() as conn:
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0017"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS_LEDGER"
         assert not (await conn.execute(select(t.executions))).all()
-    reopened = await repo.open_case("owner", project, run["id"], 1)
-    assert reopened["output"] == "SYNTHETIC_ACTUAL" and reopened["review_revision"] == 1
-    assert reopened["reviews"][0]["note"] == "Synthetic migration review"
+        output = (await conn.execute(select(t.output_evidence).where(t.output_evidence.c.run_id == run["id"]))).mappings().one()
+        review = (await conn.execute(select(t.case_reviews).where(t.case_reviews.c.run_id == run["id"]))).mappings().one()
+        legacy = (await conn.execute(select(t.response_artifacts).where(t.response_artifacts.c.run_id == run["id"]))).mappings().all()
+        assert output["encrypted_payload"] == "synthetic-ciphertext"
+        assert review["encrypted_payload"] == "synthetic-review-ciphertext"
+        assert all(row["status"] == "unavailable_legacy" for row in legacy)
 
 
 @pytest.mark.asyncio
@@ -335,8 +431,8 @@ async def test_parallel_render_completion_cannot_reorder_durable_dispatch(prepar
                 await asyncio.sleep(0.05)
         return await original(func, *args, **kwargs)
 
-    async def collect(*args):
-        return AttemptObservation("output_collected", 200, 35, 2.0, "SYNTHETIC_ACTUAL")
+    async def collect(*args, **kwargs):
+        return synthetic_observation(args[0])
 
     monkeypatch.setattr(asyncio, "to_thread", delayed_render)
     monkeypatch.setattr("app.evaluation.execution.collect_json_attempt", collect)
@@ -360,7 +456,7 @@ async def test_unknown_dispatch_commit_never_sends_or_reclaims(prepared, policy,
         await original(*args, **kwargs)
         raise JournalWriteUnconfirmed("Synthetic lost commit acknowledgement")
 
-    async def collect(*args):
+    async def collect(*args, **kwargs):
         sends.append(True)
         raise AssertionError("No network send after an unconfirmed journal commit")
 
@@ -382,7 +478,7 @@ async def test_worker_shutdown_drains_before_releasing_reservations(prepared, po
     entered = asyncio.Event()
     drained = asyncio.Event()
 
-    async def collect(*args):
+    async def collect(*args, **kwargs):
         entered.set()
         try:
             await asyncio.sleep(30)
@@ -426,10 +522,10 @@ async def test_worker_shutdown_drains_monitor_read_before_finish(prepared, polic
         read_drained.set()
         return result
 
-    async def collect(*args):
+    async def collect(*args, **kwargs):
         await read_entered.wait()
         await read_release.wait()
-        return AttemptObservation("output_collected", 200, 35, 1.0, "SYNTHETIC_ACTUAL")
+        return synthetic_observation(args[0])
 
     async def finish(*args, **kwargs):
         assert read_drained.is_set()
@@ -534,11 +630,11 @@ async def test_known_unknown_delivery_blocks_new_sends_while_evidence_write_drai
     sends = []
     original = repo.record_attempt
 
-    async def collect(*args):
+    async def collect(*args, **kwargs):
         sends.append(True)
         if len(sends) == 1:
-            return AttemptObservation("delivery_unknown", None, 0, 1.0, None)
-        return AttemptObservation("output_collected", 200, 35, 1.0, "SYNTHETIC_ACTUAL")
+            return synthetic_observation(args[0], kind="delivery_unknown", status=None, body_bytes=0, output=None)
+        return synthetic_observation(args[0])
 
     async def delayed_record(*args):
         if args[-1].kind == "delivery_unknown":

@@ -7,6 +7,10 @@ import { DEFAULT_LOCALE } from "@/core/i18n/locale";
 
 export const metadata: Metadata = {
   title: "DevPilot",
+  icons: {
+    icon: "/brand/logo.png",
+    shortcut: "/brand/logo.png",
+  },
   description:
     "AI component evaluation workspace: interface debugging, tests, review and reports.",
 };

@@ -57,8 +57,8 @@ export default function LandingPage() {
           <p className="text-muted-foreground text-sm md:col-span-2">
             Evaluation workspace under active development. Report drafts are
             unverified; models cannot invent measurements or approve acceptance.
-            Built on the DeerFlow framework, with upstream attribution
-            preserved.
+            Upstream attribution and applicable licenses are preserved in the
+            repository.
           </p>
         </section>
       </main>

@@ -30,7 +30,14 @@ class EvaluationRepository:
 
     @staticmethod
     async def _project(session, owner, project_id):
-        row = (await session.execute(select(t.projects).where(t.projects.c.id == project_id, t.projects.c.owner_id == owner))).mappings().first()
+        row = (
+            await session.execute(
+                select(t.projects.c.id, t.projects.c.owner_id, t.projects.c.name, t.projects.c.created_at).where(
+                    t.projects.c.id == project_id,
+                    t.projects.c.owner_id == owner,
+                )
+            )
+        ).mappings().first()
         if row is None:
             raise NotFound
         return dict(row)
@@ -93,7 +100,7 @@ class EvaluationRepository:
             dataset = await self._dataset(session, owner, project_id, dataset_id)
             statement = select(t.samples)
             if references:
-                statement = select(t.samples, t.references.c.expected).join(t.references, (t.samples.c.dataset_id == t.references.c.dataset_id) & (t.samples.c.sample_id == t.references.c.sample_id))
+                statement = select(t.samples, t.references.c.expected).outerjoin(t.references, (t.samples.c.dataset_id == t.references.c.dataset_id) & (t.samples.c.sample_id == t.references.c.sample_id))
                 await self._audit(session, owner, dataset, "references_read")
             rows = await session.execute(statement.where(t.samples.c.dataset_id == dataset_id).order_by(t.samples.c.sample_id))
             return [dict(row) for row in rows.mappings()]
@@ -110,7 +117,9 @@ class EvaluationRepository:
             await session.execute(delete(t.references).where(t.references.c.dataset_id == dataset_id))
             await session.execute(delete(t.samples).where(t.samples.c.dataset_id == dataset_id))
             await session.execute(insert(t.samples), [{"dataset_id": dataset_id, **s.model_dump(exclude={"expected"})} for s in samples])
-            await session.execute(insert(t.references), [{"dataset_id": dataset_id, "sample_id": s.sample_id, "expected": s.expected} for s in samples])
+            references = [{"dataset_id": dataset_id, "sample_id": s.sample_id, "expected": s.expected} for s in samples if s.expected is not None]
+            if references:
+                await session.execute(insert(t.references), references)
             dataset.update(revision=revision + 1, sample_count=len(samples), content_hash=digest)
             await self._audit(session, owner, dataset, "samples_replaced")
         return dataset
@@ -130,7 +139,9 @@ class EvaluationRepository:
             rows = (
                 (
                     await session.execute(
-                        select(t.samples, t.references.c.expected).join(t.references, (t.samples.c.dataset_id == t.references.c.dataset_id) & (t.samples.c.sample_id == t.references.c.sample_id)).where(t.samples.c.dataset_id == dataset_id)
+                        select(t.samples, t.references.c.expected)
+                        .outerjoin(t.references, (t.samples.c.dataset_id == t.references.c.dataset_id) & (t.samples.c.sample_id == t.references.c.sample_id))
+                        .where(t.samples.c.dataset_id == dataset_id)
                     )
                 )
                 .mappings()

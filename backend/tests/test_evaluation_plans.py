@@ -176,6 +176,18 @@ async def test_preflight_is_sorted_off_loop_input_only_and_performance_repeats_a
 
 
 @pytest.mark.asyncio
+async def test_plan_preflight_accepts_frozen_samples_without_references(prepared):
+    repo, _, project, component, version, _ = prepared
+    dataset = await repo.create_dataset("owner", project, "Unlabeled QA", "acceptance", SourceDeclaration(label="Synthetic", reference="synthetic://local", authorization_basis="Synthetic tests only", attested=True))
+    changed = await repo.replace_samples("owner", project, dataset["id"], dataset["revision"], [QASample(sample_id="q1", input="Synthetic question", expected=None, source_ref="synthetic://local")])
+    dataset = await repo.freeze("owner", project, dataset["id"], changed["revision"], changed["content_hash"])
+
+    result = await repo.create_plan("owner", project, component, PlanCreate.model_validate(draft(version, dataset, limits=limits(request_count=1, concurrency=1))))
+
+    assert result["definition"]["preflight"]["sample_count"] == 1
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "change,error",
     [
@@ -286,7 +298,7 @@ async def test_database_rejects_cross_component_request_and_audit(prepared):
         with pytest.raises(IntegrityError):
             await conn.execute(insert(t.plan_audit).values(id="forged", project_id=other_project["id"], plan_id=result["id"], actor="owner", action="plan_frozen", at="now"))
         await conn.rollback()
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0017"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
 
 
 @pytest.mark.asyncio
@@ -371,7 +383,7 @@ async def test_upgrade_from_deployed_eval_0003_preserves_both_ledgers_and_cipher
         async with engine.connect() as conn:
             assert dict((await conn.execute(select(t.request_versions))).mappings().one()) == before
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "synthetic_harness"
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0017"
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0020"
             assert not (await conn.execute(select(t.plans))).all()
         assert (await repository.open_request_version("owner", project["id"], version["id"])).body == request.request["body"]
     finally:
