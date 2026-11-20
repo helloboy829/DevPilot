@@ -8,6 +8,8 @@
 
 DAT-02/EVID-02/EFF-01 的候选源码及 `eval_0018..0020` 已随 `a3a48b6` 推送到 GitHub `main`，`05be2f0` 补齐 Ruff 格式；尚未部署。Windows 全量后端未通过，隔离 Linux 旧快照的通过记录不能代替这次提交的验证。精确 SHA、Actions 和快照证据见[交付状态](DevPilot_Delivery_Status.md)。
 
+2026-11-20 全量测试修复已作为 `d56d6b805234581b80ae3e01b9262f39af138baf` 推送；隔离 Linux/Python 3.12 `make test` 为 **13,711 passed / 77 skipped / 11 deselected / 40 warnings / 7 subtests passed，exit 0**。该 SHA 的 Blocking IO、Frontend Unit Tests、Lint Check 成功；Unit Tests workflow 终态 cancelled，后端全量测试 job 失败，job 日志匿名下载受 403 限制，原因待诊断。下一步先取得该 job 的失败输出并修复/复验，再继续 EFF-02；不把本机全量通过视作精确 SHA CI 通过。记录详见[交付状态](DevPilot_Delivery_Status.md)。
+
 下一步先排查安装后合成 API 导出失败，再按 EFF-02 分类证据授权与访问 → EFF-03 浏览器推进，PERF-01..04 仍待开发。旧 `devpilot.toolkit.perf.perf_run()` 仍是实际 HTTP 负载发送器，不是纯指标模块；可复用的指标函数、legacy PASS/FAIL 隔离和旧入口退出门槛见功能矩阵及性能工作台合同。
 
 当前产品链：
