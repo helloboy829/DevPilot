@@ -1,6 +1,6 @@
 # DevPilot 实现进度与下一步
 
-更新：2026-11-20。此文件是唯一的模块级开发进度账本：逐项状态、先后依赖与下个验收门槛在这里更新。代码/部署/候选/验证事实以[交付状态](DevPilot_Delivery_Status.md)为准；功能实现入口、API/schema、权限、失败语义和测试说明见[功能实现说明](DevPilot_Feature_Implementation_Spec.md)。旧日期切片已原样移至[实现切片历史](DevPilot_Implementation_Slices_Archive_2026-11.md)。
+更新：2026-11-21。此文件是唯一的模块级开发进度账本：逐项状态、先后依赖与下个验收门槛在这里更新。代码/部署/候选/验证事实以[交付状态](DevPilot_Delivery_Status.md)为准；功能实现入口、API/schema、权限、失败语义和测试说明见[功能实现说明](DevPilot_Feature_Implementation_Spec.md)。旧日期切片已原样移至[实现切片历史](DevPilot_Implementation_Slices_Archive_2026-11.md)。
 
 ## 当前里程碑
 
@@ -8,7 +8,7 @@
 
 DAT-02/EVID-02/EFF-01 的候选源码及 `eval_0018..0020` 已随 `a3a48b6` 推送到 GitHub `main`，`05be2f0` 补齐 Ruff 格式；尚未部署。Windows 全量后端未通过，隔离 Linux 旧快照的通过记录不能代替这次提交的验证。精确 SHA、Actions 和快照证据见[交付状态](DevPilot_Delivery_Status.md)。
 
-2026-11-20 全量测试修复已作为 `d56d6b805234581b80ae3e01b9262f39af138baf` 推送；隔离 Linux/Python 3.12 `make test` 为 **13,711 passed / 77 skipped / 11 deselected / 40 warnings / 7 subtests passed，exit 0**。该 SHA 的 Blocking IO、Frontend Unit Tests、Lint Check 成功；Unit Tests workflow 终态 cancelled，后端全量测试 job 失败，job 日志匿名下载受 403 限制，原因待诊断。下一步先取得该 job 的失败输出并修复/复验，再继续 EFF-02；不把本机全量通过视作精确 SHA CI 通过。记录详见[交付状态](DevPilot_Delivery_Status.md)。
+2026-11-21 当前待提交改动已完成隔离 Linux/Python 3.12 全量 `make test`：**13,761 passed / 27 skipped / 11 deselected / 40 warnings / 7 subtests passed，exit 0，19:07**；`make lint`、`make test-blocking-io`（72 passed）和 PostgreSQL 迁移定向测试（2 passed）也通过。两次先前全量运行的 QA 独立审核用例失败本轮未复现，根因仍未知。待提交修改为 `eval_0020` DESC 索引和历史 schema 快照反射测试；当前旧 SHA `adfd6d4` 的 CI 失败仅属该 SHA，不能代替本次候选的 Actions 状态。下一步提交并推送本轮变更，按新 SHA 跟踪 Actions 终态，同时保留 `.patch-test` 不提交。详细记录见[交付状态](DevPilot_Delivery_Status.md)。
 
 下一步先排查安装后合成 API 导出失败，再按 EFF-02 分类证据授权与访问 → EFF-03 浏览器推进，PERF-01..04 仍待开发。旧 `devpilot.toolkit.perf.perf_run()` 仍是实际 HTTP 负载发送器，不是纯指标模块；可复用的指标函数、legacy PASS/FAIL 隔离和旧入口退出门槛见功能矩阵及性能工作台合同。
 
@@ -130,3 +130,4 @@ DAT-02/EVID-02/EFF-01 的候选源码及 `eval_0018..0020` 已随 `a3a48b6` 推�
 | 2026-11-20 | Windows 全量离线套件与临时目录治理 | 使用当前工作区与 Python 3.12 执行 `pytest -m 'not live' tests -q`：`13021 passed, 279 failed, 111 skipped, 11 deselected, 377 errors`（约 31 分钟）；因此全量门禁未通过，失败/错误尚未逐项归因，不作为交付通过证据。新增根 `.gitignore` 规则 `/backend/.tmp-*/`，验证 pytest basetemp 不再进入 Git 状态；随后仅删除本轮创建的 12 个 `backend/.tmp-eff01-*` / `backend/.tmp-registry-*` 临时目录。 | 保留未识别来源的 `docs/superpowers/plans/.patch-test` 不纳入提交。应在后续修复完整套件失败前继续标记全量门禁未通过；Linux 当前源码验证、PostgreSQL parity 和精确 count 规模成本也仍待完成。没有部署或真实模型/目标调用。 |
 | 2026-11-20 | DAT-02/EVID-02/EFF-01 提交推送与精确 SHA 状态 | `a3a48b6a67381909860cee82ddd653337e948fe0` 已推送 `origin/main`，含 `eval_0018..0020`、结果查询 API、品牌资源及 tmp ignore；`05be2f06a7b2c85d791aafeef791f744223cbd46` 补齐 Ruff 格式并同样推送。精确 SHA CI 见交付状态页。 | Windows 完整后端门禁未通过；GitHub Unit Tests 工作流最终失败，后端 unit 和 installed export job 均红，详细失败输出未取得；Frontend、Blocking IO、Lint 及三个分发/安装 job 成功。当前仅更新交付/实现文档，不改业务代码；先取得并归因失败，再实现 EFF-02 授权证据读取及审计。保留来源未识别的 `.patch-test`，未部署，未调用真实目标。 |
 | 2026-11-20 | 迁移测试历史 schema 兼容与全量后端复验 | 修正 8 组迁移测试，使行快照反射数据库实际 schema 并只忽略后续新增的 `evaluation_projects.result_revision`；调整 `eval_0013` parity 排除更晚版本的 revision 列和 `eval_0020` 索引；旧 `eval_0006` 执行用例禁用只属于新 schema 的 revision 写入。首次全量 `make test` 暴露 `test_qa_results.py` 的 fixture 顺序错误；与 `test_dispatch_journal.py` 同跑复现 14 errors，改为显式导入 `prepared` 后组合回归 **82 passed**。修复快照完整全量 `make test` **13,711 passed / 77 skipped / 11 deselected / 40 warnings / 7 subtests passed，exit 0，1,065.34 秒**。相关 10 个测试文件 Ruff check/format check 及 `git diff --check` 通过。 | 验证快照基于 `b34250184cc64fafb969302105bc0adf5083f617` 加本轮工作区测试修正；尚未提交/push，需在推送后核验精确 SHA Actions。PostgreSQL parity 仍未运行；保留未跟踪的 `docs/superpowers/plans/.patch-test`，不纳入提交。未部署或调用真实模型/目标。 |
+| 2026-11-21 | 全量测试复验、迁移索引修正与提交准备 | 为 `eval_0020` 索引列显式指定 `started_at_ms DESC`，并将历史迁移测试快照改为通过数据库反射实际 schema 后读取行。隔离 Linux/Python 3.12 `make test` **13,761 passed / 27 skipped / 11 deselected / 40 warnings / 7 subtests passed，exit 0，19:07**；`make lint` 通过（Ruff check；1,319 个文件已格式化），`make test-blocking-io` **72 passed**，PostgreSQL `tests/test_qa_assessments_migrations.py` **2 passed**。两个此前不同的 QA 独立审核全量失败本轮未复现，但根因未确认。 | 代码和状态文档待提交/推送；推送后核实新 SHA 的 GitHub Actions 终态。旧 SHA `adfd6d4` 的 Unit Tests workflow `44735399906` 失败只属于旧 SHA，不能沿用作本轮结果。保留未跟踪 `docs/superpowers/plans/.patch-test`，不纳入提交。三个本轮专用容器已停止且数据卷保留；未部署或调用真实模型/目标。 |

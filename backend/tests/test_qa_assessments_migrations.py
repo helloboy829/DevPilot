@@ -11,7 +11,7 @@ from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import MetaData, insert, inspect, select, text
+from sqlalchemy import MetaData, insert, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 from test_dispatch_journal import prepared as prepared
@@ -101,7 +101,7 @@ async def test_postgresql_additive_upgrade_preserves_real_review_rows_and_constr
     async with source_engine.connect() as conn:
         names = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
         old = [table for table in t.metadata.sorted_tables if table.name in names and table.name not in AFTER_EVAL_0010]
-        seed = {table.name: [dict(r) for r in (await conn.execute(select(table).order_by(*table.primary_key.columns))).mappings()] for table in [ComponentRow.__table__, *old]}
+        seed = await conn.run_sync(lambda connection: snapshot_rows(connection, [ComponentRow.__table__, *old]))
     source = make_url(os.environ["TEST_POSTGRES_URI"]).set(drivername="postgresql", database="postgres")
     admin_url = source.render_as_string(hide_password=False)
     database = "devpilot_assessment_test_" + uuid4().hex
@@ -126,12 +126,11 @@ async def test_postgresql_additive_upgrade_preserves_real_review_rows_and_constr
                 if seed[table.name]:
                     await conn.execute(insert(table), seed[table.name])
         async with engine.connect() as conn:
-            before = {table.name: [dict(r) for r in (await conn.execute(select(table).order_by(*table.primary_key.columns))).mappings()] for table in [ComponentRow.__table__, *old]}
+            before = await conn.run_sync(lambda connection: snapshot_rows(connection, [ComponentRow.__table__, *old]))
         for down in (False, False, True, False):
             await asyncio.to_thread(migrate, engine.url, down)
             async with engine.connect() as conn:
-                for table in [ComponentRow.__table__, *old]:
-                    assert [dict(r) for r in (await conn.execute(select(table).order_by(*table.primary_key.columns))).mappings()] == before[table.name]
+                assert await conn.run_sync(lambda connection: snapshot_rows(connection, [ComponentRow.__table__, *old])) == before
                 assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
                 assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0010" if down else "eval_0020")
         row = {"id": "c" * 32, "owner_id": "owner", "project_id": project, "run_id": run["id"], "revision": 1, "created_at_ms": 1, "request_hash": "a" * 64, "summary_hash": "b" * 64, "document": {}, "assessment_hash": "d" * 64}

@@ -1,5 +1,6 @@
 """Index owner-scoped run pages by project and stable descending time."""
 
+import sqlalchemy as sa
 from alembic import op
 
 revision = "eval_0020"
@@ -12,7 +13,7 @@ def upgrade():
     op.create_index(
         "ix_evaluation_dispatch_run_project_started_id",
         "evaluation_dispatch_runs",
-        ["project_id", "started_at_ms", "id"],
+        ["project_id", sa.text("started_at_ms DESC"), "id"],
         unique=False,
     )
 
