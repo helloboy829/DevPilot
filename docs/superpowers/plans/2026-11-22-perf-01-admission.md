@@ -35,10 +35,10 @@
 - Profile validation rejects empty scope, duplicate/invalid IDs, overflows, count/deadline contradictions, and any configured cap exceeded by the profile.
 
 **Steps:**
-- [ ] Write domain tests for stable ordering, exact ordinal coverage, cycle iteration, phase assignment, and overflow/bounds rejection.
-- [ ] Run the new tests and confirm they fail because the module does not exist.
-- [ ] Implement strict Pydantic DTOs and pure manifest builder.
-- [ ] Run domain tests and existing QA-plan tests.
+- [x] Write domain tests for stable ordering, exact ordinal coverage, cycle iteration, phase assignment, and overflow/bounds rejection.
+- [x] Run the new tests and confirm they fail because the module does not exist.
+- [x] Implement strict Pydantic DTOs and pure manifest builder.
+- [x] Run domain tests and existing QA-plan tests.
 
 ### Task 2: Persist immutable owner-scoped scenario revisions
 
@@ -55,11 +55,11 @@
 - `get(owner, project_id, scenario_id)` validates persisted DTO/hash and hides cross-owner existence.
 
 **Steps:**
-- [ ] Write failing repository tests for owner isolation, wrong-mode/draft plan rejection, exact dataset/request hash binding, tamper detection, and audit atomicity.
-- [ ] Run new repository tests to establish RED.
-- [ ] Add table and `eval_0024` migration with bounded checks/FKs/indexes; implement repository methods.
-- [ ] Verify migration upgrade/downgrade and SQLite/PostgreSQL schema parity.
-- [ ] Run repository, datasets, and plans test modules.
+- [x] Write failing repository tests for owner isolation, wrong-mode/draft plan rejection, exact dataset/request hash binding, tamper detection, and audit atomicity.
+- [x] Run new repository tests to establish RED.
+- [x] Add table and `eval_0024` migration with bounded checks/FKs/indexes; implement repository methods.
+- [x] Verify migration upgrade/downgrade and SQLite/PostgreSQL schema parity.
+- [x] Run repository, datasets, and plans test modules.
 
 ### Task 3: Expose performance scenario API
 
@@ -74,10 +74,10 @@
 - Reuse evaluation human identity, permission dependencies, bounded private routes, and existing stable 404/409/422 error semantics. Do not expose run/dispatch/evidence endpoints here.
 
 **Steps:**
-- [ ] Write failing API tests for owner scope, permission, explicit confirmation, malformed profile, scenario creation/read, and absent execution side effects.
-- [ ] Run router tests to establish RED.
-- [ ] Implement routes and register the router.
-- [ ] Run router and relevant authorization regressions.
+- [x] Write failing API tests for owner scope, permission, explicit confirmation, malformed profile, scenario creation/read, and absent execution side effects.
+- [x] Run router tests to establish RED.
+- [x] Implement routes and register the router.
+- [x] Run router and relevant authorization regressions.
 
 ### Task 4: Record implementation and verify slice
 
@@ -90,8 +90,8 @@
 - Modify: `docs/README.md`
 
 **Steps:**
-- [ ] Update only the PERF-01 status and API/schema implementation facts; keep PERF-02/03/04 explicitly pending.
-- [ ] Run targeted tests, backend Blocking IO, Ruff, migration parity and the complete offline backend suite in the approved Linux/Python 3.12 environment.
-- [ ] Run `git diff --check`; inspect ignore rules and ensure formal plan/status/design docs remain tracked.
-- [ ] Commit this module slice, push its branch, integrate into `main`, push `main`, and record exact-SHA Actions terminal states. Push alone is not CI success.
-- [ ] Clean only this slice's temporary test/worktree resources after confirming their exact paths and state; preserve unrelated worktrees, Docker resources and user changes.
+- [x] Update only the PERF-01 status and API/schema implementation facts; keep PERF-02/03/04 explicitly pending.
+- [x] Run targeted tests, backend Blocking IO, Ruff, migration parity and the complete offline backend suite in the approved Linux/Python 3.12 environment.
+- [x] Run `git diff --check`; inspect ignore rules and ensure formal plan/status/design docs remain tracked.
+- [x] Commit this module slice, push its branch, integrate into `main`, push `main`, and record exact-SHA Actions terminal states. Push alone is not CI success.
+- [x] Clean only this slice's temporary test/worktree resources after confirming their exact paths and state; preserve unrelated worktrees, Docker resources and user changes.
