@@ -5,8 +5,8 @@
 # (PR #2767, addressing review on Issue #2754).
 #
 # Responsibilities:
-#   1. Resolve `--extra X` flags from UV_EXTRAS (comma- or whitespace-separated,
-#      mirroring scripts/detect_uv_extras.py for parity with local `make dev`).
+#   1. Resolve `--extra X` flags from UV_EXTRAS or detect them from config.yaml,
+#      matching scripts/detect_uv_extras.py used by local `make dev`.
 #   2. Validate each extra against [A-Za-z][A-Za-z0-9_-]* so a stray shell
 #      metacharacter in `.env` cannot reach `uv sync`.
 #   3. `uv sync --all-packages` so workspace member extras (deerflow-harness's
@@ -52,6 +52,12 @@ if [ -n "${UV_EXTRAS:-}" ]; then
         esac
         EXTRAS_FLAGS="$EXTRAS_FLAGS --extra $raw"
     done
+else
+    PROJECT_ROOT="${DEVPILOT_PROJECT_ROOT:-/app/project}"
+    DETECTOR="$PROJECT_ROOT/scripts/detect_uv_extras.py"
+    if [ -f "$DETECTOR" ]; then
+        EXTRAS_FLAGS="$(DEER_FLOW_CONFIG_PATH="${DEER_FLOW_CONFIG_PATH:-$PROJECT_ROOT/config.yaml}" python "$DETECTOR")"
+    fi
 fi
 
 if [ "$PRINT_EXTRAS_ONLY" = "1" ]; then

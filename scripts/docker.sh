@@ -15,7 +15,7 @@ DOCKER_DIR="$PROJECT_ROOT/docker"
 # Docker Compose command with project name
 COMPOSE_CMD="docker compose -p deer-flow-dev -f docker-compose-dev.yaml"
 
-load_proxy_env_from_dotenv() {
+load_compose_env_from_dotenv() {
     local env_file="$PROJECT_ROOT/.env"
     local var
     local line
@@ -25,7 +25,7 @@ load_proxy_env_from_dotenv() {
         return
     fi
 
-    for var in HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; do
+    for var in HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy DATABASE_URL; do
         if [ -z "${!var+x}" ]; then
             line="$(grep -E "^[[:space:]]*${var}=" "$env_file" | tail -n 1 || true)"
             if [ -n "$line" ]; then
@@ -191,9 +191,9 @@ start() {
 
     sandbox_mode="$(detect_sandbox_mode)"
 
-    services="redis frontend gateway nginx"
+    services="redis postgres frontend gateway nginx"
     if [ "$sandbox_mode" = "provisioner" ]; then
-        services="redis frontend gateway provisioner nginx"
+        services="redis postgres frontend gateway provisioner nginx"
     fi
 
     # Only aio mode (AioSandboxProvider without provisioner_url) needs the host
@@ -260,7 +260,7 @@ start() {
         fi
     fi
 
-    load_proxy_env_from_dotenv
+    load_compose_env_from_dotenv
 
     echo "Building and starting containers..."
     cd "$DOCKER_DIR" && $COMPOSE_CMD up --build -d --remove-orphans $services

@@ -16,6 +16,7 @@ from deerflow.config.checkpointer_config import get_checkpointer_config, load_ch
 from deerflow.config.database_config import DatabaseConfig
 from deerflow.config.guardrails_config import get_guardrails_config, load_guardrails_config_from_dict
 from deerflow.config.memory_config import get_memory_config, load_memory_config_from_dict
+from deerflow.config.run_events_config import RunEventsConfig
 from deerflow.config.stream_bridge_config import get_stream_bridge_config, load_stream_bridge_config_from_dict
 from deerflow.config.subagents_config import get_subagents_app_config, load_subagents_config_from_dict
 from deerflow.config.summarization_config import get_summarization_config, load_summarization_config_from_dict
@@ -189,9 +190,12 @@ def test_config_example_does_not_enable_empty_extensions_block_by_default():
     config_data = yaml.safe_load(config_example_path.read_text(encoding="utf-8"))
 
     assert "extensions" not in config_data
+    assert config_data["database"]["backend"] == "postgres"
+    assert config_data["database"]["postgres_url"] == "$DATABASE_URL"
+    assert config_data["run_events"]["backend"] == "db"
 
 
-def test_app_config_defaults_missing_database_to_sqlite(tmp_path, monkeypatch):
+def test_app_config_defaults_missing_database_to_postgres(tmp_path, monkeypatch):
     config_path = tmp_path / "config.yaml"
     extensions_path = tmp_path / "extensions_config.json"
     _write_extensions_config(extensions_path)
@@ -201,8 +205,14 @@ def test_app_config_defaults_missing_database_to_sqlite(tmp_path, monkeypatch):
 
     config = AppConfig.from_file(str(config_path))
 
-    assert config.database.backend == "sqlite"
+    assert config.database.backend == "postgres"
+    assert config.run_events.backend == "db"
     assert config.database.sqlite_dir == ".deer-flow/data"
+
+
+def test_model_defaults_use_postgres_and_database_backed_run_events():
+    assert DatabaseConfig().backend == "postgres"
+    assert RunEventsConfig().backend == "db"
 
 
 def test_app_config_preserves_config_yaml_extension_middlewares(tmp_path, monkeypatch):
@@ -278,7 +288,7 @@ def test_app_config_loads_extension_middlewares_from_extensions_config(tmp_path,
     assert config.extensions.middlewares == ["pkg.from_file:FileMiddleware"]
 
 
-def test_app_config_defaults_empty_database_to_sqlite(tmp_path, monkeypatch):
+def test_app_config_defaults_empty_database_to_postgres(tmp_path, monkeypatch):
     config_path = tmp_path / "config.yaml"
     extensions_path = tmp_path / "extensions_config.json"
     _write_extensions_config(extensions_path)
@@ -296,7 +306,7 @@ def test_app_config_defaults_empty_database_to_sqlite(tmp_path, monkeypatch):
 
     config = AppConfig.from_file(str(config_path))
 
-    assert config.database.backend == "sqlite"
+    assert config.database.backend == "postgres"
     assert config.database.sqlite_dir == ".deer-flow/data"
 
 
@@ -581,7 +591,10 @@ def test_get_app_config_resets_persistence_runtime_singletons_when_checkpointer_
     config_path = tmp_path / "config.yaml"
     extensions_path = tmp_path / "extensions_config.json"
     _write_extensions_config(extensions_path)
-    _write_config_with_sections(config_path, {"checkpointer": {"type": "memory"}})
+    _write_config_with_sections(
+        config_path,
+        {"database": {"backend": "memory"}, "checkpointer": {"type": "memory"}},
+    )
 
     monkeypatch.setenv("DEER_FLOW_CONFIG_PATH", str(config_path))
     monkeypatch.setenv("DEER_FLOW_EXTENSIONS_CONFIG_PATH", str(extensions_path))
@@ -594,7 +607,7 @@ def test_get_app_config_resets_persistence_runtime_singletons_when_checkpointer_
         initial_checkpointer = get_checkpointer()
         initial_store = get_store()
 
-        _write_config_with_sections(config_path)
+        _write_config_with_sections(config_path, {"database": {"backend": "memory"}})
         next_mtime = config_path.stat().st_mtime + 5
         os.utime(config_path, (next_mtime, next_mtime))
 

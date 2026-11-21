@@ -145,14 +145,14 @@ def test_detect_from_config_sqlite_returns_no_extras(tmp_path):
 
 def test_detect_from_config_redis_via_stream_bridge(tmp_path):
     cfg = tmp_path / "config.yaml"
-    cfg.write_text("stream_bridge:\n  type: redis\n  redis_url: redis://localhost:6379/0\n")
+    cfg.write_text("database:\n  backend: sqlite\nstream_bridge:\n  type: redis\n  redis_url: redis://localhost:6379/0\n")
     assert detect.detect_from_config(cfg) == ["redis"]
 
 
 def test_detect_from_config_browser_via_browser_navigate_tool(tmp_path):
     cfg = tmp_path / "config.yaml"
     cfg.write_text(
-        "tools:\n  - name: browser_navigate\n    group: browser\n    use: deerflow.community.browser_automation.tools:browser_navigate_tool\n",
+        "database:\n  backend: sqlite\ntools:\n  - name: browser_navigate\n    group: browser\n    use: deerflow.community.browser_automation.tools:browser_navigate_tool\n",
     )
     assert detect.detect_from_config(cfg) == ["browser"]
 
@@ -160,7 +160,7 @@ def test_detect_from_config_browser_via_browser_navigate_tool(tmp_path):
 def test_detect_from_config_browser_via_indentless_tools_list(tmp_path):
     cfg = tmp_path / "config.yaml"
     cfg.write_text(
-        "tools:\n- name: web_fetch\n  group: web\n- name: browser_navigate\n  group: browser\n",
+        "database:\n  backend: sqlite\ntools:\n- name: web_fetch\n  group: web\n- name: browser_navigate\n  group: browser\n",
     )
     assert detect.detect_from_config(cfg) == ["browser"]
 
@@ -168,7 +168,7 @@ def test_detect_from_config_browser_via_indentless_tools_list(tmp_path):
 def test_detect_from_config_ignores_commented_browser_tool(tmp_path):
     cfg = tmp_path / "config.yaml"
     cfg.write_text(
-        "tools:\n  # - name: browser_navigate\n  #   group: browser\n  - name: web_fetch\n    group: web\n",
+        "database:\n  backend: sqlite\ntools:\n  # - name: browser_navigate\n  #   group: browser\n  - name: web_fetch\n    group: web\n",
     )
     assert detect.detect_from_config(cfg) == []
 
@@ -176,14 +176,14 @@ def test_detect_from_config_ignores_commented_browser_tool(tmp_path):
 def test_detect_from_config_buzz_via_channels_enabled(tmp_path):
     cfg = tmp_path / "config.yaml"
     cfg.write_text(
-        "channels:\n  buzz:\n    enabled: true\n    relay_url: wss://buzz.example.com\n",
+        "database:\n  backend: sqlite\nchannels:\n  buzz:\n    enabled: true\n    relay_url: wss://buzz.example.com\n",
     )
     assert detect.detect_from_config(cfg) == ["buzz"]
 
 
 def test_detect_from_config_buzz_disabled_returns_no_extras(tmp_path):
     cfg = tmp_path / "config.yaml"
-    cfg.write_text("channels:\n  buzz:\n    enabled: false\n")
+    cfg.write_text("database:\n  backend: sqlite\nchannels:\n  buzz:\n    enabled: false\n")
     assert detect.detect_from_config(cfg) == []
 
 
@@ -191,6 +191,12 @@ def test_detect_from_config_no_channels_section_returns_no_buzz_extra(tmp_path):
     cfg = tmp_path / "config.yaml"
     cfg.write_text("database:\n  backend: sqlite\n")
     assert detect.detect_from_config(cfg) == []
+
+
+def test_detect_from_config_uses_postgres_when_database_section_is_omitted(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("models:\n  default: test-model\n")
+    assert detect.detect_from_config(cfg) == ["postgres"]
 
 
 def test_detect_from_config_ignores_commented_buzz_block(tmp_path):
@@ -204,7 +210,7 @@ def test_detect_from_config_ignores_commented_buzz_block(tmp_path):
 
 def test_detect_from_config_memory_stream_bridge_returns_no_extras(tmp_path):
     cfg = tmp_path / "config.yaml"
-    cfg.write_text("stream_bridge:\n  type: memory\n  queue_maxsize: 256\n")
+    cfg.write_text("database:\n  backend: sqlite\nstream_bridge:\n  type: memory\n  queue_maxsize: 256\n")
     assert detect.detect_from_config(cfg) == []
 
 
@@ -248,7 +254,7 @@ def test_resolve_extras_env_supports_multiple(isolated_cwd, monkeypatch):
 
 def test_resolve_extras_detects_redis_url_env_without_config(isolated_cwd, monkeypatch):
     monkeypatch.setenv("DEER_FLOW_STREAM_BRIDGE_REDIS_URL", "redis://redis:6379/0")
-    assert detect.resolve_extras() == ["redis"]
+    assert detect.resolve_extras() == ["postgres", "redis"]
 
 
 def test_resolve_extras_combines_uv_extras_with_redis_url_env(isolated_cwd, monkeypatch):
@@ -276,7 +282,7 @@ def test_resolve_extras_respects_explicit_config_path(tmp_path, monkeypatch):
 
 
 def test_resolve_extras_no_config_no_env(isolated_cwd):
-    assert detect.resolve_extras() == []
+    assert detect.resolve_extras() == ["postgres"]
 
 
 def test_resolve_extras_finds_backend_subdir_config(isolated_cwd):

@@ -38,7 +38,7 @@ uv run python --version
 uv run python -c "import blockbuster; from importlib.metadata import version; print(version('blockbuster'))"
 ```
 
-`blockbuster` 已属于 dev 依赖组并锁定版本；出现缺模块先核对解释器和安装组，不重复添加依赖、不改锁规避环境问题。PostgreSQL 专项另用 `uv sync --frozen --group dev --extra postgres` 和独占测试数据库。
+`blockbuster` 已属于 dev 依赖组并锁定版本；出现缺模块先核对解释器和安装组，不重复添加依赖、不改锁规避环境问题。PostgreSQL 是默认持久化后端；宿主环境须提供 `DATABASE_URL`。完整开发/测试依赖使用 `uv sync --frozen --group dev --extra postgres`，真实迁移/集成回归只允许连接独占测试数据库；不配置该库时跳过可选 PostgreSQL 实连专项。
 
 Docker 开发从根目录用 `make docker-start`，参见[快速开始](../README.md#快速开始)。`devpilot` 是 sibling editable 依赖：builder 执行 uv sync 前须有 `/app/devpilot`，runtime 保留该目录，开发 Compose 的 sibling mount 必须一致。复制公开源码时不要把镜像已有 `.venv` 用 bind mount 隐藏，也不要复制私有配置/数据库。
 

@@ -121,16 +121,17 @@ For any deployment with more than one concurrent user, use a container-based san
 
 ### Database backend
 
-SQLite is convenient for local development and single-user deployments, but it is not a production backend for concurrent users.
+DevPilot defaults to PostgreSQL, with all persistence written to the configured PostgreSQL database. For host development, set `DATABASE_URL` in the private root `.env` before `make install` and `make dev`; the installer includes the PostgreSQL driver. Production deployments must provide a reachable `DATABASE_URL`. The Docker development Compose stack starts its own PostgreSQL service and uses it automatically when `DATABASE_URL` is unset.
+
+The local Docker database uses development-only `devpilot` credentials and persists in the `postgres-data` named volume. Production Compose does not create a database service; provide the production PostgreSQL URL through deployment secrets. Host development can use a local PostgreSQL server or explicitly select SQLite.
 
 In SQLite mode, DeerFlow stores LangGraph checkpoint data and application data in one `deerflow.db` file. WAL mode allows concurrent reads, but SQLite still permits only one writer at a time. When several users run agents at once, checkpoint writes and application writes can contend for the same file and raise `sqlite3.OperationalError: database is locked`.
 
-For production or any multi-user deployment, use Postgres:
+Default configuration:
 
 ```bash
-# .env
+# .env; inject real credentials through your secret manager
 DATABASE_URL=postgresql://user:password@postgres:5432/deerflow
-UV_EXTRAS=postgres
 ```
 
 ```yaml
@@ -143,7 +144,7 @@ run_events:
   backend: db
 ```
 
-Keep SQLite deployments to local, single-node, or short-lived evaluation environments.
+Use SQLite only when it is explicitly selected as `database.backend: sqlite` for local development or tests; it is not the production default. SQLite stores data in a single `deerflow.db` file and is limited by its single-writer behavior for multi-process or multi-user writes.
 
 ### K8s Provisioner setup
 

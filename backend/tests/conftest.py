@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -20,6 +21,32 @@ import pytest
 _LIVE_TEST_OPT_IN = os.environ.get("DEER_FLOW_RUN_LIVE_TESTS") == "1"
 _LIVE_TEST_IN_CI = bool(os.environ.get("CI"))
 _DOCKER_TEST_OPT_IN = os.environ.get("DEVPILOT_RUN_DOCKER_TESTS") == "1"
+_PYTEST_CONFIG_DIRECTORY: tempfile.TemporaryDirectory[str] | None = None
+
+
+def pytest_configure():
+    """Keep ordinary tests independent from developer-owned runtime config."""
+    global _PYTEST_CONFIG_DIRECTORY
+
+    if _LIVE_TEST_OPT_IN and not _LIVE_TEST_IN_CI:
+        return
+
+    _PYTEST_CONFIG_DIRECTORY = tempfile.TemporaryDirectory(prefix="devpilot-pytest-config-")
+    config_directory = Path(_PYTEST_CONFIG_DIRECTORY.name)
+    config_path = config_directory / "config.yaml"
+    config_path.write_text(
+        "sandbox:\n  use: deerflow.sandbox.local:LocalSandboxProvider\ndatabase:\n  backend: memory\nrun_events:\n  backend: memory\n",
+        encoding="utf-8",
+    )
+    extensions_path = config_directory / "extensions_config.json"
+    extensions_path.write_text('{"mcpServers": {}, "skills": {}}', encoding="utf-8")
+    os.environ["DEER_FLOW_CONFIG_PATH"] = str(config_path)
+    os.environ["DEER_FLOW_EXTENSIONS_CONFIG_PATH"] = str(extensions_path)
+
+
+def pytest_unconfigure():
+    if _PYTEST_CONFIG_DIRECTORY is not None:
+        _PYTEST_CONFIG_DIRECTORY.cleanup()
 
 
 def pytest_collection_modifyitems(items):

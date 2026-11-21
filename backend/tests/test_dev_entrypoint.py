@@ -10,27 +10,59 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ENTRYPOINT = REPO_ROOT / "docker" / "dev-entrypoint.sh"
+DEV_COMPOSE = REPO_ROOT / "docker" / "docker-compose-dev.yaml"
 
 
-def _run(uv_extras: str | None) -> subprocess.CompletedProcess[str]:
+def test_dev_compose_uses_healthy_postgres_by_default():
+    compose = yaml.safe_load(DEV_COMPOSE.read_text(encoding="utf-8"))
+
+    postgres = compose["services"]["postgres"]
+    gateway = compose["services"]["gateway"]
+
+    assert postgres["image"].startswith("postgres:")
+    assert any("pg_isready" in item for item in postgres["healthcheck"]["test"])
+    assert "postgres-data:/var/lib/postgresql/data" in postgres["volumes"]
+    assert any(value.startswith("DATABASE_URL=${DATABASE_URL:-postgresql://") for value in gateway["environment"])
+    assert gateway["depends_on"]["postgres"]["condition"] == "service_healthy"
+
+
+def test_default_host_install_includes_postgres_extra():
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    assert "cd backend && uv sync --extra postgres" in makefile
+
+
+def _run(uv_extras: str | None, *, config: str | None = None) -> subprocess.CompletedProcess[str]:
     """Invoke `dev-entrypoint.sh --print-extras` with UV_EXTRAS set."""
     env = os.environ.copy()
     env.pop("UV_EXTRAS", None)
     if uv_extras is not None:
         env["UV_EXTRAS"] = uv_extras
-    return subprocess.run(
-        ["sh", str(ENTRYPOINT), "--print-extras"],
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project_root = Path(temp_dir)
+        (project_root / "scripts").mkdir()
+        (project_root / "scripts" / "detect_uv_extras.py").write_bytes((REPO_ROOT / "scripts" / "detect_uv_extras.py").read_bytes())
+        if config is not None:
+            (project_root / "config.yaml").write_text(config, encoding="utf-8")
+        env["DEVPILOT_PROJECT_ROOT"] = str(project_root)
+        env["DEER_FLOW_CONFIG_PATH"] = str(project_root / "config.yaml")
+        return subprocess.run(
+            ["sh", str(ENTRYPOINT), "--print-extras"],
+            env=env,
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
 
 
 def test_entrypoint_script_exists_and_is_posix_sh():
@@ -54,10 +86,34 @@ def test_entrypoint_excludes_runtime_state_from_uvicorn_reload():
     assert "--reload-exclude=/app/backend/.deer-flow" in content
 
 
-def test_no_uv_extras_yields_empty_flags():
+def test_production_image_installs_postgres_by_default():
+    dockerfile = (REPO_ROOT / "backend" / "Dockerfile").read_text(encoding="utf-8")
+    assert "uv sync --extra redis $extras_flags --extra postgres" in dockerfile
+
+
+def test_docker_launcher_loads_database_url_from_project_env_file():
+    launcher = (REPO_ROOT / "scripts" / "docker.sh").read_text(encoding="utf-8")
+    assert "load_compose_env_from_dotenv" in launcher
+    env_vars = next(line for line in launcher.splitlines() if line.lstrip().startswith("for var in "))
+    assert "DATABASE_URL" in env_vars
+
+
+def test_default_config_backend_yields_postgres_flags():
     proc = _run(None)
     assert proc.returncode == 0
+    assert proc.stdout.strip() == "--extra postgres"
+
+
+def test_explicit_sqlite_config_yields_no_postgres_flag():
+    proc = _run(None, config="database:\n  backend: sqlite\n")
+    assert proc.returncode == 0
     assert proc.stdout.strip() == ""
+
+
+def test_config_backend_selects_postgres_extra_automatically():
+    proc = _run(None, config="database:\n  backend: postgres\n")
+    assert proc.returncode == 0
+    assert proc.stdout.strip() == "--extra postgres"
 
 
 def test_single_extra():
@@ -84,10 +140,10 @@ def test_multi_extra_mixed_separators():
     assert proc.stdout.strip() == "--extra postgres --extra ollama"
 
 
-def test_empty_string_yields_empty_flags():
+def test_empty_string_uses_default_postgres_backend():
     proc = _run("")
     assert proc.returncode == 0
-    assert proc.stdout.strip() == ""
+    assert proc.stdout.strip() == "--extra postgres"
 
 
 @pytest.mark.parametrize(

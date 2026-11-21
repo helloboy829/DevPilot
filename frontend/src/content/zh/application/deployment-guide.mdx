@@ -118,16 +118,17 @@ BETTER_AUTH_SECRET=your-secret-here-min-32-chars
 
 ### 数据库后端
 
-SQLite 适合本地开发和单用户部署，但不适合作为多用户生产环境的数据库后端。
+DevPilot 默认使用 PostgreSQL，所有持久化数据统一写入配置指定的 PostgreSQL 数据库。宿主机开发需在私有根目录 `.env` 中设置可访问的 `DATABASE_URL`，再运行 `make install`、`make dev`；安装器默认包含 PostgreSQL 驱动。生产部署也必须提供可访问的 `DATABASE_URL`。Docker 本地开发 Compose 会启动独立 PostgreSQL 服务，并在未设置 `DATABASE_URL` 时自动连接该服务。
+
+本地 Docker 开发数据库使用仅供开发的 `devpilot` 凭据，并保存在 `postgres-data` 命名卷中。生产 Compose 不创建数据库服务，必须通过部署密钥配置生产 PostgreSQL 连接串。宿主机开发可以使用本机 PostgreSQL，也可以在配置中显式选择 SQLite。
 
 在 SQLite 模式下，DeerFlow 会把 LangGraph 检查点数据和应用数据写入同一个 `deerflow.db` 文件。WAL 模式可以支持并发读取，但 SQLite 同一时间仍然只有一个写入者。多个用户同时运行 Agent 时，检查点写入和应用写入会竞争同一个文件锁，可能触发 `sqlite3.OperationalError: database is locked`。
 
-生产环境或任何多用户部署请使用 Postgres：
+默认配置示例：
 
 ```bash
-# .env
+# .env，使用真实数据库凭据并通过密钥管理注入
 DATABASE_URL=postgresql://user:password@postgres:5432/deerflow
-UV_EXTRAS=postgres
 ```
 
 ```yaml
@@ -140,7 +141,7 @@ run_events:
   backend: db
 ```
 
-SQLite 部署应限制在本地、单节点或短期评估场景。
+只有本地开发或测试明确选择 `database.backend: sqlite` 时才使用 SQLite；不得将它当作生产默认值。SQLite 模式会把数据写入同一个 `deerflow.db` 文件；多进程/多用户写入受单写者限制。
 
 ### K8s Provisioner 配置
 

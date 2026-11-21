@@ -1859,16 +1859,16 @@ skill_evolution:
 # Unified storage backend for the LangGraph checkpointer, LangGraph Store,
 # and DeerFlow application data (runs, threads metadata, feedback, etc.).
 #
+# backend: postgres -- Default for development and production; persistent shared database
+# backend: sqlite  -- Explicit lightweight local development/testing only
 # backend: memory  -- No persistence, data lost on restart
-# backend: sqlite  -- Single-node deployment, files in sqlite_dir
-# backend: postgres -- Production multi-node deployment
 #
 # If this section is omitted or empty in config.yaml, DeerFlow uses:
-#   backend: sqlite
+#   backend: postgres
 #   sqlite_dir: .deer-flow/data
 #
-# SQLite mode uses a single deerflow.db file with WAL journal mode
-# for the checkpointer, Store, and application data.
+# SQLite mode is an explicit local/test option. It uses a single deerflow.db
+# file with WAL journal mode for the checkpointer, Store, and application data.
 #
 # Postgres mode: put your connection URL in .env as DATABASE_URL,
 # then reference it here with $DATABASE_URL.
@@ -1896,10 +1896,12 @@ skill_evolution:
 # `checkpointer` takes precedence for the LangGraph checkpointer and Store;
 # `database` still controls DeerFlow application data.
 # If you use `database`, you can remove the `checkpointer` section.
+# Local development/test only (must be selected explicitly):
 # database:
 #   backend: sqlite
 #   sqlite_dir: .deer-flow/data
 #
+# Default project configuration:
 # database:
 #   backend: postgres
 #   postgres_url: $DATABASE_URL
@@ -1949,7 +1951,8 @@ skill_evolution:
 #   4. Verify with `SHOW search_path;` and a smoke test (create a run, read
 #      its history). The `public` schema should gain no new DeerFlow tables.
 database:
-  backend: sqlite
+  backend: postgres
+  postgres_url: $DATABASE_URL
   sqlite_dir: .deer-flow/data
 
 # ============================================================================
@@ -2012,16 +2015,16 @@ database:
 # ============================================================================
 # Storage backend for run events (messages + execution traces).
 #
-# backend: memory  -- No persistence, data lost on restart (default)
-# backend: db      -- SQL database via ORM, full query capability (production)
+# backend: db      -- SQL database via ORM, shares database.backend (default)
+# backend: memory  -- No persistence, data lost on restart (explicit local/test option)
 # backend: jsonl   -- Append-only JSONL files (lightweight single-node persistence)
 #
 # run_events:
-#   backend: memory
+#   backend: db
 #   max_trace_content: 10240    # Truncation threshold for trace content (db backend, bytes)
 #   track_token_usage: true     # Accumulate token counts to RunRow
 run_events:
-  backend: memory
+  backend: db
   max_trace_content: 10240
   track_token_usage: true
 

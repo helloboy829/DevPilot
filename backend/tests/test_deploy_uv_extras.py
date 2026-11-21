@@ -116,6 +116,8 @@ def test_deploy_build_auto_detects_postgres_extra_when_other_extras_are_enabled(
 
     env = os.environ.copy()
     env.pop("UV_EXTRAS", None)
+    env.pop("DEER_FLOW_CONFIG_PATH", None)
+    env.pop("DEER_FLOW_EXTENSIONS_CONFIG_PATH", None)
     # Clear runtime env extras that would interfere with config-based detection
     env.pop("DEER_FLOW_STREAM_BRIDGE_REDIS_URL", None)
     env.pop("DEER_FLOW_SANDBOX_OWNERSHIP_REDIS_URL", None)
@@ -164,6 +166,8 @@ def test_deploy_uses_dotenv_without_sourcing_shell_syntax(tmp_path):
 
     env = os.environ.copy()
     env.pop("UV_EXTRAS", None)
+    env.pop("DEER_FLOW_CONFIG_PATH", None)
+    env.pop("DEER_FLOW_EXTENSIONS_CONFIG_PATH", None)
     env["CAPTURE_UV_EXTRAS"] = str(capture_extras)
     env["CAPTURE_DOCKER_ARGS"] = str(capture_args)
     env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
@@ -217,6 +221,8 @@ def test_deploy_build_auto_detects_postgres_extra_with_python_fallback(tmp_path)
 
     env = os.environ.copy()
     env.pop("UV_EXTRAS", None)
+    env.pop("DEER_FLOW_CONFIG_PATH", None)
+    env.pop("DEER_FLOW_EXTENSIONS_CONFIG_PATH", None)
     # Clear runtime env extras that would interfere with config-based detection
     env.pop("DEER_FLOW_STREAM_BRIDGE_REDIS_URL", None)
     env.pop("DEER_FLOW_SANDBOX_OWNERSHIP_REDIS_URL", None)

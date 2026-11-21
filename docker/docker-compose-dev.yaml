@@ -5,6 +5,7 @@
 #   - nginx: Reverse proxy (port 2026)
 #   - frontend: Frontend Next.js dev server (port 3000)
 #   - gateway: Backend Gateway API + agent runtime (port 8001)
+#   - postgres: PostgreSQL persistence for local development
 #   - redis: Redis Streams backend for cross-worker SSE stream bridge
 #   - provisioner (optional): Sandbox provisioner (creates Pods in host Kubernetes)
 #
@@ -14,6 +15,25 @@
 # Access: http://localhost:2026
 
 services:
+  # Local development database. Production compose uses the deployment endpoint.
+  postgres:
+    image: postgres:16-alpine
+    container_name: devpilot-postgres
+    environment:
+      POSTGRES_DB: devpilot
+      POSTGRES_USER: devpilot
+      POSTGRES_PASSWORD: devpilot
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devpilot -d devpilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - deer-flow-dev
+    restart: unless-stopped
+
   # ── Redis Stream Bridge ────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
@@ -224,9 +244,11 @@ services:
     environment:
       - CI=true
       - DEER_FLOW_PROJECT_ROOT=/app
+      - DEVPILOT_PROJECT_ROOT=/app/project
       - DEER_FLOW_HOME=/app/backend/.deer-flow
       - DEER_FLOW_CONFIG_PATH=/app/project/config.yaml
       - DEER_FLOW_EXTENSIONS_CONFIG_PATH=/app/project/extensions_config.json
+      - DATABASE_URL=${DATABASE_URL:-postgresql://devpilot:devpilot@postgres:5432/devpilot}
       - DEER_FLOW_STREAM_BRIDGE_REDIS_URL=${DEER_FLOW_STREAM_BRIDGE_REDIS_URL:-redis://redis:6379/0}
       - DEER_FLOW_CHANNELS_LANGGRAPH_URL=${DEER_FLOW_CHANNELS_LANGGRAPH_URL:-http://gateway:8001/api}
       - DEER_FLOW_CHANNELS_GATEWAY_URL=${DEER_FLOW_CHANNELS_GATEWAY_URL:-http://gateway:8001}
@@ -247,6 +269,8 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - deer-flow-dev
@@ -281,6 +305,7 @@ volumes:
   gateway-venv:
   gateway-uv-cache:
   redis-data:
+  postgres-data:
 
 networks:
   deer-flow-dev:

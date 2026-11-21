@@ -142,8 +142,8 @@ class CheckpointCacheConfig(BaseModel):
 
 class DatabaseConfig(BaseModel):
     backend: Literal["memory", "sqlite", "postgres"] = Field(
-        default="memory",
-        description=("Storage backend for both checkpointer and application data. 'memory' for development (no persistence across restarts), 'sqlite' for single-node deployment, 'postgres' for production multi-node deployment."),
+        default="postgres",
+        description=("Storage backend for both checkpointer and application data. PostgreSQL is the project default; SQLite and memory must be selected explicitly for local development or tests."),
     )
     checkpoint_channel_mode: CheckpointChannelMode = Field(
         default="full",

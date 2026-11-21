@@ -62,7 +62,8 @@ COPY devpilot ./devpilot
 # `redis` is always installed because Docker Compose defaults the stream bridge
 # to Redis (DEER_FLOW_STREAM_BRIDGE_REDIS_URL); it is an optional extra elsewhere
 # so slim non-Docker installs do not pull it.
-# When UV_EXTRAS is set (comma- or whitespace-separated), installs optional dependencies.
+# PostgreSQL is part of the production image's default persistence stack.
+# UV_EXTRAS adds optional integrations on top of it.
 RUN --mount=type=cache,target=/root/.cache/uv \
     sh -c 'cd backend && \
     set -f; \
@@ -74,9 +75,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
                 exit 1; \
                 ;; \
         esac; \
-        extras_flags="$extras_flags --extra $extra"; \
+        if [ "$extra" != "postgres" ]; then \
+            extras_flags="$extras_flags --extra $extra"; \
+        fi; \
     done; \
-    UV_INDEX_URL=${UV_INDEX_URL:-https://pypi.org/simple} uv sync --extra redis $extras_flags'
+    UV_INDEX_URL=${UV_INDEX_URL:-https://pypi.org/simple} uv sync --extra redis $extras_flags --extra postgres'
 
 # UTF-8 locale prevents UnicodeEncodeError on Chinese/emoji content in minimal
 # containers where locale configuration may be missing and the default encoding is not UTF-8.

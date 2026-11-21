@@ -258,7 +258,8 @@ def detect_from_config(path: Path) -> list[str]:
         return []
     lines = text.splitlines()
     extras: set[str] = set()
-    if (section_value(lines, "database", "backend") or "").lower() == "postgres":
+    database_backend = (section_value(lines, "database", "backend") or "postgres").lower()
+    if database_backend == "postgres":
         extras.add("postgres")
     if (section_value(lines, "checkpointer", "type") or "").lower() == "postgres":
         extras.add("postgres")
@@ -303,7 +304,7 @@ def resolve_extras() -> list[str]:
         return merge_extras(parse_env_extras(env), runtime_env_extras)
     config = find_config_file()
     if config is None:
-        return runtime_env_extras
+        return merge_extras(["postgres"], runtime_env_extras)
     return merge_extras(detect_from_config(config), runtime_env_extras)
 
 

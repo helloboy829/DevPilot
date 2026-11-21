@@ -186,7 +186,23 @@ tools:
 
 DeerFlow uses the `database` section for both LangGraph checkpoint data and application data such as runs, feedback, and thread metadata.
 
-By default, DeerFlow uses SQLite for local, single-node persistence:
+PostgreSQL is the default backend. Set `DATABASE_URL` in the environment:
+
+```bash
+DATABASE_URL=postgresql://user:password@localhost:5432/devpilot
+```
+
+Configure the backend as follows:
+
+```yaml
+database:
+  backend: postgres
+  postgres_url: $DATABASE_URL
+run_events:
+  backend: db
+```
+
+SQLite is available only as an explicitly selected lightweight local development and test backend, not as the project or production default:
 
 ```yaml
 database:
@@ -194,28 +210,13 @@ database:
   sqlite_dir: .deer-flow/data
 ```
 
-SQLite mode stores everything in one `deerflow.db` file. This is fine for development or single-user deployments, but concurrent production traffic can hit SQLite's single-writer limit and raise `sqlite3.OperationalError: database is locked`.
-
-For production or multi-user deployments, use Postgres:
-
-```yaml
-database:
-  backend: postgres
-  postgres_url: $DATABASE_URL
-
-run_events:
-  backend: db
-```
-
-Set `DATABASE_URL` in your environment, for example `postgresql://user:password@localhost:5432/deerflow`.
-
-Install PostgreSQL support for local runs:
+The local launcher installs PostgreSQL support automatically from the config. To install it explicitly:
 
 ```bash
 cd backend && uv sync --all-packages --extra postgres
 ```
 
-For Docker or scripted starts, set `UV_EXTRAS=postgres` before installing or building. The legacy standalone `checkpointer` section is still accepted for compatibility, but prefer `database` for new deployments.
+The Docker development launcher also installs the PostgreSQL extra from `config.yaml`. The legacy standalone `checkpointer` section is still accepted for compatibility, but prefer `database` for new deployments.
 
 ### Memory
 

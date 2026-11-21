@@ -115,6 +115,8 @@ async def init_engine(
         return
 
     if backend == "postgres":
+        if not url or not url.strip():
+            raise ValueError("database.backend is 'postgres' but database.postgres_url is required and empty. Set database.postgres_url (for example, $DATABASE_URL) or explicitly select backend: sqlite for local development/tests.")
         try:
             import asyncpg  # noqa: F401
         except ImportError:

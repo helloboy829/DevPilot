@@ -55,6 +55,14 @@ def test_postgres_engine_kwargs_allow_command_timeout_opt_out() -> None:
 
 
 @pytest.mark.asyncio
+async def test_init_engine_postgres_requires_connection_url() -> None:
+    config = DatabaseConfig(backend="postgres", postgres_url="")
+
+    with pytest.raises(ValueError, match="database.postgres_url.*required"):
+        await engine_mod.init_engine_from_config(config)
+
+
+@pytest.mark.asyncio
 async def test_configured_command_timeout_ends_stalled_command() -> None:
     config = DatabaseConfig(
         backend="postgres",

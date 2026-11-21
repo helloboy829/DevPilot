@@ -57,7 +57,7 @@ logger = logging.getLogger(__name__)
 
 
 CONFIG_FILE_DATABASE_DEFAULTS = {
-    "backend": "sqlite",
+    "backend": "postgres",
     "sqlite_dir": ".deer-flow/data",
 }
 
@@ -267,14 +267,14 @@ class AppConfig(BaseModel):
         default_factory=DatabaseConfig,
         description=format_field_description(
             "database",
-            field_doc="Unified database backend for run/feedback metadata (memory, sqlite, or postgres).",
+            field_doc="Unified persistence backend; PostgreSQL is the default, with SQLite/memory available when explicitly selected for local development or tests.",
         ),
     )
     run_events: RunEventsConfig = Field(
         default_factory=RunEventsConfig,
         description=format_field_description(
             "run_events",
-            field_doc="Run-event store backend (memory for dev, db for production queries, jsonl for lightweight single-node persistence).",
+            field_doc="Run-event store backend (db by default, sharing database.backend; memory and jsonl are explicit local-only alternatives).",
         ),
     )
     agent_storage: AgentStorageConfig = Field(

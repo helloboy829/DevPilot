@@ -23,7 +23,7 @@ from deerflow.runtime.runs.store.memory import MemoryRunStore
 class TestDatabaseConfig:
     def test_defaults(self):
         c = DatabaseConfig()
-        assert c.backend == "memory"
+        assert c.backend == "postgres"
         assert c.pool_size == 5
 
     def test_sqlite_paths_unified(self):

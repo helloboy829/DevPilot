@@ -35,7 +35,7 @@ make docker-start        # 开发 Compose，非现有生产环境升级命令
 | 对话与代码辅助             | Chats；先配置可用模型                                    |
 | 接入外部组件或实际执行 QA  | 独立 operator 目标策略、权限、key 和显式同意；默认不启用 |
 
-宿主开发另需 Python **3.12**、uv、Node/pnpm 与 nginx，准备完成后在根目录执行 `make install`、`make dev`。后端测试使用 `cd backend` 后 `uv sync --frozen --group dev`、`make test-blocking-io`、`make test`；`blockbuster` 已在 dev 锁内，须用项目 venv。安装细节见[安装指南](Install.md)和[贡献指南](CONTRIBUTING.md)。
+宿主开发另需 Python **3.12**、uv、Node/pnpm 与 nginx，以及可访问的 PostgreSQL 和私有 `DATABASE_URL`。后端驱动由根目录 `make install` 默认安装；后端测试使用 `cd backend` 后 `uv sync --frozen --group dev --extra postgres`、`make test-blocking-io`、`make test`；`blockbuster` 已在 dev 锁内，须用项目 venv。安装细节见[安装指南](Install.md)和[贡献指南](CONTRIBUTING.md)。
 
 English: Docker development is the recommended new-machine path. Configure private model credentials separately, then open the loopback entry at port 2026. Candidate code and report drafts do not imply deployment, QA execution authorization or formal approval.
 

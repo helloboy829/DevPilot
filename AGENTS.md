@@ -44,7 +44,7 @@ make test-blocking-io
 make test
 ```
 
-前端宿主命令统一从仓库根目录经 `python scripts/pnpm.py check`、`python scripts/pnpm.py test` 等调用，保留直接 pnpm / pnpm.cmd / Corepack 的顺序及项目锁定版本。详见 [安装](Install.md)、[贡献](CONTRIBUTING.md)和[前端指南](frontend/AGENTS.md)。
+前端宿主命令统一从仓库根目录经 `python scripts/pnpm.py check`、`python scripts/pnpm.py test` 等调用，保留直接 pnpm / pnpm.cmd / Corepack 的顺序及项目锁定版本。详见 [安装](Install.md)、[贡献](CONTRIBUTING.md)和[前端指南](frontend/AGENTS.md)。PostgreSQL 是默认持久化后端；宿主开发需设置私有 `DATABASE_URL`，`make install` 默认安装驱动。完整后端开发依赖命令为 `uv sync --frozen --group dev --extra postgres`。
 
 ## 跨模块约定
 

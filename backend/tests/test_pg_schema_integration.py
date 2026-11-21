@@ -36,6 +36,9 @@ async def test_postgres_schema_places_orm_checkpointer_and_store_tables_together
     assert engine is not None
 
     try:
+        async with engine.connect() as conn:
+            public_tables_before = set((await conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))).scalars())
+
         async with make_checkpointer(app_config) as checkpointer:
             assert checkpointer is not None
         async with make_store(app_config) as store:
@@ -58,7 +61,8 @@ async def test_postgres_schema_places_orm_checkpointer_and_store_tables_together
 
         by_schema = {(row.table_schema, row.table_name) for row in rows}
         orm_tables = {"runs", "run_events", "threads_meta", "feedback", "users"}
-        assert {("public", table) for table in orm_tables}.isdisjoint(by_schema)
+        public_tables_after = {table_name for table_schema, table_name in by_schema if table_schema == "public"}
+        assert public_tables_after - public_tables_before == set()
         assert {(schema, table) for table in orm_tables}.issubset(by_schema)
         assert any(table_schema == schema and "checkpoint" in table_name for table_schema, table_name in by_schema)
         assert any(table_schema == schema and ("store" in table_name or "migration" in table_name) for table_schema, table_name in by_schema)
@@ -86,6 +90,9 @@ def test_sync_postgres_schema_places_checkpointer_and_store_tables_together():
     store_config = _resolve_store_config(SimpleNamespace(checkpointer=None, database=db_config))
 
     try:
+        with psycopg.connect(POSTGRES_URL or "", autocommit=True) as conn:
+            public_tables_before = {table_name for (table_name,) in conn.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'").fetchall()}
+
         with _sync_checkpointer_cm(checkpointer_config) as checkpointer:
             assert checkpointer is not None
         with _sync_store_cm(store_config) as store:
@@ -103,10 +110,10 @@ def test_sync_postgres_schema_places_checkpointer_and_store_tables_together():
             ).fetchall()
 
         by_schema = {(table_schema, table_name) for table_schema, table_name in rows}
+        public_tables_after = {table_name for table_schema, table_name in by_schema if table_schema == "public"}
+        assert public_tables_after - public_tables_before == set()
         assert any(table_schema == schema and "checkpoint" in table_name for table_schema, table_name in by_schema)
         assert any(table_schema == schema and ("store" in table_name or "migration" in table_name) for table_schema, table_name in by_schema)
-        # The DeerFlow LangGraph tables must NOT leak into public.
-        assert not any(table_schema == "public" and ("checkpoint" in table_name or table_name == "store") for table_schema, table_name in by_schema)
     finally:
         with psycopg.connect(POSTGRES_URL or "", autocommit=True) as conn:
             conn.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
