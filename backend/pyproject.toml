@@ -25,6 +25,8 @@ dependencies = [
     "e2b-code-interpreter>=2.8.1",
     # Pinned PDF-v1 layout/font-subsetting engine; no HTML renderer or fetcher.
     "reportlab==4.4.10",
+    "openpyxl>=3.1.5",
+    "pdfminer-six>=20251230",
 ]
 
 [project.optional-dependencies]

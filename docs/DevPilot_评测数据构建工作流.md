@@ -1,6 +1,8 @@
 # DevPilot 评测数据构建与执行工作流
 
-> 目标合同，待开发。本文明确材料批次、多组件候选、项目归档、人工审核、测试调用与结果评估的关系。已部署 DAT-01 手工 JSON/JSONL 导入要求 expected 非空；未提交/未部署的 DAT-02 候选允许 reference 缺省并可进入授权执行。项目外材料解析、多组件候选、归档审核仍未实现；EVID-02 的原生响应 artifact 也仅在未签核候选中，当前 UI 不能浏览。交付事实见[交付状态](DevPilot_Delivery_Status.md)。
+> **DAT-03 当前实现补充（2026-11-21）**：工作区源码已实现 owner-scoped 批次/清单元数据、PostgreSQL migration、单附件受控上传、有界确定性解析及显式同意的一次性预览 POST。TXT/Markdown 按行，JSON/JSONL 按文档或记录，CSV 按行，DOCX 按段落/表行，XLSX 按工作表/行/单元格范围，PDF 按页/文本块；损坏、加密、超限或无可选文本时整体阻断且不返回部分结果；JPEG/PNG/WEBP 因 OCR 未配置明确阻断。解析文本不持久化；仅保存 parser 版本、状态、结果 hash、块数、安全原因和无正文 receipt，组件状态仅汇总为 `parsed/blocked`。预览重验附件 SHA-256、字节数、owner、上传状态和 retention，明文仅按一次请求返回且 `private, no-store`。批次 UI、候选生成、审核和归档仍未实现；本轮完整 Linux/PostgreSQL 门禁完成前不代表验收或部署。
+
+> 目标合同，分阶段实现。本文明确材料批次、多组件候选、项目归档、人工审核、测试调用与结果评估的关系。已部署 DAT-01 手工 JSON/JSONL 导入要求 expected 非空；未提交/未部署的 DAT-02 候选允许 reference 缺省并可进入授权执行。DAT-03 当前工作区已实现批次/清单元数据、owner-scoped API 和单附件受控上传；确定性解析、多组件候选、归档审核仍未实现。EVID-02 的原生响应 artifact 也仅在未签核候选中，当前 UI 不能浏览。交付事实见[交付状态](DevPilot_Delivery_Status.md)。
 
 ## 产品流程
 
@@ -15,6 +17,8 @@
 构建批次可在项目创建前存在。一个批次归档到一个项目；归档时可选已有项目或新建项目。批次中的每个组件分别形成数据候选，项目级附件可被多个组件引用，但来源和转换记录保持可追溯。清单组件总数是处理分母；无法解析、构建失败或明确排除的组件均须显示状态和原因，不能静默丢弃。
 
 用户上传文件或知识库导出包，不向服务端传本机路径并期待服务器读取。首期格式边界为 DOCX、PDF、XLSX、CSV、TXT、Markdown、JSON 和 JSONL；脚本仅作文本材料解析，绝不执行。压缩包必须安全检查。扫描版/加密/损坏/不支持的附件应列出文件和失败原因，提示人工提取或补充；未实现 OCR 或知识库连接器时，不宣称能够自动读取。
+
+当前 DAT-03 上传 API 为 `POST /api/evaluation/material-batches/{batch_id}/attachments/{artifact_id}`，一次接收一个附件；附件须先在批次 manifest 中声明文件名、授权依据、用途、敏感级别和带时区的未来保留期限。当前扩展名白名单为 CSV、DOCX、JPEG/JPG、JSON/JSONL、Markdown、PDF、PNG、TXT、WEBP、XLSX。服务端按配置的大小上限及 multipart 总体预算限制请求体，使用生成 ID 写入显式配置的 artifact root，计算原始字节 SHA-256 并原子发布；相同字节重试幂等，冲突内容拒绝。上传 API 仅返回安全元数据，不提供文件字节读取路由。批次元数据路由和上传均限制为登录人类用户的 owner 范围；过期 retention、内部 Agent 和跨 owner 访问拒绝。一次性预览 API 为 `POST /api/evaluation/material-batches/{batch_id}/attachments/{artifact_id}/preview`，请求必须含 `open_content=true` 与 operation UUID；`GET /api/evaluation/material-batches/previews/{operation_id}` 只返回不含正文的回执。解析正文不落库，操作 UUID 不重放明文；用户界面仍须在导航/卸载时清除暂存内容。当前源码不代表生产部署或导入闭环完成。
 
 以上格式定义的是来源材料提取范围，不等于所有内容都能自动转成被测组件输入。用例输入须经对应组件/任务类型的版本化 adapter 转成请求字段；图像、视频、结构化 CV 标注、多轮 Agent 轨迹等需要专用数据 schema 和 adapter。没有已验收 adapter 时应阻止自动转换并要求人工整理，不能把抽取到的文本冒充完整多模态测试集。
 

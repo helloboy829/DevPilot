@@ -4,6 +4,7 @@ import {
   BotIcon,
   CalendarClock,
   Database,
+  Files,
   FileText,
   FlaskConical,
   LayoutDashboard,
@@ -47,6 +48,11 @@ export function WorkspaceNavChatList() {
           path: "datasets",
           label: zh ? "项目与数据" : "Projects & datasets",
           icon: Database,
+        },
+        {
+          path: "material-batches",
+          label: zh ? "材料批次" : "Material batches",
+          icon: Files,
         },
         {
           path: "component-tests",

@@ -45,6 +45,7 @@ extensions_config.json
 coverage.xml
 coverage/
 .deer-flow/
+/.devpilot/verification/
 .claude/
 skills/custom/*
 logs/

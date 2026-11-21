@@ -25,7 +25,10 @@ from deerflow.config.database_config import DatabaseConfig
 from deerflow.persistence.component_tests.model import ComponentRow
 from deerflow.persistence.user.model import UserRow
 
-NEW = {t.exports.name, t.export_audit.name}
+NEW = {
+    t.exports.name,
+    t.export_audit.name,
+}
 # Freeze this revision's historical table population; eval_0014/eval_0015/eval_0016 have
 # their own full-head parity/preservation regressions and must not be queried
 # after downgrade.
@@ -45,6 +48,11 @@ APP_TABLES = [
         t.response_artifacts.name,
         t.evidence_access_grants.name,
         t.evidence_access_audit.name,
+        "evaluation_material_batches",
+        "evaluation_material_components",
+        "evaluation_material_artifacts",
+        "evaluation_material_artifact_components",
+        "evaluation_material_preview_receipts",
     }
 ]
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in APP_TABLES if table.name not in NEW]]

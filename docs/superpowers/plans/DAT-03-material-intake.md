@@ -1,0 +1,39 @@
+# DAT-03 Material Intake Implementation Plan
+
+## Scope
+
+Implement DAT-03 in staged slices: first an owner-scoped material batch with a frozen component denominator and safe metadata API; then uploaded source-file artifacts. Persist batch/file/component metadata in App-owned PostgreSQL tables and source bytes in an explicitly configured local artifact root. Keep batch intake separate from project datasets and QA response artifacts.
+
+This slice adds a bounded deterministic parser and an explicitly consented, owner-scoped preview. Parsing occurs from the private artifact store on demand; parsed plaintext is never persisted. PostgreSQL stores parser version, parse status, result hash, block count, safe failure reason, and a content-free preview receipt. Preview does not execute scripts/macros, call models, create candidates, archive into a project, approve data, or freeze datasets. Every accepted component starts as `pending`; intake and parser errors remain explicit and never shrink the manifest denominator.
+
+## Contracts
+
+- Only authenticated human project users may create/read their own unarchived batches; internal agents cannot access intake endpoints.
+- Require explicit authorization basis, purpose, sensitivity classification, and retention deadline for each file. No default external/model permission.
+- Accept one file per upload request, with a server-generated artifact ID and basename-only display name. Enforce a configured size cap, allowlisted extension, and SHA-256 over exact uploaded bytes.
+- Store bytes beneath a configured artifact root using generated IDs, atomic temporary-write/replace, and no path derived from client input. Persist metadata only in PostgreSQL.
+- Freeze the submitted component list when creating the batch; initialize exactly one `pending` component result per manifest component.
+- Do not expose file bytes through batch metadata routes in this slice.
+- Parse only allowlisted formats with bounded input/output and deterministic source locations. Malformed, encrypted, oversized, and unsupported input is blocked as a whole; do not return partial extracted content. Preview returns text only after an explicit `open_content=true` request; every response is `private, no-store`, and the UI must clear plaintext on navigation/unmount.
+- Bind each preview operation to an owner, batch, artifact, and operation UUID. Recheck ownership, upload state, retention, storage key, byte count, and SHA-256 immediately before parsing. A repeated operation UUID conflicts and never replays plaintext; a separate owner-scoped GET exposes only receipt metadata.
+- Persist no block text, source snippets, or raw operation payloads. Receipt rows contain only parse status, parser version, result hash, block count, safe reason, actor, artifact, and timestamp. Parse result state may update the artifact and aggregate component state only; it cannot create or approve candidate data.
+- Keep errors non-echoing for uploaded contents and filesystem/database exception messages.
+
+## Execution Steps
+
+1. **Complete:** add RED/GREEN manifest and attachment metadata tests for required authorization, sensitivity, retention, safe display name, stable component denominator, unique IDs, and explicit component mapping. This slice does not persist or upload files.
+2. **Complete:** add PostgreSQL migration and App-owned SQLAlchemy tables for material batches, manifest components, and source artifacts, including constraints, indexes, uniqueness, and owner foreign keys. Test clean upgrade, downgrade, table reflection, and PostgreSQL/SQLite test-schema parity.
+3. **Complete:** add repository operations for metadata-only create/get/list with owner scoping, immutable submitted manifest, audit fields, bounded pagination, generic not-found behavior across owners, and safe DTOs. Cross-owner and internal-agent tests are in the Gateway regression suite.
+4. **Complete:** add authenticated FastAPI routes with bounded JSON request parsing and safe metadata DTOs. Responses omit owner IDs and filesystem storage keys; file bytes are not served by metadata routes.
+5. **Complete:** implement the isolated artifact store with explicit configured root, bounded reads, allowlisted extension, exact-byte SHA-256, generated IDs, and atomic temporary-write/replace. Storage failures are translated to safe API errors; bytes are written off the event loop. The implementation does not add a durable DB/file reconciliation worker in this slice.
+6. **Complete:** add one-file upload API requiring authorization basis, purpose, sensitivity, and retention deadline; reject expired retention, same-ID mismatched content, internal-agent access, and cross-owner access. Return only safe metadata. Same-content retry is idempotent. Upload evidence confirms the stored bytes equal the submitted bytes.
+7. **Complete:** add a bounded deterministic parser for TXT/Markdown, JSON/JSONL, CSV, DOCX, XLSX, and text-based PDF, returning source locations without persistence. Images are blocked when OCR is unavailable. Malformed, encrypted, oversized, and no-text inputs fail closed without partial results. Parser tests cover formats, locations, limits, and blocked cases.
+8. **Complete:** add bounded artifact re-read with recorded size/hash validation, parse metadata, migration `eval_0023`, owner-scoped consented preview POST, and metadata-only receipt GET. The route is one-shot by operation UUID and returns only transient parsed blocks with `private, no-store`.
+9. **Current verification (2026-11-22):** DAT-03 domain/repository/storage/intake/router/migration/parser tests **62 passed / 1 skipped**; Linux/Python 3.12 `make test` **13,837 passed / 26 skipped / 11 deselected / 40 warnings / 7 subtests passed, exit 0 (1,263.12s)**; `make test-blocking-io` **72 passed**; Ruff check and format passed (**1,332 files already formatted**); PostgreSQL migration schema parity/reversible upgrade passed. Frontend `check` and `format` passed; Rstest **1,468 passed / 0 failed (169 files)**; DAT-03 Chromium E2E **1 passed**. These are pre-commit test results; exact-SHA GitHub Actions must be checked after push. Earlier Windows failures below are historical and do not describe the current Linux result.
+10. Update feature matrix, workflow contract, implementation ledger, and delivery status with implemented-vs-pending boundaries. **Complete for this slice.** The owner-scoped batch list/detail UI reads safe metadata and shows the frozen component denominator, component status, and attachment metadata only. It does not upload files or open parsed plaintext. Candidate generation, deterministic validation, human review, single-project archive, and browser plaintext preview remain future work. This slice is verified but is not the end-to-end DAT-03 workflow.
+
+## Verification and Resource Handling
+
+- Pytest temporary files use uniquely named `backend/.pytest-dat03-*` directories, ignored by the repository; after tests finish, remove only this worktree's exact directories after confirming no test process uses them.
+- This turn created three named PostgreSQL/Python/Redis validation containers with automatic removal and a dedicated network. After evidence export, stopping the exact containers automatically removed them and their anonymous test-only PostgreSQL/Redis volumes; the dedicated network was removed separately. No images, shared caches, or unrelated resources were removed.
+- Preserve the unrelated main-worktree `docs/superpowers/plans/.patch-test` file.

@@ -56,6 +56,8 @@ def client(monkeypatch):
 
     from deerflow.config.app_config import AppConfig
 
+    monkeypatch.setenv("DATABASE_URL", "postgresql://synthetic:synthetic@127.0.0.1:5432/devpilot_test")
+
     # config.yaml is gitignored, so tests cannot rely on it existing. The committed
     # example is a valid config and gives every other section (database above all)
     # a real value for the app lifespan.
