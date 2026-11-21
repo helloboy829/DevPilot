@@ -55,7 +55,16 @@ export default function EvaluationHome() {
     },
     {
       icon: FileText,
-      title: zh ? "04 汇总报告" : "04 Assemble reports",
+      title: zh ? "04 浏览效果结果" : "04 Browse effectiveness results",
+      description: zh
+        ? "按运行、筛选条件和逐条证据检查效果测试结果。"
+        : "Inspect effectiveness runs, filtered cases and explicitly loaded evidence.",
+      href: "/workspace/effectiveness-results",
+      action: zh ? "查看效果结果" : "Browse results",
+    },
+    {
+      icon: FileText,
+      title: zh ? "05 汇总报告" : "05 Assemble reports",
       description: zh
         ? "与助手逐轮明确需求，确认多组件事实，再生成版本固定的草稿。"
         : "Clarify requirements over multiple turns, confirm component facts, then render a version-pinned draft.",

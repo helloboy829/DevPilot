@@ -1,6 +1,6 @@
 # DevPilot 效果测试工作台设计
 
-> 状态：目标规格，待实现。已部署基线有冻结计划、显式执行授权、派发账本、加密提取文本和逐条人工复核。已推送但未部署的 EVID-02 候选增加原生响应加密 artifact/manifest；EFF-01 元数据查询 API 也已推送，但尚无敏感证据访问 API 或独立效果结果浏览器。当前复核 UI 仍只显示解析后的 `output`，用户不能浏览原生响应。实现状态以[交付状态](DevPilot_Delivery_Status.md)为准。
+> 状态：领域目标规格；前后端交付事实以[交付状态](DevPilot_Delivery_Status.md)为准。EFF-01 结果 API 与 EFF-02 response-only grant 是已推送候选；EFF-03 浏览器已有未提交前端候选，支持显式读取运行、分页筛选 case、metadata-only 详情和单独授权原生 response。当前切片未提供 request/reference/解析文本、下载或盲审任务权限集成；候选不等于已推送、部署或正式验收。
 
 ## 1. 目标与边界
 
@@ -107,9 +107,9 @@
 
 当前 `evaluation_output_evidence` 是加密提取文本，不是原生响应；新字段/表必须 additive migration。历史记录标记 `raw_response_capture=unavailable_legacy`，不从提取文本伪造原始 body，也不补造旧请求正文。
 
-已推送、未部署的候选 `eval_0018` 已新增加密原生响应 body artifact/manifest 和 capture receipt；它记录实际请求的 hash、字节数与 contract identity，但没有保存原始 request body。2026-11-20 对应冻结候选快照完成后端离线套件及 migration/recovery/PostgreSQL 专项验证，精确范围与文件清单摘要见[交付状态](DevPilot_Delivery_Status.md)。该验证不等于提交 SHA CI、部署或业务验收；结果 API 仅查询元数据，尚无正文授权读取接口，不能据此声称评测人员已可查看原生响应。
+已推送、未部署的候选 `eval_0018` 已新增加密原生响应 body artifact/manifest 和 capture receipt；它记录实际请求的 hash、字节数与 contract identity，但没有保存原始 request body。2026-11-20 对应冻结候选快照完成后端离线套件及 migration/recovery/PostgreSQL 专项验证，精确范围与文件清单摘要见[交付状态](DevPilot_Delivery_Status.md)。该验证不等于提交 SHA CI、部署或业务验收。EFF-02 grant 和正文读取是随后单独的候选切片；本切片 EFF-03 UI 状态见交付状态页，不将候选混同于已推送功能。
 
-已提交 EFF-01 结果元数据 API；下一步先实现 EFF-02 response 正文的分类授权读取与访问审计，再接 EFF-03 工作台。未保存的 request body 继续标为不可用，非 POSIX 写入保持失败关闭；两者不以试读或伪造证据补齐。旧计划只提供只读兼容展示。只有新 plan schema 显式选择 `capture_profile` 并冻结 evidence budgets 后才承诺新证据完整性。
+EFF-01 结果元数据 API、EFF-02 response-only 敏感证据读取合同和 EFF-03 前端浏览器已分别有候选实现；版本、验证、推送与部署状态见交付状态页。浏览器当前明确加载项目、运行、case 页及普通详情；原生 response 需要显式操作并申请 actor-bound grant 后以有界 no-store 方式读取，只在页面内存呈现且切换/关闭时清除。它不展示或推断未实现的 request body、reference、parsed output、review history 或下载能力。未保存的 request body 继续标为不可用，盲审 task assignment/round/reveal 授权尚未接入；非 POSIX 写入保持失败关闭。只有新 plan schema 显式选择 `capture_profile` 并冻结 evidence budgets 后才承诺新证据完整性。
 
 ## 7. 开发切片与退出条件
 
