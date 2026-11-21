@@ -715,6 +715,7 @@ This gateway provides runtime endpoints for agent runs plus custom endpoints for
         evaluation_external_qa,
         evaluation_materials,
         evaluation_operations,
+        evaluation_performance,
         evaluation_projects,
         evaluation_review_tasks,
         evaluation_schedules,
@@ -728,6 +729,7 @@ This gateway provides runtime endpoints for agent runs plus custom endpoints for
     app.include_router(evaluation_approval_requests.project_router)
     app.include_router(evaluation_exports.router)
     app.include_router(evaluation_external_qa.router)
+    app.include_router(evaluation_performance.router)
     app.include_router(evaluation_operations.router)
     app.include_router(evaluation_review_tasks.router)
     app.include_router(evaluation_review_tasks.project_router)

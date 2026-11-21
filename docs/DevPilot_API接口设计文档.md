@@ -61,7 +61,7 @@ router：backend/app/gateway/routers/component_tests.py。此路由继续服务�
 | GET                  | /api/component-tests/runs/{run_id}/report           | JSON 报告               |
 
 当前传输：openai_chat、dify_chat、dify_workflow、http_post；不能据此推断已有任意 CV/multipart/cURL 导入。
-接口目前允许的 validation_type 多于真正实现的类型，需按审计 F03 修复。旧 API 不自动拥有新版审批/数据冻结保证。新效果浏览 EFF-01..03、性能工作台 PERF-01..04、项目外材料构建 DAT-03 的目标接口仍未注册；具体目标见本文件后续章节与领域 owner 合同。
+接口目前允许的 validation_type 多于真正实现的类型，需按审计 F03 修复。旧 API 不自动拥有新版审批/数据冻结保证。新效果浏览 EFF-01..03、性能运行/结果 PERF-02..04、项目外材料构建 DAT-03 的目标接口仍未注册；PERF-01 场景定义 API 已注册，具体状态见本文件后续章节与领域 owner 合同。
 
 ## 2. 新版统一约定
 
@@ -129,12 +129,24 @@ check/generation/import/report 等后台操作返回 202 + job_id/status_url；�
 
 列表/详情不能默认带 expected、mapped request body、raw response 或裁判私有 prompt。request/response/evaluation view 分开命名，raw hash 与解析视图 hash 分开；旧提取文本不冒充 raw response。敏感打开仅显式操作，不用全局 query cache、URL、后台轮询或预加载。效果页字段和访问门禁见[效果工作台](DevPilot_效果测试工作台设计.md)。
 
-### AI 性能场景和请求级指标（目标 API，待开发）
+### AI 性能场景和请求级指标（PERF-01 已实现；运行与结果 API 待开发）
+
+PERF-01 当前已注册并实现以下定义资源（仅冻结配置，不会创建运行或发送请求）：
+
+| 方法 / 相对路径 | 实际行为 |
+| --- | --- |
+| POST /projects/{project_id}/components/{component_id}/performance-scenarios | 要求显式 confirmed=true，引用同项目已冻结的 performance plan，冻结有界 profile 与按 sample ID 排序循环的 manifest；创建审计记录。 |
+| GET /projects/{project_id}/components/{component_id}/performance-scenarios | 返回该 owner 项目/组件下最多 100 个已校验定义。 |
+| GET /projects/{project_id}/performance-scenarios/{scenario_id} | 返回 project-scoped 定义并校验 definition hash。 |
+
+对应公网前缀为 /api/evaluation。路由复用 evaluation human identity 与 project owner 校验；跨 owner/不存在资源返回一致的 404。运行、派发、逐请求证据、summary 与 UI 仍为 PERF-02/03 目标，当前没有这些 API。
 
 | 方法      | 路径                                                                              | 返回/边界                                                                                                              |
 | --------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| POST      | `/projects/{id}/performance-scenarios`                                            | 绑定已冻结组件/RequestSpec/data version/hash、精确 case scope、profile、请求/响应/总字节预算；提交需显式确认           |
-| GET/PATCH | `/projects/{id}/performance-scenarios/{scenario_id}`                              | draft revision CAS；freeze 后不可改；已冻结版本变更创建新 revision                                                     |
+| POST | `/projects/{project_id}/components/{component_id}/performance-scenarios` | **已实现 PERF-01**；冻结 bounded profile 与服务端 case-cycle manifest；需要 confirmed=true 与已冻结 performance plan；不执行请求 |
+| GET | `/projects/{project_id}/components/{component_id}/performance-scenarios` | **已实现 PERF-01**；owner/project/component scoped，最多 100 条并校验 definition hash |
+| GET | `/projects/{project_id}/performance-scenarios/{scenario_id}` | **已实现 PERF-01**；project-scoped read，校验 definition hash |
+| POST/PATCH | `/projects/{id}/performance-scenarios` | PERF-01 draft CAS/edit lifecycle is not implemented; do not use this target shape |
 | POST      | `/projects/{id}/performance-runs`                                                 | Idempotency-Key + 明确运行授权/目标时间窗；创建 durable run/outbox，202 返回同一 run id                                |
 | GET       | `/projects/{id}/performance-runs/{run_id}`                                        | stage、stop reason、frozen profile/hash、warmup/measurement/drain 与 ALL dispatch counts、metrics revision             |
 | GET       | `/projects/{id}/performance-runs/{run_id}/requests`                               | 游标列表；每条为一条 planned dispatch，显示 case/iteration/phase/step/attempt、错误、延迟和证据存在性；失败/未知不隐藏 |

@@ -18,6 +18,9 @@ __pycache__/
 .pytest_cache/
 /backend/.tmp-*/
 /backend/.pytest-*/
+/.pytest-tmp-perf01/
+/.pytest-tmp-perf01-blocking/
+/.pytest-tmp-perf01-tdd/
 
 # Virtual environments
 .venv

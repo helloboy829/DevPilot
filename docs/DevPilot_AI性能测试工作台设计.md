@@ -39,7 +39,9 @@
 
 ## 4. AI 性能指标契约
 
-本工作台文档拥有性能 scenario、run、dispatch、指标投影的领域字段和语义，以及负载、停止、预算与适用性合同。API 方法/路径和通用 wire 协议由[API 接口设计](DevPilot_API接口设计文档.md)维护；API 中的性能路由表是映射摘要，不重复定义 profile 或 metrics DTO。本文列出的目标能力均不代表已实现。
+本工作台文档拥有性能 scenario、run、dispatch、指标投影的领域字段和语义，以及负载、停止、预算与适用性合同。API 方法/路径和通用 wire 协议由[API 接口设计](DevPilot_API接口设计文档.md)维护；API 中的性能路由表是映射摘要，不重复定义 profile 或 metrics DTO。除本节明确标注已实现的 PERF-01 定义资源外，本文列出的目标能力不代表已实现。
+
+PERF-01 已实现范围：owner-scoped immutable scenario 定义 API，引用冻结 performance plan，固化有界 profile、dataset/request/plan hash、case-cycle manifest 与 audit；读取时校验 definition hash。它不创建运行、不发送请求，不含执行 admission、Worker、指标、逐请求证据或工作台 UI。
 
 所有时间从负载 worker 单调时钟测量，明确包含网络/目标排队的端到端口径；平台队列时间与目标调用时间分开。MVP `quantile_method=nearest_rank.v1`：对 n 个有限有效观测升序排列，p 分位取索引 `ceil(p*n)-1`（0-based），不插值；n=0 返回 null。原始未舍入观测保留用于复算，只在展示层舍入到 2 位；不足 100 个有效样本时 p99 显示样本不足提示而非数值，仍提供 n/max。后续改算法必须升版本，不重写旧 run。
 
@@ -138,7 +140,7 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 
 | 切片                              | 范围                                                                                                                                                         | 退出条件                                                                                                                                                                                    |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PERF-01 场景与准入                | profile schema、case-cycle manifest、count/duration stop、冻结计划、admission 与预算 preflight                                                               | 无 expected 用例可选；请求数越过数据集大小按冻结序列循环；任何无上限/溢出/空数据/并发越界在调用前拒绝；确认绑定 exact plan/data/endpoint snapshot，权限/目标/预算变化撤销确认               |
+| PERF-01 场景与准入（定义冻结已实现） | 有界 profile schema、case-cycle manifest、owner-scoped immutable scenario、hash 校验与 audit；`eval_0024` PostgreSQL-first schema；仅定义 API，不含 execution admission | 拒绝空/重复/非法 case scope、无界或越界 profile；请求超过 case 数时按冻结排序循环；要求已冻结 performance plan、精确 dataset/request 绑定和显式确认。duration stop、目标权限/预算变化撤销执行确认属于 PERF-02 admission，尚未实现 |
 | PERF-02 worker、ledger 与指标核心 | dispatch phase/iteration、EVID-02 artifact、request/response hash、allowlist headers、预算/保留审计、延迟/错误/吞吐/分位数/token/stream/source/applicability | 逐 ordinal 完全可对账；重复 case 不覆盖；超过预算部分 run 明示 incomplete；取消和未知提交不重发；人工可算 fixture 对照；warmup/drain 不混入 measurement；失败/censored/p99 小样本等分支全测 |
 | PERF-03 性能工作台与场景矩阵      | 配置步骤、预检、阶段运行、summary、档位比较、request table/detail、并发/速率阶梯和 worker 资源                                                               | 计数与 DB/hash/summary 相符；可从 summary 下钻任一失败或未知请求；空/失败/取消/部分运行无假绿色；每档独立保存，不挑最好档，不把发生器瓶颈写成目标瓶颈                                       |
 | PERF-04 AIPerf adapter spike      | 隔离适配器、合成校准、协议和依赖扫描                                                                                                                         | 未通过第三方 adapter gate 前不进入生产执行选择；不加用户可任意选择工具开关                                                                                                                  |

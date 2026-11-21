@@ -35,6 +35,8 @@ NEW = {
     "evaluation_material_artifacts",
     "evaluation_material_artifact_components",
     "evaluation_material_preview_receipts",
+    t.performance_scenarios.name,
+    t.performance_scenario_audit.name,
 }
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name not in NEW | {"devpilot_alembic_version"}]]
 
@@ -108,7 +110,7 @@ async def test_downgrade_preserves_history_and_upgrade_restores_empty_approval_t
         assert (await conn.execute(select(t.run_approvals))).all() == []
         assert (await conn.execute(select(t.approval_audit))).all() == []
         assert (await conn.execute(select(t.approval_signoff_policies))).all() == []
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0023"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0024"
 
         def parity(c):
             context = MigrationContext.configure(c, opts={"version_table": "devpilot_alembic_version", "include_object": lambda obj, name, kind, reflected, compared: not (kind == "table" and name == "alembic_version")})

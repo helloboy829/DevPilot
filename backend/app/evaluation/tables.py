@@ -948,3 +948,35 @@ approval_request_views = Table(
     CheckConstraint("request_revision = 1 AND expires_at_ms > 0 AND expires_at_ms <= 253402300799000", name="ck_evaluation_approval_request_view_bounds"),
 )
 Index("ix_evaluation_approval_request_view_request", approval_request_views.c.request_id)
+
+performance_scenarios = Table(
+    "evaluation_performance_scenarios",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("component_id", String(64), nullable=False),
+    Column("plan_id", String(64), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("definition", JSON, nullable=False),
+    Column("definition_hash", String(64), nullable=False),
+    Column("created_by", String(64), nullable=False),
+    Column("created_at", String(40), nullable=False),
+    ForeignKeyConstraint(["project_id", "component_id"], ["evaluation_project_components.project_id", "evaluation_project_components.id"]),
+    ForeignKeyConstraint(["project_id", "plan_id"], ["evaluation_plans.project_id", "evaluation_plans.id"]),
+    UniqueConstraint("project_id", "id", name="uq_evaluation_performance_scenario_project_id"),
+    CheckConstraint("version = 1", name="ck_evaluation_performance_scenario_version"),
+    CheckConstraint("length(definition_hash) = 64 AND definition_hash = lower(definition_hash)", name="ck_evaluation_performance_scenario_hash"),
+)
+Index("ix_evaluation_performance_scenario_component", performance_scenarios.c.project_id, performance_scenarios.c.component_id, performance_scenarios.c.created_at, performance_scenarios.c.id)
+performance_scenario_audit = Table(
+    "evaluation_performance_scenario_audit",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("scenario_id", String(64), nullable=False),
+    Column("actor", String(64), nullable=False),
+    Column("action", String(40), nullable=False),
+    Column("at", String(40), nullable=False),
+    ForeignKeyConstraint(["project_id", "scenario_id"], ["evaluation_performance_scenarios.project_id", "evaluation_performance_scenarios.id"]),
+    CheckConstraint("action = 'scenario_frozen'", name="ck_evaluation_performance_scenario_audit_action"),
+)

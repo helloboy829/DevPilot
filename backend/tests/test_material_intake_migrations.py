@@ -103,7 +103,7 @@ async def test_material_intake_postgresql_schema_parity_and_reversible_upgrade()
                 )
             )
             assert differences == []
-            assert (await connection.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0023"
+            assert (await connection.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0024"
 
         await asyncio.to_thread(migrate, engine.url, "eval_0021")
         async with engine.connect() as connection:

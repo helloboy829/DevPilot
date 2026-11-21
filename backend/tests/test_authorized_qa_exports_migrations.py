@@ -53,6 +53,8 @@ APP_TABLES = [
         "evaluation_material_artifacts",
         "evaluation_material_artifact_components",
         "evaluation_material_preview_receipts",
+        t.performance_scenarios.name,
+        t.performance_scenario_audit.name,
     }
 ]
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in APP_TABLES if table.name not in NEW]]
