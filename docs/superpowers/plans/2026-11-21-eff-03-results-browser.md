@@ -43,7 +43,7 @@ Files: create evidence viewer and `frontend/tests/e2e/evaluation-results.spec.ts
 ### Task 5: Gates and delivery
 Files: update implementation ledger, feature spec, and delivery status.
 - [x] Run frontend full Rstest (1,468 passed), `check`, `format`, production build, and synthetic Chromium E2E (2 passed at 390px/1440px); no models, targets, deployments, or containers used.
-- [ ] Record exact commit SHA and Actions after push; keep EFF-01 PostgreSQL parity and exact-count scale gates open.
-- [ ] Inspect final index, exclude `.patch-test`, commit/push after gates, and verify Actions for the exact SHA.
+- [x] Record implementation SHA `16add7d` and zero Actions runs for that SHA; keep EFF-01 PostgreSQL parity and exact-count scale gates open.
+- [x] Inspect index (only named EFF-03 files; `.patch-test` excluded), push branch, and query Actions for exact SHA; no workflow ran because no PR was opened.
 
 **Out of scope:** Request bodies, references, parsed output, legacy raw bodies, downloads, and task-reviewer access without matching authorization APIs.

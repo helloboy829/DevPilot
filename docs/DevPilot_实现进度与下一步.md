@@ -14,7 +14,7 @@ DAT-02/EVID-02/EFF-01 的候选源码及 `eval_0018..0020` 已随 `a3a48b6` 推�
 
 EFF-02 本轮已实现响应 evidence 一次性 actor-bound grant、审计、过期/重放控制、加密 receipt 复核及受限 Range 读取；新增 `eval_0021`。Windows 全量和定向测试均未通过，失败/错误及平台限制见交付状态，不能标记验收。Linux/容器精确 SHA 全量验证与 Actions 待本轮推送后确认。保留 `.patch-test` 不提交。EFF-03 浏览器与 PERF-01..04 仍待开发。旧 `devpilot.toolkit.perf.perf_run()` 仍是实际 HTTP 负载发送器，不是纯指标模块；可复用的指标函数、legacy PASS/FAIL 隔离和旧入口退出门槛见功能矩阵及性能工作台合同。
 
-EFF-02 本轮已实现响应 evidence 一次性 actor-bound grant、审计、过期/重放控制、加密 receipt 复核及受限 Range 读取；新增 `eval_0021`。Windows 全量和定向测试均未通过，失败/错误及平台限制见交付状态，不能标记验收。Linux/容器精确 SHA 全量验证与 Actions 待本轮推送后确认。保留 `.patch-test` 不提交。EFF-03 前端候选已实现并通过本机门禁，待按最新 main 重验后推送；PERF-01..04 仍待开发。旧 `devpilot.toolkit.perf.perf_run()` 仍是实际 HTTP 负载发送器，不是纯指标模块；可复用的指标函数、legacy PASS/FAIL 隔离和旧入口退出门槛见功能矩阵及性能工作台合同。
+EFF-02 本轮已实现响应 evidence 一次性 actor-bound grant、审计、过期/重放控制、加密 receipt 复核及受限 Range 读取；新增 `eval_0021`。Windows 全量和定向测试均未通过，失败/错误及平台限制见交付状态，不能标记验收。Linux/容器精确 SHA 全量验证与 Actions 待本轮推送后确认。保留 `.patch-test` 不提交。EFF-03 前端候选已实现并通过本机门禁，已基于最新 main 重验并推送；精确 SHA 与 CI 触发状态见交付状态；PERF-01..04 仍待开发。旧 `devpilot.toolkit.perf.perf_run()` 仍是实际 HTTP 负载发送器，不是纯指标模块；可复用的指标函数、legacy PASS/FAIL 隔离和旧入口退出门槛见功能矩阵及性能工作台合同。
 
 当前产品链：
 
