@@ -5,6 +5,9 @@ import { mockLangGraphAPI } from "./utils/mock-api";
 test("material batches show the frozen component denominator and safe file status", async ({
   page,
 }) => {
+  let previewRequests = 0;
+  let receiptRequests = 0;
+  let forceUnknownPreview = false;
   mockLangGraphAPI(page, { threads: [] });
   await page.route("**/api/evaluation/material-batches*", (route) =>
     route.fulfill({
@@ -77,6 +80,55 @@ test("material batches show the frozen component denominator and safe file statu
       },
     }),
   );
+  await page.route(
+    "**/api/evaluation/material-batches/batch-1/attachments/material-1/preview",
+    async (route) => {
+      previewRequests++;
+      const payload = route.request().postDataJSON();
+      expect(payload.open_content).toBe(true);
+      expect(payload.operation_id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+      if (forceUnknownPreview) {
+        await route.fulfill({ status: 503, json: { detail: "Unavailable" } });
+        return;
+      }
+      await route.fulfill({
+        headers: { "Cache-Control": "private, no-store" },
+        json: {
+          operation_id: payload.operation_id,
+          parse_status: "parsed",
+          parser_version: "material-parser.v1",
+          blocks: [
+            { text: "SYNTHETIC_PREVIEW_BODY", source_location: "line 1" },
+          ],
+          reason: null,
+          result_hash: "b".repeat(64),
+        },
+      });
+    },
+  );
+  await page.route(
+    "**/api/evaluation/material-batches/previews/*",
+    async (route) => {
+      receiptRequests++;
+      const operationId = new URL(route.request().url()).pathname
+        .split("/")
+        .at(-1);
+      await route.fulfill({
+        headers: { "Cache-Control": "private, no-store" },
+        json: {
+          operation_id: operationId,
+          parse_status: "parsed",
+          parser_version: "material-parser.v1",
+          result_hash: "c".repeat(64),
+          block_count: 1,
+          reason: null,
+          created_at: "2026-11-22T10:05:00Z",
+        },
+      });
+    },
+  );
 
   await page.goto("/workspace/material-batches");
 
@@ -90,7 +142,24 @@ test("material batches show the frozen component denominator and safe file statu
   ).toBeVisible();
   await expect(page.getByRole("cell", { name: "Vision model" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "fixture.txt" })).toBeVisible();
-  await expect(page.getByText("uploaded", { exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "pending" })).toHaveCount(3);
+  await page.getByRole("button", { name: "Preview parsed content" }).click();
+  await expect(page.getByText(/preview.*content/i)).toBeVisible();
+  await expect.poll(() => previewRequests).toBe(0);
+  await page.getByRole("button", { name: "Open content once" }).click();
+  await expect(page.getByText("SYNTHETIC_PREVIEW_BODY")).toBeVisible();
+  expect(previewRequests).toBe(1);
+  await expect(page.getByText("uploaded", { exact: true })).toBeVisible();
   await expect(page.getByText("a".repeat(64))).toHaveCount(0);
+  await page.getByRole("button", { name: "Close and clear content" }).click();
+  await expect(page.getByText("SYNTHETIC_PREVIEW_BODY")).toHaveCount(0);
+  forceUnknownPreview = true;
+  await page.getByRole("button", { name: "Preview parsed content" }).click();
+  await page.getByRole("button", { name: "Open content once" }).click();
+  await expect(
+    page.getByText(/Receipt recorded: parsed, 1 blocks/),
+  ).toBeVisible();
+  expect(previewRequests).toBe(2);
+  expect(receiptRequests).toBe(1);
+  await expect(page.getByText("SYNTHETIC_PREVIEW_BODY")).toHaveCount(0);
 });

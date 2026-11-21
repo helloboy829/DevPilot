@@ -37,6 +37,25 @@ export type MaterialBatchDetail = MaterialBatchSummary & {
   }[];
 };
 
+export type MaterialPreviewResult = {
+  operation_id: string;
+  parse_status: "parsed" | "blocked";
+  parser_version: string;
+  blocks: { text: string; source_location: string }[];
+  reason: string | null;
+  result_hash: string;
+};
+
+export type MaterialPreviewReceipt = {
+  operation_id: string;
+  parse_status: "parsed" | "blocked";
+  parser_version: string;
+  result_hash: string;
+  block_count: number;
+  reason: string | null;
+  created_at: string;
+};
+
 export function listMaterialBatches() {
   return evaluationApi<{ batches: MaterialBatchSummary[] }>(
     "evaluation/material-batches?limit=100&offset=0",
@@ -52,5 +71,27 @@ export function getMaterialBatch(batchId: string) {
     undefined,
     "GET",
     262144,
+  );
+}
+
+export function previewMaterialAttachment(
+  batchId: string,
+  artifactId: string,
+  operationId: string,
+) {
+  return evaluationApi<MaterialPreviewResult>(
+    `evaluation/material-batches/${encodeURIComponent(batchId)}/attachments/${encodeURIComponent(artifactId)}/preview`,
+    { operation_id: operationId, open_content: true },
+    "POST",
+    4 * 1024 * 1024,
+  );
+}
+
+export function getMaterialPreviewReceipt(operationId: string) {
+  return evaluationApi<MaterialPreviewReceipt>(
+    `evaluation/material-batches/previews/${encodeURIComponent(operationId)}`,
+    undefined,
+    "GET",
+    16384,
   );
 }
