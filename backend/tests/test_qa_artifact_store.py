@@ -22,6 +22,18 @@ def _binding(**changes):
     return {**value, **changes}
 
 
+def _performance_binding(**changes):
+    value = {
+        "owner_id": "owner-1",
+        "project_id": "project-1",
+        "run_id": "run-1",
+        "ordinal": 0,
+        "dispatch_id": "dispatch-1",
+        "scenario_hash": "b" * 64,
+    }
+    return {**value, **changes}
+
+
 def _metadata(body, **changes):
     value = {
         "capture_status": "complete",
@@ -72,6 +84,34 @@ def test_publish_encrypts_raw_bytes_and_returns_a_verifiable_receipt(artifact_st
         "content_encoding": "identity",
     }
     assert artifact_store.open(artifact_id, _binding()) == (metadata, body)
+
+
+@pytest.mark.parametrize("ordinal", [0, 10_999])
+def test_performance_binding_allows_profile_observed_bytes_without_loosening_qa_limit(range_artifact_store, ordinal):
+    body = b"x" * 1_048_576
+    metadata = _metadata(body, capture_status="truncated", hash_scope="prefix", observed_bytes=10_000_000)
+    artifact_id = f"{ordinal + 1:032x}"
+
+    binding = _performance_binding(ordinal=ordinal)
+    receipt = range_artifact_store.publish(artifact_id, body, binding, metadata)
+
+    assert receipt["observed_bytes"] == 10_000_000
+    assert range_artifact_store.open(artifact_id, binding) == (metadata, body)
+    with pytest.raises(RequestProtectionError, match="Invalid response artifact"):
+        range_artifact_store.publish("b" * 32, body, _binding(), metadata)
+
+
+@pytest.mark.parametrize("ordinal", [0, 10_999])
+def test_performance_binding_supports_full_ordinal_range_and_read_only_inspection(range_artifact_store, ordinal):
+    artifact_id = f"{ordinal + 1:032x}"
+    binding = _performance_binding(ordinal=ordinal)
+    body = f"response-{ordinal}".encode()
+
+    receipt = range_artifact_store.publish(artifact_id, body, binding, _metadata(body))
+
+    assert range_artifact_store.inspect(artifact_id, binding) == receipt
+    with pytest.raises(RequestProtectionError):
+        range_artifact_store.inspect(artifact_id, _performance_binding(ordinal=ordinal, dispatch_id="other"))
 
 
 @pytest.mark.skipif(os.name != "posix", reason="directory fsync durability is validated on POSIX")

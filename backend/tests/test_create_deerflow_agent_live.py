@@ -12,10 +12,47 @@ import uuid
 import pytest
 from langchain_core.tools import tool
 
+
+def _live_llm_tests_enabled():
+    return os.getenv("CI", "").lower() not in ("true", "1") and os.getenv("DEVPILOT_RUN_LIVE_LLM_TESTS") == "1" and bool(os.getenv("OPENAI_API_KEY"))
+
+
 requires_llm = pytest.mark.skipif(
-    os.getenv("CI", "").lower() in ("true", "1") or not os.getenv("OPENAI_API_KEY"),
-    reason="Requires LLM API key — skipped in CI or when OPENAI_API_KEY is unset",
+    not _live_llm_tests_enabled(),
+    reason="Set DEVPILOT_RUN_LIVE_LLM_TESTS=1 and OPENAI_API_KEY outside CI to call a real LLM",
 )
+
+
+def test_live_llm_tests_require_explicit_opt_in(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("DEVPILOT_RUN_LIVE_LLM_TESTS", raising=False)
+    monkeypatch.delenv("CI", raising=False)
+
+    assert not _live_llm_tests_enabled()
+
+
+def test_live_llm_tests_require_an_api_key(monkeypatch):
+    monkeypatch.setenv("DEVPILOT_RUN_LIVE_LLM_TESTS", "1")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("CI", raising=False)
+
+    assert not _live_llm_tests_enabled()
+
+
+def test_live_llm_tests_run_only_with_explicit_opt_in_and_key(monkeypatch):
+    monkeypatch.setenv("DEVPILOT_RUN_LIVE_LLM_TESTS", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("CI", raising=False)
+
+    assert _live_llm_tests_enabled()
+
+
+def test_ci_disables_live_llm_tests_even_with_opt_in(monkeypatch):
+    monkeypatch.setenv("DEVPILOT_RUN_LIVE_LLM_TESTS", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("CI", "true")
+
+    assert not _live_llm_tests_enabled()
 
 
 def _make_model():

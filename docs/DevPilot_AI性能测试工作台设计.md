@@ -150,15 +150,25 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 
 ### PERF-02 已实现切片：持久账本与纯指标（2026-11-22）
 
+本节 ledger/metrics 基线已于 2026-11-22 合入 main；以下 eval_0026..0027 响应留存与授权读取属于 2026-11-23 feature/perf-evidence 未提交候选，不代表 main 已具备这些能力。
+
 本切片只实现 durable run/dispatch/audit ledger 和确定性指标投影，不实现 worker 或发网请求。迁移 `eval_0025` 新增 `evaluation_performance_runs`、`evaluation_performance_dispatches`、`evaluation_performance_run_audit`；run 绑定 owner、project、冻结 scenario/hash 和 population count；创建事务一次性写入完整 manifest ordinal。每个 ordinal 只有一次 pending → dispatched ACK 与一次 observation；ACK 返回稳定 `dispatch_id` ticket，未来执行器必须先提交 ACK 再发请求。当前仓储没有任何 HTTP client、调度循环或出站授权。
 
 状态/时间约束：`pending` 与 `not_dispatched` 不得有发送时间；`dispatched` 必须有 `send_started_ns` 且没有完成时间；完成的 `succeeded/failed/timeout` 需要单调 `finished_ns` 与非负 elapsed；`unknown` 同时允许有完整终态计时，或在 run 中断后保留 send start、无 finish/elapsed 的右截尾证据。中断将尚未发送项置为 `not_dispatched`、所有已 ACK 未观测项置为 `unknown`，绝不重发/续跑；数据库 CHECK 明确拒绝状态与时间不相容的组合。
 
 `performance_metrics.py` 是纯函数核心，指标版本为 `performance_metrics.v1`，分位数算法为 `nearest_rank.v1`。summary 只使用 `[window_start_ns, window_end_ns)` 中 measurement 发送，排除 warmup/drain；计数和逐 dispatch 行可复算，未知/失败不伪装成成功 latency，token 缺测不补零，小样本 p99 按 applicability 明示。DB 只存有界 hash/reference 与计时/响应元数据，不存请求/响应正文；shared EVID-02 artifact/receipt 绑定尚未实现。
 
-当前实现入口为 `performance_run_repository.py`：`create_run` 冻结 scenario population，`acknowledge_dispatch` 执行一次性发送前 ACK，`record_observation` 接受一次终态观察，`interrupt_run` 进行 unknown/not-dispatched 收尾，`get_run` 按已落库逐项状态投影 summary。Gateway `evaluation_performance.py` 已增加 ledger-only `POST /performance-runs`、owner-scoped `GET /performance-runs/{run_id}` 和 bounded `GET /performance-runs/{run_id}/dispatches`；创建需客户端预生成的 32 位小写十六进制 `run_id`、`confirmed=true` 和精确 scenario definition hash，但不授权、不排队、不触发网络请求。若创建响应未知，只能用原 `run_id` GET 对账，禁止重新 POST/换 ID/自动重试/续跑。读写均由 owner/project/run 组合限定；审计序号在事务内递增。尚无执行 admission/worker、逐请求 artifact 正文/receipt API 或 UI；PERF-03 仍负责结果列表、逐请求筛选/详情和证据打开授权。PostgreSQL 是目标数据库，但本切片尚未进行 PostgreSQL live migration parity；SQLite 仅用于隔离迁移/仓储测试。
+当前实现入口为 `performance_run_repository.py`：`create_run` 冻结 scenario population，`acknowledge_dispatch` 执行一次性发送前 ACK，`record_observation` 接受一次终态观察，`interrupt_run` 进行 unknown/not-dispatched 收尾，`get_run` 按已落库逐项状态投影 summary。Gateway `evaluation_performance.py` 已增加 ledger-only `POST /performance-runs`、owner-scoped `GET /performance-runs/{run_id}` 和 bounded `GET /performance-runs/{run_id}/dispatches`；创建需客户端预生成的 32 位小写十六进制 `run_id`、`confirmed=true` 和精确 scenario definition hash，但不授权、不排队、不触发网络请求。若创建响应未知，只能用原 `run_id` GET 对账，禁止重新 POST/换 ID/自动重试/续跑。读写均由 owner/project/run 组合限定；审计序号在事务内递增。
 
-本切片退出门槛还包括当前源码 Linux/Python 3.12 完整离线后端套件、Blocking IO、Ruff、迁移测试及精确 SHA CI。即使这些门槛通过，也只能将“PERF-02 ledger/metrics core 与 ledger HTTP API”标记为已实现；Worker/admission、EVID-02 正文与 receipt、执行控制 API、前端逐请求工作台、发生器健康/速率阶梯及真实目标授权依然未完成。
+`feature/perf-evidence` 隔离候选以新迁移 `eval_0026` 建立性能响应 artifact metadata，并在 dispatch ACK 同一数据库事务中分配稳定 `response_artifact_id`、写入 `pending` manifest、将 ID 放入 ticket。manifest 以 `(project_id, run_id, ordinal, dispatch_id)` 外键绑定唯一 dispatch；`record_observation` 校验该绑定后调用共享 `ResponseArtifactStore`，仅加密落盘最多 1 MiB 的响应正文，并持久化 capture status、HTTP/hash/byte metadata、key version、sealed hash/size 与 receipt hash。超过正文留存上限时可保留单独的响应摘要/hash 和观测字节数，不保存正文；`not_received` 不生成对象。响应文件成功但数据库回执未确认时记为 `write_unknown`，故障恢复只能读取原 artifact ID、校验 binding/metadata 后更新原记录；禁止重新发布、重新发送请求或生成替代 ID。落盘缺失可收敛到 `write_failed`，不伪造响应证据。
+
+后续未提交候选新增 `eval_0027` 授权读取：owner/project/run/dispatch/artifact/hash 绑定的短期随机 token 仅以 hash 保存；显式确认后才创建，最多 5 分钟、actor-bound、一次消费，读取后 append-only 审计。只允许单段 byte Range；拒绝无效/多段 Range 和非 URL-safe ASCII token；artifact receipt 与 DB metadata 每次打开均校验；成功响应为 attachment、`private, no-store`。测试覆盖跨 actor/项目隔离、确认/摘要冲突、非法 Range 不消耗 grant、并发双读恰有一次成功及读取审计。不得将 `pending`、`write_unknown` 或 `write_failed` 显示为可读取/成功。
+
+2026-11-23 本地定向验证：性能 router、repository、`eval_0026..0027` migration 及候选升级恢复 **30 passed**；使用 PostgreSQL 17 临时隔离容器实跑升降级、再升级与 metadata parity；全后端 Ruff check 通过，Ruff format 检查 **1,348 files already formatted**，`git diff --check` 通过。回归发现并修复非 ASCII token 后缀被 ASCII-ignore 规范化的问题。此前较大 Windows 跨模块回归为 **305 passed / 20 failed / 7 skipped**，失败来自既有 QA EVID-02 路径在 Windows 不支持目录 `fsync`。Linux/Python 3.12 全量后端及 Blocking IO、精确 SHA CI 尚未运行；候选未提交/push/merge，不代表已交付。
+
+尚无执行 admission/worker、完整逐请求结果/summary API、或性能工作台 UI；本候选的一次性证据读取不是完整 PERF-03。PERF-03 仍负责结果列表、筛选、逐请求详情、指标分组/适用性展示和工作台。PostgreSQL 是目标数据库；候选迁移已有定向 PostgreSQL live parity，但尚无完整 PostgreSQL 后端套件验证。SQLite 仍用于快速隔离仓储测试，不能代替 PostgreSQL parity。
+
+本候选退出门槛还包括当前源码 Linux/Python 3.12 完整离线后端套件、Blocking IO、Ruff、迁移测试及精确 SHA CI。即使这些门槛通过，也只可将本响应 evidence 子切片标记为已验证；Worker/admission、授权读取/审计 API、执行控制 API、前端逐请求工作台、发生器健康/速率阶梯及真实目标授权依然未完成。
 
 ## 10. 公开依据
 

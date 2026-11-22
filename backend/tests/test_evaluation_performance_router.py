@@ -1,12 +1,17 @@
 """Authenticated synthetic-only performance scenario API checks."""
 
 import asyncio
+import hashlib
 import socket
+from uuid import UUID
 
 import pytest
+from cryptography.fernet import Fernet
 from test_evaluation_plans_router import setup_plan
 from test_evaluation_registry_router import api as api
 
+from app.evaluation.performance_run_repository import PerformanceRunRepository
+from app.evaluation.qa_artifact_store import ResponseArtifactStore
 from app.gateway.routers.evaluation_performance import router
 
 PROFILE = {
@@ -116,3 +121,67 @@ async def test_run_api_creates_ledger_only_and_exposes_bounded_dispatch_reads(ap
     internal_summary = await client.get(run_path)
     internal_dispatches = await client.get(run_path + "/dispatches")
     assert (internal_summary.status_code, internal_dispatches.status_code) == (403, 403)
+
+
+@pytest.mark.asyncio
+async def test_response_evidence_api_scopes_and_consumes_a_grant_once(api, monkeypatch):
+    client, app, base, _ = api
+    plan_path, payload = await setup_plan(api, monkeypatch)
+    app.include_router(router)
+    payload["limits"].update(mode="performance", request_count=2)
+    plan = await client.post(plan_path, json=payload)
+    assert plan.status_code == 200
+    scenario = await client.post(
+        plan_path.removesuffix("/plans") + "/performance-scenarios",
+        json={"plan_id": plan.json()["id"], "profile": PROFILE, "confirmed": True},
+    )
+    assert scenario.status_code == 200
+    run_id = "a" * 32
+    run_path = f"{base}/performance-runs/{run_id}"
+    created = await client.post(base + "/performance-runs", json={"run_id": run_id, "scenario_id": scenario.json()["id"], "scenario_hash": scenario.json()["definition_hash"], "confirmed": True})
+    assert created.status_code == 200
+
+    store = ResponseArtifactStore(app.state.test_artifact_root, Fernet.generate_key())
+    monkeypatch.setattr(ResponseArtifactStore, "from_environment", classmethod(lambda cls: store))
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda path: None))
+    runs = PerformanceRunRepository(app.state.evaluation_repo.sf)
+    actor = str(UUID(int=1))
+    project_id = base.rsplit("/", 1)[1]
+    ticket = await runs.acknowledge_dispatch(actor, project_id, run_id, 0, send_started_ns=100)
+    body = b"SYNTHETIC performance response"
+    digest = hashlib.sha256(body).hexdigest()
+    await runs.record_observation(actor, project_id, ticket, state="succeeded", finished_ns=200, elapsed_ms=0.1, response_status=200, response_bytes=len(body), response_hash=digest, response_body=body)
+
+    grant_path = f"{run_path}/dispatches/0/evidence-access"
+    access_payload = {"kind": "response", "evidence_hash": digest, "confirmed": True}
+    assert (await client.post(grant_path, json={**access_payload, "confirmed": False})).status_code == 422
+    assert (await client.post(grant_path, json={**access_payload, "evidence_hash": "0" * 64})).status_code == 409
+    grant = await client.post(grant_path, json=access_payload)
+    assert grant.status_code == 200, grant.text
+    assert grant.headers["cache-control"] == "private, no-store"
+    access_id = grant.json()["access_id"]
+    access_path = f"{base}/performance-evidence/{access_id}"
+
+    app.state.actor = 2
+    assert (await client.get(access_path)).status_code == 404
+    assert (await client.post(grant_path, json=access_payload)).status_code == 404
+    app.state.actor = 1
+    assert (await client.get(access_path.replace(project_id, "b" * 32))).status_code == 404
+    assert (await client.get(access_path + "%C3%A9")).status_code == 404
+    app.state.internal = True
+    assert (await client.get(access_path)).status_code == 403
+    app.state.internal = False
+
+    rejected = await client.get(access_path, headers={"Range": "bytes=0-1,3-4"})
+    assert rejected.status_code == 416
+    assert rejected.headers["cache-control"] == "private, no-store"
+    responses = await asyncio.gather(*(client.get(access_path, headers={"Range": "bytes=1-4"}) for _ in range(2)))
+    assert sorted(response.status_code for response in responses) == [206, 404]
+    accepted = next(response for response in responses if response.status_code == 206)
+    assert accepted.content == body[1:5]
+    assert accepted.headers["content-range"] == f"bytes 1-4/{len(body)}"
+    assert accepted.headers["cache-control"] == "private, no-store"
+    assert accepted.headers["content-disposition"].startswith("attachment;")
+    assert (await client.get(access_path)).status_code == 404
+    events = await runs.run_audit(actor, project_id, run_id)
+    assert [event["action"] for event in events][-2:] == ["response_access_granted", "response_access_read"]
