@@ -1,6 +1,6 @@
-# Contributing to DeerFlow
+# Contributing to DevPilot
 
-Thank you for your interest in contributing to DeerFlow! This guide will help you set up your development environment and understand our development workflow.
+Thank you for your interest in contributing to DevPilot! This guide will help you set up your development environment and understand our development workflow.
 
 ## Development Environment Setup
 
@@ -83,11 +83,11 @@ Use these as practical starting points for development and review environments:
 
 | Scenario | Starting point | Recommended | Notes |
 |---------|-----------|------------|-------|
-| `make dev` on one machine | 4 vCPU, 8 GB RAM | 8 vCPU, 16 GB RAM | Best when DeerFlow uses hosted model APIs. |
+| `make dev` on one machine | 4 vCPU, 8 GB RAM | 8 vCPU, 16 GB RAM | Best when DevPilot uses hosted model APIs. |
 | `make docker-start` review environment | 4 vCPU, 8 GB RAM | 8 vCPU, 16 GB RAM | Docker image builds and sandbox containers need extra headroom. |
 | Shared Linux test server | 8 vCPU, 16 GB RAM | 16 vCPU, 32 GB RAM | Prefer this for heavier multi-agent runs or multiple reviewers. |
 
-`2 vCPU / 4 GB` environments often fail to start reliably or become unresponsive under normal DeerFlow workloads.
+`2 vCPU / 4 GB` environments often fail to start reliably or become unresponsive under normal DevPilot workloads.
 
 #### Linux: Docker daemon permission denied
 
@@ -115,7 +115,7 @@ Recommended fix: add your current user to the `docker` group so Docker commands 
    ```bash
    docker ps
    ```
-5. Retry the DeerFlow command:
+5. Retry the DevPilot command:
    ```bash
    make docker-stop
    make docker-start
@@ -256,9 +256,12 @@ Nginx (port 2026) ← Unified entry point
 
 ## Development Workflow
 
-1. **Create a feature branch**:
+`main` is the shared integration branch. Keep feature branches short-lived: one independently reviewable module or fix per branch, merged back after its required checks pass. Do not keep completed work on permanent personal branches or start duplicate branches for work already represented by an open PR.
+
+1. **Create a short-lived feature branch** from the latest `main`:
    ```bash
-   git checkout -b feature/your-feature-name
+   git fetch origin
+   git switch -c feature/your-feature-name origin/main
    ```
 
 2. **Make your changes** with hot-reload enabled
@@ -276,20 +279,26 @@ Nginx (port 2026) ← Unified entry point
 
 4. **Test your changes** thoroughly
 
-5. **Commit your changes**:
+5. **Commit only the intended changes**. Review `git status` and the staged diff; do not stage private configuration, test output, or unrelated work.
    ```bash
-   git add .
+   git add -- path/to/changed-file
+   git diff --cached --check
+   git diff --cached
    git commit -m "feat: description of your changes"
    ```
 
-6. **Push and create a Pull Request**:
+6. **Push and create a Pull Request** targeting `main`:
    ```bash
    git push origin feature/your-feature-name
    ```
 
+7. **Merge into `main`** after review and the required checks pass for the exact PR revision. Then verify the checks for the new `main` SHA separately; a push or a passing check on a previous revision is not verification of the merge.
+
+8. **Clean up the merged branch** after verifying integration. Update local `main` with `git pull --ff-only`, remove the clean linked worktree (if any), and delete the merged local branch with `git branch -d`. Check `git branch -a` and `git worktree list`; delete the merged remote branch if GitHub has not already done so. Do not force-delete or discard uncommitted or unmerged work. For an old branch with local changes, first compare those changes against current `main` and resolve them separately.
+
 ## AI assistance disclosure
 
-DeerFlow is an AI project and we welcome AI-assisted contributions. To help
+DevPilot is an AI project and we welcome AI-assisted contributions. To help
 reviewers calibrate how closely to read a change, **every pull request must
 complete the "AI assistance" section of the
 [PR template](.github/pull_request_template.md)**:
@@ -309,7 +318,7 @@ before review.
 cd backend
 make test
 
-# Live DeerFlowClient integration tests (explicit opt-in)
+# Live client integration tests (explicit opt-in)
 # Requires a valid root config.yaml and API credentials.
 make test-live
 
@@ -413,4 +422,4 @@ the generated zip before attaching it to a public issue.
 
 ## License
 
-By contributing to DeerFlow, you agree that your contributions will be licensed under the [MIT License](./LICENSE).
+By contributing to DevPilot, you agree that your contributions will be licensed under the [MIT License](./LICENSE).
