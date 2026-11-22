@@ -1,12 +1,12 @@
 # DevPilot 实现进度与下一步
 
-> **DAT-03 当前切片（2026-11-22）**：材料批次/组件/附件/映射 PostgreSQL schema、owner-scoped 元数据/上传 API、确定性有界 parser、显式同意的一次性 preview API、无正文解析回执及组件 `parsed/blocked` 汇总源码均已实现。修复 multipart 请求体总量上限与 XLSX 稀疏范围遍历预算后，定向套件 **62 passed / 1 skipped**；Linux/Python 3.12 `make test` **13,837 passed / 26 skipped / 11 deselected / 40 warnings / 7 subtests passed**；Blocking IO **72 passed**；Ruff check/format 全仓通过（1,332 files）；PostgreSQL schema parity/可逆迁移通过。批次/组件/附件浏览 UI 与显式确认的一次性正文预览已实现，关闭对话框或切换批次即清除正文；未知 POST 结果仅查无正文回执。Chromium E2E **1 passed**；前端 Rstest **1,468 passed / 0 failed（169 files）**，check/format 通过。候选生成/校验、人工审核和单项目归档仍未完成；DAT-03 不是端到端闭环。待提交并合入 `main`、推送后核验精确 SHA Actions。
+> **当前切片：PERF-02 性能证据关联（2026-11-22）**：PERF-02 ledger/metrics 核心及 ledger-only run create/summary/dispatch-page API 已通过 PR #3 合入 `main`，合并 SHA 为 `a3a9320e16a1d11ccffc89e58a33f53d1c04073d`。run API 仅记录/读取账本，不授权、不排队、不发请求。下一步先为性能 dispatch 建立与共享 EVID-02 artifact/receipt 能力的受控关联，再开发 execution admission/worker、逐请求结果 API 与性能工作台 UI；不新造加密存储，不调用真实目标。DAT-03 的 parser/UI 切片已验证但候选生成、确定性校验、人工审核和单项目归档仍未完成，不能标记端到端闭环。
 
-更新：2026-11-21。此文件是唯一的模块级开发进度账本：逐项状态、先后依赖与下个验收门槛在这里更新。代码/部署/候选/验证事实以[交付状态](DevPilot_Delivery_Status.md)为准；功能实现入口、API/schema、权限、失败语义和测试说明见[功能实现说明](DevPilot_Feature_Implementation_Spec.md)。旧日期切片已原样移至[实现切片历史](DevPilot_Implementation_Slices_Archive_2026-11.md)。
+更新：2026-11-22。此文件是唯一的模块级开发进度账本：逐项状态、先后依赖与下个验收门槛在这里更新。代码/部署/候选/验证事实以[交付状态](DevPilot_Delivery_Status.md)为准；功能实现入口、API/schema、权限、失败语义和测试说明见[功能实现说明](DevPilot_Feature_Implementation_Spec.md)。旧日期切片已原样移至[实现切片历史](DevPilot_Implementation_Slices_Archive_2026-11.md)。
 
 ## 当前里程碑
 
-截至 2026-11-22，PERF-02 已有 ledger/metrics 核心候选：`eval_0025` 持久化 run/ordinal dispatch/audit，仓储覆盖冻结分母、发送前 ACK、单次 observation 和中断未知态收尾，指标投影为 `performance_metrics.v1`。本轮开发分支另增加 ledger-only run create/summary/dispatch-page API；创建要求客户端预生成并保存 32 位小写十六进制 `run_id`，未知 POST 结果只按原 ID GET 对账；路由/仓储定向回归目前 11 passed。尚未通过模块级完整门禁、Linux/Python 3.12 全套和精确 SHA Actions。既有候选验证曾有 Windows 定向测试 27 passed、历史迁移回归 9 passed / 5 skipped；扩展受影响回归 312 passed / 20 failed / 6 skipped，失败均因 Windows 不支持 QA artifact 目录 fsync，与当时切片无关。Worker、执行 admission/outbox、EVID-02 正文/receipt、真实请求 transport、指标修订 API 和性能 UI 仍未实现；当前 run API 不代表执行授权或启动。详细状态及失败分类见[交付状态](DevPilot_Delivery_Status.md)与[性能工作台实现切片](DevPilot_AI性能测试工作台设计.md#perf-02-已实现切片持久账本与纯指标2026-11-22)。
+截至 2026-11-22，PERF-02 的 `eval_0025` run/ordinal dispatch/audit ledger、`performance_metrics.v1` 纯指标投影及 ledger-only run create/summary/dispatch-page API 已合入 `main`，合并 SHA 为 `a3a9320e16a1d11ccffc89e58a33f53d1c04073d`。run 创建绑定冻结 scenario definition hash，并要求客户端预生成 32 位小写十六进制 `run_id`；未知 POST 结果只允许按原 ID GET 对账。合并后 11 项 GitHub checks 报告成功；候选本地 Linux/Python 3.12 全量与 Blocking IO 等验证范围见[交付状态](DevPilot_Delivery_Status.md)。这些 API 不授权、不排队、不发请求。当前待办是性能 dispatch 与共享 EVID-02 artifact/receipt 的关联和故障恢复，再实现 admission/worker；之后补齐 summary/逐请求证据 API、性能 UI 与外部工具隔离 adapter spike。详细合同见[性能工作台实现切片](DevPilot_AI性能测试工作台设计.md#perf-02-已实现切片持久账本与纯指标2026-11-22)。
 
 文档治理切片 DOC-01 已完成：合同 Owner 导航、状态/进度/历史单一来源、目标与候选状态区分、旧入口归档标注、功能矩阵源码/测试路径核对、旧性能入口重构门槛和链接/格式终检均已记录。完成范围与边界见下方开发进度及本轮开发记录；DOC-01 仅表示文档可作为后续实现依据，不表示目标功能已实现或验收。
 
