@@ -1,5 +1,8 @@
 """Authenticated synthetic-only performance scenario API checks."""
 
+import asyncio
+import socket
+
 import pytest
 from test_evaluation_plans_router import setup_plan
 from test_evaluation_registry_router import api as api
@@ -44,3 +47,72 @@ async def test_scenario_api_requires_confirmation_and_only_freezes_definition(ap
     assert (await client.get(base + "/performance-scenarios/" + response.json()["id"])).json() == response.json()
     app.state.internal = True
     assert (await client.post(scenarios_path, json=body)).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_run_api_creates_ledger_only_and_exposes_bounded_dispatch_reads(api, monkeypatch):
+    client, app, base, _ = api
+    plan_path, payload = await setup_plan(api, monkeypatch)
+    app.include_router(router)
+    payload["limits"]["mode"] = "performance"
+    payload["limits"]["request_count"] = 2
+    plan = await client.post(plan_path, json=payload)
+    assert plan.status_code == 200
+
+    scenarios_path = plan_path.removesuffix("/plans") + "/performance-scenarios"
+    scenario = await client.post(
+        scenarios_path,
+        json={"plan_id": plan.json()["id"], "profile": PROFILE, "confirmed": True},
+    )
+    assert scenario.status_code == 200
+
+    runs_path = base + "/performance-runs"
+    create_payload = {
+        "run_id": "f" * 32,
+        "scenario_id": scenario.json()["id"],
+        "scenario_hash": scenario.json()["definition_hash"],
+        "confirmed": False,
+    }
+    assert (await client.post(runs_path, json=create_payload)).status_code == 422
+    create_payload["confirmed"] = True
+    assert (await client.post(runs_path, json={key: value for key, value in create_payload.items() if key != "run_id"})).status_code == 422
+    assert (await client.post(runs_path, json={**create_payload, "run_id": "invalid"})).status_code == 422
+    stale_hash = await client.post(runs_path, json={**create_payload, "scenario_hash": "0" * 64})
+    assert stale_hash.status_code == 409
+
+    def deny_network(*args, **kwargs):
+        raise AssertionError("performance run creation must not perform network I/O")
+
+    monkeypatch.setattr(socket, "getaddrinfo", deny_network)
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", deny_network)
+    for method in ("connect", "connect_ex", "sendto"):
+        monkeypatch.setattr(socket.socket, method, deny_network)
+
+    created = await client.post(runs_path, json=create_payload)
+    assert created.status_code == 200, created.text
+    assert "no-store" in created.headers["cache-control"]
+    run = created.json()
+    assert run["id"] == create_payload["run_id"]
+    assert run["status"] == "created"
+    assert run["state_counts"]["pending"] == run["population_count"] == 3
+    assert run["metrics"] is None
+    assert "SYNTHETIC_GOLD" not in created.text and "SYNTHETIC_TOKEN" not in created.text
+
+    run_path = runs_path + "/" + run["id"]
+    summary = await client.get(run_path)
+    assert summary.status_code == 200
+    assert summary.json() == run
+    dispatches = await client.get(run_path + "/dispatches?offset=0&limit=2")
+    assert dispatches.status_code == 200
+    assert len(dispatches.json()["dispatches"]) == 2
+    assert all(row["state"] == "pending" and row["send_started_ns"] is None for row in dispatches.json()["dispatches"])
+    assert (await client.get(run_path + "/dispatches?offset=11000&limit=2")).status_code == 422
+    assert (await client.get(run_path + "/dispatches?offset=0&limit=201")).status_code == 422
+
+    app.state.actor = 2
+    assert (await client.get(run_path)).status_code == 404
+    app.state.actor = 1
+    app.state.internal = True
+    internal_summary = await client.get(run_path)
+    internal_dispatches = await client.get(run_path + "/dispatches")
+    assert (internal_summary.status_code, internal_dispatches.status_code) == (403, 403)

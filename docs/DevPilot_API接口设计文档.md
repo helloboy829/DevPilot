@@ -129,7 +129,7 @@ check/generation/import/report 等后台操作返回 202 + job_id/status_url；�
 
 列表/详情不能默认带 expected、mapped request body、raw response 或裁判私有 prompt。request/response/evaluation view 分开命名，raw hash 与解析视图 hash 分开；旧提取文本不冒充 raw response。敏感打开仅显式操作，不用全局 query cache、URL、后台轮询或预加载。效果页字段和访问门禁见[效果工作台](DevPilot_效果测试工作台设计.md)。
 
-### AI 性能场景和请求级指标（PERF-01 已实现；运行与结果 API 待开发）
+### AI 性能场景和请求级指标（PERF-01 已实现；PERF-02 run-ledger API 部分实现）
 
 PERF-01 当前已注册并实现以下定义资源（仅冻结配置，不会创建运行或发送请求）：
 
@@ -139,15 +139,18 @@ PERF-01 当前已注册并实现以下定义资源（仅冻结配置，不会创
 | GET /projects/{project_id}/components/{component_id}/performance-scenarios | 返回该 owner 项目/组件下最多 100 个已校验定义。 |
 | GET /projects/{project_id}/performance-scenarios/{scenario_id} | 返回 project-scoped 定义并校验 definition hash。 |
 
-对应公网前缀为 /api/evaluation。路由复用 evaluation human identity 与 project owner 校验；跨 owner/不存在资源返回一致的 404。运行、派发、逐请求证据、summary 与 UI 仍为 PERF-02/03 目标，当前没有这些 API。
+对应公网前缀为 /api/evaluation。定义与 run 创建复用 evaluation human identity、project owner 校验和 private no-store 响应；跨 owner/不存在资源返回一致的 404。run 创建只冻结 ledger，不代表授权执行，不会入队或发送请求。逐请求 evidence、运行 admission/worker、指标修订 API 和 UI 仍未实现。
 
 | 方法      | 路径                                                                              | 返回/边界                                                                                                              |
 | --------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | POST | `/projects/{project_id}/components/{component_id}/performance-scenarios` | **已实现 PERF-01**；冻结 bounded profile 与服务端 case-cycle manifest；需要 confirmed=true 与已冻结 performance plan；不执行请求 |
 | GET | `/projects/{project_id}/components/{component_id}/performance-scenarios` | **已实现 PERF-01**；owner/project/component scoped，最多 100 条并校验 definition hash |
 | GET | `/projects/{project_id}/performance-scenarios/{scenario_id}` | **已实现 PERF-01**；project-scoped read，校验 definition hash |
+| POST | `/projects/{project_id}/performance-runs` | **PERF-02 ledger API 已实现**；客户端预生成 32 位小写十六进制 `run_id`，显式 confirmed=true，绑定 scenario definition hash；只创建 ledger，不启动执行 |
+| GET | `/projects/{project_id}/performance-runs/{run_id}` | **PERF-02 ledger API 已实现**；owner/project scoped summary 与状态计数 |
+| GET | `/projects/{project_id}/performance-runs/{run_id}/dispatches?offset={offset}&limit={limit}` | **PERF-02 ledger API 已实现**；有界分页，最多 200 行；仅返回 dispatch 元数据，不含正文 |
 | POST/PATCH | `/projects/{id}/performance-scenarios` | PERF-01 draft CAS/edit lifecycle is not implemented; do not use this target shape |
-| POST      | `/projects/{id}/performance-runs`                                                 | Idempotency-Key + 明确运行授权/目标时间窗；创建 durable run/outbox，202 返回同一 run id                                |
+| POST      | `/projects/{id}/performance-runs`（后续扩展）                                    | 加入 admission、目标/时间窗/预算授权和 outbox/worker 启动语义；在这些 gate 完成前当前 POST 仅创建 ledger                  |
 | GET       | `/projects/{id}/performance-runs/{run_id}`                                        | stage、stop reason、frozen profile/hash、warmup/measurement/drain 与 ALL dispatch counts、metrics revision             |
 | GET       | `/projects/{id}/performance-runs/{run_id}/requests`                               | 游标列表；每条为一条 planned dispatch，显示 case/iteration/phase/step/attempt、错误、延迟和证据存在性；失败/未知不隐藏 |
 | GET       | `/projects/{id}/performance-runs/{run_id}/requests/{dispatch_id}`                 | 逐请求非敏感完整观测、token 来源和 evidence manifest；默认不返回正文                                                   |
@@ -156,6 +159,8 @@ PERF-01 当前已注册并实现以下定义资源（仅冻结配置，不会创
 | GET       | `/projects/{id}/performance-runs/{run_id}/evidence/{access_id}`                 | 使用授权时绑定的 evidence 与短时凭据读取 no-store、有界正文/Range；过期、权限变化或 hash 不符时拒绝，不返回路径/解密细节           |
 
 MVP profile 要求固定 concurrency、有限 measured request_count、warmup_count、可选 duration cap、timeout、hard wall deadline、drain 和字节预算。请求数超过 dataset case count 时服务端生成 `case_id`/`iteration_index`/`ordinal` manifest/hash；不能由浏览器每次临时选择。可选 duration 提前触发 first-limit stop：停止新派发后 drain 已在途请求，stop_reason 与截尾数入账。具体公式与外部工具接入 gate 见[AI 性能工作台](DevPilot_AI性能测试工作台设计.md)。
+
+PERF-02 run 创建必须由调用方先生成并持久保留 `run_id`，然后以该 ID 创建 ledger。若 POST 超时、连接中断或响应未知，只允许使用原 `run_id` 调用 summary GET 对账；不得重新 POST、生成新 ID、自动重试或续跑。当前 API 仍仅创建 ledger，不代表出站授权或执行已启动。
 
 生命周期：数据、计划、报告提供 submit-review 动作进入 in_review，reviews 才提交 approve/reject。批准前不能 freeze/publish；退回创建修订；知识候选需 reviews 后 publish，同样绑定 hash。
 文件：POST /projects/{id}/uploads 受限上传到隔离区，校验后返回 artifact_id；POST /sources/{id}/ingestion-jobs 异步解析；POST /datasets/{id}/import-jobs 导入候选版本。项目外材料批次及逐组件归档以本节待开发端点为目标。扫描失败不可冻结，不复用无关 thread 上传权限。

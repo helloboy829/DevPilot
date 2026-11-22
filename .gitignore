@@ -16,6 +16,7 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+/.tmp/
 /backend/.tmp-*/
 /backend/.pytest-*/
 /.pytest-tmp-perf01/

@@ -246,11 +246,12 @@ class TestEnvPolicy:
         monkeypatch.setenv("MYSQL_URL", "mysql://user:pw@host/db")
         monkeypatch.setenv("MYSQL_PWD", "prod-db-password")
         monkeypatch.setenv("REDISCLI_AUTH", "prod-redis-auth")
+        monkeypatch.setenv("PWD", "/workspace")
         env = build_sandbox_env()
         assert "MYSQL_URL" not in env
         assert "MYSQL_PWD" not in env
         assert "REDISCLI_AUTH" not in env
-        assert env.get("PWD")  # the working directory must survive the added entries
+        assert env["PWD"] == "/workspace"  # benign inherited vars must survive scrubbing
 
     def test_injection_still_wins_for_the_newly_blocked_names(self, monkeypatch):
         """``required-secrets`` stays the escape hatch for the names added here.

@@ -84,3 +84,17 @@ class PerformanceScenarioCreate(StrictDTO):
         if value is not True:
             raise ValueError("Explicit boolean confirmation required")
         return value
+
+
+class PerformanceRunCreate(StrictDTO):
+    run_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+    scenario_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    scenario_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmed: Literal[True]
+
+    @field_validator("confirmed", mode="before")
+    @classmethod
+    def require_confirmation(cls, value):
+        if value is not True:
+            raise ValueError("Explicit boolean confirmation required")
+        return value

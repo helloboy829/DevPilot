@@ -38,10 +38,13 @@ def _hash_or_none(value):
 class PerformanceRunRepository(EvaluationRepository):
     _MAX_RUN_POPULATION = 11_000
 
-    async def create_run(self, owner, project_id, scenario_id, expected_scenario_hash, *, confirmed):
+    async def create_run(self, owner, project_id, scenario_id, expected_scenario_hash, *, confirmed, run_id=None):
         if confirmed is not True or type(expected_scenario_hash) is not str or len(expected_scenario_hash) != 64:
             raise Conflict
-        run_id = uuid4().hex
+        if run_id is None:
+            run_id = uuid4().hex
+        elif type(run_id) is not str or len(run_id) != 32 or any(char not in "0123456789abcdef" for char in run_id):
+            raise Conflict
         created_at = now()
         async with self.sf.begin() as session:
             await self._project(session, owner, project_id)

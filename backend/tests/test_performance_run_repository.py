@@ -81,6 +81,33 @@ async def test_create_run_requires_confirmation_and_exact_scenario_hash(prepared
 
 
 @pytest.mark.asyncio
+async def test_create_run_accepts_only_caller_preallocated_id_when_provided(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    expected_id = "a" * 32
+
+    run = await runs.create_run(
+        "owner",
+        project_id,
+        scenario["id"],
+        scenario["definition_hash"],
+        confirmed=True,
+        run_id=expected_id,
+    )
+
+    assert run["id"] == expected_id
+    with pytest.raises(Conflict):
+        await runs.create_run(
+            "owner",
+            project_id,
+            scenario["id"],
+            scenario["definition_hash"],
+            confirmed=True,
+            run_id="invalid",
+        )
+
+
+@pytest.mark.asyncio
 async def test_dispatch_ack_commits_once_before_observation_and_unknown_interrupts_run(prepared):
     repo, project_id, scenario = await make_scenario(prepared)
     runs = PerformanceRunRepository(repo.sf)
