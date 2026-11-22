@@ -156,9 +156,9 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 
 `performance_metrics.py` 是纯函数核心，指标版本为 `performance_metrics.v1`，分位数算法为 `nearest_rank.v1`。summary 只使用 `[window_start_ns, window_end_ns)` 中 measurement 发送，排除 warmup/drain；计数和逐 dispatch 行可复算，未知/失败不伪装成成功 latency，token 缺测不补零，小样本 p99 按 applicability 明示。DB 只存有界 hash/reference 与计时/响应元数据，不存请求/响应正文；shared EVID-02 artifact/receipt 绑定尚未实现。
 
-当前实现入口为 `performance_run_repository.py`：`create_run` 冻结 scenario population，`acknowledge_dispatch` 执行一次性发送前 ACK，`record_observation` 接受一次终态观察，`interrupt_run` 进行 unknown/not-dispatched 收尾，`get_run` 按已落库逐项状态投影 summary。读写均由 owner/project/run 组合限定；审计序号在事务内递增。当前没有新增 API route/DTO，也没有 UI；PERF-03 仍负责结果列表、逐请求筛选/详情和证据打开授权。PostgreSQL 是目标数据库，但本切片尚未进行 PostgreSQL live migration parity；SQLite 仅用于隔离迁移/仓储测试。
+当前实现入口为 `performance_run_repository.py`：`create_run` 冻结 scenario population，`acknowledge_dispatch` 执行一次性发送前 ACK，`record_observation` 接受一次终态观察，`interrupt_run` 进行 unknown/not-dispatched 收尾，`get_run` 按已落库逐项状态投影 summary。Gateway `evaluation_performance.py` 已增加 ledger-only `POST /performance-runs`、owner-scoped `GET /performance-runs/{run_id}` 和 bounded `GET /performance-runs/{run_id}/dispatches`；创建需客户端预生成的 32 位小写十六进制 `run_id`、`confirmed=true` 和精确 scenario definition hash，但不授权、不排队、不触发网络请求。若创建响应未知，只能用原 `run_id` GET 对账，禁止重新 POST/换 ID/自动重试/续跑。读写均由 owner/project/run 组合限定；审计序号在事务内递增。尚无执行 admission/worker、逐请求 artifact 正文/receipt API 或 UI；PERF-03 仍负责结果列表、逐请求筛选/详情和证据打开授权。PostgreSQL 是目标数据库，但本切片尚未进行 PostgreSQL live migration parity；SQLite 仅用于隔离迁移/仓储测试。
 
-本切片退出门槛还包括当前源码 Linux/Python 3.12 完整离线后端套件、Blocking IO、Ruff、迁移测试及精确 SHA CI。即使这些门槛通过，也只能将“PERF-02 ledger/metrics core”标记为已实现；Worker/admission、EVID-02 正文与 receipt、HTTP API、前端逐请求工作台、发生器健康/速率阶梯及真实目标授权依然未完成。
+本切片退出门槛还包括当前源码 Linux/Python 3.12 完整离线后端套件、Blocking IO、Ruff、迁移测试及精确 SHA CI。即使这些门槛通过，也只能将“PERF-02 ledger/metrics core 与 ledger HTTP API”标记为已实现；Worker/admission、EVID-02 正文与 receipt、执行控制 API、前端逐请求工作台、发生器健康/速率阶梯及真实目标授权依然未完成。
 
 ## 10. 公开依据
 
