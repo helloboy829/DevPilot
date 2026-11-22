@@ -148,6 +148,18 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 
 回归覆盖 request count 大于 N 的 exact cycle、duration 优先终止、warmup、steady window、drain 截尾、固定时间戳、延迟分位数、rate scheduling/迟到、token source、无流式 N/A、流被 buffer、cancel/lease/fence/unknown delivery、超限响应、artifact partial write 与重建。CI 只用确定性本地假服务；真实服务需有隔离手动授权的验收计划。
 
+### PERF-02 已实现切片：持久账本与纯指标（2026-11-22）
+
+本切片只实现 durable run/dispatch/audit ledger 和确定性指标投影，不实现 worker 或发网请求。迁移 `eval_0025` 新增 `evaluation_performance_runs`、`evaluation_performance_dispatches`、`evaluation_performance_run_audit`；run 绑定 owner、project、冻结 scenario/hash 和 population count；创建事务一次性写入完整 manifest ordinal。每个 ordinal 只有一次 pending → dispatched ACK 与一次 observation；ACK 返回稳定 `dispatch_id` ticket，未来执行器必须先提交 ACK 再发请求。当前仓储没有任何 HTTP client、调度循环或出站授权。
+
+状态/时间约束：`pending` 与 `not_dispatched` 不得有发送时间；`dispatched` 必须有 `send_started_ns` 且没有完成时间；完成的 `succeeded/failed/timeout` 需要单调 `finished_ns` 与非负 elapsed；`unknown` 同时允许有完整终态计时，或在 run 中断后保留 send start、无 finish/elapsed 的右截尾证据。中断将尚未发送项置为 `not_dispatched`、所有已 ACK 未观测项置为 `unknown`，绝不重发/续跑；数据库 CHECK 明确拒绝状态与时间不相容的组合。
+
+`performance_metrics.py` 是纯函数核心，指标版本为 `performance_metrics.v1`，分位数算法为 `nearest_rank.v1`。summary 只使用 `[window_start_ns, window_end_ns)` 中 measurement 发送，排除 warmup/drain；计数和逐 dispatch 行可复算，未知/失败不伪装成成功 latency，token 缺测不补零，小样本 p99 按 applicability 明示。DB 只存有界 hash/reference 与计时/响应元数据，不存请求/响应正文；shared EVID-02 artifact/receipt 绑定尚未实现。
+
+当前实现入口为 `performance_run_repository.py`：`create_run` 冻结 scenario population，`acknowledge_dispatch` 执行一次性发送前 ACK，`record_observation` 接受一次终态观察，`interrupt_run` 进行 unknown/not-dispatched 收尾，`get_run` 按已落库逐项状态投影 summary。读写均由 owner/project/run 组合限定；审计序号在事务内递增。当前没有新增 API route/DTO，也没有 UI；PERF-03 仍负责结果列表、逐请求筛选/详情和证据打开授权。PostgreSQL 是目标数据库，但本切片尚未进行 PostgreSQL live migration parity；SQLite 仅用于隔离迁移/仓储测试。
+
+本切片退出门槛还包括当前源码 Linux/Python 3.12 完整离线后端套件、Blocking IO、Ruff、迁移测试及精确 SHA CI。即使这些门槛通过，也只能将“PERF-02 ledger/metrics core”标记为已实现；Worker/admission、EVID-02 正文与 receipt、HTTP API、前端逐请求工作台、发生器健康/速率阶梯及真实目标授权依然未完成。
+
 ## 10. 公开依据
 
 - GuideLLM 主页/功能：[GitHub README](https://github.com/vllm-project/guidellm)；输出格式、请求内容保留和 `sample_size`：[Outputs guide](https://github.com/vllm-project/guidellm/blob/main/docs/en/guides/outputs.md)。

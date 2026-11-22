@@ -6,6 +6,8 @@
 
 ## 当前里程碑
 
+截至 2026-11-22，PERF-02 已在隔离分支完成 ledger/metrics 核心代码候选：`eval_0025` 持久化 run/ordinal dispatch/audit，仓储覆盖冻结分母、发送前 ACK、单次 observation 和中断未知态收尾，指标投影为 `performance_metrics.v1`。Windows 定向测试（含迁移恢复回归）27 passed，历史迁移回归 9 passed / 5 skipped；扩展受影响回归 312 passed / 20 failed / 6 skipped，失败均因 Windows 不支持 QA artifact 目录 fsync，与本切片无关。Ruff 与 diff 检查通过；Windows 全量后端及 Blocking IO 未通过，Linux 完整门禁、PostgreSQL live parity 和精确 SHA Actions 尚未验证，因此还不能提交合并为已验收交付。Worker、admission、EVID-02 正文/receipt、HTTP API 和性能 UI 仍未实现。详细状态及失败分类见[交付状态](DevPilot_Delivery_Status.md)与[性能工作台实现切片](DevPilot_AI性能测试工作台设计.md#perf-02-已实现切片持久账本与纯指标2026-11-22)。
+
 文档治理切片 DOC-01 已完成：合同 Owner 导航、状态/进度/历史单一来源、目标与候选状态区分、旧入口归档标注、功能矩阵源码/测试路径核对、旧性能入口重构门槛和链接/格式终检均已记录。完成范围与边界见下方开发进度及本轮开发记录；DOC-01 仅表示文档可作为后续实现依据，不表示目标功能已实现或验收。
 
 DAT-02/EVID-02/EFF-01 的候选源码及 `eval_0018..0020` 已随 `a3a48b6` 推送到 GitHub `main`，`05be2f0` 补齐 Ruff 格式；尚未部署。Windows 全量后端未通过，隔离 Linux 旧快照的通过记录不能代替这次提交的验证。精确 SHA、Actions 和快照证据见[交付状态](DevPilot_Delivery_Status.md)。

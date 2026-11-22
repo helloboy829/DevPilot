@@ -29,9 +29,8 @@ NEW = {
     t.exports.name,
     t.export_audit.name,
 }
-# Freeze this revision's historical table population; eval_0014/eval_0015/eval_0016 have
-# their own full-head parity/preservation regressions and must not be queried
-# after downgrade.
+# Compare the historical eval_0013 schema. Later tables must not be queried
+# after downgrade; their own migration tests cover their parity.
 APP_TABLES = [
     table
     for table in t.metadata.sorted_tables
@@ -55,6 +54,9 @@ APP_TABLES = [
         "evaluation_material_preview_receipts",
         t.performance_scenarios.name,
         t.performance_scenario_audit.name,
+        t.performance_runs.name,
+        t.performance_dispatches.name,
+        t.performance_run_audit.name,
     }
 ]
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in APP_TABLES if table.name not in NEW]]

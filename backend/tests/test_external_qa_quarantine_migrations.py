@@ -47,6 +47,9 @@ NEW = {
     "evaluation_material_preview_receipts",
     t.performance_scenarios.name,
     t.performance_scenario_audit.name,
+    t.performance_runs.name,
+    t.performance_dispatches.name,
+    t.performance_run_audit.name,
 }
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in t.metadata.sorted_tables if table.name not in NEW]]
 
@@ -91,7 +94,7 @@ async def cycle(engine):
         async with engine.connect() as conn:
             names = set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
             assert NEW.isdisjoint(names) if target == "eval_0013" else NEW.issubset(names)
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0013" if target == "eval_0013" else "eval_0024")
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == ("eval_0013" if target == "eval_0013" else "eval_0025")
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
             if target == "head":
 
