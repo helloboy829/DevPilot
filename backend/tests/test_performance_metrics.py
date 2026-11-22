@@ -28,7 +28,7 @@ def test_summary_excludes_warmup_and_out_of_window_sends_and_keeps_failures_in_p
         {"ordinal": 0, "phase": "warmup", "state": "succeeded", "send_started_ns": 100, "finished_ns": 110, "elapsed_ms": 1.0, "output_tokens": 99, "token_source": "provider"},
         {"ordinal": 1, "phase": "measurement", "state": "succeeded", "send_started_ns": 100, "finished_ns": 200, "elapsed_ms": 10.0, "output_tokens": 8, "token_source": "provider"},
         {"ordinal": 2, "phase": "measurement", "state": "failed", "send_started_ns": 150, "finished_ns": 250, "elapsed_ms": 20.0, "output_tokens": None, "token_source": None},
-        {"ordinal": 3, "phase": "measurement", "state": "unknown", "send_started_ns": 190, "finished_ns": None, "elapsed_ms": 40.0, "output_tokens": None, "token_source": None},
+        {"ordinal": 3, "phase": "measurement", "state": "unknown", "send_started_ns": 190, "finished_ns": None, "elapsed_ms": None, "output_tokens": None, "token_source": None},
         {"ordinal": 4, "phase": "measurement", "state": "succeeded", "send_started_ns": 200, "finished_ns": 210, "elapsed_ms": 1.0, "output_tokens": 100, "token_source": "provider"},
     ]
 
@@ -67,3 +67,23 @@ def test_summary_marks_missing_token_source_unavailable():
     assert result["output_token_count"] is None
     assert result["output_token_throughput"] is None
     assert result["token_applicability"] == "source_unavailable"
+
+
+@pytest.mark.parametrize(
+    ("state", "sent", "finished", "elapsed"),
+    [("pending", 100, None, None), ("dispatched", None, None, None), ("unknown", None, None, None)],
+)
+def test_summary_rejects_timing_combinations_disallowed_by_ledger(state, sent, finished, elapsed):
+    row = {
+        "ordinal": 1,
+        "phase": "measurement",
+        "state": state,
+        "send_started_ns": sent,
+        "finished_ns": finished,
+        "elapsed_ms": elapsed,
+        "output_tokens": None,
+        "token_source": None,
+    }
+
+    with pytest.raises(ValueError):
+        summarize_performance_dispatches([row], window_start_ns=0, window_end_ns=200)

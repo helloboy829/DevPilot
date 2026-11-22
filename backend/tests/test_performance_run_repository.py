@@ -166,3 +166,12 @@ async def test_database_rejects_timing_on_pending_dispatch(prepared):
     with pytest.raises(IntegrityError):
         async with repo.sf.begin() as session:
             await session.execute(update(t.performance_dispatches).where(t.performance_dispatches.c.run_id == run["id"], t.performance_dispatches.c.ordinal == 1).values(send_started_ns=100))
+
+
+@pytest.mark.asyncio
+async def test_dispatch_page_limit_covers_maximum_frozen_population(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+
+    assert await runs.list_dispatches("owner", project_id, run["id"], offset=10_800, limit=200) == []

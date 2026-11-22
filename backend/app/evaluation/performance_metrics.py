@@ -60,6 +60,14 @@ def _checked_row(row: Mapping) -> dict:
         raise ValueError("Invalid dispatch latency")
     if tokens is not None and (type(tokens) is not int or tokens < 0 or state != "succeeded"):
         raise ValueError("Invalid output token count")
+    if state in {"pending", "not_dispatched"} and any(value is not None for value in (sent, finished, elapsed)):
+        raise ValueError("Invalid dispatch timing state")
+    if state == "dispatched" and (sent is None or finished is not None or elapsed is not None):
+        raise ValueError("Invalid dispatch timing state")
+    if state == "unknown" and (sent is None or (finished is None) != (elapsed is None)):
+        raise ValueError("Invalid dispatch timing state")
+    if state in {"succeeded", "failed", "timeout"} and (sent is None or finished is None or elapsed is None):
+        raise ValueError("Invalid dispatch timing state")
     if source is not None and (type(source) is not str or not 1 <= len(source) <= 40):
         raise ValueError("Invalid output token source")
     return {

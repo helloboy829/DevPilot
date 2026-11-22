@@ -36,6 +36,8 @@ def _hash_or_none(value):
 
 
 class PerformanceRunRepository(EvaluationRepository):
+    _MAX_RUN_POPULATION = 11_000
+
     async def create_run(self, owner, project_id, scenario_id, expected_scenario_hash, *, confirmed):
         if confirmed is not True or type(expected_scenario_hash) is not str or len(expected_scenario_hash) != 64:
             raise Conflict
@@ -69,7 +71,7 @@ class PerformanceRunRepository(EvaluationRepository):
                     warmup_count=profile.warmup_request_count,
                     measured_count=profile.measured_request_count,
                 )
-                if manifest != expected_manifest or not 1 <= len(manifest) <= 11_000:
+                if manifest != expected_manifest or not 1 <= len(manifest) <= self._MAX_RUN_POPULATION:
                     raise ValueError
             except (KeyError, TypeError, ValueError):
                 raise Conflict from None
@@ -318,7 +320,7 @@ class PerformanceRunRepository(EvaluationRepository):
             return result
 
     async def list_dispatches(self, owner, project_id, run_id, *, offset=0, limit=100):
-        if type(offset) is not int or not 0 <= offset <= 10_000:
+        if type(offset) is not int or not 0 <= offset < self._MAX_RUN_POPULATION:
             raise ValueError("Invalid performance dispatch page")
         _bounded_int(limit, minimum=1, maximum=200)
         async with self.sf() as session:
