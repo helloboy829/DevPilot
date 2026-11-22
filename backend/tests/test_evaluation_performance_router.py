@@ -111,3 +111,8 @@ async def test_run_api_creates_ledger_only_and_exposes_bounded_dispatch_reads(ap
 
     app.state.actor = 2
     assert (await client.get(run_path)).status_code == 404
+    app.state.actor = 1
+    app.state.internal = True
+    internal_summary = await client.get(run_path)
+    internal_dispatches = await client.get(run_path + "/dispatches")
+    assert (internal_summary.status_code, internal_dispatches.status_code) == (403, 403)

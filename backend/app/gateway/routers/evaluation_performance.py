@@ -83,6 +83,7 @@ async def create_performance_run(project_id: str, payload: PerformanceRunCreate,
 @require_permission("evaluation_projects", "read")
 async def get_performance_run(project_id: str, run_id: str, request: Request):
     owner, repository = await _context(request)
+    _require_human(request)
     try:
         return await _run_repo(repository).get_run(owner, project_id, run_id)
     except NotFound:
@@ -103,6 +104,7 @@ async def list_performance_dispatches(
     limit: int = Query(default=100, ge=1, le=200),
 ):
     owner, repository = await _context(request)
+    _require_human(request)
     try:
         dispatches = await _run_repo(repository).list_dispatches(owner, project_id, run_id, offset=offset, limit=limit)
         return {"dispatches": dispatches, "offset": offset, "limit": limit}
