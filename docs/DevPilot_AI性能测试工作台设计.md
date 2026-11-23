@@ -27,9 +27,12 @@
 
 一条 request 完成或终止后，同一个 worker slot 才领取下一条；配置 `concurrency`、`measured_request_count`、`warmup_request_count`、可选 `duration_limit_seconds`、`request_timeout_ms`、`max_in_flight` 和硬性 `wall_time_limit_seconds`。停止条件按 `first_limit_reached` 执行：测量请求数已派发或持续时间截止其中任一成立即停止新测量派发；warmup 在测量窗口前独立完成。未完成请求进入 drain，超过 drain deadline 的请求标记为未知/截尾，不重发。
 
+调度状态机必须区分 `claim`、`send_started`、终态和发送前取消。`claim` 只为冻结 manifest 中的 ordinal 预留 worker slot，不代表目标请求已发送，也不启动测量窗口。Worker 在即将调用 transport、且之后不再有本地拒绝分支时记录 `send_started` 单调时钟；首个 measurement `send_started` 才设置 `window_start` 并启动可选 duration。测量预算按冻结 dispatch 行消耗：已开始发送或显式 `cancel_before_send` 的行均保留在固定分母，未发送取消不得伪装为 attempt/timeout/unknown。请求数上限耗尽后停止新 claim；count-only 的 `window_end` 等所有已开始请求完成或 drain deadline 将它们标为 unknown 时确定。duration 或 wall-time 先到时，`window_end` 取该停止边界；边界后禁止尚未开始的 dispatch 再发送，必须显式终结为 `not_started`。drain 只将已经 `send_started` 且未终态的请求归为 unknown。
+
 性能方案必须有正整数请求预算和有界总字节预算；duration 只是较早的停止条件，不能取代请求上限或绝对 deadline。用户若选 duration 优先模式，仍填写可见 `max_request_count` 安全上限，并冻结停止原因为 duration 或 count。summary 显示 planned/actual request count、预热数、测量起止单调时钟、墙钟窗口、drain 时长和 `stop_reason`。
 
 循环映射确定性规则：冻结 case IDs 按 `case_id` 字典序，warmup 和测量分别使用确定 seed/algorithm；第 `i` 个 dispatch 的 `case_id = ordered_case_ids[i mod N]`，`iteration_index = floor(i/N)`，并保存 `phase=warmup|measurement`、`profile_step_id`、`ordinal`、`dispatch_id`。启动前把实际有限 dispatch manifest/hash 固化，不能运行后重排或挑选成功项。
+Case selection and ordinal mapping are deterministic for the frozen ordered case IDs. `dispatch_id` is a random per-schedule UUID, so independent schedule constructions do not produce byte-identical manifests; the future durable admission layer must persist the generated manifest and its hash before dispatch, and retries/reconciliation must use those persisted IDs rather than regenerate them.
 
 ### 后续：开放到达率和负载矩阵
 
@@ -142,7 +145,7 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | PERF-01 场景与准入（定义冻结已实现） | 有界 profile schema、case-cycle manifest、owner-scoped immutable scenario、hash 校验与 audit；`eval_0024` PostgreSQL-first schema；仅定义 API，不含 execution admission | 拒绝空/重复/非法 case scope、无界或越界 profile；请求超过 case 数时按冻结排序循环；要求已冻结 performance plan、精确 dataset/request 绑定和显式确认。duration stop、目标权限/预算变化撤销执行确认属于 PERF-02 admission，尚未实现 |
 | PERF-02 worker、ledger 与指标核心 | dispatch phase/iteration、EVID-02 artifact、request/response hash、allowlist headers、预算/保留审计、延迟/错误/吞吐/分位数/token/stream/source/applicability | 逐 ordinal 完全可对账；重复 case 不覆盖；超过预算部分 run 明示 incomplete；取消和未知提交不重发；人工可算 fixture 对照；warmup/drain 不混入 measurement；失败/censored/p99 小样本等分支全测 |
-| PERF-03 性能工作台与场景矩阵      | 配置步骤、预检、阶段运行、summary、档位比较、request table/detail、并发/速率阶梯和 worker 资源                                                               | 计数与 DB/hash/summary 相符；可从 summary 下钻任一失败或未知请求；空/失败/取消/部分运行无假绿色；每档独立保存，不挑最好档，不把发生器瓶颈写成目标瓶颈                                       |
+| PERF-03 性能工作台与场景矩阵      | 配置步骤、预检、阶段运行、summary、档位比较、request table/detail、并发/速率阶梯和 worker 资源                                                               | scheduler-only candidate implemented in feature/perf-03-scheduler (not committed); the metrics API and workbench in this row remain unimplemented |
 | PERF-04 AIPerf adapter spike      | 隔离适配器、合成校准、协议和依赖扫描                                                                                                                         | 未通过第三方 adapter gate 前不进入生产执行选择；不加用户可任意选择工具开关                                                                                                                  |
 | 后续扩展                          | 图像/音频/embedding/多轮 Agent workload 专用 schema                                                                                                          | 各 adapter 先定义 request/evidence/token/质量，不以单一 text JSON schema 假装通用；独立进入 backlog 后再实现                                                                                |
 
