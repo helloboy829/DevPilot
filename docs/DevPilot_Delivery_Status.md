@@ -1,3 +1,9 @@
+> **Fact sync (2026-11-23, model cURL import):** `b62a9102625e081fc12eefd3a000d8eb1ecbc9da` adds the model-configuration cURL import fix. The bounded browser-only parser now accepts whole-token `$NAME`, `${NAME}`, `$env:NAME`, `${env:NAME}`, and `%NAME%` credential references without expanding or persisting them; it also accepts only Windows `^` LF/CRLF and PowerShell backtick line continuations. Other caret usage and unsupported shell syntax remain rejected. The parser never executes or sends the raw cURL.
+>
+> Fresh verification on this exact tree: frontend test command **1,479 passed / 0 failed across 171 files**, `python scripts/pnpm.py check` passed, and `git diff --check` passed. Commit `b62a910` is currently one commit ahead of `origin/main`; it still requires push and exact-SHA GitHub Actions verification before this delivery slice is marked remotely verified.
+>
+> This fixes the reported model-configuration error for supported Windows/POSIX exports; it does not turn the importer into a general shell parser and does not enable file upload, proxy, script, redirect, or insecure-TLS execution.
+
 # DevPilot 当前交付状态 / Current delivery status
 > **Fact sync (2026-11-23, post-merge):** `main` is now at merge commit `6531c3a` (`6531c3a948bb2e15b980f695381c8acc43f94fb9), incorporating PERF-05 admission from branch tip `1e2671a`. The PostgreSQL-first `eval_0029` migration and `POST .../performance-runs/{run_id}/admit` boundary are merged. This remains a durable authorization boundary only: it does not start a worker, claim dispatch, send requests, or constitute a complete load-test loop.
 >
