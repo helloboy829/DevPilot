@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.evaluation.performance_run_repository import PerformanceRunRepository
 from app.evaluation.performance_scenario_repository import PerformanceScenarioRepository
-from app.evaluation.performance_scenarios import PerformanceRunCreate, PerformanceScenarioCreate
+from app.evaluation.performance_scenarios import PerformanceRunAdmission, PerformanceRunCreate, PerformanceScenarioCreate
 from app.evaluation.qa_evidence import EvidenceAccessCreate
 from app.evaluation.repository import Conflict, NotFound
 from app.evaluation.request_protection import RequestProtectionError
@@ -80,6 +80,22 @@ async def create_performance_run(project_id: str, payload: PerformanceRunCreate,
         raise HTTPException(404, "Project or performance scenario not found") from None
     except Conflict:
         raise HTTPException(409, "Scenario changed or failed integrity validation") from None
+    except SQLAlchemyError:
+        raise HTTPException(503, "Evaluation persistence failed; reload and inspect current state") from None
+
+
+@router.post("/{project_id}/performance-runs/{run_id}/admit")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def admit_performance_run(project_id: str, run_id: str, payload: PerformanceRunAdmission, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    try:
+        return await _run_repo(repository).admit_run(owner, project_id, run_id, confirmed=payload.confirmed)
+    except NotFound:
+        raise HTTPException(404, "Project or performance run not found") from None
+    except Conflict:
+        raise HTTPException(409, "Performance run failed admission or integrity validation") from None
     except SQLAlchemyError:
         raise HTTPException(503, "Evaluation persistence failed; reload and inspect current state") from None
 

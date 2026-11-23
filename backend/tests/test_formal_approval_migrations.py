@@ -115,7 +115,7 @@ async def test_downgrade_preserves_history_and_upgrade_restores_empty_approval_t
         assert (await conn.execute(select(t.run_approvals))).all() == []
         assert (await conn.execute(select(t.approval_audit))).all() == []
         assert (await conn.execute(select(t.approval_signoff_policies))).all() == []
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0028"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0029"
 
         def parity(c):
             context = MigrationContext.configure(c, opts={"version_table": "devpilot_alembic_version", "include_object": lambda obj, name, kind, reflected, compared: not (kind == "table" and name == "alembic_version")})

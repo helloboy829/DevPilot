@@ -193,3 +193,34 @@ async def test_response_evidence_api_scopes_and_consumes_a_grant_once(api, monke
     assert (await client.get(access_path)).status_code == 404
     events = await runs.run_audit(actor, project_id, run_id)
     assert [event["action"] for event in events][-2:] == ["response_access_granted", "response_access_read"]
+
+
+@pytest.mark.asyncio
+async def test_run_admission_is_explicit_idempotent_and_owner_scoped(api, monkeypatch):
+    client, app, base, _ = api
+    plan_path, payload = await setup_plan(api, monkeypatch)
+    app.include_router(router)
+    payload["limits"].update(mode="performance", request_count=2)
+    plan = await client.post(plan_path, json=payload)
+    scenario = await client.post(
+        plan_path.removesuffix("/plans") + "/performance-scenarios",
+        json={"plan_id": plan.json()["id"], "profile": PROFILE, "confirmed": True},
+    )
+    run_payload = {"run_id": "e" * 32, "scenario_id": scenario.json()["id"], "scenario_hash": scenario.json()["definition_hash"], "confirmed": True}
+    created = await client.post(base + "/performance-runs", json=run_payload)
+    assert created.status_code == 200
+    run_path = base + "/performance-runs/" + run_payload["run_id"]
+    admission_path = run_path + "/admit"
+
+    assert (await client.post(admission_path, json={"confirmed": False})).status_code == 422
+    admitted = await client.post(admission_path, json={"confirmed": True})
+    assert admitted.status_code == 200, admitted.text
+    assert admitted.json()["status"] == "running"
+    repeated = await client.post(admission_path, json={"confirmed": True})
+    assert repeated.status_code == 200
+    assert repeated.json() == admitted.json()
+    dispatches = await client.get(run_path + "/dispatches")
+    assert all(row["state"] == "pending" and row["send_started_ns"] is None for row in dispatches.json()["dispatches"])
+
+    app.state.actor = 2
+    assert (await client.post(admission_path, json={"confirmed": True})).status_code == 404
