@@ -1,11 +1,11 @@
-## PERF-06 Synthetic Worker (2026-11-23; candidate, not merged)
+## PERF-06 Synthetic Worker (2026-11-23; merged locally, push/checks pending)
 
 - [x] Implement explicit serial synthetic-only worker over admitted frozen runs; no auto-start, public execution route, real transport, retry, or resend.
 - [x] Persist `execution_mode` via `eval_0030`; synthetic-only runs do not expose synthetic latency/QPS as target metrics.
 - [x] Preserve lease/ACK/start fences, encrypted evidence, bounded request/response/aggregate bytes, timeout/deadline/duration stop handling, and unknown/no-resend semantics.
 - [x] Focused suite including candidate migration-chain pin: **38 passed / 1 skipped**. Ruff check passed; format check reports **872 files already formatted**; `git diff --check` passed.
 - [x] Re-run focused suite after the migration-chain test update: 37 passed / 1 skipped. Blocking IO: 68 passed / 4 failed for Windows file-mode semantics and absent lark-cli. PostgreSQL migration parity skipped because TEST_POSTGRES_URI is unset.
-- [ ] Commit/push this candidate, verify Actions for the exact SHA, merge to `main`, then clean only this slice's temporary artifacts/worktree.
+- [ ] Push the `main` merge, verify Actions for the exact merge SHA, then clean only this slice's temporary artifacts/worktree.
 
 This is a serial ledger/evidence validation slice, not a load generator. It does not model configured concurrency or produce valid target/model performance metrics. Windows full backend run was **13,186 passed / 283 failed / 363 errors / 117 skipped / 11 deselected / 180 warnings / 7 subtests passed**; it is not a passing gate.
 # DevPilot 实现进度与下一步
