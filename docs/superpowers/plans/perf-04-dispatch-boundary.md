@@ -1,4 +1,4 @@
-﻿# PERF-04 Dispatch Boundary Implementation Plan
+# PERF-04 Dispatch Boundary Implementation Plan
 
 > **For agentic workers:** Inline execution is authorized by the user’s “开始开发” instruction. Execute each step in order; do not add real-target calls.
 
@@ -31,11 +31,11 @@
 - Produces repository behavior: `acknowledge_dispatch(..., *, worker_id, lease_epoch, request_bytes=None, request_hash=None)` reserves stable dispatch/evidence identity but leaves `state=pending` and `send_started_ns=NULL`.
 - Produces repository behavior: `start_dispatch(..., *, dispatch_id, worker_id, lease_epoch, send_started_ns)` atomically validates current fence and transitions pending ACK to dispatched.
 
-- [ ] Add tests for lease claim and monotonically increasing fence epoch.
-- [ ] Add tests that ACK has no send timestamp and cannot be counted in measurement summary.
-- [ ] Add tests that start requires current fence and a unique ACK ticket.
-- [ ] Add tests that stale epoch/worker and duplicate start are rejected without changing audit/ledger.
-- [ ] Run the focused tests and record expected RED before implementation.
+- [x] Add tests for lease claim and monotonically increasing fence epoch.
+- [x] Add tests that ACK has no send timestamp and cannot be counted in measurement summary.
+- [x] Add tests that start requires current fence and a unique ACK ticket.
+- [x] Add tests that stale epoch/worker and duplicate start are rejected without changing audit/ledger.
+- [x] Run the focused tests and record expected RED before implementation.
 
 ### Task 2: Add PostgreSQL-first lease/fence schema
 
@@ -44,9 +44,9 @@
 - Modify: `backend/app/evaluation/tables.py`
 - Modify: migration chain/revision tests as required
 
-- [ ] Add nullable lease owner/deadline and nonnegative epoch with safe server defaults for existing rows.
-- [ ] Add constraints/indexes for lease metadata; verify downgrade and metadata parity.
-- [ ] Preserve historical dispatched rows as already-sent; do not infer lease ownership retroactively.
+- [x] Add nullable lease owner/deadline and nonnegative epoch with safe server defaults for existing rows.
+- [x] Add constraints/indexes for lease metadata; verify downgrade and metadata parity.
+- [x] Preserve historical dispatched rows as already-sent; do not infer lease ownership retroactively.
 
 ### Task 3: Implement atomic claim, ACK, and send-start transitions
 
@@ -54,11 +54,11 @@
 - Modify: `backend/app/evaluation/performance_run_repository.py`
 - Modify: `backend/tests/test_performance_run_repository.py`
 
-- [ ] Claim under transaction/row lock, only while the run accepts dispatch and the ordinal is pending; expired/reclaimed leases increment epoch.
-- [ ] ACK validates worker/epoch/deadline, reserves stable dispatch ID and response artifact manifest exactly once, and appends audit without setting `send_started_ns`.
-- [ ] `start_dispatch` validates the same current fence and ACK ID, writes monotonic send start exactly once, and starts the measurement window only for first measurement send.
-- [ ] Ensure interruption, observation, and metrics retain current unknown/not-started semantics; a sent or unknown row is never reclaimed for a second send.
-- [ ] Run RED/GREEN focused tests and relevant router, repository, metrics, and migration tests.
+- [x] Claim under transaction/row lock, only while the run accepts dispatch and the ordinal is pending; expired/reclaimed leases increment epoch.
+- [x] ACK validates worker/epoch/deadline, reserves stable dispatch ID and response artifact manifest exactly once, and appends audit without setting `send_started_ns`.
+- [x] `start_dispatch` validates the same current fence and ACK ID, writes monotonic send start exactly once, and starts the measurement window only for first measurement send.
+- [x] Ensure interruption, observation, and metrics retain current unknown/not-started semantics; a sent or unknown row is never reclaimed for a second send.
+- [x] Run RED/GREEN focused tests and relevant router, repository, metrics, and migration tests.
 
 ### Task 4: Reconcile docs and verify
 
@@ -67,6 +67,6 @@
 - Modify: `docs/DevPilot_Delivery_Status.md`
 - Modify: `docs/DevPilot_实现进度与下一步.md`
 
-- [ ] Correct the current-status header to cite the actual current main SHA, and distinguish latest-main CI from historical candidate evidence.
-- [ ] Record this slice as repository boundary primitives only; do not claim worker/transport or full load testing exists.
+- [x] Correct the current-status header to cite the actual current main SHA, and distinguish latest-main CI from historical candidate evidence.
+- [x] Record this slice as repository boundary primitives only; do not claim worker/transport or full load testing exists.
 - [ ] Run backend lint, full backend offline tests, Blocking IO, and PostgreSQL migration/parity tests; record exact outputs and SHA-specific Actions after push.

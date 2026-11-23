@@ -1,5 +1,14 @@
 # DevPilot 当前交付状态 / Current delivery status
 
+> **Fact sync (2026-11-23):** This block supersedes stale current-status paragraphs below. The current `main` baseline is `d9133a962b316a32970343efecc8d887d236869a`; PERF-04 durable dispatch boundary merged in `302ae07`; the cURL import diagnostics fix merged in `d9133a962b316a32970343efecc8d887d236869a`.
+>
+> PERF-05 candidate commit `0b7c73a` (branch `feature/perf-05-admission`, pending push/merge) adds the PostgreSQL `eval_0029` audit migration, explicit `POST .../performance-runs/{run_id}/admit`, owner/project/run scoping, frozen scenario/profile/manifest integrity revalidation, and idempotent `created -> running` admission. Admission is durable authorization only: it does not start a worker, claim a dispatch, or send a real request.
+>
+> Fresh focused verification on the candidate worktree (not GitHub Actions): performance repository/router/migration **29 passed / 1 skipped**; Ruff check and format check passed; `git diff --check` passed. Windows default pytest temp-root permissions caused an environment setup error, so the focused tests used repository-local basetemp; that environment error is not code-pass evidence. Actions must be checked again for the exact pushed SHA.
+>
+> Still not delivered: worker lease consumption, real transport, cancel/drain control, complete metrics API, runnable load-test workspace UI, and the complete effectiveness per-result browser. Do not describe this admission slice or the existing ledger as a complete performance-testing loop.
+
+
 **当前主线状态（2026-11-23，精确提交 `49aa508fa11a4fd0b90af383ed34a6d8172f6db2`）：**性能源码基线为 `28ea31e866ac6bcead6417ea940afaad9da8ac3b`；其后 `e14fae4` 仅更新了状态/进度文档。当前主分支源码含 PERF-02 持久 ledger/repository 状态原语、加密响应 artifact/授权浏览，以及 PERF-03 确定性调度核心；调度核心有 12 项回归测试，且主线已有 durable run/dispatch ledger、Repository 层 ACK/observation/interruption 事务、加密响应 artifact 与授权浏览；但这些持久化原语尚未接入执行 Worker/API。当前没有完整执行准入与目标授权、排队/Worker 或实际 transport，因此不能启动完整压测。
 
 **该提交的验证：**记录的 Linux/Python 3.12 全量后端 `make test` 为 **13,846 passed / 79 skipped / 11 deselected / 40 warnings / 7 subtests passed**；`make lint` 通过，Blocking IO **72 passed**，相关调度测试 **14 passed**。这些是本地验证结果，不等价于 GitHub Actions。通过 GitHub Checks API 复核该精确 SHA：**8 项全部 success**，`backend-unit-tests` 于 2026-11-23 08:00:39 UTC 完成。该 Actions 结果只适用于此精确 SHA。
