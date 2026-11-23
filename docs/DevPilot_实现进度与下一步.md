@@ -1,8 +1,12 @@
 # DevPilot 实现进度与下一步
 
-> **当前切片：PERF-03 调度核心候选（2026-11-23）**：PERF-02 性能证据浏览已在 `main`，基线 `08d281c`。PERF-03 在隔离 worktree `feature/perf-03-scheduler` 实现纯 Python `PerformanceSchedule` 状态机及 12 项回归：预生成 dispatch manifest、warmup barrier、并发/在途上限、冻结 case 顺序循环、真实 `send_started` 测量窗、请求数/时长先到停止、wall-time 截止、drain 时区分 `unknown` 与 `not_started`，以及不可变输入校验。该候选未提交，未接 DB、API、worker、真实请求或证据落库，不能视为性能压测已可用。
-
-**Full-suite verification correction (2026-11-23):** Linux/Python 3.12 `make test` first completed with **13,845 passed / 1 failed / 79 skipped / 11 deselected / 40 warnings / 7 subtests passed**. The lone failure, `test_allowlisted_distribution_can_read_actual_sources`, was caused by `performance_schedule.py` being listed after `pinned_http.py`, violating the builder's strict sorted-manifest contract; the package-coverage test itself passed. The manifest order was corrected. The affected allowlist regression tests then passed (**2 passed**), the PERF-03 focused Linux suite passed (**207 passed**), `make lint` passed (**1,348 files already formatted**), and the final Linux/Python 3.12 full `make test` passed: **13,846 passed / 79 skipped / 11 deselected / 40 warnings / 7 subtests passed** in 38:56. This is a worktree result only; no commit, push, merge, or SHA-specific Actions verification has occurred.
+> **当前切片：PERF-03 调度核心已合入（2026-11-23）**：`main` 与 `origin/main` 位于 `28ea31e866ac6bcead6417ea940afaad9da8ac3b`。`PerformanceSchedule` 纯 Python 状态机及 12 项回归已合入；Linux/Python 3.12 全后端 `make test`、lint、Blocking IO 和该切片定向测试均有通过记录。精确 SHA 的 GitHub Checks 已终结：**8 项全部 success**，其中 `backend-unit-tests` 于 2026-11-23 08:00:39 UTC 完成。
+>
+> **功能边界：**当前调度器仅规划/跟踪内存中的 dispatch，不负责持久化 admission、Worker 生命周期、真实请求发送、取消与 drain、逐请求证据落库、完整指标 API 或压测 UI。PERF-02 `/workspace/performance-results` 仅浏览已有运行和证据，不是压测入口。
+>
+> **后续切片：**上述精确 SHA Actions 已全部成功；接下来按性能合同实现 durable admission/worker、发送授权与未知结果只读对账、取消/drain 与证据闭环；再补齐指标聚合/API 和可操作工作台。PostgreSQL 为默认持久化后端，必须验证 PostgreSQL parity；禁止真实模型/目标默认调用，未知发送不可自动重试。全局文档/代码差异审计及效果测试返回浏览仍属于原始总目标，不能因当前性能切片而结项。
+>
+> **历史轮次记录（下列候选/环境结果保留其原始语境，不代表当前分支状态）：**
 
 **本轮验证补记（2026-11-23）**：调度器定向测试 **11 passed**；DevPilot evaluation/toolkit 测试 **131 passed / 2 skipped / 87 subtests passed**；涉及文件 Ruff check 与 format check 通过。回归先证实旧实现以 `claim()` 错误启动测量窗，现已将窗口与 duration 起点绑定到 `send_started`，并区分已发送后未知与从未发送。后端全套第一次因 Windows 共享 pytest 临时目录权限失败；换用 worktree 内隔离临时目录重跑仍有 **263 failed / 363 errors**（同时 13,182 passed、117 skipped、11 deselected），因此全量后端门禁未通过。已抽查 `test_runtime_config_store_file_is_owner_only` 的 Windows/POSIX mode 差异；不更改该测试或权限语义来消除环境失败。当前尚未提交、推送或合并；精确 SHA Actions 尚无。该候选仍需完整 Linux/Python 3.12 后端门禁、相关 PostgreSQL parity 与 Worker 持久化/证据闭环实现。
 **阶段验证更正**：上述 Windows 和历史阶段数据保留为其对应轮次记录；当前 Linux/Python 3.12 全量结果以本文件顶部的“本轮全量验证更正”为准。
@@ -15,7 +19,7 @@
 
 ## 当前里程碑
 
-截至 2026-11-23，`main` 已包含 `eval_0025..0027`、纯指标投影、ledger API、响应 artifact、授权读取/审计及性能结果浏览 UI。PR #5 以合并提交 `a672af3fd44f4e053b880a3ca5d53163eb525733` 合入。性能结果 UI 只浏览已有账本和证据；纯调度状态机另在隔离 worktree 的 PERF-03 候选中，测量窗已按合同绑定真实 `send_started`，但候选尚未提交且没有 worker/实际压测能力。下一步完成 Linux/Python 3.12 全量与 PostgreSQL parity 验证，再实现 durable admission/worker、逐请求证据闭环；不得复用旧 perf runner 作为新调度器。详细合同见[性能工作台设计](DevPilot_AI性能测试工作台设计.md)。
+截至 2026-11-23，`main` 位于 `28ea31e866ac6bcead6417ea940afaad9da8ac3b`，包含 PERF-02 逐请求性能证据浏览和 PERF-03 确定性调度核心。前者不发送请求；后者是纯调度状态机，不含 durable admission/worker 或实际压测链路。Linux/Python 3.12 全量、lint、Blocking IO 有本地通过记录；精确 SHA 的 GitHub Actions 已全部成功（8/8）。下一步实现 durable admission/worker、授权发送、未知状态只读对账、取消/drain 与证据闭环，随后完善指标 API 和压测 UI；效果测试浏览与全局文档/重构审计仍在总目标内。详细合同见[性能工作台设计](DevPilot_AI性能测试工作台设计.md)。
 
 文档治理切片 DOC-01 已完成：合同 Owner 导航、状态/进度/历史单一来源、目标与候选状态区分、旧入口归档标注、功能矩阵源码/测试路径核对、旧性能入口重构门槛和链接/格式终检均已记录。完成范围与边界见下方开发进度及本轮开发记录；DOC-01 仅表示文档可作为后续实现依据，不表示目标功能已实现或验收。
 
