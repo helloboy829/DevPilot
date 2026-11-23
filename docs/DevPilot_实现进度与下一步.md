@@ -1,5 +1,15 @@
 # DevPilot 实现进度与下一步
 
+> **Current delivery facts (2026-11-23):** PERF-04 durable dispatch boundary is merged into `main` (`302ae07`). PERF-05 candidate `0b7c73a` adds `PerformanceRunAdmission` and `POST /api/evaluation/projects/{project_id}/performance-runs/{run_id}/admit`: the service locks the run in a transaction, revalidates the frozen scenario/hash/profile/manifest, and idempotently writes `created -> running` plus a `run_admitted` audit event; the first dispatch remains `pending` with no `send_started_ns`. Migration head is `eval_0029`.
+>
+> This is still not a complete load-test loop: worker consumption, target authorization/real transport, cancel/drain, complete metrics API, and start-load-test UI are not implemented. The required order remains durable admission -> worker lease -> ACK -> send_started -> observation -> metrics.
+
+
+> **Fact sync (2026-11-23):** The design contracts are now in implementation. Main baseline: `d9133a962b316a32970343efecc8d887d236869a`; PERF-04 is merged; candidate `0b7c73a` implements PERF-05 durable admission: owner-scoped, idempotent `created -> running` transition with full frozen scenario/hash/profile/manifest revalidation and a `run_admitted` audit event, using migration head `eval_0029`. This slice does not start a worker, send a target request, or provide a complete load-test entry point.
+>
+> Verified: performance repository/router/migration **29 passed / 1 skipped**, Ruff check/format passed. Pending: push and exact-SHA Actions verification, main merge, then worker/transport/cancel-drain/metrics/UI slices.
+
+
 
 > **Current candidate slice (2026-11-23):** `feature/perf-04-dispatch-boundary` is based on main `49aa508fa11a4fd0b90af383ed34a6d8172f6db2` and implements the PERF-04 repository boundary. Focused verification in this worktree is **41 passed / 1 skipped**; the existing-row migration regression and PostgreSQL migration parity also pass. The candidate is not committed, pushed, or merged. The next gate is precise cleanup, commit, push, exact-SHA Actions verification, and merge to `main`. This slice is not the complete performance execution path.
 > **当前切片：PERF-03 调度核心已合入（2026-11-23）**：`main` 与 `origin/main` 位于 `28ea31e866ac6bcead6417ea940afaad9da8ac3b`。`PerformanceSchedule` 纯 Python 状态机及 12 项回归已合入；Linux/Python 3.12 全后端 `make test`、lint、Blocking IO 和该切片定向测试均有通过记录。精确 SHA 的 GitHub Checks 已终结：**8 项全部 success**，其中 `backend-unit-tests` 于 2026-11-23 08:00:39 UTC 完成。

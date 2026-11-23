@@ -628,7 +628,7 @@ async def test_eval0028_migrates_existing_dispatch_artifact_rows(prepared):
     ticket = await runs.acknowledge_dispatch("owner", project_id, run["id"], 0, send_started_ns=100)
 
     # Simulate an eval_0027 database: the response artifact and dispatched row
-    # exist, but the eval_0028-only audit actions do not.
+    # exist, but the eval_0029-only audit actions do not.
     async with repo.sf.begin() as session:
         await session.execute(
             t.performance_run_audit.delete().where(
@@ -648,3 +648,28 @@ async def test_eval0028_migrates_existing_dispatch_artifact_rows(prepared):
         artifact = (await connection.execute(select(t.performance_response_artifacts.c.id, t.performance_response_artifacts.c.dispatch_id).where(t.performance_response_artifacts.c.id == ticket["response_artifact_id"]))).one()
     assert row.lease_epoch == 0
     assert artifact.dispatch_id == row.dispatch_id
+
+
+@pytest.mark.asyncio
+async def test_admit_run_is_durable_idempotent_and_does_not_start_dispatch(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+
+    admitted = await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+
+    assert admitted["status"] == "running"
+    dispatches = await runs.list_dispatches("owner", project_id, run["id"])
+    assert all(row["state"] == "pending" and row["send_started_ns"] is None for row in dispatches)
+    actions = [event["action"] for event in await runs.run_audit("owner", project_id, run["id"])]
+    assert actions[-1] == "run_admitted"
+
+    repeated = await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    assert repeated == admitted
+    actions = [event["action"] for event in await runs.run_audit("owner", project_id, run["id"])]
+    assert actions.count("run_admitted") == 1
+
+    with pytest.raises(Conflict):
+        await runs.admit_run("owner", project_id, run["id"], confirmed=False)
+    with pytest.raises(NotFound):
+        await runs.admit_run("another-owner", project_id, run["id"], confirmed=True)

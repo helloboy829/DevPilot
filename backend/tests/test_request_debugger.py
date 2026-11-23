@@ -63,6 +63,7 @@ def test_common_escaped_scheme_separator_is_normalized():
     spec = parse_curl("curl 'https\\://10.149.73.28:5035/dify/v1/chat-messages'")
     assert spec.url == "https://10.149.73.28:5035/dify/v1/chat-messages"
 
+
 def test_multiline_and_auth_and_strict_schema():
     spec = parse_curl(
         'curl --url https://example.test \

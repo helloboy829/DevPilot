@@ -184,6 +184,71 @@ class PerformanceRunRepository(EvaluationRepository):
             )
         return await self.get_run(owner, project_id, run_id)
 
+    async def admit_run(self, owner, project_id, run_id, *, confirmed):
+        """Durably authorize a frozen run without claiming or sending a dispatch."""
+        if confirmed is not True:
+            raise Conflict
+        async with self.sf.begin() as session:
+            run = await self._run(session, owner, project_id, run_id, lock=True)
+            if run["status"] == "running":
+                pass
+            elif run["status"] != "created":
+                raise Conflict
+            else:
+                scenario_row = (
+                    (
+                        await session.execute(
+                            select(t.performance_scenarios).where(
+                                t.performance_scenarios.c.project_id == project_id,
+                                t.performance_scenarios.c.id == run["scenario_id"],
+                            )
+                        )
+                    )
+                    .mappings()
+                    .first()
+                )
+                if scenario_row is None:
+                    raise Conflict
+                scenario = PerformanceScenarioRepository._public(dict(scenario_row))
+                if not hmac.compare_digest(scenario["definition_hash"], run["scenario_hash"]):
+                    raise Conflict
+                definition = scenario["definition"]
+                try:
+                    profile = PerformanceProfile.model_validate(definition["profile"])
+                    manifest = definition["manifest"]
+                    expected_manifest = build_case_manifest(
+                        definition["case_order"],
+                        warmup_count=profile.warmup_request_count,
+                        measured_count=profile.measured_request_count,
+                    )
+                    if manifest != expected_manifest or len(manifest) != run["population_count"] or fingerprint(profile.model_dump(mode="json")) != run["profile_hash"] or fingerprint(manifest) != run["manifest_hash"]:
+                        raise ValueError
+                except (KeyError, TypeError, ValueError):
+                    raise Conflict from None
+                await session.execute(
+                    update(t.performance_runs)
+                    .where(
+                        t.performance_runs.c.project_id == project_id,
+                        t.performance_runs.c.id == run_id,
+                        t.performance_runs.c.status == "created",
+                    )
+                    .values(status="running")
+                )
+                await self._append_audit(
+                    session,
+                    project_id,
+                    run_id,
+                    owner,
+                    "run_admitted",
+                    {
+                        "admission_version": "performance-admission.v1",
+                        "profile_hash": run["profile_hash"],
+                        "manifest_hash": run["manifest_hash"],
+                        "population_count": run["population_count"],
+                    },
+                )
+        return await self.get_run(owner, project_id, run_id)
+
     async def _run(self, session, owner, project_id, run_id, *, lock=False):
         statement = select(t.performance_runs).where(
             t.performance_runs.c.project_id == project_id,

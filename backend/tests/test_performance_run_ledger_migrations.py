@@ -97,7 +97,7 @@ async def test_performance_run_ledger_postgresql_migration_is_reversible_and_mat
                 )
             )
             assert differences == []
-            assert (await connection.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0028"
+            assert (await connection.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0029"
 
         config = Config()
         config.set_main_option("script_location", str(Path(schema.__file__).parent / "migrations"))
@@ -110,7 +110,7 @@ async def test_performance_run_ledger_postgresql_migration_is_reversible_and_mat
 
         await schema.upgrade_evaluation_schema(engine)
         async with engine.connect() as connection:
-            assert (await connection.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0028"
+            assert (await connection.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0029"
     finally:
         await engine.dispose()
         await asyncio.to_thread(drop)

@@ -1136,7 +1136,11 @@ performance_run_audit = Table(
     ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_performance_runs.project_id", "evaluation_performance_runs.id"]),
     CheckConstraint("sequence >= 1", name="ck_evaluation_performance_run_audit_sequence"),
     CheckConstraint(
-        "action IN ('run_created','dispatch_claimed','dispatch_acknowledged','dispatch_started','measurement_window_closed','observation_recorded','run_interrupted','run_finished','response_access_granted','response_access_read')",
+        "action IN ("
+        "'run_created','run_admitted','dispatch_claimed','dispatch_acknowledged',"
+        "'dispatch_started','measurement_window_closed','observation_recorded',"
+        "'run_interrupted','run_finished','response_access_granted','response_access_read'"
+        ")",
         name="ck_evaluation_performance_run_audit_action",
     ),
 )

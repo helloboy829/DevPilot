@@ -98,3 +98,14 @@ class PerformanceRunCreate(StrictDTO):
         if value is not True:
             raise ValueError("Explicit boolean confirmation required")
         return value
+
+
+class PerformanceRunAdmission(StrictDTO):
+    confirmed: Literal[True]
+
+    @field_validator("confirmed", mode="before")
+    @classmethod
+    def require_confirmation(cls, value):
+        if value is not True:
+            raise ValueError("Explicit boolean confirmation required")
+        return value
