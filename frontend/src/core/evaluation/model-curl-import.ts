@@ -1,6 +1,10 @@
 const MAX_COMMAND_LENGTH = 16_384;
 const INVALID_COMMAND =
   "Unable to parse cURL command. Check its syntax and supported options.";
+const INSECURE_TLS_COMMAND =
+  "Insecure TLS options -k/--insecure are disabled; use a certificate trusted by the DevPilot gateway.";
+const DIFY_APP_COMMAND =
+  "This cURL targets a Dify app endpoint, not a model endpoint. Use the request debugger for Dify chat requests.";
 const ENVIRONMENT_REFERENCE =
   /^\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})$/;
 
@@ -17,8 +21,8 @@ export interface ModelCurlImport {
   apiKey: string | null;
 }
 
-function invalid(): never {
-  throw new Error(INVALID_COMMAND);
+function invalid(message = INVALID_COMMAND): never {
+  throw new Error(message);
 }
 
 function tokenize(command: string): string[] {
@@ -171,6 +175,15 @@ export function parseModelCurl(command: string): ModelCurlImport {
 
   while (++index < tokens.length) {
     const token = tokens[index]!;
+    if (
+      token === "-k" ||
+      token === "--insecure" ||
+      (token.startsWith("-") &&
+        !token.startsWith("--") &&
+        token.slice(1).includes("k"))
+    ) {
+      invalid(INSECURE_TLS_COMMAND);
+    }
     let option: string;
     let inlineValue: string | undefined;
     const equalsAt = token.indexOf("=");
@@ -224,6 +237,17 @@ export function parseModelCurl(command: string): ModelCurlImport {
   }
 
   if (!urlText) invalid();
+  // Some web consoles escape the scheme separator as ``https\://`` when
+  // copying a command. Normalize only this presentation-only escape; the
+  // resulting URL still passes the strict HTTP(S) checks below. Use explicit
+  // prefix handling here so the backslash is not confused with regex syntax.
+  for (const scheme of ["http", "https"] as const) {
+    const escapedPrefix = `${scheme}\\://`;
+    if (urlText.toLowerCase().startsWith(escapedPrefix)) {
+      urlText = `${scheme}://${urlText.slice(escapedPrefix.length)}`;
+      break;
+    }
+  }
   let url: URL;
   try {
     url = new URL(urlText);
@@ -238,6 +262,9 @@ export function parseModelCurl(command: string): ModelCurlImport {
     /[\u0000-\u001f\u007f]/.test(urlText)
   )
     invalid();
+  if (/\/dify\/v1\/chat-messages\/?$/i.test(url.pathname)) {
+    invalid(DIFY_APP_COMMAND);
+  }
 
   let apiKey: string | null = null;
   for (const [name, value] of headers) {

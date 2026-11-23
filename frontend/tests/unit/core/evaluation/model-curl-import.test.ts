@@ -96,3 +96,53 @@ it("rejects shell syntax and unsupported options without echoing credentials", (
     expect(error).not.toContain(secret);
   }
 });
+
+it("explains insecure TLS and routes Dify app cURLs to the request debugger", () => {
+  expect(() =>
+    parseModelCurl(
+      "curl -k -X POST 'https://10.149.73.28:5035/dify/v1/chat-messages'",
+    ),
+  ).toThrow(/-k\/--insecure/);
+  expect(() =>
+    parseModelCurl(
+      "curl -sk -X POST 'https://10.149.73.28:5035/dify/v1/chat-messages'",
+    ),
+  ).toThrow(/-k\/--insecure/);
+
+  expect(() =>
+    parseModelCurl(
+      "curl -X POST 'https://10.149.73.28:5035/dify/v1/chat-messages' --json '{}'",
+    ),
+  ).toThrow(/Dify app endpoint.*request debugger/i);
+});
+
+it("normalizes a presentation-escaped scheme separator", () => {
+  expect(
+    parseModelCurl(
+      "curl 'https\\://relay.example/v1/chat/completions' --json '{\"model\":\"relay-model\"}'",
+    ),
+  ).toMatchObject({
+    provider: "openai_compatible",
+    baseUrl: "https://relay.example/v1",
+    model: "relay-model",
+  });
+});
+
+it("does not execute or send a cURL command while parsing", () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    throw new Error("fetch must not be called by the parser");
+  }) as typeof fetch;
+  try {
+    expect(
+      parseModelCurl(
+        'curl https://relay.example/v1/chat/completions --json \'{"model":"relay-model"}\'',
+      ),
+    ).toMatchObject({ model: "relay-model" });
+    expect(calls).toBe(0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

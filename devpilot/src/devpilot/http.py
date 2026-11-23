@@ -72,6 +72,15 @@ def parse_curl(command: str) -> RequestSpec:
     value_flags = {"-X", "--request", "-H", "--header", "-d", "--data", "--data-raw", "--data-binary", "--json", "--url", "-u", "--user"}
     while i < len(tokens):
         token = tokens[i]
+        if token in {"-k", "--insecure"} or (
+            token.startswith("-")
+            and not token.startswith("--")
+            and "k" in token[1:]
+        ):
+            raise ValueError(
+                "Insecure TLS options -k/--insecure are disabled; remove the option "
+                "and use a certificate trusted by the DevPilot gateway"
+            )
         if token in {"-s", "-S", "-sS", "--silent", "--show-error", "--compressed", "-i", "--include", "-N", "--no-buffer"}:
             i += 1
             continue
@@ -110,6 +119,11 @@ def parse_curl(command: str) -> RequestSpec:
         i += 1
     if url is None:
         raise ValueError("cURL URL is missing")
+    # Some web consoles escape the scheme separator as ``https\://`` when
+    # copying a command. Treat that presentation-only escape as ``https://``;
+    # no shell is evaluated and the resulting URL still goes through the
+    # strict RequestSpec HTTP(S) validation below.
+    url = re.sub(r"^(https?)\\://", r"\1://", url, count=1, flags=re.IGNORECASE)
     if has_body and not any(h[0].lower() == "content-type" for h in headers):
         headers.append(["Content-Type", "application/x-www-form-urlencoded"])
     return RequestSpec(url=url, method=method or ("POST" if has_body else "GET"), headers=headers, body=body)
