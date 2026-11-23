@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
+import json
 import math
 import secrets
 import time
 from collections import Counter
 from collections.abc import Mapping
+from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import func, insert, select, update
@@ -607,6 +610,46 @@ class PerformanceRunRepository(EvaluationRepository):
                     window_end_ns=run["window_end_ns"],
                 )
             return result
+
+    @staticmethod
+    def _decode_run_cursor(cursor):
+        if type(cursor) is not str or not 1 <= len(cursor) <= 256:
+            raise ValueError("Invalid performance run cursor")
+        try:
+            raw = base64.b64decode(cursor + "=" * (-len(cursor) % 4), altchars=b"-_", validate=True)
+            values = json.loads(raw)
+            if not isinstance(values, list) or len(values) != 2 or any(type(value) is not str for value in values) or not 1 <= len(values[0]) <= 40 or not 1 <= len(values[1]) <= 64 or datetime.fromisoformat(values[0]).tzinfo is None:
+                raise ValueError
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            raise ValueError("Invalid performance run cursor") from None
+        return values[0], values[1]
+
+    @staticmethod
+    def _encode_run_cursor(created_at, run_id):
+        raw = json.dumps([created_at, run_id], separators=(",", ":")).encode("utf-8")
+        return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+    async def list_runs(self, owner, project_id, *, limit=50, cursor=None):
+        if type(limit) is not int or not 1 <= limit <= 200:
+            raise ValueError("Invalid performance run page")
+        cursor_values = self._decode_run_cursor(cursor) if cursor is not None else None
+        async with self.sf() as session:
+            await self._project(session, owner, project_id)
+            filters = [
+                t.performance_runs.c.project_id == project_id,
+                t.performance_runs.c.owner_id == owner,
+            ]
+            total = await session.scalar(select(func.count()).select_from(t.performance_runs).where(*filters))
+            statement = select(t.performance_runs).where(*filters)
+            if cursor_values is not None:
+                created_at, run_id = cursor_values
+                statement = statement.where((t.performance_runs.c.created_at < created_at) | ((t.performance_runs.c.created_at == created_at) & (t.performance_runs.c.id < run_id)))
+            rows = await session.execute(statement.order_by(t.performance_runs.c.created_at.desc(), t.performance_runs.c.id.desc()).limit(limit + 1))
+            items = [dict(row) for row in rows.mappings()]
+            has_more = len(items) > limit
+            items = items[:limit]
+            next_cursor = self._encode_run_cursor(items[-1]["created_at"], items[-1]["id"]) if has_more and items else None
+            return {"items": items, "total": total, "next_cursor": next_cursor}
 
     async def list_dispatches(self, owner, project_id, run_id, *, offset=0, limit=100):
         if type(offset) is not int or not 0 <= offset < self._MAX_RUN_POPULATION:

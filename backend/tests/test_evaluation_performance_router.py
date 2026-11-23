@@ -104,6 +104,13 @@ async def test_run_api_creates_ledger_only_and_exposes_bounded_dispatch_reads(ap
     assert "SYNTHETIC_GOLD" not in created.text and "SYNTHETIC_TOKEN" not in created.text
 
     run_path = runs_path + "/" + run["id"]
+    run_page = await client.get(runs_path + "?limit=1")
+    assert run_page.status_code == 200
+    assert "no-store" in run_page.headers["cache-control"]
+    assert run_page.json()["total"] == 1
+    assert [item["id"] for item in run_page.json()["items"]] == [run["id"]]
+    assert run_page.json()["next_cursor"] is None
+    assert (await client.get(runs_path + "?limit=201")).status_code == 422
     summary = await client.get(run_path)
     assert summary.status_code == 200
     assert summary.json() == run
@@ -116,6 +123,7 @@ async def test_run_api_creates_ledger_only_and_exposes_bounded_dispatch_reads(ap
 
     app.state.actor = 2
     assert (await client.get(run_path)).status_code == 404
+    assert (await client.get(runs_path)).status_code == 404
     app.state.actor = 1
     app.state.internal = True
     internal_summary = await client.get(run_path)

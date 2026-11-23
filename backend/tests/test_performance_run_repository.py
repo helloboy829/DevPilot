@@ -75,6 +75,29 @@ async def test_create_run_freezes_scenario_population_and_is_owner_scoped(prepar
 
 
 @pytest.mark.asyncio
+async def test_list_runs_is_project_and_owner_scoped_with_stable_cursor_pages(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    expected_ids = [f"{value:032x}" for value in (1, 2, 3)]
+    for run_id in expected_ids:
+        await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True, run_id=run_id)
+
+    first = await runs.list_runs("owner", project_id, limit=2)
+    second = await runs.list_runs("owner", project_id, limit=2, cursor=first["next_cursor"])
+
+    assert first["total"] == 3
+    assert [item["id"] for item in first["items"]] == list(reversed(expected_ids[1:]))
+    assert [item["id"] for item in second["items"]] == expected_ids[:1]
+    assert second["next_cursor"] is None
+    with pytest.raises(NotFound):
+        await runs.list_runs("another-owner", project_id)
+    with pytest.raises(ValueError):
+        await runs.list_runs("owner", project_id, limit=201)
+    with pytest.raises(ValueError):
+        await runs.list_runs("owner", project_id, cursor="not-a-cursor")
+
+
+@pytest.mark.asyncio
 async def test_create_run_requires_confirmation_and_exact_scenario_hash(prepared):
     repo, project_id, scenario = await make_scenario(prepared)
     runs = PerformanceRunRepository(repo.sf)

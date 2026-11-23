@@ -84,6 +84,28 @@ async def create_performance_run(project_id: str, payload: PerformanceRunCreate,
         raise HTTPException(503, "Evaluation persistence failed; reload and inspect current state") from None
 
 
+@router.get("/{project_id}/performance-runs")
+@require_permission("evaluation_projects", "read")
+async def list_performance_runs(
+    project_id: str,
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=200),
+    cursor: str | None = Query(default=None, min_length=1, max_length=256),
+):
+    owner, repository = await _context(request)
+    _require_human(request)
+    try:
+        return await _run_repo(repository).list_runs(owner, project_id, limit=limit, cursor=cursor)
+    except NotFound:
+        raise HTTPException(404, "Project not found") from None
+    except ValueError:
+        raise HTTPException(422, "Invalid performance run page") from None
+    except Conflict:
+        raise HTTPException(409, "Performance run ledger failed integrity validation") from None
+    except SQLAlchemyError:
+        raise HTTPException(503, "Evaluation persistence failed; reload and inspect current state") from None
+
+
 @router.get("/{project_id}/performance-runs/{run_id}")
 @require_permission("evaluation_projects", "read")
 async def get_performance_run(project_id: str, run_id: str, request: Request):
