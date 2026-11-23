@@ -44,7 +44,7 @@ def profile(**changes):
     )
 
 
-async def make_scenario(prepared):
+async def make_scenario(prepared, *, profile_overrides=None):
     repo, _, project_id, source_plan, _ = prepared
     source = source_plan["definition"]
     plan = await repo.create_plan(
@@ -59,7 +59,7 @@ async def make_scenario(prepared):
             )
         ),
     )
-    scenario = await PerformanceScenarioRepository(repo.sf).create("owner", project_id, source_plan["component_id"], plan["id"], profile())
+    scenario = await PerformanceScenarioRepository(repo.sf).create("owner", project_id, source_plan["component_id"], plan["id"], profile(**(profile_overrides or {})))
     return repo, project_id, scenario
 
 
@@ -673,3 +673,37 @@ async def test_admit_run_is_durable_idempotent_and_does_not_start_dispatch(prepa
         await runs.admit_run("owner", project_id, run["id"], confirmed=False)
     with pytest.raises(NotFound):
         await runs.admit_run("another-owner", project_id, run["id"], confirmed=True)
+
+
+@pytest.mark.asyncio
+async def test_ack_rejects_expired_lease_without_reserving_artifact(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    lease = await runs.claim_dispatch(
+        "owner",
+        project_id,
+        run["id"],
+        0,
+        worker_id="worker-expiring",
+        lease_expires_at_ms=int(time.time() * 1000) + 5,
+    )
+    await asyncio.sleep(0.02)
+
+    with pytest.raises(Conflict):
+        await runs.acknowledge_dispatch(
+            "owner",
+            project_id,
+            run["id"],
+            0,
+            worker_id="worker-expiring",
+            lease_epoch=lease["lease_epoch"],
+            request_bytes=1,
+            request_hash=hashlib.sha256(b"x").hexdigest(),
+        )
+
+    async with repo.sf() as session:
+        dispatch = (await session.execute(select(t.performance_dispatches).where(t.performance_dispatches.c.run_id == run["id"], t.performance_dispatches.c.ordinal == 0))).mappings().one()
+        artifact = (await session.execute(select(t.performance_response_artifacts).where(t.performance_response_artifacts.c.run_id == run["id"], t.performance_response_artifacts.c.ordinal == 0))).first()
+    assert dispatch["state"] == "pending"
+    assert artifact is None

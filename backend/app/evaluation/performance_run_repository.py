@@ -249,6 +249,77 @@ class PerformanceRunRepository(EvaluationRepository):
                 )
         return await self.get_run(owner, project_id, run_id)
 
+    async def mark_synthetic_execution(self, owner, project_id, run_id):
+        """Irreversibly label an admitted run synthetic before its first dispatch."""
+        async with self.sf.begin() as session:
+            run = await self._run(session, owner, project_id, run_id, lock=True)
+            if run["status"] != "running":
+                raise Conflict
+            if run["execution_mode"] == "synthetic_only":
+                return
+            if run["execution_mode"] != "target":
+                raise Conflict
+            pending = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(t.performance_dispatches)
+                    .where(
+                        t.performance_dispatches.c.project_id == project_id,
+                        t.performance_dispatches.c.run_id == run_id,
+                        t.performance_dispatches.c.state != "pending",
+                    )
+                )
+            ).scalar_one()
+            if pending:
+                raise Conflict
+            await session.execute(update(t.performance_runs).where(t.performance_runs.c.project_id == project_id, t.performance_runs.c.id == run_id, t.performance_runs.c.execution_mode == "target").values(execution_mode="synthetic_only"))
+            await self._append_audit(session, project_id, run_id, owner, "synthetic_mode_selected", {"execution_mode": "synthetic_only"})
+
+    async def get_execution_snapshot(self, owner, project_id, run_id):
+        """Return only the verified frozen profile and case manifest for an admitted run."""
+        async with self.sf() as session:
+            run = await self._run(session, owner, project_id, run_id)
+            if run["status"] != "running":
+                raise Conflict
+            scenario_row = (
+                (
+                    await session.execute(
+                        select(t.performance_scenarios).where(
+                            t.performance_scenarios.c.project_id == project_id,
+                            t.performance_scenarios.c.id == run["scenario_id"],
+                        )
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if scenario_row is None:
+                raise Conflict
+            scenario = PerformanceScenarioRepository._public(dict(scenario_row))
+            if not hmac.compare_digest(scenario["definition_hash"], run["scenario_hash"]):
+                raise Conflict
+            definition = scenario["definition"]
+            try:
+                profile = PerformanceProfile.model_validate(definition["profile"])
+                manifest = definition["manifest"]
+                expected_manifest = build_case_manifest(
+                    definition["case_order"],
+                    warmup_count=profile.warmup_request_count,
+                    measured_count=profile.measured_request_count,
+                )
+                if manifest != expected_manifest or len(manifest) != run["population_count"] or fingerprint(profile.model_dump(mode="json")) != run["profile_hash"] or fingerprint(manifest) != run["manifest_hash"]:
+                    raise ValueError
+            except (KeyError, TypeError, ValueError):
+                raise Conflict from None
+            return {
+                "run_id": run_id,
+                "scenario_hash": run["scenario_hash"],
+                "profile_hash": run["profile_hash"],
+                "manifest_hash": run["manifest_hash"],
+                "profile": profile,
+                "manifest": [dict(entry) for entry in manifest],
+            }
+
     async def _run(self, session, owner, project_id, run_id, *, lock=False):
         statement = select(t.performance_runs).where(
             t.performance_runs.c.project_id == project_id,
@@ -510,6 +581,19 @@ class PerformanceRunRepository(EvaluationRepository):
                 raise Conflict
             await session.execute(update(t.performance_runs).where(t.performance_runs.c.id == run_id).values(window_end_ns=window_end_ns))
             await self._append_audit(session, project_id, run_id, owner, "measurement_window_closed", {"window_end_ns": window_end_ns})
+            unfinished = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(t.performance_dispatches)
+                    .where(
+                        t.performance_dispatches.c.run_id == run_id,
+                        t.performance_dispatches.c.state.in_(["pending", "dispatched"]),
+                    )
+                )
+            ).scalar_one()
+            if unfinished == 0:
+                await session.execute(update(t.performance_runs).where(t.performance_runs.c.id == run_id, t.performance_runs.c.status == "running").values(status="completed", finished_at=now()))
+                await self._append_audit(session, project_id, run_id, owner, "run_finished", {"population_count": run["population_count"]})
 
     async def record_observation(
         self,
@@ -793,7 +877,7 @@ class PerformanceRunRepository(EvaluationRepository):
             await session.execute(update(t.performance_response_artifacts).where(t.performance_response_artifacts.c.id == current["id"], t.performance_response_artifacts.c.status == "write_unknown").values(**values))
         return {"artifact_id": artifact["id"], "status": final_status, "reconciled": True}
 
-    async def _interrupt(self, session, run, actor, at_ns):
+    async def _interrupt(self, session, run, actor, at_ns, reason="delivery_unknown"):
         run_id = run["id"]
         await session.execute(
             update(t.performance_response_artifacts)
@@ -814,15 +898,17 @@ class PerformanceRunRepository(EvaluationRepository):
         await session.execute(update(t.performance_dispatches).where(t.performance_dispatches.c.run_id == run_id, t.performance_dispatches.c.state == "pending").values(state="not_dispatched"))
         await session.execute(update(t.performance_dispatches).where(t.performance_dispatches.c.run_id == run_id, t.performance_dispatches.c.state == "dispatched").values(state="unknown"))
         await session.execute(update(t.performance_runs).where(t.performance_runs.c.id == run_id).values(status="interrupted", window_end_ns=run["window_end_ns"] if run["window_end_ns"] is not None else at_ns, finished_at=now()))
-        await self._append_audit(session, run["project_id"], run_id, actor, "run_interrupted", {"reason": "delivery_unknown", "at_ns": at_ns})
+        await self._append_audit(session, run["project_id"], run_id, actor, "run_interrupted", {"reason": reason, "at_ns": at_ns})
 
-    async def interrupt_run(self, owner, project_id, run_id, *, at_ns):
+    async def interrupt_run(self, owner, project_id, run_id, *, at_ns, reason="delivery_unknown"):
         _bounded_int(at_ns, maximum=9_223_372_036_854_775_807)
+        if type(reason) is not str or reason not in {"delivery_unknown", "duration_limit", "wall_time_limit", "request_byte_budget", "response_byte_budget", "aggregate_byte_budget", "evidence_write_failed"}:
+            raise Conflict
         async with self.sf.begin() as session:
             run = await self._run(session, owner, project_id, run_id, lock=True)
             if run["status"] not in {"created", "running"}:
                 return False
-            await self._interrupt(session, run, owner, at_ns)
+            await self._interrupt(session, run, owner, at_ns, reason)
         return True
 
     async def get_run(self, owner, project_id, run_id):
@@ -835,7 +921,7 @@ class PerformanceRunRepository(EvaluationRepository):
             if sum(counts.values()) != run["population_count"]:
                 raise Conflict
             result = {**run, "state_counts": {state: counts.get(state, 0) for state in _RUN_STATES}, "metrics": None}
-            if run["window_start_ns"] is not None and run["window_end_ns"] is not None:
+            if run["execution_mode"] == "target" and run["window_start_ns"] is not None and run["window_end_ns"] is not None:
                 dispatches = await session.execute(
                     select(
                         t.performance_dispatches.c.ordinal,
