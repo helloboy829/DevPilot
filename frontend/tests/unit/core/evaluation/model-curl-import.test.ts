@@ -84,6 +84,7 @@ it("rejects shell syntax and unsupported options without echoing credentials", (
     `curl https://relay.example/v1/chat/completions -H 'Authorization: Bearer ${secret}' | sh`,
     `curl https://relay.example/v1/chat/completions -d "$(printf ${secret})"`,
     `curl --connect-timeout 1 https://relay.example/v1/chat/completions`,
+    `curl ^ https://relay.example/v1/chat/completions`,
   ];
   for (const command of commands) {
     let error = "";
@@ -125,6 +126,38 @@ it("normalizes a presentation-escaped scheme separator", () => {
     provider: "openai_compatible",
     baseUrl: "https://relay.example/v1",
     model: "relay-model",
+  });
+});
+
+it("parses common Windows cmd cURL exports without expanding credentials", () => {
+  const command = [
+    'curl.exe --location --request POST "https://relay.example/v1/chat/completions" ^',
+    '  --header "Content-Type: application/json" ^',
+    '  --header "Authorization: Bearer %OPENAI_API_KEY%" ^',
+    '  --data-raw "{\\"model\\":\\"relay-model\\",\\"messages\\":[]}"',
+  ].join("\r\n");
+
+  expect(parseModelCurl(command)).toEqual({
+    provider: "openai_compatible",
+    baseUrl: "https://relay.example/v1",
+    model: "relay-model",
+    apiKey: null,
+  });
+});
+
+it("accepts PowerShell continuation and environment-variable credentials as placeholders", () => {
+  const command = [
+    "curl.exe --location --request POST `",
+    "  'https://relay.example/v1/chat/completions' `",
+    "  --header 'Authorization: Bearer $env:OPENAI_API_KEY' `",
+    '  --data-raw \'{"model":"relay-model","messages":[]}\'',
+  ].join("\r\n");
+
+  expect(parseModelCurl(command)).toEqual({
+    provider: "openai_compatible",
+    baseUrl: "https://relay.example/v1",
+    model: "relay-model",
+    apiKey: null,
   });
 });
 

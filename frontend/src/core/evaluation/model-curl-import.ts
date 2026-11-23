@@ -6,7 +6,7 @@ const INSECURE_TLS_COMMAND =
 const DIFY_APP_COMMAND =
   "This cURL targets a Dify app endpoint, not a model endpoint. Use the request debugger for Dify chat requests.";
 const ENVIRONMENT_REFERENCE =
-  /^\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})$/;
+  /^(?:\$(?:[A-Za-z_][A-Za-z0-9_]*|env:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\}|\{env:[A-Za-z_][A-Za-z0-9_]*\})|%[A-Za-z_][A-Za-z0-9_]*%)$/i;
 
 export type ModelProvider =
   | "openai_compatible"
@@ -106,6 +106,14 @@ function tokenize(command: string): string[] {
         index += 1;
       }
     } else if (char === "`") {
+      if (next === "\n" || (next === "\r" && command[index + 2] === "\n")) {
+        index += next === "\r" ? 2 : 1;
+      } else {
+        invalid();
+      }
+    } else if (char === "^") {
+      // Windows cmd uses a caret immediately before CRLF/LF as a line continuation.
+      // Do not treat arbitrary carets as shell syntax or silently execute them.
       if (next === "\n" || (next === "\r" && command[index + 2] === "\n")) {
         index += next === "\r" ? 2 : 1;
       } else {

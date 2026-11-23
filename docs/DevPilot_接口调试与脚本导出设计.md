@@ -52,7 +52,7 @@ Confirmation 绑定 component_version、endpoint/request hash、environment_revi
 | 资源 | timeout、最大响应/文件体积、重试（默认 0）、副作用声明 |
 | 网络安全 | 服务端目的地策略、TLS/企业 CA；用户不可设置 verify=false |
 
-cURL 仅作为导入格式，不作为执行载体。首版只承诺已测试的 POSIX 风格标准 cURL 子集；PowerShell/cmd 的续行/转义须显式转换预览，Invoke-WebRequest 等别名不等于 cURL。拒绝真实管道、重定向、命令替换、可执行插值、不支持 flags 和任意本地文件读取。JSON 字符串里的分号不是 shell 控制符，不能简单字符串黑名单误拒。文件导入为受控 artifact，禁止把 @C:/... 当成服务器可随意读取的路径。
+cURL 仅作为导入格式，不作为执行载体。首版承诺受控 POSIX 标准 cURL 子集，以及仅用于跨行拼接的 Windows cmd 脱字符和 PowerShell 反引号续行；同时识别 POSIX、PowerShell 和 cmd 的整值环境变量占位符，但绝不展开。其他 PowerShell/cmd 语法、Invoke-WebRequest 等别名不等于 cURL。拒绝真实管道、重定向、命令替换、可执行插值、不支持 flags 和任意本地文件读取。JSON 字符串里的分号不是 shell 控制符，不能简单字符串黑名单误拒。文件导入为受控 artifact，禁止把 @C:/... 当成服务器可随意读取的路径。
 环境变量只做受限占位替换，无 eval/模板表达式执行；替换后再次做 URL/请求校验。浏览器统一调用 Gateway，Gateway/Worker 负责目标请求，不因 CORS 问题让浏览器携带凭据直连目标。
 
 ## 4. 流式与 TTFT 门禁
