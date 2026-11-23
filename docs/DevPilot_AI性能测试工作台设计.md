@@ -2,6 +2,8 @@
 
 > 状态：目标规格，待实现。现有冻结计划可声明 `performance` 并配置并发/请求数；未提交/未部署的 EVID-02 候选新增了有界原生响应加密 artifact/manifest，但性能阶段、请求级指标账本、结果 API 与独立 UI 尚未形成闭环。原始 request body 仍未保存。旧 `component-tests` / `evaluation-schedules` 是兼容路径，不作为新工作台基础。
 
+> **PERF-04 implementation boundary (2026-11-23):** The candidate implements PostgreSQL-first durable lease/fence primitives: `claim -> ACK ticket -> send_started`. `eval_0028` adds worker, epoch, and lease-deadline metadata. ACK does not start the measurement window or mark a request as sent; only the current worker/epoch with the stable ticket may transition to `dispatched`. This slice does not include Worker, real transport, admission authorization, cancel/drain, the complete metrics API, or the workbench UI.
+
 ## 1. 目标与产品边界
 
 性能工作台用冻结的数据集和 RequestSpec 产生可重放的工作负载，按明确负载模型发送请求，给出总体和逐请求指标，并保存足以审计/复算的请求、响应、调度和发生器证据。它与效果测试共用项目、组件、数据版本、凭据引用、RequestSpec、运行身份、授权、派发 fence 和原始证据存储；负载模型、测量窗、指标聚合和性能验收单独版本化。

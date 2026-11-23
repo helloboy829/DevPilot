@@ -1022,6 +1022,9 @@ performance_dispatches = Table(
     Column("iteration", Integer, nullable=False),
     Column("dispatch_id", String(64), nullable=False),
     Column("state", String(16), nullable=False),
+    Column("lease_worker_id", String(64)),
+    Column("lease_epoch", Integer, nullable=False, server_default="0"),
+    Column("lease_expires_at_ms", BigInteger),
     Column("request_bytes", Integer),
     Column("request_hash", String(64)),
     Column("response_status", Integer),
@@ -1041,6 +1044,9 @@ performance_dispatches = Table(
     CheckConstraint("ordinal BETWEEN 0 AND 10999 AND iteration >= 0", name="ck_evaluation_performance_dispatch_ordinal"),
     CheckConstraint("phase IN ('warmup','measurement')", name="ck_evaluation_performance_dispatch_phase"),
     CheckConstraint("state IN ('pending','dispatched','succeeded','failed','timeout','unknown','not_dispatched')", name="ck_evaluation_performance_dispatch_state"),
+    CheckConstraint("lease_epoch >= 0", name="ck_evaluation_performance_dispatch_lease_epoch"),
+    CheckConstraint("lease_worker_id IS NULL OR length(lease_worker_id) BETWEEN 1 AND 64", name="ck_evaluation_performance_dispatch_lease_worker"),
+    CheckConstraint("lease_expires_at_ms IS NULL OR lease_expires_at_ms >= 0", name="ck_evaluation_performance_dispatch_lease_expiry"),
     CheckConstraint("request_bytes IS NULL OR request_bytes BETWEEN 0 AND 1048576", name="ck_evaluation_performance_dispatch_request_bytes"),
     CheckConstraint("response_bytes IS NULL OR response_bytes BETWEEN 0 AND 10000001", name="ck_evaluation_performance_dispatch_response_bytes"),
     CheckConstraint("request_hash IS NULL OR (length(request_hash) = 64 AND request_hash = lower(request_hash))", name="ck_evaluation_performance_dispatch_request_hash"),
@@ -1130,7 +1136,7 @@ performance_run_audit = Table(
     ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_performance_runs.project_id", "evaluation_performance_runs.id"]),
     CheckConstraint("sequence >= 1", name="ck_evaluation_performance_run_audit_sequence"),
     CheckConstraint(
-        "action IN ('run_created','dispatch_acknowledged','measurement_window_closed','observation_recorded','run_interrupted','run_finished','response_access_granted','response_access_read')",
+        "action IN ('run_created','dispatch_claimed','dispatch_acknowledged','dispatch_started','measurement_window_closed','observation_recorded','run_interrupted','run_finished','response_access_granted','response_access_read')",
         name="ck_evaluation_performance_run_audit_action",
     ),
 )

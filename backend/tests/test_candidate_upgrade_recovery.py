@@ -53,6 +53,7 @@ REVISIONS = (
     "eval_0025",
     "eval_0026",
     "eval_0027",
+    "eval_0028",
 )
 ADDITIONS = (
     {"evaluation_review_tasks", "evaluation_review_task_assignments", "evaluation_review_task_decisions", "evaluation_review_task_resolutions", "evaluation_review_task_audit"},
@@ -73,6 +74,7 @@ ADDITIONS = (
     {"evaluation_performance_runs", "evaluation_performance_dispatches", "evaluation_performance_run_audit"},
     {"evaluation_performance_response_artifacts"},
     {"evaluation_performance_evidence_access_grants"},
+    set(),
 )
 PASSWORD = "SYNTHETIC_RECOVERY_PASSWORD_ONLY"
 

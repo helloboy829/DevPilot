@@ -87,7 +87,7 @@ async def test_assigned_signature_downgrade_upgrade_preserves_all_old_rows_and_s
     harness = MetaData()
     ComponentRow.__table__.to_metadata(harness)
     async with engine.connect() as conn:
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0027"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0028"
         assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
         for table in (t.approval_requests, t.approval_request_events, t.approval_request_views):
             assert (await conn.execute(select(table))).all() == []
@@ -168,7 +168,7 @@ async def test_postgresql_assigned_signature_migration_parity_and_constraints(ta
         harness = MetaData()
         ComponentRow.__table__.to_metadata(harness)
         async with engine.connect() as conn:
-            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0027"
+            assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0028"
             assert (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one() == "SYNTHETIC_HARNESS"
 
             def parity(connection):

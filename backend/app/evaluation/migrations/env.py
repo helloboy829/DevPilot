@@ -36,7 +36,6 @@ async def run():
             cursor = connection.cursor()
             try:
                 cursor.execute("PRAGMA busy_timeout=30000")
-                cursor.execute("PRAGMA foreign_keys=ON")
             finally:
                 cursor.close()
 
@@ -45,8 +44,19 @@ async def run():
             if engine.dialect.name == "postgresql":
                 await connection.exec_driver_sql("SELECT pg_advisory_xact_lock(719623057)")
             else:
+                # SQLite batch migrations may rebuild a parent table that already
+                # has child foreign keys.  Disable enforcement for this isolated
+                # migration transaction, then verify the complete graph after the
+                # commit on a fresh connection before allowing the engine to close.
+                await connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
                 await connection.exec_driver_sql("BEGIN IMMEDIATE")
             await connection.run_sync(migrate)
+        if engine.dialect.name == "sqlite":
+            async with engine.connect() as connection:
+                await connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+                violations = (await connection.exec_driver_sql("PRAGMA foreign_key_check")).all()
+                if violations:
+                    raise RuntimeError(f"SQLite foreign-key check failed after evaluation migration: {violations!r}")
     finally:
         await engine.dispose()
 

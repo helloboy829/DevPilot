@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import case, func, insert, or_, select, update
 
 from app.evaluation import tables as t
 from app.evaluation.performance_metrics import summarize_performance_dispatches
@@ -166,6 +166,9 @@ class PerformanceRunRepository(EvaluationRepository):
                     **entry,
                     "dispatch_id": uuid4().hex,
                     "state": "pending",
+                    "lease_worker_id": None,
+                    "lease_epoch": 0,
+                    "lease_expires_at_ms": None,
                     "created_at": created_at,
                 }
                 for entry in manifest
@@ -208,11 +211,98 @@ class PerformanceRunRepository(EvaluationRepository):
             )
         )
 
-    async def acknowledge_dispatch(self, owner, project_id, run_id, ordinal, *, send_started_ns, request_bytes=None, request_hash=None):
+    @staticmethod
+    def _worker_id(value):
+        if type(value) is not str or not 1 <= len(value) <= 64:
+            raise Conflict
+        return value
+
+    @staticmethod
+    def _lease_epoch(value):
+        if type(value) is not int or isinstance(value, bool) or not 1 <= value <= 2_147_483_647:
+            raise Conflict
+        return value
+
+    async def claim_dispatch(self, owner, project_id, run_id, ordinal, *, worker_id, lease_expires_at_ms):
+        """Atomically lease one pending ordinal; claiming never means transport started."""
         _bounded_int(ordinal, maximum=10_999)
-        _bounded_int(send_started_ns, maximum=9_223_372_036_854_775_807)
+        worker_id = self._worker_id(worker_id)
+        _bounded_int(lease_expires_at_ms, minimum=1, maximum=2_534_023_007_99000)
+        now_ms = int(time.time() * 1000)
+        if lease_expires_at_ms <= now_ms:
+            raise Conflict
+        async with self.sf.begin() as session:
+            # Do the conditional write before any read in this transaction.  This
+            # is a real serialization point on PostgreSQL and on SQLite, where
+            # SELECT ... FOR UPDATE is only advisory.  A concurrent claimant can
+            # therefore never both observe epoch N and publish epoch N+1.
+            eligible = or_(
+                t.performance_dispatches.c.lease_worker_id.is_(None),
+                t.performance_dispatches.c.lease_expires_at_ms.is_(None),
+                t.performance_dispatches.c.lease_expires_at_ms <= now_ms,
+                t.performance_dispatches.c.lease_worker_id == worker_id,
+            )
+            active_same_worker = (t.performance_dispatches.c.lease_worker_id == worker_id) & (t.performance_dispatches.c.lease_expires_at_ms > now_ms)
+            changed = await session.execute(
+                update(t.performance_dispatches)
+                .where(
+                    t.performance_dispatches.c.project_id == project_id,
+                    t.performance_dispatches.c.run_id == run_id,
+                    t.performance_dispatches.c.ordinal == ordinal,
+                    t.performance_dispatches.c.state == "pending",
+                    eligible,
+                )
+                .values(
+                    lease_worker_id=worker_id,
+                    lease_epoch=case(
+                        (active_same_worker, t.performance_dispatches.c.lease_epoch),
+                        else_=t.performance_dispatches.c.lease_epoch + 1,
+                    ),
+                    lease_expires_at_ms=lease_expires_at_ms,
+                )
+                .returning(*t.performance_dispatches.c),
+            )
+            dispatch = changed.mappings().first()
+            if dispatch is None:
+                raise Conflict
+            run = await self._run(session, owner, project_id, run_id, lock=True)
+            if run["status"] not in {"created", "running"}:
+                raise Conflict
+            # The returned row contains the database-computed epoch; do not
+            # reconstruct it from the caller's snapshot.
+            epoch = dispatch["lease_epoch"]
+            await self._append_audit(
+                session,
+                project_id,
+                run_id,
+                owner,
+                "dispatch_claimed",
+                {"ordinal": ordinal, "worker_id": worker_id, "lease_epoch": epoch},
+            )
+            return {
+                "run_id": run_id,
+                "ordinal": ordinal,
+                "dispatch_id": dispatch["dispatch_id"],
+                "worker_id": worker_id,
+                "lease_epoch": epoch,
+                "lease_expires_at_ms": lease_expires_at_ms,
+            }
+
+    async def acknowledge_dispatch(self, owner, project_id, run_id, ordinal, *, send_started_ns=None, worker_id=None, lease_epoch=None, request_bytes=None, request_hash=None):
+        """Reserve a stable ticket; transport starts only in ``start_dispatch``."""
+        if send_started_ns is not None:
+            if worker_id is not None or lease_epoch is not None:
+                raise Conflict
+            legacy_worker = ("legacy-" + owner)[:64]
+            lease = await self.claim_dispatch(owner, project_id, run_id, ordinal, worker_id=legacy_worker, lease_expires_at_ms=int(time.time() * 1000) + 300_000)
+            ticket = await self.acknowledge_dispatch(owner, project_id, run_id, ordinal, worker_id=legacy_worker, lease_epoch=lease["lease_epoch"], request_bytes=request_bytes, request_hash=request_hash)
+            return await self.start_dispatch(owner, project_id, run_id, ticket, worker_id=legacy_worker, lease_epoch=lease["lease_epoch"], send_started_ns=send_started_ns)
+        worker_id = self._worker_id(worker_id)
+        lease_epoch = self._lease_epoch(lease_epoch)
+        _bounded_int(ordinal, maximum=10_999)
         _bounded_int(request_bytes, maximum=1_048_576) if request_bytes is not None else None
         request_hash = _hash_or_none(request_hash)
+        now_ms = int(time.time() * 1000)
         async with self.sf.begin() as session:
             run = await self._run(session, owner, project_id, run_id, lock=True)
             dispatch = (
@@ -226,10 +316,21 @@ class PerformanceRunRepository(EvaluationRepository):
             )
             if run["status"] not in {"created", "running"} or dispatch is None or dispatch["state"] != "pending":
                 raise Conflict
-            if run["window_end_ns"] is not None and dispatch["phase"] == "measurement" and send_started_ns >= run["window_end_ns"]:
+            if dispatch["lease_worker_id"] != worker_id or dispatch["lease_epoch"] != lease_epoch or dispatch["lease_expires_at_ms"] is None or dispatch["lease_expires_at_ms"] <= now_ms:
                 raise Conflict
-            if dispatch["phase"] == "measurement" and run["window_start_ns"] is not None and send_started_ns < run["window_start_ns"]:
-                raise Conflict
+            artifact = (
+                (
+                    await session.execute(
+                        select(t.performance_response_artifacts).where(t.performance_response_artifacts.c.project_id == project_id, t.performance_response_artifacts.c.run_id == run_id, t.performance_response_artifacts.c.ordinal == ordinal)
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if artifact is not None:
+                if artifact["dispatch_id"] != dispatch["dispatch_id"] or dispatch["request_bytes"] != request_bytes or dispatch["request_hash"] != request_hash:
+                    raise Conflict
+                return {"run_id": run_id, "ordinal": ordinal, "dispatch_id": dispatch["dispatch_id"], "response_artifact_id": artifact["id"]}
             response_artifact_id = uuid4().hex
             at_ms = int(time.time() * 1000)
             await session.execute(
@@ -247,17 +348,80 @@ class PerformanceRunRepository(EvaluationRepository):
                     updated_at_ms=at_ms,
                 )
             )
-            values = {"state": "dispatched", "send_started_ns": send_started_ns, "request_bytes": request_bytes, "request_hash": request_hash}
-            changed = await session.execute(update(t.performance_dispatches).where(t.performance_dispatches.c.run_id == run_id, t.performance_dispatches.c.ordinal == ordinal, t.performance_dispatches.c.state == "pending").values(**values))
+            changed = await session.execute(
+                update(t.performance_dispatches)
+                .where(t.performance_dispatches.c.id == dispatch["id"], t.performance_dispatches.c.state == "pending", t.performance_dispatches.c.lease_worker_id == worker_id, t.performance_dispatches.c.lease_epoch == lease_epoch)
+                .values(request_bytes=request_bytes, request_hash=request_hash)
+            )
             if changed.rowcount != 1:
                 raise Conflict
-            run_values = {"status": "running"}
+            await self._append_audit(session, project_id, run_id, owner, "dispatch_acknowledged", {"ordinal": ordinal, "phase": dispatch["phase"], "lease_epoch": lease_epoch})
+            return {"run_id": run_id, "ordinal": ordinal, "dispatch_id": dispatch["dispatch_id"], "response_artifact_id": response_artifact_id}
+
+    async def start_dispatch(self, owner, project_id, run_id, ticket, *, worker_id, lease_epoch, send_started_ns):
+        """Cross the one-way transport boundary under the current lease fence."""
+        if not isinstance(ticket, Mapping) or set(ticket) != {"run_id", "ordinal", "dispatch_id", "response_artifact_id"} or ticket["run_id"] != run_id:
+            raise Conflict
+        worker_id = self._worker_id(worker_id)
+        lease_epoch = self._lease_epoch(lease_epoch)
+        _bounded_int(ticket["ordinal"], maximum=10_999)
+        _bounded_int(send_started_ns, maximum=9_223_372_036_854_775_807)
+        async with self.sf.begin() as session:
+            run = await self._run(session, owner, project_id, run_id, lock=True)
+            dispatch = (
+                (
+                    await session.execute(
+                        select(t.performance_dispatches).where(t.performance_dispatches.c.project_id == project_id, t.performance_dispatches.c.run_id == run_id, t.performance_dispatches.c.ordinal == ticket["ordinal"]).with_for_update()
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            artifact = (await session.execute(select(t.performance_response_artifacts).where(t.performance_response_artifacts.c.id == ticket["response_artifact_id"]))).mappings().first()
+            if (
+                run["status"] not in {"created", "running"}
+                or dispatch is None
+                or dispatch["dispatch_id"] != ticket["dispatch_id"]
+                or dispatch["state"] != "pending"
+                or artifact is None
+                or artifact["dispatch_id"] != dispatch["dispatch_id"]
+                or dispatch["lease_worker_id"] != worker_id
+                or dispatch["lease_epoch"] != lease_epoch
+                or dispatch["lease_expires_at_ms"] is None
+                or dispatch["lease_expires_at_ms"] <= int(time.time() * 1000)
+            ):
+                raise Conflict
+            if run["window_end_ns"] is not None and dispatch["phase"] == "measurement" and send_started_ns >= run["window_end_ns"]:
+                raise Conflict
+            if dispatch["phase"] == "measurement" and run["window_start_ns"] is not None and send_started_ns < run["window_start_ns"]:
+                raise Conflict
+            changed = await session.execute(
+                update(t.performance_dispatches)
+                .where(t.performance_dispatches.c.id == dispatch["id"], t.performance_dispatches.c.state == "pending", t.performance_dispatches.c.lease_epoch == lease_epoch)
+                .values(state="dispatched", send_started_ns=send_started_ns)
+            )
+            if changed.rowcount != 1:
+                raise Conflict
+            values = {"status": "running"}
             if dispatch["phase"] == "measurement" and run["window_start_ns"] is None:
-                run_values["window_start_ns"] = send_started_ns
-            await session.execute(update(t.performance_runs).where(t.performance_runs.c.id == run_id).values(**run_values))
-            await self._append_audit(session, project_id, run_id, owner, "dispatch_acknowledged", {"ordinal": ordinal, "phase": dispatch["phase"]})
-            ticket = {"run_id": run_id, "ordinal": ordinal, "dispatch_id": dispatch["dispatch_id"], "response_artifact_id": response_artifact_id}
-        return ticket
+                values["window_start_ns"] = send_started_ns
+            await session.execute(update(t.performance_runs).where(t.performance_runs.c.id == run_id).values(**values))
+            await self._append_audit(
+                session,
+                project_id,
+                run_id,
+                owner,
+                "dispatch_started",
+                {"ordinal": ticket["ordinal"], "worker_id": worker_id, "lease_epoch": lease_epoch, "send_started_ns": send_started_ns},
+            )
+            return {
+                "run_id": run_id,
+                "ordinal": ticket["ordinal"],
+                "dispatch_id": ticket["dispatch_id"],
+                "response_artifact_id": ticket["response_artifact_id"],
+                "worker_id": worker_id,
+                "lease_epoch": lease_epoch,
+            }
 
     async def close_measurement_window(self, owner, project_id, run_id, *, window_end_ns):
         _bounded_int(window_end_ns, maximum=9_223_372_036_854_775_807)
@@ -302,12 +466,18 @@ class PerformanceRunRepository(EvaluationRepository):
         output_tokens=None,
         token_source=None,
     ):
-        if not isinstance(ticket, Mapping) or set(ticket) not in (
-            {"run_id", "ordinal", "dispatch_id"},
-            {"run_id", "ordinal", "dispatch_id", "response_artifact_id"},
-        ):
+        if not isinstance(ticket, Mapping) or set(ticket) != {
+            "run_id",
+            "ordinal",
+            "dispatch_id",
+            "response_artifact_id",
+            "worker_id",
+            "lease_epoch",
+        }:
             raise Conflict
         run_id, ordinal, dispatch_id = ticket["run_id"], ticket["ordinal"], ticket["dispatch_id"]
+        worker_id = self._worker_id(ticket["worker_id"])
+        lease_epoch = self._lease_epoch(ticket["lease_epoch"])
         _bounded_int(ordinal, maximum=10_999)
         _bounded_int(finished_ns, maximum=9_223_372_036_854_775_807)
         if state not in {"succeeded", "failed", "timeout", "unknown"}:
@@ -342,7 +512,18 @@ class PerformanceRunRepository(EvaluationRepository):
         async with self.sf.begin() as session:
             run = await self._run(session, owner, project_id, run_id, lock=True)
             dispatch = (await session.execute(select(t.performance_dispatches).where(t.performance_dispatches.c.run_id == run_id, t.performance_dispatches.c.ordinal == ordinal).with_for_update())).mappings().first()
-            if run["status"] != "running" or dispatch is None or dispatch["dispatch_id"] != dispatch_id or dispatch["state"] != "dispatched" or dispatch["send_started_ns"] is None or finished_ns < dispatch["send_started_ns"]:
+            if (
+                run["status"] != "running"
+                or dispatch is None
+                or dispatch["dispatch_id"] != dispatch_id
+                or dispatch["state"] != "dispatched"
+                or dispatch["send_started_ns"] is None
+                or finished_ns < dispatch["send_started_ns"]
+                or dispatch["lease_worker_id"] != worker_id
+                or dispatch["lease_epoch"] != lease_epoch
+                or dispatch["lease_expires_at_ms"] is None
+                or dispatch["lease_expires_at_ms"] <= int(time.time() * 1000)
+            ):
                 raise Conflict
             artifact = (
                 (

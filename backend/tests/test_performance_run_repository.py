@@ -1,14 +1,20 @@
 """Owner-scoped, no-network performance run ledger behavior."""
 
+import asyncio
 import hashlib
+import time
+from pathlib import Path
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from cryptography.fernet import Fernet
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from test_dispatch_journal import prepared as prepared
 from test_evaluation_plans import draft, limits
 
+from app.evaluation import schema
 from app.evaluation import tables as t
 from app.evaluation.performance_run_repository import PerformanceRunRepository
 from app.evaluation.performance_scenario_repository import PerformanceScenarioRepository
@@ -148,6 +154,8 @@ async def test_dispatch_ack_commits_once_before_observation_and_unknown_interrup
         "ordinal": 0,
         "dispatch_id": ticket["dispatch_id"],
         "response_artifact_id": ticket["response_artifact_id"],
+        "worker_id": "legacy-owner",
+        "lease_epoch": 1,
     }
     with pytest.raises(Conflict):
         await runs.acknowledge_dispatch("owner", project_id, run["id"], 0, send_started_ns=101)
@@ -164,7 +172,7 @@ async def test_dispatch_ack_commits_once_before_observation_and_unknown_interrup
     assert [row["state"] for row in dispatches] == ["unknown", "not_dispatched", "not_dispatched", "not_dispatched", "not_dispatched", "not_dispatched"]
     audit = await runs.run_audit("owner", project_id, run["id"])
     assert [event["sequence"] for event in audit] == list(range(1, len(audit) + 1))
-    assert [event["action"] for event in audit] == ["run_created", "dispatch_acknowledged", "observation_recorded", "run_interrupted"]
+    assert [event["action"] for event in audit] == ["run_created", "dispatch_claimed", "dispatch_acknowledged", "dispatch_started", "observation_recorded", "run_interrupted"]
 
 
 @pytest.mark.asyncio
@@ -524,3 +532,119 @@ async def test_response_evidence_access_is_actor_bound_audited_and_one_time(prep
     events = await runs.run_audit("owner", project_id, run["id"])
     assert [row["action"] for row in events][-2:] == ["response_access_granted", "response_access_read"]
     assert all(row["actor"] == "owner" for row in events[-2:])
+
+
+@pytest.mark.asyncio
+async def test_dispatch_claim_ack_and_send_start_have_separate_durable_boundaries(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+
+    lease = await runs.claim_dispatch("owner", project_id, run["id"], 0, worker_id="worker-a", lease_expires_at_ms=int(time.time() * 1000) + 60_000)
+    assert lease["dispatch_id"]
+    assert lease["worker_id"] == "worker-a"
+    assert lease["lease_epoch"] == 1
+
+    ticket = await runs.acknowledge_dispatch(
+        "owner",
+        project_id,
+        run["id"],
+        0,
+        worker_id="worker-a",
+        lease_epoch=lease["lease_epoch"],
+        request_bytes=12,
+    )
+    assert ticket["dispatch_id"] == lease["dispatch_id"]
+    row = (await runs.list_dispatches("owner", project_id, run["id"]))[0]
+    assert row["state"] == "pending"
+    assert row["send_started_ns"] is None
+
+    started = await runs.start_dispatch(
+        "owner",
+        project_id,
+        run["id"],
+        ticket,
+        worker_id="worker-a",
+        lease_epoch=lease["lease_epoch"],
+        send_started_ns=100,
+    )
+    assert started["dispatch_id"] == ticket["dispatch_id"]
+    row = (await runs.list_dispatches("owner", project_id, run["id"]))[0]
+    assert row["state"] == "dispatched"
+    assert row["send_started_ns"] == 100
+
+
+@pytest.mark.asyncio
+async def test_stale_dispatch_fence_cannot_ack_or_start(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    lease = await runs.claim_dispatch("owner", project_id, run["id"], 0, worker_id="worker-a", lease_expires_at_ms=int(time.time() * 1000) + 60_000)
+
+    with pytest.raises(Conflict):
+        await runs.acknowledge_dispatch("owner", project_id, run["id"], 0, worker_id="worker-b", lease_epoch=lease["lease_epoch"])
+    ticket = await runs.acknowledge_dispatch("owner", project_id, run["id"], 0, worker_id="worker-a", lease_epoch=lease["lease_epoch"])
+    with pytest.raises(Conflict):
+        await runs.start_dispatch("owner", project_id, run["id"], ticket, worker_id="worker-b", lease_epoch=lease["lease_epoch"], send_started_ns=100)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_claims_have_one_winner_and_one_fenced_epoch(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    deadline = int(time.time() * 1000) + 60_000
+
+    results = await asyncio.gather(
+        runs.claim_dispatch("owner", project_id, run["id"], 0, worker_id="worker-a", lease_expires_at_ms=deadline),
+        runs.claim_dispatch("owner", project_id, run["id"], 0, worker_id="worker-b", lease_expires_at_ms=deadline),
+        return_exceptions=True,
+    )
+    winners = [result for result in results if isinstance(result, dict)]
+    failures = [result for result in results if isinstance(result, Conflict)]
+    assert len(winners) == 1
+    assert len(failures) == 1
+    assert winners[0]["lease_epoch"] == 1
+
+
+@pytest.mark.asyncio
+async def test_duplicate_ack_with_different_request_metadata_conflicts(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    lease = await runs.claim_dispatch("owner", project_id, run["id"], 0, worker_id="worker-a", lease_expires_at_ms=int(time.time() * 1000) + 60_000)
+    first = await runs.acknowledge_dispatch("owner", project_id, run["id"], 0, worker_id="worker-a", lease_epoch=lease["lease_epoch"], request_bytes=10, request_hash="a" * 64)
+    assert first["response_artifact_id"]
+    with pytest.raises(Conflict):
+        await runs.acknowledge_dispatch("owner", project_id, run["id"], 0, worker_id="worker-a", lease_epoch=lease["lease_epoch"], request_bytes=11, request_hash="b" * 64)
+
+
+@pytest.mark.asyncio
+async def test_eval0028_migrates_existing_dispatch_artifact_rows(prepared):
+    repo, engine, project_id, source_plan, _ = prepared
+    _, _, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    ticket = await runs.acknowledge_dispatch("owner", project_id, run["id"], 0, send_started_ns=100)
+
+    # Simulate an eval_0027 database: the response artifact and dispatched row
+    # exist, but the eval_0028-only audit actions do not.
+    async with repo.sf.begin() as session:
+        await session.execute(
+            t.performance_run_audit.delete().where(
+                t.performance_run_audit.c.run_id == run["id"],
+                t.performance_run_audit.c.action.in_(["dispatch_claimed", "dispatch_started"]),
+            )
+        )
+    await engine.dispose()
+    config = Config()
+    config.set_main_option("script_location", str(Path(schema.__file__).parent / "migrations"))
+    config.attributes.update(engine_url=engine.url, postgres_schema="")
+    await asyncio.to_thread(command.downgrade, config, "eval_0027")
+    await schema.upgrade_evaluation_schema(engine)
+
+    async with engine.connect() as connection:
+        row = (await connection.execute(select(t.performance_dispatches.c.lease_epoch, t.performance_dispatches.c.dispatch_id).where(t.performance_dispatches.c.run_id == run["id"], t.performance_dispatches.c.ordinal == 0))).one()
+        artifact = (await connection.execute(select(t.performance_response_artifacts.c.id, t.performance_response_artifacts.c.dispatch_id).where(t.performance_response_artifacts.c.id == ticket["response_artifact_id"]))).one()
+    assert row.lease_epoch == 0
+    assert artifact.dispatch_id == row.dispatch_id
