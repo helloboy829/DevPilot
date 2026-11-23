@@ -1,10 +1,10 @@
 # DevPilot 当前交付状态 / Current delivery status
 
-**当前主线状态（2026-11-23，精确提交 `28ea31e866ac6bcead6417ea940afaad9da8ac3b`）：**本地 `main` 与 `origin/main` 均指向该 SHA；当前仅有本次状态校正涉及的两份文档尚未提交。该提交已包含 PERF-02 性能证据浏览与 PERF-03 确定性调度核心；调度核心有 12 项回归测试，但仍是纯状态机，没有数据库准入、Worker、真实请求派发或证据持久化，因此不能启动完整压测。
+**当前主线状态（2026-11-23，精确提交 `28ea31e866ac6bcead6417ea940afaad9da8ac3b`）：**性能源码基线为 `28ea31e866ac6bcead6417ea940afaad9da8ac3b`；其后 `e14fae4` 仅更新了状态/进度文档。当前主分支源码含 PERF-02 持久 ledger/repository 状态原语、加密响应 artifact/授权浏览，以及 PERF-03 确定性调度核心；调度核心有 12 项回归测试，且主线已有 durable run/dispatch ledger、Repository 层 ACK/observation/interruption 事务、加密响应 artifact 与授权浏览；但这些持久化原语尚未接入执行 Worker/API。当前没有完整执行准入与目标授权、排队/Worker 或实际 transport，因此不能启动完整压测。
 
 **该提交的验证：**记录的 Linux/Python 3.12 全量后端 `make test` 为 **13,846 passed / 79 skipped / 11 deselected / 40 warnings / 7 subtests passed**；`make lint` 通过，Blocking IO **72 passed**，相关调度测试 **14 passed**。这些是本地验证结果，不等价于 GitHub Actions。通过 GitHub Checks API 复核该精确 SHA：**8 项全部 success**，`backend-unit-tests` 于 2026-11-23 08:00:39 UTC 完成。该 Actions 结果只适用于此精确 SHA。
 
-**尚未交付：**durable admission/worker、取消与 drain、逐请求发送及证据闭环、完整指标 API 和性能压测工作台；效果测试通用逐条返回浏览、全局文档审计及代码重构方案也仍需按总目标推进。该 SHA 的 Actions 已全部成功；接下来维护本页/进度账本一致，并推进性能执行链路。
+**尚未交付：**执行侧 admission/授权、队列与 Worker、取消/drain 控制面和真实 transport 闭环；现有逐请求 ledger/证据仓储原语尚未由执行路径驱动。完整版本化指标 API 和可操作压测工作台也未交付；效果测试通用逐条返回浏览、全局文档审计及代码重构方案也仍需按总目标推进。`28ea31e` 的 Actions 已全部成功；随后文档提交 `e14fae4` 的 Actions 仍须按新 SHA 单独核对。当前还需完成下方代码/文档状态校正，并继续性能执行链路。
 
 **工作区管理提示：**`feature/perf-03-scheduler` worktree 与分支目前停在已合入 SHA；`docker-dev-mounts` 与 `perf-evidence` worktree 是不同切片，清理前需分别确认用途，不能批量删除。
 
