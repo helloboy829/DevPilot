@@ -66,6 +66,23 @@ def test_debug_permissions_consent_and_sanitized_validation(monkeypatch):
     send.assert_awaited_once()
 
 
+def test_insecure_tls_send_requires_separate_consent_and_is_one_shot(monkeypatch):
+    send = AsyncMock(return_value={"status": 200, "body": "synthetic"})
+    monkeypatch.setattr(request_debugger, "send_request", send)
+    client = api(request_debugger.router)
+    body = {"spec": {"url": "https://example.test"}, "consent": True, "insecure_tls": True}
+
+    denied = client.post("/api/component-tests/debug/send", json=body)
+    assert denied.status_code == 422
+    assert "one-time consent" in denied.text
+    send.assert_not_awaited()
+
+    allowed = client.post("/api/component-tests/debug/send", json=body | {"insecure_tls_consent": True})
+    assert allowed.status_code == 200
+    send.assert_awaited_once()
+    assert send.await_args.kwargs["insecure_tls"] is True
+
+
 def test_model_admin_revision_and_write_only_secret(tmp_path, monkeypatch):
     monkeypatch.setenv("DEVPILOT_MODEL_CATALOG_DIR", str(tmp_path))
     monkeypatch.setattr(model_management, "_operator_config", lambda: {"models": []})

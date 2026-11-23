@@ -1,8 +1,6 @@
 const MAX_COMMAND_LENGTH = 16_384;
 const INVALID_COMMAND =
   "Unable to parse cURL command. Check its syntax and supported options.";
-const INSECURE_TLS_COMMAND =
-  "Insecure TLS options -k/--insecure are disabled; use a certificate trusted by the DevPilot gateway.";
 const DIFY_APP_COMMAND =
   "This cURL targets a Dify app endpoint, not a model endpoint. Use the request debugger for Dify chat requests.";
 const ENVIRONMENT_REFERENCE =
@@ -19,6 +17,8 @@ export interface ModelCurlImport {
   baseUrl: string;
   model: string | null;
   apiKey: string | null;
+  insecureTls?: boolean;
+  normalizations: Array<"url_scheme" | "json_indentation">;
 }
 
 function invalid(message = INVALID_COMMAND): never {
@@ -68,20 +68,29 @@ function tokenize(command: string): string[] {
           index += 1;
         }
         started = true;
+      } else if (char === "$" && (next === "(" || next === "{")) {
+        const bracedReference = /^\$\{[A-Za-z_][A-Za-z0-9_]*\}/.exec(
+          command.slice(index),
+        )?.[0];
+        if (!bracedReference) {
+          invalid(
+            "Shell expansion is not supported; paste the resolved request values.",
+          );
+        }
+        value += bracedReference;
+        index += bracedReference.length - 1;
+        started = true;
       } else if (char === "$" && next !== undefined) {
         const reference = /^\$[A-Za-z_][A-Za-z0-9_]*/.exec(
           command.slice(index),
         )?.[0];
-        const bracedReference = /^\$\{[A-Za-z_][A-Za-z0-9_]*\}/.exec(
-          command.slice(index),
-        )?.[0];
-        const environmentReference = bracedReference ?? reference;
-        if (!environmentReference) invalid();
-        value += environmentReference;
-        index += environmentReference.length - 1;
+        if (!reference) invalid();
+        value += reference;
+        index += reference.length - 1;
         started = true;
       } else if (char === "$") {
-        invalid();
+        value += char;
+        started = true;
       } else if (char === "`") {
         invalid();
       } else {
@@ -119,8 +128,17 @@ function tokenize(command: string): string[] {
       } else {
         invalid();
       }
-    } else if (char === "$" || /[|;&<>]/.test(char)) {
-      invalid();
+    } else if (/[|;&<>]/.test(char)) {
+      invalid(
+        "Shell operators are not supported. Paste one cURL command without pipes or redirection.",
+      );
+    } else if (
+      char === "$" &&
+      (next === "(" || next === "{" || /[A-Za-z_]/.test(next ?? ""))
+    ) {
+      invalid(
+        "Shell expansion is not supported; paste the resolved request values.",
+      );
     } else if (
       char.charCodeAt(0) < 32 &&
       char !== "\r" &&
@@ -134,7 +152,10 @@ function tokenize(command: string): string[] {
     }
   }
 
-  if (quote !== null) invalid();
+  if (quote !== null)
+    invalid(
+      "A quoted cURL argument is not closed. Copy the full command and check its closing quotes.",
+    );
   push();
   return tokens;
 }
@@ -174,23 +195,37 @@ export function parseModelCurl(command: string): ModelCurlImport {
   const headers: Array<[string, string]> = [];
   let body: string | null = null;
   let urlText: string | null = null;
+  let insecureTls = false;
+  const normalizations: ModelCurlImport["normalizations"] = [];
   const readOptionValue = () => {
     const value = tokens[++index];
-    if (value === undefined) invalid();
+    if (value === undefined) invalid("A cURL option is missing a value.");
     return value;
   };
   let index = -1;
 
   while (++index < tokens.length) {
     const token = tokens[index]!;
+    if (token === "-k" || token === "--insecure") {
+      insecureTls = true;
+      continue;
+    }
+    if (token === "--no-insecure") {
+      insecureTls = false;
+      continue;
+    }
     if (
-      token === "-k" ||
-      token === "--insecure" ||
-      (token.startsWith("-") &&
-        !token.startsWith("--") &&
-        token.slice(1).includes("k"))
+      token === "-K" ||
+      token === "--config" ||
+      token.startsWith("--config=")
     ) {
-      invalid(INSECURE_TLS_COMMAND);
+      invalid(
+        "cURL config-file options are not supported; paste request fields directly.",
+      );
+    }
+    if (/^-[sk]+$/.test(token)) {
+      insecureTls ||= token.slice(1).includes("k");
+      continue;
     }
     let option: string;
     let inlineValue: string | undefined;
@@ -213,7 +248,8 @@ export function parseModelCurl(command: string): ModelCurlImport {
     } else if (
       ["-d", "--data", "--data-raw", "--data-binary", "--json"].includes(option)
     ) {
-      if (body !== null) invalid();
+      if (body !== null)
+        invalid("Model import accepts a single inline JSON body.");
       body = inlineValue ?? readOptionValue();
     } else if (option === "--url") {
       if (urlText !== null) invalid();
@@ -236,7 +272,12 @@ export function parseModelCurl(command: string): ModelCurlImport {
     ) {
       continue;
     } else if (token.startsWith("-")) {
-      invalid();
+      const name = /^(?:--[A-Za-z][A-Za-z0-9-]{0,39}|-[A-Za-z])$/.test(option)
+        ? ` ${option}`
+        : "";
+      invalid(
+        `Unsupported cURL option${name}. Remove it or fill the connection fields manually.`,
+      );
     } else if (urlText === null) {
       urlText = token;
     } else {
@@ -244,7 +285,7 @@ export function parseModelCurl(command: string): ModelCurlImport {
     }
   }
 
-  if (!urlText) invalid();
+  if (!urlText) invalid("No endpoint URL was found in the cURL command.");
   // Some web consoles escape the scheme separator as ``https\://`` when
   // copying a command. Normalize only this presentation-only escape; the
   // resulting URL still passes the strict HTTP(S) checks below. Use explicit
@@ -253,6 +294,7 @@ export function parseModelCurl(command: string): ModelCurlImport {
     const escapedPrefix = `${scheme}\\://`;
     if (urlText.toLowerCase().startsWith(escapedPrefix)) {
       urlText = `${scheme}://${urlText.slice(escapedPrefix.length)}`;
+      normalizations.push("url_scheme");
       break;
     }
   }
@@ -260,7 +302,9 @@ export function parseModelCurl(command: string): ModelCurlImport {
   try {
     url = new URL(urlText);
   } catch {
-    return invalid();
+    return invalid(
+      "The endpoint URL is invalid. Check the address or paste it into the Base URL field.",
+    );
   }
   if (
     !["http:", "https:"].includes(url.protocol) ||
@@ -270,7 +314,7 @@ export function parseModelCurl(command: string): ModelCurlImport {
     /[\u0000-\u001f\u007f]/.test(urlText)
   )
     invalid();
-  if (/\/dify\/v1\/chat-messages\/?$/i.test(url.pathname)) {
+  if (/\/v1\/chat-messages\/?$/i.test(url.pathname)) {
     invalid(DIFY_APP_COMMAND);
   }
 
@@ -300,6 +344,25 @@ export function parseModelCurl(command: string): ModelCurlImport {
   let bodyModel: string | null = null;
   if (body !== null) {
     try {
+      JSON.parse(body);
+    } catch {
+      const repaired = body.replace(/^[ \t]*(?:&#(?:x20|32);[ \t]*)+/gim, " ");
+      if (repaired === body) {
+        invalid(
+          "The model request body is not valid inline JSON. Check its quoting or fill the model field manually.",
+        );
+      }
+      try {
+        JSON.parse(repaired);
+        body = repaired;
+        normalizations.push("json_indentation");
+      } catch {
+        invalid(
+          "The model request body is not valid inline JSON. Check its quoting or fill the model field manually.",
+        );
+      }
+    }
+    try {
       const parsed: unknown = JSON.parse(body);
       if (
         parsed &&
@@ -310,7 +373,9 @@ export function parseModelCurl(command: string): ModelCurlImport {
         bodyModel = parsed.model.trim() || null;
       }
     } catch {
-      invalid();
+      invalid(
+        "The model request body is not valid inline JSON. Check its quoting or fill the model field manually.",
+      );
     }
   }
 
@@ -352,5 +417,12 @@ export function parseModelCurl(command: string): ModelCurlImport {
 
   const baseUrl = `${url.origin}${basePath}`.replace(/\/$/, "");
   if (baseUrl.length > 2048 || !baseUrl) invalid();
-  return { provider, baseUrl, model: validModelId(model), apiKey };
+  return {
+    provider,
+    baseUrl,
+    model: validModelId(model),
+    apiKey,
+    ...(insecureTls && url.protocol === "https:" ? { insecureTls: true } : {}),
+    normalizations,
+  };
 }

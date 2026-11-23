@@ -76,6 +76,96 @@ test("cURL is imported, edited and sent with explicit consent", async ({
   await expect(page.getByLabel("Request URL", { exact: true })).toHaveCount(0);
 });
 
+test("cURL -k import requires a separate one-time TLS risk confirmation", async ({
+  page,
+}) => {
+  mockLangGraphAPI(page, { threads: [] });
+  await page.route("**/api/component-tests/components*", (route) =>
+    route.fulfill({ json: { components: [] } }),
+  );
+  await page.route("**/api/component-tests/debug/parse", (route) =>
+    route.fulfill({
+      json: {
+        spec: {
+          url: "https://internal.example/api",
+          method: "GET",
+          headers: [],
+          body: "",
+          version: "request.v1",
+        },
+        insecure_tls: true,
+        warnings: ["insecure_tls"],
+      },
+    }),
+  );
+  let payload: Record<string, unknown> | undefined;
+  await page.route("**/api/component-tests/debug/send", async (route) => {
+    payload = route.request().postDataJSON();
+    await route.fulfill({
+      json: {
+        status: 200,
+        body: "ok",
+        headers: [],
+        elapsed_ms: 1,
+        size_bytes: 2,
+        truncated: false,
+      },
+    });
+  });
+  await page.goto("/workspace/component-tests");
+  await page
+    .getByLabel("cURL", { exact: true })
+    .fill("curl -k https://internal.example/api");
+  await page.getByRole("button", { name: "Import cURL", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Request debugger" }).getByRole("alert"),
+  ).toContainText(/skip TLS certificate verification/i);
+  const send = page.getByRole("button", { name: "Send request", exact: true });
+  await page.getByRole("checkbox", { name: /I authorize one request/ }).check();
+  await expect(send).toBeDisabled();
+  await page.getByRole("checkbox", { name: /I understand the risk/ }).check();
+  await expect(send).toBeEnabled();
+  await send.click();
+  expect(payload).toMatchObject({
+    consent: true,
+    insecure_tls: true,
+    insecure_tls_consent: true,
+  });
+});
+
+test("normalized cURL imports show a review notice before request send", async ({
+  page,
+}) => {
+  mockLangGraphAPI(page, { threads: [] });
+  await page.route("**/api/component-tests/components*", (route) =>
+    route.fulfill({ json: { components: [] } }),
+  );
+  await page.route("**/api/component-tests/debug/parse", (route) =>
+    route.fulfill({
+      json: {
+        spec: {
+          url: "https://internal.example/api",
+          method: "POST",
+          headers: [["Content-Type", "application/json"]],
+          body: '{"q":"synthetic"}',
+          version: "request.v1",
+        },
+        insecure_tls: false,
+        warnings: ["normalized_url_scheme", "normalized_json_indentation"],
+      },
+    }),
+  );
+  await page.goto("/workspace/component-tests");
+  await page
+    .getByLabel("cURL", { exact: true })
+    .fill("curl https://internal.example/api --json '{}' ");
+  await page.getByRole("button", { name: "Import cURL", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText(/review the preview/i);
+  await expect(page.getByLabel("Request body")).toHaveValue(
+    '{"q":"synthetic"}',
+  );
+});
+
 test("administrator adds a model and assigns the report role without key echo", async ({
   page,
 }) => {

@@ -13,7 +13,7 @@
 1. resolver 是必传 async callback，无默认 DNS、App/config/env/凭据/文件读取。每次发送先校验原 URL，再比较 scheme/host/port；origin 不符或 URL 含凭据/fragment 时，解析器和 inner 均不调用。
 2. App 仍拥有显式 allowed_hosts、五秒 DNS 上限和 **ALL DNS answers** 的地址检查；私网 opt-in 不豁免 link-local metadata、multicast、unspecified 或 reserved 地址。策略在每次调用时重读，不冻结成会过期的许可缓存。
 3. callback 返回值必须是 literal、无 scope 的 IPv4/IPv6 字符串；拒绝 hostname、bytes/int/空值、host:port、方括号或 zone/scope，generic error 不泄漏返回值。否则 HTTPX 可能二次解析一个未经检查的 hostname。此新增 callback 边界是 fail-closed 加固，不把这些旧非法/非便携 callback 值列入旧/新等价结论。
-4. 单次 callback 后最多一次 inner 调用；Host（含原非默认端口）及 TLS SNI 覆盖不可信入参为原 origin，连接 URL 只改 host，保留 method/path/query/headers/body/其他 extensions。TLS verify=True、trust_env=False、retries=0，不新增 fallback/retry/redirect。
+4. 单次 callback 后最多一次 inner 调用；Host（含原非默认端口）及 TLS SNI 覆盖不可信入参为原 origin，连接 URL 只改 host，保留 method/path/query/headers/body/其他 extensions。TLS 默认 verify=True；只有 App 的接口调试适配器可在逐次显式风险授权后传入 verify_tls=False，其他调用方维持校验。trust_env=False、retries=0，不新增 fallback/retry/redirect。
 5. resolver/inner 的错误和取消原样传播；资源仍由原 HTTPX client 上下文及 aclose 转发关闭，不吞取消、不增加 drain timeout 或自动重发。App 原 `EvaluationPolicyError` import 名称保留为共享异常类，仍是 ValueError；异常不是持久 DTO，不修改存档/计划/hash。
 6. callback 对所有 DNS 答案的审核、client 的禁重定向/总 deadline、准入/同意、输入渲染、durable reserve_attempt-before-I/O、run-wide budgets、unknown/no-resend 和加密证据仍是调用方/App 责任。返回 literal IP 或能 import wheel 都不是发送授权；此组件不能独自认证安全 runner。
 

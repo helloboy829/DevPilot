@@ -3,7 +3,7 @@
 import asyncio
 from typing import Any
 
-from devpilot.http import RequestSpec, parse_curl
+from devpilot.http import RequestSpec, parse_curl_import
 from devpilot.request_templates import RequestTemplate
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -27,13 +27,19 @@ class SendRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     spec: dict[str, Any]
     consent: bool
+    insecure_tls: bool = False
+    insecure_tls_consent: bool = False
 
 
 @router.post("/parse")
 @require_permission("threads", "write")
 async def import_curl(payload: CurlImport, request: Request):
     try:
-        return JSONResponse({"spec": parse_curl(payload.command).to_dict()}, headers={"Cache-Control": "private, no-store"})
+        parsed = parse_curl_import(payload.command)
+        warnings = list(parsed.warnings)
+        if parsed.insecure_tls:
+            warnings.append("insecure_tls")
+        return JSONResponse({"spec": parsed.spec.to_dict(), "insecure_tls": parsed.insecure_tls, "warnings": warnings}, headers={"Cache-Control": "private, no-store"})
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
 
@@ -44,12 +50,16 @@ async def import_curl(payload: CurlImport, request: Request):
 async def debug_send(payload: SendRequest, request: Request, config=Depends(get_config)):
     if payload.consent is not True:
         raise HTTPException(422, "Explicit permission to send this request is required")
+    if payload.insecure_tls is True and payload.insecure_tls_consent is not True:
+        raise HTTPException(422, "Explicit one-time consent to disable TLS certificate verification is required")
+    if payload.insecure_tls is False and payload.insecure_tls_consent is True:
+        raise HTTPException(422, "TLS bypass consent does not match the request")
     if _slots.locked():
         raise HTTPException(429, "Too many debug requests")
     async with _slots:
         try:
             spec = RequestSpec.from_dict(payload.spec)
-            result = await send_request(spec, config)
+            result = await send_request(spec, config, insecure_tls=payload.insecure_tls)
             return JSONResponse(result, headers={"Cache-Control": "private, no-store"})
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None

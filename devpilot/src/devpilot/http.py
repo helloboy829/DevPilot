@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import base64
+import json
 import re
 import shlex
 from dataclasses import asdict, dataclass, field
 from urllib.parse import urlsplit
 
-_FORBIDDEN_HEADERS = {"host", "content-length", "transfer-encoding", "connection", "upgrade", "proxy-authorization", "proxy-connection"}
+_FORBIDDEN_HEADERS = {
+    "host",
+    "content-length",
+    "transfer-encoding",
+    "connection",
+    "upgrade",
+    "proxy-authorization",
+    "proxy-connection",
+}
 
 
 @dataclass(frozen=True)
@@ -20,26 +29,52 @@ class RequestSpec:
     version: str = "request.v1"
 
     def __post_init__(self):
-        if not isinstance(self.url, str) or len(self.url) > 8192 or any(c.isspace() or ord(c) < 32 for c in self.url):
+        if (
+            not isinstance(self.url, str)
+            or len(self.url) > 8192
+            or any(c.isspace() or ord(c) < 32 for c in self.url)
+        ):
             raise ValueError("Invalid URL")
         try:
             url = urlsplit(self.url)
             port = url.port
         except ValueError:
             raise ValueError("Invalid URL") from None
-        if url.scheme not in {"http", "https"} or not url.hostname or url.username is not None or url.password is not None or url.fragment or (port is not None and port == 0):
-            raise ValueError("Only HTTP(S) URLs without embedded credentials or fragments are supported")
-        if self.method not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"} or self.version != "request.v1":
+        if (
+            url.scheme not in {"http", "https"}
+            or not url.hostname
+            or url.username is not None
+            or url.password is not None
+            or url.fragment
+            or (port is not None and port == 0)
+        ):
+            raise ValueError(
+                "Only HTTP(S) URLs without embedded credentials or fragments are supported"
+            )
+        if (
+            self.method
+            not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+            or self.version != "request.v1"
+        ):
             raise ValueError("Unsupported request method or version")
         if not isinstance(self.body, str) or len(self.body.encode("utf-8")) > 262144:
             raise ValueError("Body exceeds 256 KiB")
         if not isinstance(self.headers, list) or len(self.headers) > 64:
             raise ValueError("At most 64 headers are supported")
         for pair in self.headers:
-            if not isinstance(pair, list) or len(pair) != 2 or not all(isinstance(v, str) for v in pair):
+            if (
+                not isinstance(pair, list)
+                or len(pair) != 2
+                or not all(isinstance(v, str) for v in pair)
+            ):
                 raise ValueError("Headers must be name/value pairs")
             name, value = pair
-            if not re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", name) or name.lower() in _FORBIDDEN_HEADERS or any(ord(c) < 32 or ord(c) > 126 for c in value) or len(value) > 8192:
+            if (
+                not re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", name)
+                or name.lower() in _FORBIDDEN_HEADERS
+                or any(ord(c) < 32 or ord(c) > 126 for c in value)
+                or len(value) > 8192
+            ):
                 raise ValueError("Invalid or unsafe request header")
 
     def to_dict(self):
@@ -47,7 +82,13 @@ class RequestSpec:
 
     @classmethod
     def from_dict(cls, data):
-        if not isinstance(data, dict) or set(data) - {"url", "method", "headers", "body", "version"}:
+        if not isinstance(data, dict) or set(data) - {
+            "url",
+            "method",
+            "headers",
+            "body",
+            "version",
+        }:
             raise ValueError("Invalid request specification")
         try:
             return cls(**data)
@@ -55,10 +96,80 @@ class RequestSpec:
             raise ValueError("Invalid request specification") from None
 
 
-def parse_curl(command: str) -> RequestSpec:
-    if not isinstance(command, str) or len(command) > 300000 or "$" in command or chr(0) in command:
-        raise ValueError("Unsupported shell expansion or command size")
-    command = re.sub(r"(?:\\|\x60|\^)\r?\n", " ", command)
+@dataclass(frozen=True)
+class CurlImportResult:
+    spec: RequestSpec
+    insecure_tls: bool = False
+    warnings: tuple[str, ...] = ()
+
+
+def _reject_shell_expansions(command: str) -> None:
+    quote = None
+    escaped = False
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if quote == "'":
+            if char == "'":
+                quote = None
+            index += 1
+            continue
+        if escaped:
+            escaped = False
+            index += 1
+            continue
+        if char == "\\" and quote == '"':
+            escaped = True
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            if quote is None:
+                quote = char
+            elif quote == char:
+                quote = None
+            index += 1
+            continue
+        if char == "`" and command[index + 1 : index + 2] in {"\n", "\r"}:
+            index += 1
+            continue
+        if (
+            char == "`"
+            or char == "$"
+            and index + 1 < len(command)
+            and (
+                command[index + 1] in "({" or re.match(r"[A-Za-z_]", command[index + 1])
+            )
+        ):
+            raise ValueError(
+                "Shell expansion is not supported; paste the resolved request values"
+            )
+        index += 1
+
+
+def _normalize_json_indentation(body: str) -> str:
+    # Repair only copied whitespace markup at the start of a JSON line,
+    # and only when it is the difference between invalid and valid JSON.
+    if "&#" not in body:
+        return body
+    try:
+        json.loads(body)
+        return body
+    except (ValueError, RecursionError):
+        candidate = re.sub(r"(?im)^[ \t]*(?:&#(?:x20|32);[ \t]*)+", " ", body)
+        if candidate == body:
+            return body
+        try:
+            json.loads(candidate)
+        except (ValueError, RecursionError):
+            return body
+        return candidate
+
+
+def parse_curl_import(command: str) -> CurlImportResult:
+    if not isinstance(command, str) or len(command) > 300000 or chr(0) in command:
+        raise ValueError("Unsupported command size or control character")
+    command = re.sub(r"(?:\\|\x60|\^)(\r?\n)", r"\1", command)
+    _reject_shell_expansions(command)
     try:
         tokens = shlex.split(command, posix=True)
     except ValueError:
@@ -68,20 +179,57 @@ def parse_curl(command: str) -> RequestSpec:
     url, method, body = None, None, ""
     headers = []
     has_body = False
+    insecure_tls = False
+    warnings: list[str] = []
     i = 0
-    value_flags = {"-X", "--request", "-H", "--header", "-d", "--data", "--data-raw", "--data-binary", "--json", "--url", "-u", "--user"}
+    value_flags = {
+        "-X",
+        "--request",
+        "-H",
+        "--header",
+        "-d",
+        "--data",
+        "--data-raw",
+        "--data-binary",
+        "--json",
+        "--url",
+        "-u",
+        "--user",
+    }
     while i < len(tokens):
         token = tokens[i]
-        if token in {"-k", "--insecure"} or (
-            token.startswith("-")
-            and not token.startswith("--")
-            and "k" in token[1:]
+        if token in {"-k", "--insecure"}:
+            insecure_tls = True
+            i += 1
+            continue
+        if (
+            token in {"-K", "--config"}
+            or token.startswith("--config=")
+            or re.fullmatch(r"-[sS]*K[sS]*", token)
         ):
             raise ValueError(
-                "Insecure TLS options -k/--insecure are disabled; remove the option "
-                "and use a certificate trusted by the DevPilot gateway"
+                "cURL config-file options are not supported; paste request fields directly"
             )
-        if token in {"-s", "-S", "-sS", "--silent", "--show-error", "--compressed", "-i", "--include", "-N", "--no-buffer"}:
+        if re.fullmatch(r"-[sSk]+", token):
+            insecure_tls = insecure_tls or "k" in token[1:]
+            i += 1
+            continue
+        if token == "--no-insecure":
+            insecure_tls = False
+            i += 1
+            continue
+        if token in {
+            "-s",
+            "-S",
+            "-sS",
+            "--silent",
+            "--show-error",
+            "--compressed",
+            "-i",
+            "--include",
+            "-N",
+            "--no-buffer",
+        }:
             i += 1
             continue
         flag, equal, inline = token.partition("=")
@@ -101,21 +249,63 @@ def parse_curl(command: str) -> RequestSpec:
                     raise ValueError("Header must contain a colon")
                 headers.append([name.strip(), content.strip()])
             elif flag in {"-u", "--user"}:
-                headers.append(["Authorization", "Basic " + base64.b64encode(value.encode()).decode()])
+                headers.append(
+                    [
+                        "Authorization",
+                        "Basic " + base64.b64encode(value.encode()).decode(),
+                    ]
+                )
             elif flag == "--url":
                 if url is not None:
                     raise ValueError("Only one URL is supported")
                 url = value
             else:
                 if value.startswith("@") or has_body:
-                    raise ValueError("File reads and multiple body options are not supported")
+                    raise ValueError(
+                        "File reads and multiple body options are not supported"
+                    )
                 body, has_body = value, True
                 if flag == "--json":
-                    headers.extend([["Content-Type", "application/json"], ["Accept", "application/json"]])
+                    headers.extend(
+                        [
+                            ["Content-Type", "application/json"],
+                            ["Accept", "application/json"],
+                        ]
+                    )
+        elif token in {"|", "||", "&&", ";", "&", ">", "<"}:
+            raise ValueError(
+                "Shell operators and multiple commands are not supported; paste one cURL command only"
+            )
+        elif flag in {"-L", "--location", "--location-trusted"}:
+            raise ValueError(
+                "Redirect options are not supported; redirects remain disabled"
+            )
+        elif flag in {
+            "-x",
+            "--proxy",
+            "--proxy-anyauth",
+            "--proxy-basic",
+            "--proxy-user",
+        }:
+            raise ValueError(
+                "Proxy options are not supported; requests use the configured direct outbound route"
+            )
         elif not token.startswith("-") and url is None:
             url = token
+        elif token.startswith("-"):
+            # Never reflect inline argument values (which may be credentials).
+            option = (
+                f" {flag}"
+                if re.fullmatch(r"--[A-Za-z][A-Za-z0-9-]{0,39}|-[A-Za-z]", flag)
+                else ""
+            )
+            raise ValueError(
+                f"Unsupported cURL option{option}; remove it or configure the equivalent request fields manually"
+            )
         else:
-            raise ValueError("Unsupported option or multiple commands; shell execution, files, redirects, proxies and insecure TLS are disabled")
+            raise ValueError(
+                "Multiple URLs or extra command arguments are not supported"
+            )
         i += 1
     if url is None:
         raise ValueError("cURL URL is missing")
@@ -123,7 +313,34 @@ def parse_curl(command: str) -> RequestSpec:
     # copying a command. Treat that presentation-only escape as ``https://``;
     # no shell is evaluated and the resulting URL still goes through the
     # strict RequestSpec HTTP(S) validation below.
-    url = re.sub(r"^(https?)\\://", r"\1://", url, count=1, flags=re.IGNORECASE)
+    url, replacements = re.subn(
+        r"^(https?)\\://", r"\1://", url, count=1, flags=re.IGNORECASE
+    )
+    if replacements:
+        warnings.append("normalized_url_scheme")
+    if has_body and any(
+        name.lower() == "content-type"
+        and (media := value.lower().split(";", 1)[0].strip()).startswith("application/")
+        and (media == "application/json" or media.endswith("+json"))
+        for name, value in headers
+    ):
+        normalized = _normalize_json_indentation(body)
+        if normalized != body:
+            warnings.append("normalized_json_indentation")
+            body = normalized
     if has_body and not any(h[0].lower() == "content-type" for h in headers):
         headers.append(["Content-Type", "application/x-www-form-urlencoded"])
-    return RequestSpec(url=url, method=method or ("POST" if has_body else "GET"), headers=headers, body=body)
+    spec = RequestSpec(
+        url=url,
+        method=method or ("POST" if has_body else "GET"),
+        headers=headers,
+        body=body,
+    )
+    return CurlImportResult(
+        spec=spec, insecure_tls=insecure_tls, warnings=tuple(warnings)
+    )
+
+
+def parse_curl(command: str) -> RequestSpec:
+    """Compatibility helper for callers that need only normalized request fields."""
+    return parse_curl_import(command).spec

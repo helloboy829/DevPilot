@@ -212,7 +212,7 @@ PERF-02 run 创建必须由调用方先生成并持久保留 `run_id`，然后�
 
 ## 6. 安全与兼容
 
-cURL 只做解析，不调用系统 curl；凭据提取后存 credential_ref，响应返回 has_credential 和掩码，不能回传明文。默认 TLS 校验，禁止客户端设置 verify=false 绕过策略。文件仅引用已授权 artifact。
+cURL 只做结构化解析，不调用系统 curl、不执行 Shell，也不因解析成功自动发送。解析元数据可标记原命令含 -k/--insecure；只有接口调试页在用户另行勾选一次性风险确认后，才可对该次请求关闭证书校验。TLS 绕过不进入请求版本、模型配置或模板。目的地主机 allowlist、全量 DNS 地址校验与固定、禁代理/重定向、超时和响应上限始终生效；文件仅引用已授权 artifact。
 保留 legacy API 读取，逐步迁移创建入口；历史结果标 legacy/unverified。新版统一强类型 schema 逐步从 devpilot 导出并用于 OpenAPI、前端 types 和契约测试。
 
 ## 7. 接口调试与脚本导出资源（目标）

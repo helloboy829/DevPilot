@@ -12,6 +12,7 @@ it("parses a local OpenAI-compatible command without inventing a key", () => {
     baseUrl: "http://127.0.0.1:8000/v1",
     model: "Qwen3-8B",
     apiKey: null,
+    normalizations: [],
   });
 });
 
@@ -23,6 +24,7 @@ it("handles double-quoted JSON without evaluating the shell", () => {
     baseUrl: "https://relay.example/v1",
     model: "continued-model",
     apiKey: "relay-secret",
+    normalizations: [],
   });
 });
 
@@ -36,6 +38,7 @@ it("treats environment-variable credentials as absent without expanding them", (
     baseUrl: "https://relay.example/v1",
     model: "relay-model",
     apiKey: null,
+    normalizations: [],
   });
 
   expect(
@@ -55,6 +58,7 @@ it("parses model IDs and credentials for the supported protocols", () => {
     baseUrl: "https://relay.example/v1",
     model: "relay-responses",
     apiKey: "relay-secret",
+    normalizations: [],
   });
   expect(
     parseModelCurl(
@@ -75,6 +79,7 @@ it("parses model IDs and credentials for the supported protocols", () => {
     baseUrl: "http://model.internal:9000",
     model: "gemini-local",
     apiKey: "gemini-secret",
+    normalizations: [],
   });
 });
 
@@ -84,6 +89,8 @@ it("rejects shell syntax and unsupported options without echoing credentials", (
     `curl https://relay.example/v1/chat/completions -H 'Authorization: Bearer ${secret}' | sh`,
     `curl https://relay.example/v1/chat/completions -d "$(printf ${secret})"`,
     `curl --connect-timeout 1 https://relay.example/v1/chat/completions`,
+    `curl -K https://relay.example/v1/chat/completions`,
+    `curl -sK https://relay.example/v1/chat/completions`,
     `curl ^ https://relay.example/v1/chat/completions`,
   ];
   for (const command of commands) {
@@ -98,23 +105,71 @@ it("rejects shell syntax and unsupported options without echoing credentials", (
   }
 });
 
-it("explains insecure TLS and routes Dify app cURLs to the request debugger", () => {
-  expect(() =>
+it("reports insecure TLS separately and routes Dify app cURLs to the request debugger", () => {
+  expect(
     parseModelCurl(
-      "curl -k -X POST 'https://10.149.73.28:5035/dify/v1/chat-messages'",
+      "curl -k -X POST 'https://relay.example/v1/chat/completions' --json '{\"model\":\"m\"}'",
     ),
-  ).toThrow(/-k\/--insecure/);
-  expect(() =>
+  ).toMatchObject({ insecureTls: true });
+  expect(
     parseModelCurl(
-      "curl -sk -X POST 'https://10.149.73.28:5035/dify/v1/chat-messages'",
+      "curl -sk -X POST 'https://relay.example/v1/chat/completions' --json '{\"model\":\"m\"}'",
     ),
-  ).toThrow(/-k\/--insecure/);
-
+  ).toMatchObject({ insecureTls: true });
   expect(() =>
     parseModelCurl(
       "curl -X POST 'https://10.149.73.28:5035/dify/v1/chat-messages' --json '{}'",
     ),
   ).toThrow(/Dify app endpoint.*request debugger/i);
+});
+
+it("preserves unresolved braced environment references without expanding them", () => {
+  expect(
+    parseModelCurl(
+      'curl https://relay.example/v1/chat/completions -H "Authorization: Bearer ${DEMO_ENV}" --json \'{"model":"m"}\'',
+    ),
+  ).toMatchObject({ apiKey: null });
+});
+
+it("preserves literal dollar content and follows ordered TLS flags", () => {
+  expect(
+    parseModelCurl(
+      `curl https://relay.example/v1/chat/completions --json '{"model":"m","note":"$5.00"}'`,
+    ),
+  ).toMatchObject({ model: "m" });
+  expect(() =>
+    parseModelCurl(
+      'curl https://relay.example/v1/chat/completions --data "$(whoami)"',
+    ),
+  ).toThrow(/Shell expansion/i);
+  expect(
+    parseModelCurl(
+      "curl -ks https://relay.example/v1/chat/completions --json '{}'",
+    ),
+  ).toMatchObject({ insecureTls: true });
+  expect(
+    parseModelCurl(
+      "curl -sk https://relay.example/v1/chat/completions --json '{}'",
+    ),
+  ).toMatchObject({ insecureTls: true });
+  expect(
+    parseModelCurl(
+      "curl -k --no-insecure https://relay.example/v1/chat/completions --json '{}'",
+    ),
+  ).not.toHaveProperty("insecureTls");
+});
+
+it("normalizes copied indentation only when it makes JSON valid", () => {
+  expect(
+    parseModelCurl(
+      `curl https://relay.example/v1/chat/completions --json '{\n&#x20; "model":"m"\n}'`,
+    ),
+  ).toMatchObject({ model: "m", normalizations: ["json_indentation"] });
+  expect(
+    parseModelCurl(
+      `curl https://relay.example/v1/chat/completions --json '{"model":"m","note":"&#x20;"}'`,
+    ),
+  ).toMatchObject({ normalizations: [] });
 });
 
 it("normalizes a presentation-escaped scheme separator", () => {
@@ -126,6 +181,7 @@ it("normalizes a presentation-escaped scheme separator", () => {
     provider: "openai_compatible",
     baseUrl: "https://relay.example/v1",
     model: "relay-model",
+    normalizations: ["url_scheme"],
   });
 });
 
@@ -142,6 +198,7 @@ it("parses common Windows cmd cURL exports without expanding credentials", () =>
     baseUrl: "https://relay.example/v1",
     model: "relay-model",
     apiKey: null,
+    normalizations: [],
   });
 });
 
@@ -158,6 +215,7 @@ it("accepts PowerShell continuation and environment-variable credentials as plac
     baseUrl: "https://relay.example/v1",
     model: "relay-model",
     apiKey: null,
+    normalizations: [],
   });
 });
 

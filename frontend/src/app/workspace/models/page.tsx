@@ -184,10 +184,31 @@ export default function ModelsPage() {
       setClearKey(imported.apiKey === null && Boolean(savedCredential));
       setCurlCommand("");
       clearModelOptions();
+      const notes = [
+        ...(imported.insecureTls
+          ? [
+              zh
+                ? "\u8bc6\u522b\u5230 -k\uff08\u4e0d\u4fdd\u5b58\u6b64\u8bbe\u7f6e\uff09"
+                : "-k recognized (not saved)",
+            ]
+          : []),
+        ...(imported.normalizations.includes("url_scheme")
+          ? [
+              zh
+                ? "\u5df2\u4fee\u6b63\u7f51\u5740\u8f6c\u4e49"
+                : "URL escape normalized",
+            ]
+          : []),
+        ...(imported.normalizations.includes("json_indentation")
+          ? [
+              zh
+                ? "\u5df2\u4fee\u6b63\u590d\u5236\u4ea7\u751f\u7684 JSON \u7f29\u8fdb"
+                : "Copied JSON indentation normalized",
+            ]
+          : []),
+      ];
       setMessage(
-        zh
-          ? "已在浏览器解析并填入配置；未执行或发送 cURL 命令。"
-          : "Parsed in this browser. The cURL command was not run or sent.",
+        `${zh ? "\u5df2\u5728\u6d4f\u89c8\u5668\u89e3\u6790\u5e76\u586b\u5165\u914d\u7f6e\uff1b\u672a\u6267\u884c\u6216\u53d1\u9001 cURL \u547d\u4ee4\u3002" : "Parsed in this browser; the cURL command was not run or sent."}${notes.length ? ` ${zh ? "\u8bf7\u6838\u5bf9\uff1a" : "Review:"} ${notes.join("; ")}.` : ""}${imported.insecureTls ? (zh ? " \u6a21\u578b\u8bf7\u6c42\u4ecd\u6309\u670d\u52a1\u7aef\u8bc1\u4e66\u4fe1\u4efb\u7b56\u7565\u6267\u884c\u3002" : " Model requests still follow server certificate trust policy.") : ""}`,
       );
     } catch (e) {
       setError(

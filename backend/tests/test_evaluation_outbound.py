@@ -65,7 +65,7 @@ async def test_transport_rechecks_policy_at_send_time(monkeypatch):
     await transport.aclose()
 
 
-def test_factory_disables_redirects_proxy_environment_and_insecure_tls(monkeypatch):
+def test_factory_defaults_to_tls_verification_and_allows_scoped_override(monkeypatch):
     transport = Mock()
     monkeypatch.setattr(outbound, "PinnedEvaluationTransport", Mock(return_value=transport))
     constructor = Mock()
@@ -76,6 +76,8 @@ def test_factory_disables_redirects_proxy_environment_and_insecure_tls(monkeypat
     assert options["trust_env"] is False
     assert options["follow_redirects"] is False
     assert options["timeout"] == 12
+    outbound.evaluation_client(object(), "https://example.test/api", verify_tls=False)
+    assert outbound.PinnedEvaluationTransport.call_args.kwargs["verify_tls"] is False
 
 
 def manual_api(monkeypatch, *, permissions=None, component=None):

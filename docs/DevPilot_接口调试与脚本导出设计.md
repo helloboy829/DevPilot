@@ -50,7 +50,7 @@ Confirmation 绑定 component_version、endpoint/request hash、environment_revi
 | 输出提取 | extractor_version、文本/结构化路径、业务成功规则；原响应与提取结果同时保留 |
 | 流协议 | none / openai_sse 等已实现协议、内容事件规则、终态/错误规则；不是“有 SSE 就有 token” |
 | 资源 | timeout、最大响应/文件体积、重试（默认 0）、副作用声明 |
-| 网络安全 | 服务端目的地策略、TLS/企业 CA；用户不可设置 verify=false |
+| 网络安全 | 服务端目的地策略、TLS/企业 CA；默认校验证书；调试页仅支持逐次明确授权的 -k 风险选择，不持久化；用户不可设置持久 verify=false |
 
 cURL 仅作为导入格式，不作为执行载体。首版承诺受控 POSIX 标准 cURL 子集，以及仅用于跨行拼接的 Windows cmd 脱字符和 PowerShell 反引号续行；同时识别 POSIX、PowerShell 和 cmd 的整值环境变量占位符，但绝不展开。其他 PowerShell/cmd 语法、Invoke-WebRequest 等别名不等于 cURL。拒绝真实管道、重定向、命令替换、可执行插值、不支持 flags 和任意本地文件读取。JSON 字符串里的分号不是 shell 控制符，不能简单字符串黑名单误拒。文件导入为受控 artifact，禁止把 @C:/... 当成服务器可随意读取的路径。
 环境变量只做受限占位替换，无 eval/模板表达式执行；替换后再次做 URL/请求校验。浏览器统一调用 Gateway，Gateway/Worker 负责目标请求，不因 CORS 问题让浏览器携带凭据直连目标。

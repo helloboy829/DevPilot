@@ -38,11 +38,15 @@ export function RequestDebugger() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [consent, setConsent] = useState(false);
+  const [normalizedImport, setNormalizedImport] = useState(false);
+  const [insecureTls, setInsecureTls] = useState(false);
+  const [insecureTlsConsent, setInsecureTlsConsent] = useState(false);
   const [copied, setCopied] = useState(false);
   const change = (patch: Partial<RequestSpec>) => {
     if (spec) setSpec({ ...spec, ...patch });
     setResult(null);
     setConsent(false);
+    setInsecureTlsConsent(false);
     setCopied(false);
   };
   function openSave() {
@@ -82,12 +86,24 @@ export function RequestDebugger() {
     setResult(null);
     setSpec(null);
     setConsent(false);
+    setNormalizedImport(false);
+    setInsecureTls(false);
+    setInsecureTlsConsent(false);
     try {
-      const data = await evaluationApi<{ spec: RequestSpec }>(
-        "component-tests/debug/parse",
-        { command: curl },
-      );
+      const data = await evaluationApi<{
+        spec: RequestSpec;
+        insecure_tls?: boolean;
+        warnings?: string[];
+      }>("component-tests/debug/parse", { command: curl });
       setSpec(data.spec);
+      setInsecureTls(data.insecure_tls === true);
+      setNormalizedImport(
+        data.warnings?.some(
+          (warning) =>
+            warning === "normalized_url_scheme" ||
+            warning === "normalized_json_indentation",
+        ) === true,
+      );
       setHeaders(JSON.stringify(data.spec.headers, null, 2));
       setCurl("");
     } catch (cause) {
@@ -126,17 +142,20 @@ export function RequestDebugger() {
     }
   }
   async function send() {
-    if (!spec || !consent) return;
+    if (!spec || !consent || (insecureTls && !insecureTlsConsent)) return;
     setBusy(true);
     setError("");
     setResult(null);
     setConsent(false);
+    setInsecureTlsConsent(false);
     setCopied(false);
     try {
       setResult(
         await evaluationApi<ResponseView>("component-tests/debug/send", {
           spec: { ...spec, headers: JSON.parse(headers) as string[][] },
           consent: true,
+          insecure_tls: insecureTls,
+          insecure_tls_consent: insecureTls && insecureTlsConsent,
         }),
       );
     } catch (cause) {
@@ -183,6 +202,13 @@ export function RequestDebugger() {
       </Button>
       {spec && (
         <fieldset disabled={busy} className="space-y-3">
+          {normalizedImport && (
+            <p className="text-muted-foreground text-sm" role="status">
+              {zh
+                ? "已修正粘贴时带入的网址转义或 JSON 缩进。请核对下方预览后再发送。"
+                : "Corrected a copied URL escape or JSON indentation. Review the preview below before sending."}
+            </p>
+          )}
           <div className="flex gap-2">
             <label className="text-sm">
               {zh ? "方法" : "Method"}
@@ -255,6 +281,28 @@ export function RequestDebugger() {
           <Button variant="outline" onClick={openSave}>
             {zh ? "保存请求版本" : "Save request version"}
           </Button>
+          {insecureTls && (
+            <div
+              className="space-y-2 rounded border border-amber-500 p-3 text-sm"
+              role="alert"
+            >
+              <p>
+                {zh
+                  ? "此 cURL 含 -k/--insecure：本次请求将跳过 TLS 证书校验，可能遭受中间人攻击。此设置仅用于本次调试发送，不会保存到请求版本。"
+                  : "This cURL uses -k/--insecure. This send will skip TLS certificate verification and may be vulnerable to interception. The setting applies only to this debug send and is not saved in the request version."}
+              </p>
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={insecureTlsConsent}
+                  onChange={(e) => setInsecureTlsConsent(e.target.checked)}
+                />
+                {zh
+                  ? "我理解风险，并单独授权本次跳过证书校验。"
+                  : "I understand the risk and separately authorize skipping certificate verification for this send."}
+              </label>
+            </div>
+          )}
           <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -265,7 +313,10 @@ export function RequestDebugger() {
               ? "我确认已获授权向此目标发送一次请求（可能产生费用或业务副作用）。目标域名须由管理员加入出站白名单。"
               : "I authorize one request to this operator-approved host, including possible cost or side effects."}
           </label>
-          <Button disabled={busy || !consent} onClick={() => void send()}>
+          <Button
+            disabled={busy || !consent || (insecureTls && !insecureTlsConsent)}
+            onClick={() => void send()}
+          >
             {busy
               ? zh
                 ? "处理中…"
@@ -282,6 +333,9 @@ export function RequestDebugger() {
               setHeaders("[]");
               setResult(null);
               setConsent(false);
+              setNormalizedImport(false);
+              setInsecureTls(false);
+              setInsecureTlsConsent(false);
             }}
           >
             {zh ? "清除凭据与内容" : "Clear request and credentials"}

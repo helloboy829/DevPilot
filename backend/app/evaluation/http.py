@@ -41,23 +41,23 @@ def component_request_spec(component: dict, params: dict) -> RequestSpec:
 class PinnedEvaluationTransport(PinnedHTTPTransport):
     """Shared wire mechanism with the App's live, per-request operator policy."""
 
-    def __init__(self, config, url: str):
+    def __init__(self, config, url: str, *, verify_tls: bool = True):
         self.config = config
-        super().__init__(url, self._resolve_destination)
+        super().__init__(url, self._resolve_destination, verify_tls=verify_tls)
 
     async def _resolve_destination(self, spec: RequestSpec) -> str:
         return await resolve_destination(spec, self.config)
 
 
-def evaluation_client(config, url: str, *, timeout_seconds: float = 30) -> httpx.AsyncClient:
-    return httpx.AsyncClient(transport=PinnedEvaluationTransport(config, url), trust_env=False, follow_redirects=False, timeout=timeout_seconds)
+def evaluation_client(config, url: str, *, timeout_seconds: float = 30, verify_tls: bool = True) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=PinnedEvaluationTransport(config, url, verify_tls=verify_tls), trust_env=False, follow_redirects=False, timeout=timeout_seconds)
 
 
-async def send_request(spec: RequestSpec, config) -> dict:
+async def send_request(spec: RequestSpec, config, *, insecure_tls: bool = False) -> dict:
     headers = list(map(tuple, spec.headers))
     started = time.perf_counter()
     async with asyncio.timeout(35):
-        async with evaluation_client(config, spec.url, timeout_seconds=30) as client:
+        async with evaluation_client(config, spec.url, timeout_seconds=30, verify_tls=not insecure_tls) as client:
             async with client.stream(spec.method, spec.url, headers=headers, content=spec.body.encode("utf-8")) as response:
                 chunks = bytearray()
                 truncated = False

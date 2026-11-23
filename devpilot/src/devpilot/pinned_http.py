@@ -36,17 +36,30 @@ class PinnedHTTPTransport(httpx.AsyncBaseTransport):
 
     version = _VERSION
 
-    def __init__(self, url: str, resolver: Callable[[RequestSpec], Awaitable[str]], *, version: str = _VERSION):
+    def __init__(
+        self,
+        url: str,
+        resolver: Callable[[RequestSpec], Awaitable[str]],
+        *,
+        verify_tls: bool = True,
+        version: str = _VERSION,
+    ):
         if version != _VERSION or not callable(resolver):
             raise ValueError("Invalid pinned HTTP transport")
         RequestSpec(url=url)
         self.url = httpx.URL(url)
         self._resolver = resolver
-        self.inner = httpx.AsyncHTTPTransport(verify=True, trust_env=False, retries=0)
+        self.inner = httpx.AsyncHTTPTransport(
+            verify=verify_tls, trust_env=False, retries=0
+        )
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         spec = RequestSpec(url=str(request.url))
-        if (request.url.scheme, request.url.host, request.url.port) != (self.url.scheme, self.url.host, self.url.port):
+        if (request.url.scheme, request.url.host, request.url.port) != (
+            self.url.scheme,
+            self.url.host,
+            self.url.port,
+        ):
             raise EvaluationPolicyError("Evaluation request changed destination")
         ip = await self._resolver(spec)
         # Never hand a hostname back to HTTPX for a second, unchecked DNS lookup.
