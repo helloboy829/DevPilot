@@ -185,3 +185,12 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 - vLLM benchmark CLI 的定位、client/server 指标与诊断开销：[official benchmark guide](https://docs.vllm.ai/en/latest/benchmarking/cli/)。
 - NVIDIA 的迁移说明：[GenAI-Perf 官方文档](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/perf_analyzer/genai-perf/README.html)。
 - Ray LLMPerf 的归档/许可证元数据：[GitHub repository](https://github.com/ray-project/llmperf)。
+
+
+### PERF-06 Synthetic-only Worker (2026-11-23)
+
+`backend/app/evaluation/performance_worker.py` is an explicitly invoked App-domain worker for already admitted, frozen runs. It derives bounded synthetic JSON from each frozen ordinal/case/iteration and follows claim -> ACK -> fenced start -> in-process synthetic response -> durable observation. It never reads gold/reference answers, invokes a model/target, opens network connections, schedules itself, exposes a public run endpoint, retries, or resends.
+
+Migration `eval_0030` adds durable `execution_mode` (`target` by default; irreversibly changed to `synthetic_only` before the first dispatch) and the corresponding audit action. `get_run` does not project synthetic latency/QPS as target performance metrics. Request/response/aggregate byte bounds, request timeout, wall deadline, and optional measurement duration are honored; uncertain outcomes after the send fence become `unknown` and stop the run. Evidence uses the existing encrypted artifact and access-audit path.
+
+**Acceptance boundary:** this implementation intentionally runs serially and does not simulate `concurrency` or `max_in_flight`. It validates ledger, state, and evidence integrity only; its timings are not load-test results. Real transport, concurrency, worker scheduling, cancellation/drain, full metrics analysis, and UI remain future slices. PostgreSQL is production default; SQLite is isolated test-only.
