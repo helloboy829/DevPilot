@@ -1,6 +1,7 @@
 # DevPilot 实现进度与下一步
+> **当前事实同步（2026-11-23，已合并）：** `main` 已通过 merge commit `6531c3a` 合入 PERF-05 durable admission（源分支精确 tip `1e2671a8881342dcd96ff3932e79a01a2aa16a82`）。该切片仅提供 owner/project/run scoped 的持久准入、冻结 hash 复核和幂等 `created -> running`，不启动 Worker、不 claim dispatch、不发送真实请求。后续仍需 Worker/transport/cancel-drain/metrics API 与两个工作台闭环。
 
-> **Current delivery facts (2026-11-23):** PERF-04 durable dispatch boundary is merged into `main` (`302ae07`). PERF-05 candidate `0b7c73a` adds `PerformanceRunAdmission` and `POST /api/evaluation/projects/{project_id}/performance-runs/{run_id}/admit`: the service locks the run in a transaction, revalidates the frozen scenario/hash/profile/manifest, and idempotently writes `created -> running` plus a `run_admitted` audit event; the first dispatch remains `pending` with no `send_started_ns`. Migration head is `eval_0029`.
+> **Current delivery facts (2026-11-23):** PERF-04 durable dispatch boundary is merged into `main` (`302ae07`). PERF-05 merged source `1e2671a` (merge `6531c3a`) adds `PerformanceRunAdmission` and `POST /api/evaluation/projects/{project_id}/performance-runs/{run_id}/admit`: the service locks the run in a transaction, revalidates the frozen scenario/hash/profile/manifest, and idempotently writes `created -> running` plus a `run_admitted` audit event; the first dispatch remains `pending` with no `send_started_ns`. Migration head is `eval_0029`.
 >
 > This is still not a complete load-test loop: worker consumption, target authorization/real transport, cancel/drain, complete metrics API, and start-load-test UI are not implemented. The required order remains durable admission -> worker lease -> ACK -> send_started -> observation -> metrics.
 
@@ -12,7 +13,7 @@
 
 
 > **Current candidate slice (2026-11-23):** `feature/perf-04-dispatch-boundary` is based on main `49aa508fa11a4fd0b90af383ed34a6d8172f6db2` and implements the PERF-04 repository boundary. Focused verification in this worktree is **41 passed / 1 skipped**; the existing-row migration regression and PostgreSQL migration parity also pass. The candidate is not committed, pushed, or merged. The next gate is precise cleanup, commit, push, exact-SHA Actions verification, and merge to `main`. This slice is not the complete performance execution path.
-> **当前切片：PERF-03 调度核心已合入（2026-11-23）**：`main` 与 `origin/main` 位于 `28ea31e866ac6bcead6417ea940afaad9da8ac3b`。`PerformanceSchedule` 纯 Python 状态机及 12 项回归已合入；Linux/Python 3.12 全后端 `make test`、lint、Blocking IO 和该切片定向测试均有通过记录。精确 SHA 的 GitHub Checks 已终结：**8 项全部 success**，其中 `backend-unit-tests` 于 2026-11-23 08:00:39 UTC 完成。
+> **当前切片：PERF-05 durable admission 已合入（2026-11-23）**：`main` 与 `origin/main` 当前位于 merge `6531c3a948bb2e15b980f695381c8acc43f94fb9`。`PerformanceSchedule` 纯 Python 状态机及 12 项回归已合入；Linux/Python 3.12 全后端 `make test`、lint、Blocking IO 和该切片定向测试均有通过记录。精确 SHA 的 GitHub Checks 已终结：**8 项全部 success**，其中 `backend-unit-tests` 于 2026-11-23 08:00:39 UTC 完成。
 >
 > **功能边界：**`PerformanceSchedule` 本身是纯调度状态机。App 当前已有 durable run/dispatch ledger、Repository 层 ACK/observation/interruption 事务、加密响应 artifact 与授权浏览；这些尚未接入可执行 Worker/API。尚无完整 execution admission/target authorization、队列 Worker、真实 transport 或取消/drain 控制面，因此还不能启动真实压测。
 >
@@ -31,7 +32,7 @@
 
 ## 当前里程碑
 
-截至 2026-11-23，`main` 位于 `28ea31e866ac6bcead6417ea940afaad9da8ac3b`，包含 PERF-02 逐请求性能证据浏览和 PERF-03 确定性调度核心。前者不发送请求；后者是纯调度状态机，不含 durable admission/worker 或实际压测链路。Linux/Python 3.12 全量、lint、Blocking IO 有本地通过记录；精确 SHA 的 GitHub Actions 已全部成功（8/8）。下一步实现 durable admission/worker、授权发送、未知状态只读对账、取消/drain 与证据闭环，随后完善指标 API 和压测 UI；效果测试浏览与全局文档/重构审计仍在总目标内。详细合同见[性能工作台设计](DevPilot_AI性能测试工作台设计.md)。
+截至 2026-11-23，`main` 位于 `6531c3a948bb2e15b980f695381c8acc43f94fb9`，包含 PERF-02 和 PERF-05 durable admission；PERF-05 逐请求性能证据浏览和 PERF-03 确定性调度核心。前者不发送请求；后者是纯调度状态机，不含 durable admission/worker 或实际压测链路。Linux/Python 3.12 全量、lint、Blocking IO 有本地通过记录；精确 SHA 的 GitHub Actions 已全部成功（8/8）。下一步实现 durable admission/worker、授权发送、未知状态只读对账、取消/drain 与证据闭环，随后完善指标 API 和压测 UI；效果测试浏览与全局文档/重构审计仍在总目标内。详细合同见[性能工作台设计](DevPilot_AI性能测试工作台设计.md)。
 
 文档治理切片 DOC-01 已完成：合同 Owner 导航、状态/进度/历史单一来源、目标与候选状态区分、旧入口归档标注、功能矩阵源码/测试路径核对、旧性能入口重构门槛和链接/格式终检均已记录。完成范围与边界见下方开发进度及本轮开发记录；DOC-01 仅表示文档可作为后续实现依据，不表示目标功能已实现或验收。
 
