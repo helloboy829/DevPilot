@@ -384,19 +384,38 @@ function PerformanceResultsContent() {
                       String(run.metrics.state_counts.succeeded ?? 0),
                     )}
                     {metric(
-                      t("Failed / unknown", "失败 / 未知"),
-                      String(
-                        (run.metrics.state_counts.failed ?? 0) +
-                          (run.metrics.state_counts.unknown ?? 0),
-                      ),
+                      t("Failed", "失败"),
+                      String(run.metrics.state_counts.failed ?? 0),
+                    )}
+                    {metric(
+                      t("Unknown", "未知"),
+                      String(run.metrics.state_counts.unknown ?? 0),
                     )}
                     {metric(
                       t("Not dispatched", "未派发"),
                       String(run.metrics.state_counts.not_dispatched ?? 0),
                     )}
                     {metric(
-                      t("p50 / p90 / p99", "p50 / p90 / p99"),
+                      t("p50 / p90 / p99", "成功 p50 / p90 / p99"),
                       `${latency(run.metrics.successful_latency_ms.p50)} / ${latency(run.metrics.successful_latency_ms.p90)} / ${latency(run.metrics.successful_latency_ms.p99)}`,
+                    )}
+                    {metric(
+                      t(
+                        "Failed latency p50 / p90 / p99",
+                        "失败 p50 / p90 / p99",
+                      ),
+                      `${latency(run.metrics.failed_latency_ms.p50)} / ${latency(run.metrics.failed_latency_ms.p90)} / ${latency(run.metrics.failed_latency_ms.p99)}`,
+                    )}
+                    {metric(
+                      t(
+                        "Failed latency samples / max",
+                        "失败延迟样本 / 最大值",
+                      ),
+                      `${run.metrics.failed_latency_ms.n} / ${latency(run.metrics.failed_latency_ms.max)}`,
+                    )}
+                    {metric(
+                      t("Rate applicability", "速率适用性"),
+                      run.metrics.rate_applicability,
                     )}
                     {metric(
                       t("Output tokens", "输出 token"),
@@ -411,11 +430,15 @@ function PerformanceResultsContent() {
                         : `${Number(run.metrics.output_token_throughput.toFixed(3))} tok/s`,
                     )}
                     {metric(
+                      t("Token applicability", "Token 适用性"),
+                      run.metrics.token_applicability,
+                    )}
+                    {metric(
                       t("Censored", "删失请求"),
                       String(run.metrics.censored_count),
                     )}
                     {metric(
-                      t("Latency applicability", "延迟适用性"),
+                      t("Successful latency applicability", "成功延迟适用性"),
                       run.metrics.successful_latency_ms.p99_applicability,
                     )}
                   </dl>

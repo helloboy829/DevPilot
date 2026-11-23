@@ -46,24 +46,24 @@ const performanceRun = {
   scenario_hash: "a".repeat(64),
   profile_hash: "b".repeat(64),
   manifest_hash: "c".repeat(64),
-  population_count: 3,
+  population_count: 4,
   status: "incomplete",
   window_start_ns: 100,
   window_end_ns: 1_000_000_100,
   created_at: "2026-11-23T10:00:00Z",
   finished_at: null,
-  state_counts: { succeeded: 1, unknown: 1, not_dispatched: 1 },
+  state_counts: { succeeded: 1, failed: 1, unknown: 1, not_dispatched: 1 },
   metrics: {
     quantile_method: "nearest_rank.v1",
     cohort_count: 1,
-    state_counts: { succeeded: 1, unknown: 1, not_dispatched: 1 },
+    state_counts: { succeeded: 1, failed: 1, unknown: 1, not_dispatched: 1 },
     window_seconds: 1,
     attempt_qps: 1,
     success_qps: 1,
-    rate_applicability: "applicable",
-    output_token_count: null,
-    output_token_throughput: null,
-    token_applicability: "not_available",
+    rate_applicability: "partial",
+    output_token_count: 12,
+    output_token_throughput: 12,
+    token_applicability: "partial",
     successful_latency_ms: {
       n: 1,
       max: 125,
@@ -73,12 +73,12 @@ const performanceRun = {
       p99_applicability: "insufficient_samples",
     },
     failed_latency_ms: {
-      n: 0,
-      max: null,
-      p50: null,
-      p90: null,
-      p99: null,
-      p99_applicability: "no_samples",
+      n: 1,
+      max: 300,
+      p50: 300,
+      p90: 300,
+      p99: 300,
+      p99_applicability: "insufficient_samples",
     },
     censored_count: 1,
     population_sha256: "d".repeat(64),
@@ -154,6 +154,18 @@ it("explicitly loads performance ledger and exposes unknown requests without ope
   fireEvent.click(screen.getByRole("button", { name: /run-1/ }));
   await screen.findByText("Success QPS");
   expect(screen.getAllByText("1 req/s").length).toBe(2);
+  for (const [label, value] of [
+    ["Failed", "1"],
+    ["Unknown", "1"],
+    ["Rate applicability", "partial"],
+    ["Token applicability", "partial"],
+    ["Failed latency p50 / p90 / p99", "300 ms / 300 ms / 300 ms"],
+    ["Failed latency samples / max", "1 / 300 ms"],
+  ] as const) {
+    expect(
+      screen.getByText(label).parentElement?.querySelector("dd")?.textContent,
+    ).toBe(value);
+  }
 
   fireEvent.click(screen.getByRole("button", { name: "Load dispatches" }));
   await screen.findByText("sample-1");
