@@ -1,6 +1,8 @@
 > **Fact sync (2026-11-23, model cURL import):** `b62a9102625e081fc12eefd3a000d8eb1ecbc9da` adds the model-configuration cURL import fix. The bounded browser-only parser now accepts whole-token `$NAME`, `${NAME}`, `$env:NAME`, `${env:NAME}`, and `%NAME%` credential references without expanding or persisting them; it also accepts only Windows `^` LF/CRLF and PowerShell backtick line continuations. Other caret usage and unsupported shell syntax remain rejected. The parser never executes or sends the raw cURL.
 >
-> Fresh verification on this exact tree: frontend test command **1,479 passed / 0 failed across 171 files**, `python scripts/pnpm.py check` passed, and `git diff --check` passed. Commit `b62a910` is currently one commit ahead of `origin/main`; it still requires push and exact-SHA GitHub Actions verification before this delivery slice is marked remotely verified.
+> Fresh verification on the exact implementation tree: frontend test command **1,479 passed / 0 failed across 171 files**, `python scripts/pnpm.py check` passed, and `git diff --check` passed. The implementation commit `b62a9102625e081fc12eefd3a000d8eb1ecbc9da` and this status record were pushed to `main` as `eee722e0b5b0e21f1b7ad16894ab5b94e2aa08a0`.
+>
+> Exact-SHA GitHub Actions for `eee722e0b5b0e21f1b7ad16894ab5b94e2aa08a0`: **E2E Tests, Frontend Unit Tests, Lint Check, and Replay E2E succeeded**. The aggregate `Unit Tests` workflow was **cancelled before completion**; its completed jobs succeeded, but the backend-unit-tests job did not produce a pass result. Therefore this slice has no exact-SHA full backend CI pass and must not be reported as one.
 >
 > This fixes the reported model-configuration error for supported Windows/POSIX exports; it does not turn the importer into a general shell parser and does not enable file upload, proxy, script, redirect, or insecure-TLS execution.
 
