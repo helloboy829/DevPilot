@@ -148,9 +148,9 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 
 回归覆盖 request count 大于 N 的 exact cycle、duration 优先终止、warmup、steady window、drain 截尾、固定时间戳、延迟分位数、rate scheduling/迟到、token source、无流式 N/A、流被 buffer、cancel/lease/fence/unknown delivery、超限响应、artifact partial write 与重建。CI 只用确定性本地假服务；真实服务需有隔离手动授权的验收计划。
 
-### PERF-02 已实现切片：持久账本与纯指标（2026-11-22）
+### PERF-02 已实现切片：持久账本、证据和浏览 UI（2026-11-23）
 
-本节 ledger/metrics 基线已于 2026-11-22 合入 main；以下 eval_0026..0027 响应留存与授权读取属于 2026-11-23 feature/perf-evidence 未提交候选，不代表 main 已具备这些能力。
+截至 2026-11-23，PR #5 已合入 `main`，合并提交为 `a672af3fd44f4e053b880a3ca5d53163eb525733`。当前实现包括 `eval_0025` ledger/metrics、`eval_0026` 加密响应 artifact、`eval_0027` actor-bound 一次性证据授权/审计，以及 `/workspace/performance-results` 浏览 UI。下方在开发期间形成的“候选”“未提交”描述是当时状态的历史记录，不表示当前代码仍未合并。候选 SHA `2f86a3e7daa29562d3c3d1dbf48bf6360035efa3` 的 CI 全部终态通过；合并 SHA 的主分支 Actions 单独跟踪于[交付状态](DevPilot_Delivery_Status.md)。
 
 本切片只实现 durable run/dispatch/audit ledger 和确定性指标投影，不实现 worker 或发网请求。迁移 `eval_0025` 新增 `evaluation_performance_runs`、`evaluation_performance_dispatches`、`evaluation_performance_run_audit`；run 绑定 owner、project、冻结 scenario/hash 和 population count；创建事务一次性写入完整 manifest ordinal。每个 ordinal 只有一次 pending → dispatched ACK 与一次 observation；ACK 返回稳定 `dispatch_id` ticket，未来执行器必须先提交 ACK 再发请求。当前仓储没有任何 HTTP client、调度循环或出站授权。
 
