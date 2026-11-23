@@ -34,7 +34,26 @@ from deerflow.persistence.bootstrap import _get_head_revision, bootstrap_schema
 from deerflow.persistence.user.model import UserRow
 
 pytestmark = pytest.mark.asyncio
-REVISIONS = ("eval_0010", "eval_0011", "eval_0012", "eval_0013", "eval_0014", "eval_0015", "eval_0016", "eval_0017", "eval_0018", "eval_0019", "eval_0020", "eval_0021", "eval_0022", "eval_0023", "eval_0024", "eval_0025")
+REVISIONS = (
+    "eval_0010",
+    "eval_0011",
+    "eval_0012",
+    "eval_0013",
+    "eval_0014",
+    "eval_0015",
+    "eval_0016",
+    "eval_0017",
+    "eval_0018",
+    "eval_0019",
+    "eval_0020",
+    "eval_0021",
+    "eval_0022",
+    "eval_0023",
+    "eval_0024",
+    "eval_0025",
+    "eval_0026",
+    "eval_0027",
+)
 ADDITIONS = (
     {"evaluation_review_tasks", "evaluation_review_task_assignments", "evaluation_review_task_decisions", "evaluation_review_task_resolutions", "evaluation_review_task_audit"},
     {"evaluation_run_assessments"},
@@ -52,6 +71,8 @@ ADDITIONS = (
     {"evaluation_material_preview_receipts"},
     {"evaluation_performance_scenarios", "evaluation_performance_scenario_audit"},
     {"evaluation_performance_runs", "evaluation_performance_dispatches", "evaluation_performance_run_audit"},
+    {"evaluation_performance_response_artifacts"},
+    {"evaluation_performance_evidence_access_grants"},
 )
 PASSWORD = "SYNTHETIC_RECOVERY_PASSWORD_ONLY"
 
@@ -108,28 +129,26 @@ def backup(source, destination):
 
 def unchanged(before, after, revision):
     assert before["tables"].keys() <= after["tables"].keys()
+    project_column_added = revision in REVISIONS[REVISIONS.index("eval_0019") :]
+    dispatch_index_added = revision in REVISIONS[REVISIONS.index("eval_0020") :]
     for name, rows in before["tables"].items():
         if name == "devpilot_alembic_version":
             expected = [json.dumps([revision], separators=(",", ":"))]
-        elif name == "evaluation_projects" and revision in {"eval_0019", "eval_0020", "eval_0021", "eval_0022", "eval_0023", "eval_0024", "eval_0025"}:
+        elif name == "evaluation_projects" and project_column_added:
             expected = sorted(json.dumps(json.loads(row) + [0], ensure_ascii=True, separators=(",", ":")) for row in rows)
         else:
             expected = rows
         assert after["tables"][name] == expected, "Historical table changed: " + name
     old_names = before["tables"].keys()
-    before_definitions = [row for row in before["definitions"] if not (revision in {"eval_0019", "eval_0020", "eval_0021", "eval_0022", "eval_0023", "eval_0024", "eval_0025"} and row[1] == "evaluation_projects")]
+    before_definitions = [row for row in before["definitions"] if not (project_column_added and row[1] == "evaluation_projects")]
     after_definitions = [
-        row
-        for row in after["definitions"]
-        if row[2] in old_names
-        and not (revision in {"eval_0019", "eval_0020", "eval_0021", "eval_0022", "eval_0023", "eval_0024", "eval_0025"} and row[1] == "evaluation_projects")
-        and not (revision in {"eval_0020", "eval_0021", "eval_0022", "eval_0023", "eval_0024", "eval_0025"} and row[1] == "ix_evaluation_dispatch_run_project_started_id")
+        row for row in after["definitions"] if row[2] in old_names and not (project_column_added and row[1] == "evaluation_projects") and not (dispatch_index_added and row[1] == "ix_evaluation_dispatch_run_project_started_id")
     ]
     assert after_definitions == before_definitions
-    if revision in {"eval_0019", "eval_0020", "eval_0021", "eval_0022", "eval_0023", "eval_0024", "eval_0025"}:
+    if project_column_added:
         project_definition = next(row[3] for row in after["definitions"] if row[1] == "evaluation_projects")
         assert "result_revision" in project_definition
-    if revision in {"eval_0020", "eval_0021", "eval_0022", "eval_0023", "eval_0024", "eval_0025"}:
+    if dispatch_index_added:
         index_definition = next(row[3] for row in after["definitions"] if row[1] == "ix_evaluation_dispatch_run_project_started_id")
         assert "started_at_ms" in index_definition and "project_id" in index_definition
 
@@ -249,13 +268,13 @@ async def test_wal_backup_upgrade_and_independent_old_version_restore(recovery, 
     for target in versions:
         await asyncio.to_thread(upgrade, url, target)
         actual = await asyncio.to_thread(snapshot, candidate)
-        revision = "eval_0025" if target == "head" else target
+        revision = REVISIONS[-1] if target == "head" else target
         expected_names.update(set.union(*ADDITIONS) if target == "head" else ADDITIONS[REVISIONS.index(target)])
         assert set(actual["tables"]) == expected_names
         unchanged(source.original, actual, revision)
         stages.append({"revision": revision, "tables": len(actual["tables"]), "all_historical_tables_unchanged": True})
     await asyncio.to_thread(upgrade, url, "head")
-    unchanged(source.original, await asyncio.to_thread(snapshot, candidate), "eval_0025")
+    unchanged(source.original, await asyncio.to_thread(snapshot, candidate), REVISIONS[-1])
     await verify_reads(source, candidate)
 
     def candidate_write():
@@ -274,7 +293,7 @@ async def test_wal_backup_upgrade_and_independent_old_version_restore(recovery, 
                 "schema": "synthetic-qa-upgrade-recovery.v1",
                 "mode": mode,
                 "from": "eval_0009",
-                "to": "eval_0025",
+                "to": REVISIONS[-1],
                 "all_historical_tables": len(source.original["tables"]),
                 "stages": stages,
                 "snapshot_sha256": digest(source.original),

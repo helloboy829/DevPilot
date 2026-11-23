@@ -1037,11 +1037,12 @@ performance_dispatches = Table(
     ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_performance_runs.project_id", "evaluation_performance_runs.id"]),
     UniqueConstraint("run_id", "ordinal", name="uq_evaluation_performance_dispatch_ordinal"),
     UniqueConstraint("run_id", "dispatch_id", name="uq_evaluation_performance_dispatch_id"),
+    UniqueConstraint("project_id", "run_id", "ordinal", "dispatch_id", name="uq_evaluation_performance_dispatch_binding"),
     CheckConstraint("ordinal BETWEEN 0 AND 10999 AND iteration >= 0", name="ck_evaluation_performance_dispatch_ordinal"),
     CheckConstraint("phase IN ('warmup','measurement')", name="ck_evaluation_performance_dispatch_phase"),
     CheckConstraint("state IN ('pending','dispatched','succeeded','failed','timeout','unknown','not_dispatched')", name="ck_evaluation_performance_dispatch_state"),
     CheckConstraint("request_bytes IS NULL OR request_bytes BETWEEN 0 AND 1048576", name="ck_evaluation_performance_dispatch_request_bytes"),
-    CheckConstraint("response_bytes IS NULL OR response_bytes BETWEEN 0 AND 1048576", name="ck_evaluation_performance_dispatch_response_bytes"),
+    CheckConstraint("response_bytes IS NULL OR response_bytes BETWEEN 0 AND 10000001", name="ck_evaluation_performance_dispatch_response_bytes"),
     CheckConstraint("request_hash IS NULL OR (length(request_hash) = 64 AND request_hash = lower(request_hash))", name="ck_evaluation_performance_dispatch_request_hash"),
     CheckConstraint("response_hash IS NULL OR (length(response_hash) = 64 AND response_hash = lower(response_hash))", name="ck_evaluation_performance_dispatch_response_hash"),
     CheckConstraint("response_status IS NULL OR response_status BETWEEN 100 AND 599", name="ck_evaluation_performance_dispatch_response_status"),
@@ -1058,6 +1059,64 @@ performance_dispatches = Table(
 Index("ix_evaluation_performance_dispatch_run_state", performance_dispatches.c.project_id, performance_dispatches.c.run_id, performance_dispatches.c.state)
 Index("ix_evaluation_performance_dispatch_evidence", performance_dispatches.c.evidence_ref)
 
+performance_response_artifacts = Table(
+    "evaluation_performance_response_artifacts",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("ordinal", Integer, nullable=False),
+    Column("dispatch_id", String(64), nullable=False),
+    Column("status", String(24), nullable=False),
+    Column("hash_scope", String(8), nullable=False),
+    Column("response_sha256", String(64)),
+    Column("captured_prefix_sha256", String(64)),
+    Column("captured_bytes", Integer, nullable=False),
+    Column("observed_bytes", Integer, nullable=False),
+    Column("content_type", String(127)),
+    Column("content_encoding", String(16)),
+    Column("key_version", String(16)),
+    Column("sealed_sha256", String(64)),
+    Column("sealed_bytes", Integer),
+    Column("receipt_hash", String(64)),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("updated_at_ms", BigInteger, nullable=False),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_performance_runs.project_id", "evaluation_performance_runs.id"]),
+    ForeignKeyConstraint(
+        ["project_id", "run_id", "ordinal", "dispatch_id"],
+        ["evaluation_performance_dispatches.project_id", "evaluation_performance_dispatches.run_id", "evaluation_performance_dispatches.ordinal", "evaluation_performance_dispatches.dispatch_id"],
+        name="fk_evaluation_performance_response_artifact_dispatch",
+    ),
+    UniqueConstraint("run_id", "ordinal", name="uq_evaluation_performance_response_artifact_dispatch"),
+    CheckConstraint("ordinal BETWEEN 0 AND 10999", name="ck_evaluation_performance_response_artifact_ordinal"),
+    CheckConstraint("status IN ('pending','complete','partial','truncated','policy_skipped','not_received','write_failed','write_unknown')", name="ck_evaluation_performance_response_artifact_status"),
+    CheckConstraint("hash_scope IN ('none','full','prefix')", name="ck_evaluation_performance_response_artifact_hash_scope"),
+    CheckConstraint(
+        "((hash_scope = 'none' AND response_sha256 IS NULL AND captured_prefix_sha256 IS NULL) OR "
+        "(hash_scope = 'full' AND response_sha256 IS NOT NULL AND length(response_sha256) = 64 AND captured_prefix_sha256 IS NULL) OR "
+        "(hash_scope = 'prefix' AND response_sha256 IS NULL AND captured_prefix_sha256 IS NOT NULL AND length(captured_prefix_sha256) = 64))",
+        name="ck_evaluation_performance_response_artifact_hash",
+    ),
+    CheckConstraint("captured_bytes BETWEEN 0 AND 1048576 AND observed_bytes BETWEEN 0 AND 10000001 AND observed_bytes >= captured_bytes", name="ck_evaluation_performance_response_artifact_bytes"),
+    CheckConstraint(
+        "((sealed_sha256 IS NULL AND sealed_bytes IS NULL AND key_version IS NULL AND receipt_hash IS NULL) OR "
+        "(sealed_sha256 IS NOT NULL AND length(sealed_sha256) = 64 AND sealed_bytes BETWEEN captured_bytes + 28 AND captured_bytes + 2113 "
+        "AND key_version IS NOT NULL AND length(key_version) BETWEEN 1 AND 16 AND receipt_hash IS NOT NULL AND length(receipt_hash) = 64))",
+        name="ck_evaluation_performance_response_artifact_receipt",
+    ),
+    CheckConstraint(
+        "((status = 'pending' AND hash_scope = 'none' AND sealed_sha256 IS NULL) OR "
+        "(status = 'complete' AND hash_scope = 'full' AND sealed_sha256 IS NOT NULL AND captured_bytes = observed_bytes) OR "
+        "(status IN ('partial','truncated') AND hash_scope = 'prefix' AND sealed_sha256 IS NOT NULL) OR "
+        "(status IN ('policy_skipped','not_received','write_failed') AND hash_scope = 'none' AND sealed_sha256 IS NULL) OR status = 'write_unknown')",
+        name="ck_evaluation_performance_response_artifact_state",
+    ),
+    CheckConstraint("content_type IS NULL OR length(content_type) BETWEEN 1 AND 127", name="ck_evaluation_performance_response_artifact_content_type"),
+    CheckConstraint("content_encoding IS NULL OR content_encoding IN ('identity','gzip','deflate','br','zstd','compress','other')", name="ck_evaluation_performance_response_artifact_content_encoding"),
+    CheckConstraint("created_at_ms > 0 AND updated_at_ms >= created_at_ms AND updated_at_ms <= 253402300799000", name="ck_evaluation_performance_response_artifact_clock"),
+)
+Index("ix_evaluation_performance_response_artifact_status_time", performance_response_artifacts.c.status, performance_response_artifacts.c.updated_at_ms)
+
 performance_run_audit = Table(
     "evaluation_performance_run_audit",
     metadata,
@@ -1070,5 +1129,37 @@ performance_run_audit = Table(
     Column("created_at", String(40), nullable=False),
     ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_performance_runs.project_id", "evaluation_performance_runs.id"]),
     CheckConstraint("sequence >= 1", name="ck_evaluation_performance_run_audit_sequence"),
-    CheckConstraint("action IN ('run_created','dispatch_acknowledged','measurement_window_closed','observation_recorded','run_interrupted','run_finished')", name="ck_evaluation_performance_run_audit_action"),
+    CheckConstraint(
+        "action IN ('run_created','dispatch_acknowledged','measurement_window_closed','observation_recorded','run_interrupted','run_finished','response_access_granted','response_access_read')",
+        name="ck_evaluation_performance_run_audit_action",
+    ),
+)
+
+performance_evidence_access_grants = Table(
+    "evaluation_performance_evidence_access_grants",
+    metadata,
+    Column("token_hash", String(64), primary_key=True),
+    Column("project_id", String(64), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("ordinal", Integer, nullable=False),
+    Column("dispatch_id", String(64), nullable=False),
+    Column("artifact_id", String(32), nullable=False),
+    Column("actor_id", String(64), nullable=False),
+    Column("evidence_hash", String(64), nullable=False),
+    Column("created_at_ms", BigInteger, nullable=False),
+    Column("expires_at_ms", BigInteger, nullable=False),
+    Column("consumed_at_ms", BigInteger),
+    Column("revoked_at_ms", BigInteger),
+    ForeignKeyConstraint(["project_id", "run_id"], ["evaluation_performance_runs.project_id", "evaluation_performance_runs.id"]),
+    ForeignKeyConstraint(
+        ["project_id", "run_id", "ordinal", "dispatch_id"],
+        ["evaluation_performance_dispatches.project_id", "evaluation_performance_dispatches.run_id", "evaluation_performance_dispatches.ordinal", "evaluation_performance_dispatches.dispatch_id"],
+    ),
+    ForeignKeyConstraint(["artifact_id"], ["evaluation_performance_response_artifacts.id"]),
+    CheckConstraint("length(token_hash) = 64 AND token_hash = lower(token_hash)", name="ck_evaluation_performance_evidence_grant_token_hash"),
+    CheckConstraint("length(evidence_hash) = 64 AND evidence_hash = lower(evidence_hash)", name="ck_evaluation_performance_evidence_grant_hash"),
+    CheckConstraint("ordinal BETWEEN 0 AND 10999 AND length(actor_id) BETWEEN 1 AND 64", name="ck_evaluation_performance_evidence_grant_subject"),
+    CheckConstraint("created_at_ms > 0 AND expires_at_ms > created_at_ms AND expires_at_ms - created_at_ms <= 300000", name="ck_evaluation_performance_evidence_grant_expiry"),
+    CheckConstraint("consumed_at_ms IS NULL OR consumed_at_ms >= created_at_ms", name="ck_evaluation_performance_evidence_grant_consumed"),
+    CheckConstraint("revoked_at_ms IS NULL OR revoked_at_ms >= created_at_ms", name="ck_evaluation_performance_evidence_grant_revoked"),
 )

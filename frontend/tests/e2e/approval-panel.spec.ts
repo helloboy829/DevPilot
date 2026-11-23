@@ -220,7 +220,12 @@ test("records an explicit approval with a generated original ID", async ({
     .getByRole("button", { name: "Load run approvals and audit", exact: true })
     .click();
   await expect(panel.getByText("No approvals for this run yet.")).toBeVisible();
-  await panel.getByRole("checkbox").check();
+  await panel
+    .getByRole("checkbox", {
+      name: "Confirm owner-recorded approval",
+      exact: true,
+    })
+    .check();
   await panel
     .getByRole("button", { name: "Record approval / revocation", exact: true })
     .click();
@@ -270,7 +275,12 @@ test("keeps an unknown write on the same ID without retry", async ({
   await panel.getByLabel("Assessment ID", { exact: true }).fill(assessment);
   await panel.getByLabel("Assessment hash", { exact: true }).fill(hash);
   await panel.getByLabel("Approver account", { exact: true }).fill(approver);
-  await panel.getByRole("checkbox").check();
+  await panel
+    .getByRole("checkbox", {
+      name: "Confirm owner-recorded approval",
+      exact: true,
+    })
+    .check();
   await panel
     .getByRole("button", { name: "Record approval / revocation", exact: true })
     .click();
@@ -309,7 +319,12 @@ test("keeps an unknown write on the same ID without retry", async ({
   await expect(
     panel.getByText(/Eligible \(explicit confirmation/),
   ).toBeVisible();
-  await panel.getByRole("checkbox").check();
+  await panel
+    .getByRole("checkbox", {
+      name: "Confirm owner-recorded approval",
+      exact: true,
+    })
+    .check();
   await page.route(
     "**/api/evaluation/projects/p1/review-runs/*/approvals",
     (route) =>
@@ -356,7 +371,12 @@ test("keeps an unknown write on the same ID without retry", async ({
     .click();
   await expect(panel.getByText(/revision 1 · approved/)).toBeVisible();
   await expect(panel.getByRole("status")).toHaveCount(0);
-  await expect(panel.getByRole("checkbox")).not.toBeChecked();
+  await expect(
+    panel.getByRole("checkbox", {
+      name: "Confirm owner-recorded approval",
+      exact: true,
+    }),
+  ).not.toBeChecked();
   await expect(
     panel.getByRole("button", {
       name: "Record approval / revocation",

@@ -262,7 +262,7 @@ async def test_password_change_revokes_old_cookie_but_keeps_new_session_and_othe
 @pytest.mark.parametrize("mode", ["missing", "needs_setup", "owner", "duplicate", "reference_not_shared"])
 async def test_real_account_lookup_and_explicit_independent_sharing_are_required(workflow, mode):
     state = workflow
-    root, _ = await collect(state, await create_plan(state, "v1"), build="v1")
+    root, execution = await collect(state, await create_plan(state, "v1"), build="v1")
     payload = await task_payload(state, root, 1)
     identities = accounts(state)
     if mode == "missing":
@@ -281,7 +281,12 @@ async def test_real_account_lookup_and_explicit_independent_sharing_are_required
     response_json(await state.client.post(state.base + "/review-tasks/" + task_id, json=payload), 422 if mode in {"duplicate", "reference_not_shared"} else 409)
     response_json(await state.client.get(TASK_ROOT + task_id), 404)
     assert response_json(await state.client.get(state.base + "/review-tasks"))["tasks"] == []
-    assert len(state.sent) == 3
+    if len(state.sent) != 3:
+        journal_key = (str(identities.users["owner"].id), state.dataset["project_id"], state.run_id)
+        journal = await state.repository.get_journal(*journal_key)
+        dispatches = [(row["ordinal"], row["state"], row["kind"]) for row in await state.repository.list_dispatches(*journal_key)]
+        audit = [(row["action"], row["ordinal"]) for row in await state.repository.journal_audit(*journal_key)]
+        pytest.fail(f"Expected 3 synthetic sends, got {len(state.sent)}; dns={len(state.dns)}, execution={execution['state']}, journal={journal['status']}/{journal['stop_reason']}, dispatches={dispatches}, audit={audit}")
 
 
 @pytest.mark.asyncio

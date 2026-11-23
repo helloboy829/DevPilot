@@ -64,7 +64,16 @@ export default function EvaluationHome() {
     },
     {
       icon: FileText,
-      title: zh ? "05 汇总报告" : "05 Assemble reports",
+      title: zh ? "05 浏览性能结果" : "05 Browse performance results",
+      description: zh
+        ? "检查压测汇总、各阶段派发和逐请求状态与证据。"
+        : "Inspect load-test summaries, phase dispatches, request states and evidence.",
+      href: "/workspace/performance-results",
+      action: zh ? "查看性能结果" : "Browse performance results",
+    },
+    {
+      icon: FileText,
+      title: zh ? "06 汇总报告" : "06 Assemble reports",
       description: zh
         ? "与助手逐轮明确需求，确认多组件事实，再生成版本固定的草稿。"
         : "Clarify requirements over multiple turns, confirm component facts, then render a version-pinned draft.",

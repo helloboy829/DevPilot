@@ -57,6 +57,8 @@ APP_TABLES = [
         t.performance_runs.name,
         t.performance_dispatches.name,
         t.performance_run_audit.name,
+        t.performance_response_artifacts.name,
+        t.performance_evidence_access_grants.name,
     }
 ]
 OLD = [ComponentRow.__table__, UserRow.__table__, *[table for table in APP_TABLES if table.name not in NEW]]

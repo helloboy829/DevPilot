@@ -16,23 +16,30 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from app.evaluation.request_protection import RequestProtectionError, RequestProtectionUnavailable
 
 _ARTIFACT_ID = re.compile(r"^[0-9a-f]{32}$")
-_BINDING_FIELDS = {"artifact_id", "owner_id", "project_id", "run_id", "ordinal", "sample_id", "plan_hash"}
+_QA_BINDING_FIELDS = {"owner_id", "project_id", "run_id", "ordinal", "sample_id", "plan_hash"}
+_PERFORMANCE_BINDING_FIELDS = {"owner_id", "project_id", "run_id", "ordinal", "dispatch_id", "scenario_hash"}
 _MAGIC = b"devpilot-qa-response-artifact.v1\0"
+_PERFORMANCE_MAGIC = b"devpilot-performance-response-artifact.v1\0"
 _CAPTURE_STATUSES = {"complete", "partial", "truncated"}
 
 
 def _checked_binding(artifact_id: str, binding: dict) -> dict:
-    if (
-        type(artifact_id) is not str
-        or not _ARTIFACT_ID.fullmatch(artifact_id)
-        or type(binding) is not dict
-        or set(binding) != _BINDING_FIELDS - {"artifact_id"}
-        or any(type(binding[name]) is not str or not 1 <= len(binding[name]) <= 80 for name in _BINDING_FIELDS - {"ordinal", "artifact_id"})
-        or type(binding["ordinal"]) is not int
-        or not 1 <= binding["ordinal"] <= 10_000
-    ):
+    if type(artifact_id) is not str or not _ARTIFACT_ID.fullmatch(artifact_id) or type(binding) is not dict:
+        raise RequestProtectionError("Invalid response artifact context")
+    fields = set(binding)
+    if fields == _QA_BINDING_FIELDS:
+        ordinal_bounds = (1, 10_000)
+    elif fields == _PERFORMANCE_BINDING_FIELDS:
+        ordinal_bounds = (0, 10_999)
+    else:
+        raise RequestProtectionError("Invalid response artifact context")
+    if any(type(binding[name]) is not str or not 1 <= len(binding[name]) <= 80 for name in fields - {"ordinal"}) or type(binding["ordinal"]) is not int or not ordinal_bounds[0] <= binding["ordinal"] <= ordinal_bounds[1]:
         raise RequestProtectionError("Invalid response artifact context")
     return {"artifact_id": artifact_id, **binding}
+
+
+_QA_MAX_OBSERVED_BYTES = 1_048_577
+_PERFORMANCE_MAX_OBSERVED_BYTES = 10_000_001
 
 
 class ResponseArtifactStore:
@@ -105,10 +112,11 @@ class ResponseArtifactStore:
     @staticmethod
     def _associated_data(artifact_id: str, binding: dict) -> bytes:
         checked = _checked_binding(artifact_id, binding)
-        return _MAGIC + json.dumps(checked, sort_keys=True, separators=(",", ":")).encode("ascii")
+        magic = _MAGIC if set(binding) == _QA_BINDING_FIELDS else _PERFORMANCE_MAGIC
+        return magic + json.dumps(checked, sort_keys=True, separators=(",", ":")).encode("ascii")
 
     @staticmethod
-    def _record(body: bytes, metadata: dict) -> tuple[dict, bytes]:
+    def _record(body: bytes, metadata: dict, *, max_observed_bytes=_QA_MAX_OBSERVED_BYTES) -> tuple[dict, bytes]:
         fields = {"capture_status", "hash_scope", "body_sha256", "observed_bytes", "http_status", "content_type", "content_encoding"}
         if type(body) is not bytes or len(body) > 1_048_576 or type(metadata) is not dict or set(metadata) != fields:
             raise RequestProtectionError("Invalid response artifact")
@@ -122,7 +130,7 @@ class ResponseArtifactStore:
             or type(metadata["body_sha256"]) is not str
             or metadata["body_sha256"] != expected_hash
             or type(metadata["observed_bytes"]) is not int
-            or not len(body) <= metadata["observed_bytes"] <= 1_048_577
+            or not len(body) <= metadata["observed_bytes"] <= max_observed_bytes
             or type(metadata["http_status"]) is not int
             or not 100 <= metadata["http_status"] <= 599
             or (status == "complete" and metadata["observed_bytes"] != len(body))
@@ -149,13 +157,15 @@ class ResponseArtifactStore:
                 raise ValueError
             metadata = json.loads(plaintext[start:end].decode("ascii"))
             body = plaintext[end:]
-            checked, _ = self._record(body, metadata)
+            maximum = _PERFORMANCE_MAX_OBSERVED_BYTES if set(binding) == _PERFORMANCE_BINDING_FIELDS else _QA_MAX_OBSERVED_BYTES
+            checked, _ = self._record(body, metadata, max_observed_bytes=maximum)
             return checked, body
         except (InvalidTag, ValueError, TypeError, KeyError):
             raise RequestProtectionError("Response artifact cannot be opened or failed integrity checks") from None
 
     def _publish(self, artifact_id: str, body: bytes, binding: dict, metadata: dict) -> dict:
-        checked_metadata, plaintext = self._record(body, metadata)
+        maximum = _PERFORMANCE_MAX_OBSERVED_BYTES if type(binding) is dict and set(binding) == _PERFORMANCE_BINDING_FIELDS else _QA_MAX_OBSERVED_BYTES
+        checked_metadata, plaintext = self._record(body, metadata, max_observed_bytes=maximum)
         path = self._path(artifact_id)
         aad = self._associated_data(artifact_id, binding)
         nonce = os.urandom(12)
