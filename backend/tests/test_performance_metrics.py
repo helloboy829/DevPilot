@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from app.evaluation.performance_metrics import nearest_rank, summarize_performance_dispatches
+from app.evaluation.performance_metrics import build_metrics_envelope, nearest_rank, summarize_performance_dispatches
 
 
 @pytest.mark.parametrize(
@@ -87,3 +87,29 @@ def test_summary_rejects_timing_combinations_disallowed_by_ledger(state, sent, f
 
     with pytest.raises(ValueError):
         summarize_performance_dispatches([row], window_start_ns=0, window_end_ns=200)
+
+
+def test_summary_exposes_versioned_schema_contract():
+    row = {"ordinal": 0, "phase": "measurement", "state": "succeeded", "send_started_ns": 5, "finished_ns": 6, "elapsed_ms": 1.0, "output_tokens": None, "token_source": None}
+    result = summarize_performance_dispatches([row], window_start_ns=5, window_end_ns=7)
+    assert result["schema_version"] == "performance-metrics.v1"
+
+
+def test_metrics_envelope_binds_schema_run_window_and_population_revision():
+    run = {
+        "id": "a" * 32,
+        "scenario_hash": "b" * 64,
+        "execution_mode": "target",
+        "window_start_ns": 10,
+        "window_end_ns": 20,
+        "metrics": {"population_sha256": "c" * 64, "cohort_count": 2},
+    }
+    first = build_metrics_envelope(run)
+    second = build_metrics_envelope(run)
+    assert first == second
+    assert first["schema_version"] == "performance-metrics.v1"
+    assert first["applicability"] == "available"
+    assert len(first["revision"]) == 64
+    assert first["metrics"] == run["metrics"]
+    changed = build_metrics_envelope({**run, "window_end_ns": 21})
+    assert changed["revision"] != first["revision"]

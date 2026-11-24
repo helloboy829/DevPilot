@@ -149,6 +149,7 @@ PERF-01 当前已注册并实现以下定义资源（仅冻结配置，不会创
 | POST | `/projects/{project_id}/performance-runs` | **PERF-02 ledger API 已实现**；客户端预生成 32 位小写十六进制 `run_id`，显式 confirmed=true，绑定 scenario definition hash；只创建 ledger，不启动执行 |
 | GET | `/projects/{project_id}/performance-runs/{run_id}` | **PERF-02 ledger API 已实现**；owner/project scoped summary 与状态计数 |
 | GET | `/projects/{project_id}/performance-runs/{run_id}/dispatches?offset={offset}&limit={limit}` | **PERF-02 ledger API 已实现**；有界分页，最多 200 行；仅返回 dispatch 元数据，不含正文 |
+| GET | `/projects/{project_id}/performance-runs/{run_id}/metrics` | **?? metrics API v1 ???**????? `schema_version`???????? revision ??? projection????/?????????????`private, no-store` |
 | POST/PATCH | `/projects/{id}/performance-scenarios` | PERF-01 draft CAS/edit lifecycle is not implemented; do not use this target shape |
 | POST      | `/projects/{id}/performance-runs`（后续扩展）                                    | 加入 admission、目标/时间窗/预算授权和 outbox/worker 启动语义；在这些 gate 完成前当前 POST 仅创建 ledger                  |
 | GET       | `/projects/{id}/performance-runs/{run_id}`                                        | stage、stop reason、frozen profile/hash、warmup/measurement/drain 与 ALL dispatch counts、metrics revision             |

@@ -224,3 +224,30 @@ async def test_run_admission_is_explicit_idempotent_and_owner_scoped(api, monkey
 
     app.state.actor = 2
     assert (await client.post(admission_path, json={"confirmed": True})).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_metrics_endpoint_is_versioned_and_reports_unmeasured_state(api, monkeypatch):
+    client, app, base, _ = api
+    plan_path, payload = await setup_plan(api, monkeypatch)
+    app.include_router(router)
+    payload["limits"]["mode"] = "performance"
+    payload["limits"]["request_count"] = 2
+    plan = await client.post(plan_path, json=payload)
+    scenario = await client.post(
+        plan_path.removesuffix("/plans") + "/performance-scenarios",
+        json={"plan_id": plan.json()["id"], "profile": PROFILE, "confirmed": True},
+    )
+    created = await client.post(
+        base + "/performance-runs",
+        json={"run_id": "a" * 32, "scenario_id": scenario.json()["id"], "scenario_hash": scenario.json()["definition_hash"], "confirmed": True},
+    )
+    response = await client.get(base + "/performance-runs/" + created.json()["id"] + "/metrics")
+    assert response.status_code == 200
+    assert "no-store" in response.headers["cache-control"]
+    assert response.json() == {
+        "schema_version": "performance-metrics.v1",
+        "applicability": "not_measured",
+        "revision": None,
+        "metrics": None,
+    }

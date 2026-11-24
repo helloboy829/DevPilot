@@ -9,6 +9,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 
 _TERMINAL_STATES = ("succeeded", "failed", "timeout", "unknown")
+METRICS_SCHEMA_VERSION = "performance-metrics.v1"
 
 
 def nearest_rank(values: Sequence[float], percentile: float) -> float | None:
@@ -108,6 +109,7 @@ def summarize_performance_dispatches(rows: Sequence[Mapping], *, window_start_ns
     token_rate = sum(row["output_tokens"] for row in token_rows) / window_seconds if window_seconds > 0 and len(token_rows) == len(successes) else None
     population = json.dumps(cohort, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")
     return {
+        "schema_version": METRICS_SCHEMA_VERSION,
         "quantile_method": "nearest_rank.v1",
         "cohort_count": len(cohort),
         "state_counts": state_counts,
@@ -123,3 +125,21 @@ def summarize_performance_dispatches(rows: Sequence[Mapping], *, window_start_ns
         "censored_count": censored,
         "population_sha256": hashlib.sha256(population).hexdigest(),
     }
+
+
+def build_metrics_envelope(run: Mapping) -> dict:
+    """Version and bind a run's current deterministic metric projection."""
+    metrics = run["metrics"]
+    applicability = "available" if metrics is not None else "synthetic_only" if run["execution_mode"] == "synthetic_only" else "not_measured"
+    revision = None
+    if metrics is not None:
+        revision_input = {
+            "schema_version": METRICS_SCHEMA_VERSION,
+            "run_id": run["id"],
+            "scenario_hash": run["scenario_hash"],
+            "window_start_ns": run["window_start_ns"],
+            "window_end_ns": run["window_end_ns"],
+            "population_sha256": metrics["population_sha256"],
+        }
+        revision = hashlib.sha256(json.dumps(revision_input, sort_keys=True, separators=(",", ":")).encode("ascii")).hexdigest()
+    return {"schema_version": METRICS_SCHEMA_VERSION, "applicability": applicability, "revision": revision, "metrics": metrics}

@@ -1,9 +1,10 @@
-"""Frozen performance scenario definition endpoints; no execution endpoints."""
+"""Frozen performance scenario definition and read-only results endpoints."""
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.evaluation.performance_metrics import build_metrics_envelope
 from app.evaluation.performance_run_repository import PerformanceRunRepository
 from app.evaluation.performance_scenario_repository import PerformanceScenarioRepository
 from app.evaluation.performance_scenarios import PerformanceRunAdmission, PerformanceRunCreate, PerformanceScenarioCreate
@@ -135,6 +136,27 @@ async def get_performance_run(project_id: str, run_id: str, request: Request):
         raise HTTPException(409, "Performance run ledger failed integrity validation") from None
     except SQLAlchemyError:
         raise HTTPException(503, "Evaluation persistence failed; reload and inspect current state") from None
+
+
+@router.get("/{project_id}/performance-runs/{run_id}/metrics")
+@require_permission("evaluation_projects", "read")
+async def get_performance_metrics(project_id: str, run_id: str, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    try:
+        run = await _run_repo(repository).get_run(owner, project_id, run_id)
+    except NotFound:
+        raise HTTPException(404, "Project or performance run not found") from None
+    except Conflict:
+        raise HTTPException(409, "Performance run ledger failed integrity validation") from None
+    except SQLAlchemyError:
+        raise HTTPException(503, "Evaluation persistence failed; reload and inspect current state") from None
+
+    envelope = build_metrics_envelope(run)
+    return JSONResponse(
+        envelope,
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.get("/{project_id}/performance-runs/{run_id}/dispatches")

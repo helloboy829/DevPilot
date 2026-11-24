@@ -4,6 +4,10 @@
 
 > **PERF-04 implementation boundary (2026-11-23):** The candidate implements PostgreSQL-first durable lease/fence primitives: `claim -> ACK ticket -> send_started`. `eval_0028` adds worker, epoch, and lease-deadline metadata. ACK does not start the measurement window or mark a request as sent; only the current worker/epoch with the stable ticket may transition to `dispatched`. This slice does not include Worker, real transport, admission authorization, cancel/drain, the complete metrics API, or the workbench UI.
 
+## Metrics API v1 implementation boundary (2026-11-24)
+
+`GET /api/evaluation/projects/{project_id}/performance-runs/{run_id}/metrics` is a read-only, owner/project-scoped projection. Its envelope contains `schema_version: performance-metrics.v1`, `applicability` (`available`, `not_measured`, or `synthetic_only`), nullable deterministic `revision`, and nullable `metrics`. The revision binds the schema version, run ID, frozen scenario hash, measurement window, and metrics population hash. Responses are `private, no-store`. The response body does not claim that a synthetic run measured a target. This is a versioned projection, not yet a persisted immutable assessment revision; matrix/stage/repeat projections and execution controls remain future work.
+
 ## 1. 目标与产品边界
 
 性能工作台用冻结的数据集和 RequestSpec 产生可重放的工作负载，按明确负载模型发送请求，给出总体和逐请求指标，并保存足以审计/复算的请求、响应、调度和发生器证据。它与效果测试共用项目、组件、数据版本、凭据引用、RequestSpec、运行身份、授权、派发 fence 和原始证据存储；负载模型、测量窗、指标聚合和性能验收单独版本化。
@@ -147,7 +151,7 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | PERF-01 场景与准入（定义冻结已实现） | 有界 profile schema、case-cycle manifest、owner-scoped immutable scenario、hash 校验与 audit；`eval_0024` PostgreSQL-first schema；仅定义 API，不含 execution admission | 拒绝空/重复/非法 case scope、无界或越界 profile；请求超过 case 数时按冻结排序循环；要求已冻结 performance plan、精确 dataset/request 绑定和显式确认。duration stop、目标权限/预算变化撤销执行确认属于 PERF-02 admission，尚未实现 |
 | PERF-02 worker、ledger 与指标核心 | dispatch phase/iteration、EVID-02 artifact、request/response hash、allowlist headers、预算/保留审计、延迟/错误/吞吐/分位数/token/stream/source/applicability | 逐 ordinal 完全可对账；重复 case 不覆盖；超过预算部分 run 明示 incomplete；取消和未知提交不重发；人工可算 fixture 对照；warmup/drain 不混入 measurement；失败/censored/p99 小样本等分支全测 |
-| PERF-03 性能工作台与场景矩阵      | 配置步骤、预检、阶段运行、summary、档位比较、request table/detail、并发/速率阶梯和 worker 资源                                                               | the deterministic scheduler core is merged at `28ea31e`; base summary projection and evidence browser exist, while versioned full metrics API, execution controls, and the operator workbench remain incomplete |
+| PERF-03 性能工作台与场景矩阵      | 配置步骤、预检、阶段运行、summary、档位比较、request table/detail、并发/速率阶梯和 worker 资源                                                               | the deterministic scheduler core is merged at `28ea31e`; run/dispatch ledger, synthetic worker and evidence browser exist. A versioned metrics v1 summary endpoint exists; persisted immutable metric revisions, complete matrix projections, user-facing execution controls, and the operator workbench remain incomplete. PERF-07 concurrency is synthetic-only and is not target load evidence |
 | PERF-04 AIPerf adapter spike      | 隔离适配器、合成校准、协议和依赖扫描                                                                                                                         | 未通过第三方 adapter gate 前不进入生产执行选择；不加用户可任意选择工具开关                                                                                                                  |
 | 后续扩展                          | 图像/音频/embedding/多轮 Agent workload 专用 schema                                                                                                          | 各 adapter 先定义 request/evidence/token/质量，不以单一 text JSON schema 假装通用；独立进入 backlog 后再实现                                                                                |
 
@@ -189,7 +193,7 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 
 ### PERF-06 Synthetic-only Worker (2026-11-23)
 
-### PERF-07 Bounded Concurrent Synthetic Worker (2026-11-24 candidate)
+### PERF-07 Bounded Concurrent Synthetic Worker (2026-11-24; source SHA `0dd39cb302814fb0fe7aea62e5e873d3f0009760`; 9/9 exact-SHA Actions passed)
 
 PERF-07 extends only the explicitly invoked, admitted-run synthetic worker. One coordinator owns the frozen manifest and admits no more than `min(profile.concurrency, profile.max_in_flight)` dispatch tasks. Each task preserves its own claim -> ACK -> `send_started` fence -> built-in in-process synthetic transport -> observation and encrypted evidence identity. Request plus maximum response bytes are reserved before a fence is crossed; observed unused response capacity is released, so concurrent work cannot exceed the aggregate byte cap.
 
@@ -199,4 +203,4 @@ The first terminal-policy failure stops new admission. Already fenced peers are 
 
 Migration `eval_0030` adds durable `execution_mode` (`target` by default; irreversibly changed to `synthetic_only` before the first dispatch) and the corresponding audit action. `get_run` does not project synthetic latency/QPS as target performance metrics. Request/response/aggregate byte bounds, request timeout, wall deadline, and optional measurement duration are honored; uncertain outcomes after the send fence become `unknown` and stop the run. Evidence uses the existing encrypted artifact and access-audit path.
 
-**Acceptance boundary:** this implementation intentionally runs serially and does not simulate `concurrency` or `max_in_flight`. It validates ledger, state, and evidence integrity only; its timings are not load-test results. Real transport, concurrency, worker scheduling, cancellation/drain, full metrics analysis, and UI remain future slices. PostgreSQL is production default; SQLite is isolated test-only.
+**Acceptance boundary:** PERF-07 adds bounded concurrency only to the built-in synthetic transport. Its timings are not target/model load-test results. Durable real-worker scheduling and destination authorization, real transport, operator cancel/drain control plane, persisted immutable metric revisions/matrix projections, and runnable performance workbench remain future slices; the read-only metrics v1 projection is implemented. PostgreSQL is production default; SQLite is isolated test-only.
