@@ -1,3 +1,5 @@
+> **开发切片同步（2026-11-24，cURL 导入）：** 已合入 `main`，实现 SHA `31fe03b757633663b9f678beef05ef3c7c42d80b`。模型配置与接口调试解析器可对特定复制格式的 JSON 反斜杠换行做有限规范化，并显式显示修复提示；不会执行 Shell。`-k/--insecure` 仅是调试发送时的独立 TLS 风险授权元数据，不进入模型 TLS 配置或持久化版本。定向后端 **34 passed**、前端 **1,484 passed**、前端 check/format 通过、相关 Chromium E2E **1 passed**、Ruff 通过。Windows 全后端套件因本机 pytest 临时目录权限和无关平台/运行环境错误未完成；该 SHA 的 GitHub Frontend Unit、Lint、Replay E2E、E2E 已通过，Unit Tests 中 backend-unit-tests 仍运行。未发送真实目标/模型请求。
+
 > **当前开发切片（2026-11-24）：PERF-07 有界并发合成 Worker，隔离候选、未提交/推送。** 仅处理已准入冻结 run，以 `min(concurrency, max_in_flight)` 并发调用内置合成 transport；真实目标/模型/网络、自动启动与重试均不在本切片。Linux Worker/repository/metrics **54 passed**（含并发取消和任意 transport 异常停止准入、排空回归）；Ruff 检查/格式通过，Linux Blocking IO **72 passed**，evaluation/toolkit unittest **77/58 passed**。全 Linux 后端套件 **13,892 passed**，之前 18 个旧迁移 head 断言经修正后全部通过。Windows 全量/Blocking IO 仍有平台相关失败，故完整跨平台门禁未通过。PostgreSQL parity 因无 `TEST_POSTGRES_URI` 未执行；不声称 CI 或交付完成，尚无提交/推送/合并。下一步处理 Windows 专项失败及按精确 SHA Actions 状态推进。
 
 ## PERF-06 Synthetic Worker (2026-11-23; merged locally, push/checks pending)
