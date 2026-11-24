@@ -350,6 +350,54 @@ async def test_worker_honors_bounded_concurrency_and_accounts_every_artifact(pre
 
 
 @pytest.mark.asyncio
+async def test_failure_during_claim_does_not_acknowledge_next_ordinal(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"concurrency": 2, "max_in_flight": 2})
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+
+    original_claim = runs.claim_dispatch
+    original_acknowledge = runs.acknowledge_dispatch
+    original_send = PerformanceWorker._send
+    transport_failure_returned = asyncio.Event()
+    acknowledged = []
+
+    async def gated_claim(*args, **kwargs):
+        ordinal = args[3]
+        if ordinal == 2:
+            await asyncio.wait_for(transport_failure_returned.wait(), timeout=3)
+            # Let the completed _send task become observable to the coordinator.
+            await asyncio.sleep(0)
+        return await original_claim(*args, **kwargs)
+
+    async def record_acknowledgement(*args, **kwargs):
+        acknowledged.append(args[3])
+        return await original_acknowledge(*args, **kwargs)
+
+    async def fail_second_send(self, body, timeout_ms):
+        result = await original_send(self, body, timeout_ms)
+        if json.loads(body)["ordinal"] == 1:
+            transport_failure_returned.set()
+        return result
+
+    monkeypatch.setattr(runs, "claim_dispatch", gated_claim)
+    monkeypatch.setattr(runs, "acknowledge_dispatch", record_acknowledgement)
+    monkeypatch.setattr(PerformanceWorker, "_send", fail_second_send)
+    transport = SyntheticPerformanceTransport(fail_at_ordinal=1)
+    worker = PerformanceWorker(runs, transport=transport)
+
+    result = await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+    assert result["status"] == "interrupted"
+    assert result["stop_reason"] == "delivery_unknown"
+    assert 2 not in acknowledged
+    rows = await runs.list_dispatches("owner", project_id, run["id"])
+    assert rows[2]["state"] == "not_dispatched"
+
+
+@pytest.mark.asyncio
 async def test_failure_stops_new_admission_and_drains_fenced_peer(prepared, tmp_path, monkeypatch):
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared)

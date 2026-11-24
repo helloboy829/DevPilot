@@ -118,6 +118,9 @@ class PerformanceWorker:
                 return duration_deadline, "duration_limit"
             return wall_deadline, "wall_time_limit"
 
+        def transport_failure_landed():
+            return any(task.done() and (task.cancelled() or task.exception() is not None or task.result()[1] is None) for task in active)
+
         try:
             for phase in ("warmup", "measurement"):
                 entries = [entry for entry in manifest if entry["phase"] == phase]
@@ -170,6 +173,8 @@ class PerformanceWorker:
                                 worker_id=worker_id,
                                 lease_expires_at_ms=int(time.time() * 1000) + profile.drain_limit_seconds * 1000 + profile.request_timeout_ms,
                             )
+                            if transport_failure_landed():
+                                continue
                             ticket = await self.repository.acknowledge_dispatch(
                                 owner,
                                 project_id,
@@ -183,7 +188,7 @@ class PerformanceWorker:
                             started_ns = time.monotonic_ns()
                             if started_ns >= deadline:
                                 stop_reason, stop_at = deadline_reason, deadline
-                            elif any(task.done() and (task.cancelled() or task.exception() is not None or task.result()[1] is None) for task in active):
+                            elif transport_failure_landed():
                                 # Observe the already-landed failure before opening another fence.
                                 continue
                             else:
