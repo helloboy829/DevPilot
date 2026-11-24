@@ -18,7 +18,9 @@ export interface ModelCurlImport {
   model: string | null;
   apiKey: string | null;
   insecureTls?: boolean;
-  normalizations: Array<"url_scheme" | "json_indentation">;
+  normalizations: Array<
+    "url_scheme" | "json_indentation" | "json_line_continuation"
+  >;
 }
 
 function invalid(message = INVALID_COMMAND): never {
@@ -346,7 +348,15 @@ export function parseModelCurl(command: string): ModelCurlImport {
     try {
       JSON.parse(body);
     } catch {
-      const repaired = body.replace(/^[ \t]*(?:&#(?:x20|32);[ \t]*)+/gim, " ");
+      // Some clients copy pretty-printed JSON with shell-style backslash line
+      // breaks inside a single-quoted argument. This parser never evaluates
+      // the shell; normalize only that narrow JSON presentation artifact.
+      const originalBody = body;
+      const continued = body.replace(/\\[ \t]*(?:\r?\n)[ \t]*/g, "\n");
+      const repaired = continued.replace(
+        /^[ \t]*(?:&#(?:x20|32);[ \t]*)+/gim,
+        " ",
+      );
       if (repaired === body) {
         invalid(
           "The model request body is not valid inline JSON. Check its quoting or fill the model field manually.",
@@ -355,7 +365,10 @@ export function parseModelCurl(command: string): ModelCurlImport {
       try {
         JSON.parse(repaired);
         body = repaired;
-        normalizations.push("json_indentation");
+        if (continued !== originalBody) {
+          normalizations.push("json_line_continuation");
+        }
+        if (repaired !== continued) normalizations.push("json_indentation");
       } catch {
         invalid(
           "The model request body is not valid inline JSON. Check its quoting or fill the model field manually.",

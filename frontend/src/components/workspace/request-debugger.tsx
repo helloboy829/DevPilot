@@ -101,7 +101,8 @@ export function RequestDebugger() {
         data.warnings?.some(
           (warning) =>
             warning === "normalized_url_scheme" ||
-            warning === "normalized_json_indentation",
+            warning === "normalized_json_indentation" ||
+            warning === "normalized_json_line_continuation",
         ) === true,
       );
       setHeaders(JSON.stringify(data.spec.headers, null, 2));
@@ -205,8 +206,8 @@ export function RequestDebugger() {
           {normalizedImport && (
             <p className="text-muted-foreground text-sm" role="status">
               {zh
-                ? "已修正粘贴时带入的网址转义或 JSON 缩进。请核对下方预览后再发送。"
-                : "Corrected a copied URL escape or JSON indentation. Review the preview below before sending."}
+                ? "已修正粘贴时带入的网址转义或 JSON 格式/行续行。请核对下方预览后再发送."
+                : "Corrected a copied URL escape or JSON formatting/line continuation. Review the preview below before sending."}
             </p>
           )}
           <div className="flex gap-2">

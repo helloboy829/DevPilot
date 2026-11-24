@@ -206,6 +206,13 @@ export default function ModelsPage() {
                 : "Copied JSON indentation normalized",
             ]
           : []),
+        ...(imported.normalizations.includes("json_line_continuation")
+          ? [
+              zh
+                ? "\u5df2\u5c06 JSON \u884c\u7eed\u884c\u6807\u8bb0\u4fee\u6b63\u4e3a\u7a7a\u767d"
+                : "JSON line continuations normalized to whitespace",
+            ]
+          : []),
       ];
       setMessage(
         `${zh ? "\u5df2\u5728\u6d4f\u89c8\u5668\u89e3\u6790\u5e76\u586b\u5165\u914d\u7f6e\uff1b\u672a\u6267\u884c\u6216\u53d1\u9001 cURL \u547d\u4ee4\u3002" : "Parsed in this browser; the cURL command was not run or sent."}${notes.length ? ` ${zh ? "\u8bf7\u6838\u5bf9\uff1a" : "Review:"} ${notes.join("; ")}.` : ""}${imported.insecureTls ? (zh ? " \u6a21\u578b\u8bf7\u6c42\u4ecd\u6309\u670d\u52a1\u7aef\u8bc1\u4e66\u4fe1\u4efb\u7b56\u7565\u6267\u884c\u3002" : " Model requests still follow server certificate trust policy.") : ""}`,
