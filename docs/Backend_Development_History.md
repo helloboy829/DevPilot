@@ -1,3 +1,15 @@
+## PERF-07 verification supplement (2026-11-24)
+
+After adding concurrent cancellation and unexpected-transport-exception coverage, focused worker/repository/metrics tests completed **54 passed** on Linux. Ruff check passed and all 1,353 backend Python files passed format check. Domain unittests completed 77 passed and 58 passed. Linux Blocking IO completed **72 passed**. Full Linux backend pytest completed **13,892 passed / 79 skipped / 11 deselected / 40 warnings / 7 subtests passed** after updating 18 stale migration-head expectations from `eval_0029` to `eval_0030`; no Linux pytest failures remain. Windows Blocking IO completed 68 passed / 4 failed; full Windows backend pytest completed 13,210 passed / 280 failed / 363 errors / 117 skipped / 11 deselected / 187 warnings / 7 subtests passed. PostgreSQL parity was unavailable (`TEST_POSTGRES_URI` unset). The candidate remains uncommitted, unpushed and unmerged; exact-SHA Actions are not available.
+
+> **PERF-07 verification update (2026-11-24):** The latest Linux focused worker/repository/metrics suite passed **54 tests**; Ruff check/format passed (1,353 files); domain unittests passed (77 evaluation, 58 toolkit); Linux Blocking IO passed (72). Full Linux backend pytest passed: **13,892 passed / 79 skipped / 11 deselected / 40 warnings / 7 subtests passed**, after updating the 18 obsolete migration-head expectations. Windows gates remain non-passing as detailed above. PostgreSQL parity was not run (`TEST_POSTGRES_URI` unset). No commit, push, merge, or exact-SHA Actions yet. This update does not mark PERF-07 delivered.
+
+## PERF-07 有界并发合成 Worker 候选（2026-11-24）
+
+隔离分支 `feature/perf-07-concurrency` 的候选把 PERF-06 串行合成执行改为单协调器有界并发，保留每 ordinal 的 claim/ACK/发送 fence、加密响应证据、总字节预留，以及失败后停止新准入、排空已 fence 请求和 unknown 不重发。取消时所有未观察的已 fence ordinal 通过 run interrupt 进入 unknown；未准入 ordinal 记为 not_dispatched。仅允许内置进程 synthetic transport，`metrics` 仍为 null。
+
+TDD：两个并发/失败排空回归在旧基线 **2 failed**；另一个并发取消回归在旧串行基线因无法产生两个同时在途测量请求而失败，在候选 **1 passed**。候选加入该额外回归前 worker/repository/metrics 定向测试 **52 passed**；加入后完整 worker、Ruff、Blocking IO、全后端、PostgreSQL parity 与 push 后精确 SHA Actions 尚未完成。该候选未提交、未推送、未合并；本条只记录验证边界，不表示模块通过。
+
 # Backend 详细架构、持续约束与历史记录
 
 原指南完整保留。相关工程约束继续适用；日期、通过数与候选进度属于历史，不代替当前状态。原上游文档未在本仓库保留副本时，路径改为字面文本而非无效链接；原合同文字保留。返回[根开发指南](../AGENTS.md)或[后端入口](../backend/AGENTS.md)。

@@ -1,3 +1,5 @@
+> **当前开发切片（2026-11-24）：PERF-07 有界并发合成 Worker，隔离候选、未提交/推送。** 仅处理已准入冻结 run，以 `min(concurrency, max_in_flight)` 并发调用内置合成 transport；真实目标/模型/网络、自动启动与重试均不在本切片。Linux Worker/repository/metrics **54 passed**（含并发取消和任意 transport 异常停止准入、排空回归）；Ruff 检查/格式通过，Linux Blocking IO **72 passed**，evaluation/toolkit unittest **77/58 passed**。全 Linux 后端套件 **13,892 passed**，之前 18 个旧迁移 head 断言经修正后全部通过。Windows 全量/Blocking IO 仍有平台相关失败，故完整跨平台门禁未通过。PostgreSQL parity 因无 `TEST_POSTGRES_URI` 未执行；不声称 CI 或交付完成，尚无提交/推送/合并。下一步处理 Windows 专项失败及按精确 SHA Actions 状态推进。
+
 ## PERF-06 Synthetic Worker (2026-11-23; merged locally, push/checks pending)
 
 - [x] Implement explicit serial synthetic-only worker over admitted frozen runs; no auto-start, public execution route, real transport, retry, or resend.

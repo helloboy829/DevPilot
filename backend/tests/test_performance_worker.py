@@ -1,6 +1,7 @@
 """Synthetic-only performance worker acceptance tests."""
 
 import asyncio
+import json
 import socket
 
 import pytest
@@ -162,6 +163,47 @@ async def test_cancellation_after_start_persists_unknown_without_retry(prepared)
 
 
 @pytest.mark.asyncio
+async def test_cancellation_marks_all_concurrent_fences_unknown_without_resend(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"concurrency": 2, "max_in_flight": 2})
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    transport = SyntheticPerformanceTransport(delay_ms=250)
+    original_request = transport.request
+    started = set()
+    both_started = asyncio.Event()
+    hold_requests = asyncio.Event()
+
+    async def observe_start(body):
+        ordinal = json.loads(body)["ordinal"]
+        started.add(ordinal)
+        if ordinal in {1, 2}:
+            if {1, 2}.issubset(started):
+                both_started.set()
+            await hold_requests.wait()
+        return await original_request(body)
+
+    monkeypatch.setattr(transport, "request", observe_start)
+    worker = PerformanceWorker(runs, transport=transport)
+    task = asyncio.create_task(worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker"))
+    await asyncio.wait_for(both_started.wait(), timeout=3)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    rows = await runs.list_dispatches("owner", project_id, run["id"])
+    assert started == {0, 1, 2}
+    assert [row["state"] for row in rows] == ["succeeded", "unknown", "unknown", "not_dispatched", "not_dispatched", "not_dispatched"]
+    result = await runs.get_run("owner", project_id, run["id"])
+    assert result["status"] == "interrupted"
+    with pytest.raises(Conflict):
+        await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+    assert started == {0, 1, 2}
+
+
+@pytest.mark.asyncio
 async def test_duration_limit_stops_measurement_and_accounts_remaining_ordinals(prepared, tmp_path, monkeypatch):
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"duration_limit_seconds": 1})
@@ -176,8 +218,8 @@ async def test_duration_limit_stops_measurement_and_accounts_remaining_ordinals(
     assert result["status"] == "interrupted"
     assert result["stop_reason"] == "duration_limit"
     assert result["state_counts"]["succeeded"] >= 2
-    assert result["state_counts"]["unknown"] == 1
-    assert result["state_counts"]["not_dispatched"] + result["state_counts"]["succeeded"] + 1 == 6
+    assert result["state_counts"]["unknown"] == 0
+    assert result["state_counts"]["not_dispatched"] + result["state_counts"]["succeeded"] == 6
     assert all(row["state"] not in {"pending", "dispatched"} for row in await runs.list_dispatches("owner", project_id, run["id"]))
 
 
@@ -260,3 +302,133 @@ async def test_evidence_write_failure_interrupts_and_suppresses_synthetic_metric
     assert result["execution_mode"] == "synthetic_only"
     assert result["metrics"] is None
     assert result["state_counts"]["not_dispatched"] == 5
+
+
+@pytest.mark.asyncio
+async def test_worker_honors_bounded_concurrency_and_accounts_every_artifact(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"concurrency": 2, "max_in_flight": 2})
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    transport = SyntheticPerformanceTransport(delay_ms=25)
+    original_request = transport.request
+    active = 0
+    maximum = 0
+    both_started = asyncio.Event()
+
+    async def measured_request(request_body):
+        nonlocal active, maximum
+        active += 1
+        maximum = max(maximum, active)
+        if active >= 2:
+            both_started.set()
+        try:
+            if json.loads(request_body)["ordinal"] in (1, 2):
+                # Prove concurrent transport without assuming a DB latency.
+                await both_started.wait()
+            return await original_request(request_body)
+        finally:
+            active -= 1
+
+    monkeypatch.setattr(transport, "request", measured_request)
+    result = await PerformanceWorker(runs, transport=transport).run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+    assert both_started.is_set(), f"the worker must actually overlap two synthetic requests: {result}"
+    assert maximum == 2
+    assert result["status"] == "completed"
+    assert result["metrics"] is None
+    rows = await runs.list_dispatches("owner", project_id, run["id"])
+    assert [row["ordinal"] for row in rows] == list(range(len(scenario["definition"]["manifest"])))
+    assert all(row["state"] == "succeeded" for row in rows)
+    async with repo.sf() as session:
+        artifacts = (await session.execute(select(t.performance_response_artifacts).where(t.performance_response_artifacts.c.run_id == run["id"]).order_by(t.performance_response_artifacts.c.ordinal))).mappings().all()
+    assert len(artifacts) == len(rows)
+    assert all(artifact["status"] == "complete" for artifact in artifacts)
+    assert [artifact["dispatch_id"] for artifact in artifacts] == [row["dispatch_id"] for row in rows]
+
+
+@pytest.mark.asyncio
+async def test_failure_stops_new_admission_and_drains_fenced_peer(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared)
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    transport = SyntheticPerformanceTransport(fail_at_ordinal=1)
+    original_request = transport.request
+    peer_started = asyncio.Event()
+    failure_delivered = asyncio.Event()
+    seen = []
+
+    async def request(body):
+        ordinal = json.loads(body)["ordinal"]
+        seen.append(ordinal)
+        if ordinal == 1:
+            await peer_started.wait()
+            try:
+                return await original_request(body)
+            finally:
+                failure_delivered.set()
+        if ordinal == 2:
+            peer_started.set()
+            await failure_delivered.wait()
+            await asyncio.sleep(0.1)
+        return await original_request(body)
+
+    monkeypatch.setattr(transport, "request", request)
+    worker = PerformanceWorker(runs, transport=transport)
+    result = await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+    assert result["status"] == "interrupted"
+    assert result["stop_reason"] == "delivery_unknown"
+    rows = await runs.list_dispatches("owner", project_id, run["id"])
+    assert [row["state"] for row in rows] == ["succeeded", "unknown", "succeeded", "not_dispatched", "not_dispatched", "not_dispatched"]
+    assert (await runs.reconcile_response_artifact("owner", project_id, run["id"], 2))["status"] == "complete"
+    with pytest.raises(Conflict):
+        await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+    assert seen == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_unexpected_transport_error_still_drains_fenced_peer(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared)
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    transport = SyntheticPerformanceTransport()
+    original_request = transport.request
+    peer_started = asyncio.Event()
+    failure_delivered = asyncio.Event()
+    seen = []
+
+    async def request(body):
+        ordinal = json.loads(body)["ordinal"]
+        seen.append(ordinal)
+        if ordinal == 1:
+            await peer_started.wait()
+            try:
+                raise RuntimeError("synthetic transport programming error")
+            finally:
+                failure_delivered.set()
+        if ordinal == 2:
+            peer_started.set()
+            await failure_delivered.wait()
+            await asyncio.sleep(0.1)
+        return await original_request(body)
+
+    monkeypatch.setattr(transport, "request", request)
+    worker = PerformanceWorker(runs, transport=transport)
+    result = await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+    assert result["status"] == "interrupted"
+    assert result["stop_reason"] == "delivery_unknown"
+    rows = await runs.list_dispatches("owner", project_id, run["id"])
+    assert [row["state"] for row in rows] == ["succeeded", "unknown", "succeeded", "not_dispatched", "not_dispatched", "not_dispatched"]
+    assert (await runs.reconcile_response_artifact("owner", project_id, run["id"], 2))["status"] == "complete"
+    with pytest.raises(Conflict):
+        await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+    assert seen == [0, 1, 2]

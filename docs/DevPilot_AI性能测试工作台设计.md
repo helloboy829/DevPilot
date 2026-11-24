@@ -189,6 +189,12 @@ App 保留权限、确认、目标白名单、凭据、租约/fence、耐久记�
 
 ### PERF-06 Synthetic-only Worker (2026-11-23)
 
+### PERF-07 Bounded Concurrent Synthetic Worker (2026-11-24 candidate)
+
+PERF-07 extends only the explicitly invoked, admitted-run synthetic worker. One coordinator owns the frozen manifest and admits no more than `min(profile.concurrency, profile.max_in_flight)` dispatch tasks. Each task preserves its own claim -> ACK -> `send_started` fence -> built-in in-process synthetic transport -> observation and encrypted evidence identity. Request plus maximum response bytes are reserved before a fence is crossed; observed unused response capacity is released, so concurrent work cannot exceed the aggregate byte cap.
+
+The first terminal-policy failure stops new admission. Already fenced peers are drained and durably observed when possible; a failed/uncertain fenced ordinal remains unknown and is never resent. Cancellation interrupts the run, records every open fenced dispatch as unknown, and marks the rest not dispatched. Warmup stays outside the measurement window; synthetic durations remain non-metrics (`metrics: null`). This slice adds no public worker endpoint, startup poller, external transport, subprocess, destination authorization, or real target/model load test. It does not complete cancel/drain operations for real workers or the performance UI/API.
+
 `backend/app/evaluation/performance_worker.py` is an explicitly invoked App-domain worker for already admitted, frozen runs. It derives bounded synthetic JSON from each frozen ordinal/case/iteration and follows claim -> ACK -> fenced start -> in-process synthetic response -> durable observation. It never reads gold/reference answers, invokes a model/target, opens network connections, schedules itself, exposes a public run endpoint, retries, or resends.
 
 Migration `eval_0030` adds durable `execution_mode` (`target` by default; irreversibly changed to `synthetic_only` before the first dispatch) and the corresponding audit action. `get_run` does not project synthetic latency/QPS as target performance metrics. Request/response/aggregate byte bounds, request timeout, wall deadline, and optional measurement duration are honored; uncertain outcomes after the send fence become `unknown` and stop the run. Evidence uses the existing encrypted artifact and access-audit path.

@@ -94,4 +94,11 @@ App 迁移链为 `eval_0009 → eval_0010 → eval_0011 → eval_0012 → eval_0
 
 [Backend 详细架构与历史](../docs/Backend_Development_History.md)保留原指南的 runtime、配置、Gateway、持久化迁移、工具、沙箱、MCP、IM、记忆和开发工作流全部章节。[当前交付状态](../docs/DevPilot_Delivery_Status.md)负责当前事实；历史命令和候选段落不能单独授予执行、数据外发、升级或批准。
 
+### PERF-07 Worker candidate constraints
+
+- Keep active transport tasks <= min(concurrency, max_in_flight); consume the frozen manifest in phase order and never hold a DB transaction across transport.
+- For each ordinal persist claim -> ACK -> send_started before synthetic transport. Unknown after the fence is never resent.
+- Serialize observation/evidence writes in the coordinator. On failure stop admissions, drain fenced peers, then interrupt unresolved fences so a single unknown cannot invalidate healthy in-flight responses.
+- Reserve request bytes plus max response bytes across concurrent tasks; release only the unused response reservation after observation. Synthetic timings are not target metrics. This slice is not production load testing.
+
 English: Use Python 3.12 and the frozen uv environment. Keep App/Harness dependencies one-way, run TDD and offline gates, preserve all frozen populations and no-resend semantics. Full architecture notes and module contracts remain available separately.
