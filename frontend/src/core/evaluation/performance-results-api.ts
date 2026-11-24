@@ -54,6 +54,22 @@ export type PerformanceMetrics = {
   population_sha256: string;
 };
 
+export type PerformanceMetricsEnvelope = {
+  schema_version: "performance-metrics.v1";
+  applicability: "available" | "not_measured" | "synthetic_only";
+  revision: string | null;
+  metrics: PerformanceMetrics | null;
+};
+
+export function getPerformanceMetrics(projectId: string, runId: string) {
+  return evaluationApi<PerformanceMetricsEnvelope>(
+    `${base(projectId)}/performance-runs/${encodeURIComponent(runId)}/metrics`,
+    undefined,
+    "GET",
+    262144,
+  );
+}
+
 export type PerformanceRunPage = {
   items: PerformanceRun[];
   total: number;

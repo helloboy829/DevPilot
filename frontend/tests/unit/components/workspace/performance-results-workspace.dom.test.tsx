@@ -5,6 +5,7 @@ const mocks = rs.hoisted(() => ({
   projects: rs.fn(),
   runs: rs.fn(),
   run: rs.fn(),
+  metrics: rs.fn(),
   dispatches: rs.fn(),
   grant: rs.fn(),
   evidence: rs.fn(),
@@ -31,6 +32,7 @@ rs.mock("@/core/evaluation/results-api", () => ({
 rs.mock("@/core/evaluation/performance-results-api", () => ({
   listPerformanceRuns: mocks.runs,
   getPerformanceRun: mocks.run,
+  getPerformanceMetrics: mocks.metrics,
   listPerformanceDispatches: mocks.dispatches,
   createPerformanceEvidenceAccess: mocks.grant,
   readPerformanceEvidence: mocks.evidence,
@@ -123,6 +125,12 @@ beforeEach(() => {
     next_cursor: null,
   });
   mocks.run.mockResolvedValue(performanceRun);
+  mocks.metrics.mockResolvedValue({
+    schema_version: "performance-metrics.v1",
+    applicability: "available",
+    revision: "d".repeat(64),
+    metrics: performanceRun.metrics,
+  });
   mocks.dispatches.mockResolvedValue({
     dispatches: [dispatch],
     offset: 0,
@@ -141,6 +149,7 @@ it("explicitly loads performance ledger and exposes unknown requests without ope
   render(<PerformanceResultsWorkspace />);
   expect(mocks.projects).not.toHaveBeenCalled();
   expect(mocks.runs).not.toHaveBeenCalled();
+  expect(mocks.metrics).not.toHaveBeenCalled();
 
   fireEvent.click(screen.getByRole("button", { name: "Load projects" }));
   await screen.findByRole("option", { name: "Project One" });
@@ -153,6 +162,8 @@ it("explicitly loads performance ledger and exposes unknown requests without ope
   await screen.findByRole("button", { name: /run-1/ });
   fireEvent.click(screen.getByRole("button", { name: /run-1/ }));
   await screen.findByText("Success QPS");
+  expect(mocks.metrics).toHaveBeenCalledWith("project-1", "run-1");
+  expect(screen.getByText(/Metrics applicability: available/)).toBeTruthy();
   expect(screen.getAllByText("1 req/s").length).toBe(2);
   for (const [label, value] of [
     ["Failed", "1"],

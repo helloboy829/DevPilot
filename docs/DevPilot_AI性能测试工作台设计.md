@@ -6,7 +6,7 @@
 
 ## Metrics API v1 implementation boundary (2026-11-24)
 
-`GET /api/evaluation/projects/{project_id}/performance-runs/{run_id}/metrics` is a read-only, owner/project-scoped projection. Its envelope contains `schema_version: performance-metrics.v1`, `applicability` (`available`, `not_measured`, or `synthetic_only`), nullable deterministic `revision`, and nullable `metrics`. The revision binds the schema version, run ID, frozen scenario hash, measurement window, and metrics population hash. Responses are `private, no-store`. The response body does not claim that a synthetic run measured a target. This is a versioned projection, not yet a persisted immutable assessment revision; matrix/stage/repeat projections and execution controls remain future work.
+`GET /api/evaluation/projects/{project_id}/performance-runs/{run_id}/metrics` is a read-only, owner/project-scoped projection. Its envelope contains `schema_version: performance-metrics.v1`, `applicability` (`available`, `not_measured`, or `synthetic_only`), nullable deterministic `revision`, and nullable `metrics`. The revision binds the schema version, run ID, frozen scenario hash, measurement window, and metrics population hash. Responses are `private, no-store`. The response body does not claim that a synthetic run measured a target. This is a versioned projection, not yet a persisted immutable assessment revision; matrix/stage/repeat projections and execution controls remain future work. The results browser now consumes this envelope on explicit run selection, shows applicability and projection revision, and renders metric cards only when `metrics` is present; it remains a ledger/results view and does not create load runs or dispatch requests.
 
 ## 1. 目标与产品边界
 

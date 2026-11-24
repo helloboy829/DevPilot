@@ -20,11 +20,13 @@ import { useAuth } from "@/core/auth/AuthProvider";
 import {
   createPerformanceEvidenceAccess,
   getPerformanceRun,
+  getPerformanceMetrics,
   listPerformanceDispatches,
   listPerformanceRuns,
   readPerformanceEvidence,
   type PerformanceDispatch,
   type PerformanceRun,
+  type PerformanceMetricsEnvelope,
 } from "@/core/evaluation/performance-results-api";
 import type { ProjectList } from "@/core/evaluation/result-types";
 import { listResultProjects } from "@/core/evaluation/results-api";
@@ -47,6 +49,8 @@ function PerformanceResultsContent() {
   const [runs, setRuns] = useState<PerformanceRun[]>([]);
   const [runCursor, setRunCursor] = useState<string | null>(null);
   const [run, setRun] = useState<PerformanceRun | null>(null);
+  const [metricsResult, setMetricsResult] =
+    useState<PerformanceMetricsEnvelope | null>(null);
   const [dispatches, setDispatches] = useState<PerformanceDispatch[]>([]);
   const [dispatchOffset, setDispatchOffset] = useState(0);
   const [phaseFilter, setPhaseFilter] = useState("");
@@ -112,6 +116,7 @@ function PerformanceResultsContent() {
       setProjectId("");
       setRuns([]);
       setRun(null);
+      setMetricsResult(null);
       setDispatches([]);
     });
   };
@@ -148,9 +153,23 @@ function PerformanceResultsContent() {
   const openRun = (item: PerformanceRun) => {
     clearDetail();
     setRun(item);
+    setMetricsResult(null);
     setDispatches([]);
     setDispatchOffset(0);
-    void action("run", () => getPerformanceRun(projectId, item.id), setRun);
+    void action(
+      "run",
+      async () => {
+        const [runResult, metricResult] = await Promise.all([
+          getPerformanceRun(projectId, item.id),
+          getPerformanceMetrics(projectId, item.id),
+        ]);
+        return { runResult, metricResult };
+      },
+      ({ runResult, metricResult }) => {
+        setRun(runResult);
+        setMetricsResult(metricResult);
+      },
+    );
   };
 
   const loadDispatches = (offset = 0) => {
@@ -358,8 +377,20 @@ function PerformanceResultsContent() {
                     </h2>
                     <p className="text-muted-foreground mt-1 font-mono text-xs">
                       {run.id} · {run.status} ·{" "}
-                      {run.metrics?.quantile_method ??
+                      {metricsResult?.metrics?.quantile_method ??
                         t("Metrics unavailable", "指标不可用")}
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {t(
+                        "Metrics applicability",
+                        "\u6307\u6807\u9002\u7528\u6027",
+                      )}
+                      :{" "}
+                      {metricsResult?.applicability ??
+                        t("loading", "\u52a0\u8f7d\u4e2d")}
+                      {metricsResult?.revision
+                        ? ` | ${metricsResult.revision}`
+                        : ""}
                     </p>
                   </div>
                   <p className="text-muted-foreground max-w-lg text-xs">
@@ -369,77 +400,80 @@ function PerformanceResultsContent() {
                     )}
                   </p>
                 </div>
-                {run.metrics ? (
+                {metricsResult?.metrics ? (
                   <dl className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
                     {metric(
                       t("Attempt QPS", "尝试 QPS"),
-                      rate(run.metrics.attempt_qps),
+                      rate(metricsResult.metrics.attempt_qps),
                     )}
                     {metric(
                       t("Success QPS", "成功 QPS"),
-                      rate(run.metrics.success_qps),
+                      rate(metricsResult.metrics.success_qps),
                     )}
                     {metric(
                       t("Succeeded", "成功"),
-                      String(run.metrics.state_counts.succeeded ?? 0),
+                      String(metricsResult.metrics.state_counts.succeeded ?? 0),
                     )}
                     {metric(
                       t("Failed", "失败"),
-                      String(run.metrics.state_counts.failed ?? 0),
+                      String(metricsResult.metrics.state_counts.failed ?? 0),
                     )}
                     {metric(
                       t("Unknown", "未知"),
-                      String(run.metrics.state_counts.unknown ?? 0),
+                      String(metricsResult.metrics.state_counts.unknown ?? 0),
                     )}
                     {metric(
                       t("Not dispatched", "未派发"),
-                      String(run.metrics.state_counts.not_dispatched ?? 0),
+                      String(
+                        metricsResult.metrics.state_counts.not_dispatched ?? 0,
+                      ),
                     )}
                     {metric(
                       t("p50 / p90 / p99", "成功 p50 / p90 / p99"),
-                      `${latency(run.metrics.successful_latency_ms.p50)} / ${latency(run.metrics.successful_latency_ms.p90)} / ${latency(run.metrics.successful_latency_ms.p99)}`,
+                      `${latency(metricsResult.metrics.successful_latency_ms.p50)} / ${latency(metricsResult.metrics.successful_latency_ms.p90)} / ${latency(metricsResult.metrics.successful_latency_ms.p99)}`,
                     )}
                     {metric(
                       t(
                         "Failed latency p50 / p90 / p99",
                         "失败 p50 / p90 / p99",
                       ),
-                      `${latency(run.metrics.failed_latency_ms.p50)} / ${latency(run.metrics.failed_latency_ms.p90)} / ${latency(run.metrics.failed_latency_ms.p99)}`,
+                      `${latency(metricsResult.metrics.failed_latency_ms.p50)} / ${latency(metricsResult.metrics.failed_latency_ms.p90)} / ${latency(metricsResult.metrics.failed_latency_ms.p99)}`,
                     )}
                     {metric(
                       t(
                         "Failed latency samples / max",
                         "失败延迟样本 / 最大值",
                       ),
-                      `${run.metrics.failed_latency_ms.n} / ${latency(run.metrics.failed_latency_ms.max)}`,
+                      `${metricsResult.metrics.failed_latency_ms.n} / ${latency(metricsResult.metrics.failed_latency_ms.max)}`,
                     )}
                     {metric(
                       t("Rate applicability", "速率适用性"),
-                      run.metrics.rate_applicability,
+                      metricsResult.metrics.rate_applicability,
                     )}
                     {metric(
                       t("Output tokens", "输出 token"),
-                      run.metrics.output_token_count == null
+                      metricsResult.metrics.output_token_count == null
                         ? "—"
-                        : String(run.metrics.output_token_count),
+                        : String(metricsResult.metrics.output_token_count),
                     )}
                     {metric(
                       t("Token throughput", "Token 吞吐"),
-                      run.metrics.output_token_throughput == null
+                      metricsResult.metrics.output_token_throughput == null
                         ? "—"
-                        : `${Number(run.metrics.output_token_throughput.toFixed(3))} tok/s`,
+                        : `${Number(metricsResult.metrics.output_token_throughput.toFixed(3))} tok/s`,
                     )}
                     {metric(
                       t("Token applicability", "Token 适用性"),
-                      run.metrics.token_applicability,
+                      metricsResult.metrics.token_applicability,
                     )}
                     {metric(
                       t("Censored", "删失请求"),
-                      String(run.metrics.censored_count),
+                      String(metricsResult.metrics.censored_count),
                     )}
                     {metric(
                       t("Successful latency applicability", "成功延迟适用性"),
-                      run.metrics.successful_latency_ms.p99_applicability,
+                      metricsResult.metrics.successful_latency_ms
+                        .p99_applicability,
                     )}
                   </dl>
                 ) : (

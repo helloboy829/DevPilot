@@ -6,6 +6,7 @@ rs.mock("@/core/config", () => ({ getBackendBaseURL: () => "/backend" }));
 import { fetch as fetcher } from "@/core/api/fetcher";
 import {
   createPerformanceEvidenceAccess,
+  getPerformanceMetrics,
   listPerformanceDispatches,
   listPerformanceRuns,
   readPerformanceEvidence,
@@ -85,4 +86,26 @@ it("rejects oversized and non-binary evidence without retry", async () => {
   );
   await expect(readPerformanceEvidence("p1", "opaque", 32)).rejects.toThrow();
   expect(mockedFetch).toHaveBeenCalledTimes(1);
+});
+
+it("loads the versioned metrics projection independently from run metadata", async () => {
+  mockedFetch.mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        schema_version: "performance-metrics.v1",
+        applicability: "not_measured",
+        revision: null,
+        metrics: null,
+      }),
+      { headers: { "Content-Type": "application/json" } },
+    ),
+  );
+  await getPerformanceMetrics("p/1", "r/1");
+  expect(mockedFetch.mock.calls[0]?.[0]).toBe(
+    "/backend/api/evaluation/projects/p%2F1/performance-runs/r%2F1/metrics",
+  );
+  expect(mockedFetch.mock.calls[0]?.[1]).toMatchObject({
+    method: "GET",
+    cache: "no-store",
+  });
 });
