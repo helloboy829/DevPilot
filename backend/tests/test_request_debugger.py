@@ -78,7 +78,11 @@ def test_supplied_dify_curl_parses_k_and_preserves_json_body():
     assert parsed.insecure_tls is True
     assert parsed.spec.url == "https://10.149.73.28:5035/dify/v1/chat-messages"
     assert json.loads(parsed.spec.body)["query"] == "Example question?"
-    assert set(parsed.warnings) == {"normalized_url_scheme", "normalized_json_indentation"}
+    assert set(parsed.warnings) == {
+        "normalized_url_scheme",
+        "normalized_json_indentation",
+        "normalized_json_line_continuation",
+    }
 
 
 def test_literal_dollar_in_json_body_is_preserved_but_shell_expansion_is_rejected():

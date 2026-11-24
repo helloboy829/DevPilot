@@ -146,29 +146,80 @@ def _reject_shell_expansions(command: str) -> None:
         index += 1
 
 
-def _normalize_json_indentation(body: str) -> str:
-    # Repair only copied whitespace markup at the start of a JSON line,
-    # and only when it is the difference between invalid and valid JSON.
-    if "&#" not in body:
-        return body
+def _remove_shell_line_continuations(command: str) -> str:
+    """Remove command-level continuations without altering quoted payloads."""
+    output: list[str] = []
+    quote: str | None = None
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if quote == "'":
+            output.append(char)
+            if char == "'":
+                quote = None
+            index += 1
+            continue
+        if quote == "\"":
+            output.append(char)
+            if char == "\"":
+                quote = None
+            elif char == "\\" and index + 1 < len(command):
+                output.append(command[index + 1])
+                index += 1
+            index += 1
+            continue
+        if char in {"'", "\""}:
+            quote = char
+            output.append(char)
+            index += 1
+            continue
+        if char in {"\\", "`", "^"} and index + 1 < len(command):
+            next_index = index + 1
+            if (
+                command[next_index] == "\r"
+                and command[next_index : next_index + 2] == "\r\n"
+            ):
+                index = next_index + 2
+                continue
+            if command[next_index] == "\n":
+                index = next_index + 1
+                continue
+        output.append(char)
+        index += 1
+    return "".join(output)
+
+
+def _normalize_json_indentation(body: str) -> tuple[str, tuple[str, ...]]:
+    # Preserve valid JSON verbatim; repair only recognized copy artifacts.
     try:
         json.loads(body)
-        return body
+        return body, ()
     except (ValueError, RecursionError):
-        candidate = re.sub(r"(?im)^[ \t]*(?:&#(?:x20|32);[ \t]*)+", " ", body)
-        if candidate == body:
-            return body
-        try:
-            json.loads(candidate)
-        except (ValueError, RecursionError):
-            return body
-        return candidate
+        pass
+
+    normalized = body
+    warnings: list[str] = []
+    continued = re.sub(r"\\[ \t]*(?:\r?\n)[ \t]*", "\n", normalized)
+    if continued != normalized:
+        warnings.append("normalized_json_line_continuation")
+        normalized = continued
+    indented = re.sub(r"(?im)^[ \t]*(?:&#(?:x20|32);[ \t]*)+", " ", normalized)
+    if indented != normalized:
+        warnings.append("normalized_json_indentation")
+        normalized = indented
+    if not warnings:
+        return body, ()
+    try:
+        json.loads(normalized)
+    except (ValueError, RecursionError):
+        return body, ()
+    return normalized, tuple(warnings)
 
 
 def parse_curl_import(command: str) -> CurlImportResult:
     if not isinstance(command, str) or len(command) > 300000 or chr(0) in command:
         raise ValueError("Unsupported command size or control character")
-    command = re.sub(r"(?:\\|\x60|\^)(\r?\n)", r"\1", command)
+    command = _remove_shell_line_continuations(command)
     _reject_shell_expansions(command)
     try:
         tokens = shlex.split(command, posix=True)
@@ -324,10 +375,8 @@ def parse_curl_import(command: str) -> CurlImportResult:
         and (media == "application/json" or media.endswith("+json"))
         for name, value in headers
     ):
-        normalized = _normalize_json_indentation(body)
-        if normalized != body:
-            warnings.append("normalized_json_indentation")
-            body = normalized
+        body, body_warnings = _normalize_json_indentation(body)
+        warnings.extend(body_warnings)
     if has_body and not any(h[0].lower() == "content-type" for h in headers):
         headers.append(["Content-Type", "application/x-www-form-urlencoded"])
     spec = RequestSpec(

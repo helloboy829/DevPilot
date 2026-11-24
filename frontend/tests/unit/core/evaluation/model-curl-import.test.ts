@@ -237,3 +237,29 @@ it("does not execute or send a cURL command while parsing", () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+it("repairs copied backslash-newline JSON and routes the supplied Dify cURL clearly", () => {
+  const copiedCurl = String.raw`curl -k -X POST 'https\://10.149.73.28:5035/dify/v1/chat-messages' --header 'Authorization: Bearer synthetic-token' --header 'Content-Type: application/json' --data '{\
+&#x20; "inputs":{"userId":"1","kbCodes":"#S1-4#S5-1#"},\
+&#x20; "query": "Example question?",\
+&#x20; "response_mode": "blocking",\
+&#x20; "user": "test"\
+}'`;
+
+  expect(() => parseModelCurl(copiedCurl)).toThrow(
+    /Dify app endpoint.*request debugger/i,
+  );
+});
+
+it("normalizes shell-style line breaks inside copied inline JSON without shell execution", () => {
+  const command = String.raw`curl -k 'https://relay.example/v1/chat/completions' --header 'Content-Type: application/json' --data '{\
+  "model":"relay-model",\
+  "messages":[]\
+}'`;
+
+  expect(parseModelCurl(command)).toMatchObject({
+    model: "relay-model",
+    insecureTls: true,
+    normalizations: ["json_line_continuation"],
+  });
+});
