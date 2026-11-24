@@ -15,17 +15,26 @@ from collections.abc import Mapping
 from datetime import datetime
 from uuid import uuid4
 
+from devpilot.qa_json_binding import QAJSONBinding
 from sqlalchemy import case, func, insert, or_, select, update
 
 from app.evaluation import tables as t
+from app.evaluation.datasets import QASample, dataset_hash
 from app.evaluation.performance_metrics import summarize_performance_dispatches
 from app.evaluation.performance_scenario_repository import PerformanceScenarioRepository
 from app.evaluation.performance_scenarios import PerformanceProfile, build_case_manifest
+from app.evaluation.plan_repository import PlanRepository
 from app.evaluation.qa_artifact_store import ResponseArtifactStore
 from app.evaluation.qa_evidence import EvidenceAccessCreate
 from app.evaluation.registry import fingerprint
 from app.evaluation.repository import Conflict, EvaluationRepository, NotFound, now
 from app.evaluation.request_protection import RequestProtectionError
+from app.evaluation.request_version_repository import RequestVersionRepository
+
+
+class ExecutionSnapshotInvalid(Conflict):
+    """Frozen inputs failed integrity checks before any dispatch could start."""
+
 
 _TERMINAL = {"succeeded", "failed", "timeout", "unknown", "not_dispatched"}
 _RUN_STATES = ("pending", "dispatched", "succeeded", "failed", "timeout", "unknown", "not_dispatched")
@@ -50,9 +59,10 @@ class PerformanceRunRepository(EvaluationRepository):
     _MAX_CAPTURED_RESPONSE_BYTES = 1_048_576
     _MAX_OBSERVED_RESPONSE_BYTES = 10_000_001
 
-    def __init__(self, sf, *, response_artifact_store=None):
+    def __init__(self, sf, *, response_artifact_store=None, request_protection=None):
         super().__init__(sf)
         self.response_artifact_store = response_artifact_store
+        self.request_protection = request_protection
 
     def _response_artifact_store(self):
         return self.response_artifact_store if self.response_artifact_store is not None else ResponseArtifactStore.from_environment()
@@ -276,8 +286,8 @@ class PerformanceRunRepository(EvaluationRepository):
             await self._append_audit(session, project_id, run_id, owner, "synthetic_mode_selected", {"execution_mode": "synthetic_only"})
 
     async def get_execution_snapshot(self, owner, project_id, run_id):
-        """Return only the verified frozen profile and case manifest for an admitted run."""
-        async with self.sf() as session:
+        """Return verified frozen inputs and private rendered bodies for synthetic dispatch."""
+        async with self.sf.begin() as session:
             run = await self._run(session, owner, project_id, run_id)
             if run["status"] != "running":
                 raise Conflict
@@ -293,13 +303,13 @@ class PerformanceRunRepository(EvaluationRepository):
                 .mappings()
                 .first()
             )
-            if scenario_row is None:
-                raise Conflict
-            scenario = PerformanceScenarioRepository._public(dict(scenario_row))
-            if not hmac.compare_digest(scenario["definition_hash"], run["scenario_hash"]):
-                raise Conflict
-            definition = scenario["definition"]
             try:
+                if scenario_row is None:
+                    raise ValueError
+                scenario = PerformanceScenarioRepository._public(dict(scenario_row))
+                if not hmac.compare_digest(scenario["definition_hash"], run["scenario_hash"]):
+                    raise ValueError
+                definition = scenario["definition"]
                 profile = PerformanceProfile.model_validate(definition["profile"])
                 manifest = definition["manifest"]
                 expected_manifest = build_case_manifest(
@@ -309,8 +319,103 @@ class PerformanceRunRepository(EvaluationRepository):
                 )
                 if manifest != expected_manifest or len(manifest) != run["population_count"] or fingerprint(profile.model_dump(mode="json")) != run["profile_hash"] or fingerprint(manifest) != run["manifest_hash"]:
                     raise ValueError
-            except (KeyError, TypeError, ValueError):
-                raise Conflict from None
+
+                plan_row = (
+                    (
+                        await session.execute(
+                            select(t.plans).where(
+                                t.plans.c.project_id == project_id,
+                                t.plans.c.id == definition["plan_id"],
+                                t.plans.c.component_id == definition["component_id"],
+                            )
+                        )
+                    )
+                    .mappings()
+                    .first()
+                )
+                if plan_row is None:
+                    raise ValueError
+                plan = PlanRepository._public_plan(dict(plan_row))
+                plan_definition = plan["definition"]
+                if (
+                    not hmac.compare_digest(plan["definition_hash"], definition["plan_hash"])
+                    or plan["dataset_id"] != definition["dataset_id"]
+                    or plan["component_id"] != definition["component_id"]
+                    or plan_definition["dataset_revision"] != definition["dataset_revision"]
+                    or plan_definition["dataset_hash"] != definition["dataset_hash"]
+                    or plan_definition["limits"]["mode"] != "performance"
+                    or plan_definition["limits"]["request_count"] != profile.measured_request_count
+                ):
+                    raise ValueError
+
+                dataset = (
+                    (
+                        await session.execute(
+                            select(t.datasets).where(
+                                t.datasets.c.project_id == project_id,
+                                t.datasets.c.id == definition["dataset_id"],
+                            )
+                        )
+                    )
+                    .mappings()
+                    .first()
+                )
+                if dataset is None or dataset["status"] != "frozen" or dataset["revision"] != definition["dataset_revision"] or dataset["content_hash"] != definition["dataset_hash"]:
+                    raise ValueError
+                sample_rows = (
+                    (
+                        await session.execute(
+                            select(
+                                t.samples.c.sample_id,
+                                t.samples.c.input,
+                                t.samples.c.source_ref,
+                                t.samples.c.slice_tag,
+                            )
+                            .where(t.samples.c.dataset_id == definition["dataset_id"])
+                            .order_by(t.samples.c.sample_id)
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+                reference_rows = (await session.execute(select(t.references.c.sample_id, t.references.c.expected).where(t.references.c.dataset_id == definition["dataset_id"]).order_by(t.references.c.sample_id))).mappings().all()
+                expected_by_id = {row["sample_id"]: row["expected"] for row in reference_rows}
+                inputs = {row["sample_id"]: row["input"] for row in sample_rows}
+                if len(sample_rows) != dataset["sample_count"] or list(inputs) != definition["case_order"] or not set(expected_by_id).issubset(inputs):
+                    raise ValueError
+                integrity_samples = [QASample.model_validate({**dict(row), "expected": expected_by_id.get(row["sample_id"])}) for row in sample_rows]
+                if dataset_hash(dataset["source"], dataset["purpose"], integrity_samples) != definition["dataset_hash"]:
+                    raise ValueError
+
+                version_row = (
+                    (
+                        await session.execute(
+                            select(t.request_versions).where(
+                                t.request_versions.c.project_id == project_id,
+                                t.request_versions.c.component_id == definition["component_id"],
+                                t.request_versions.c.id == plan["request_version_id"],
+                            )
+                        )
+                    )
+                    .mappings()
+                    .first()
+                )
+                if version_row is None or version_row["protected_hash"] != plan_definition["request_protected_hash"]:
+                    raise ValueError
+                request_versions = RequestVersionRepository(self.sf, protection=self.request_protection)
+                frozen = await request_versions._open_request_row(session, owner, dict(version_row))
+                if frozen.template.fingerprint != plan_definition["request_template_fingerprint"]:
+                    raise ValueError
+                binding = QAJSONBinding.from_dict(plan_definition["binding"])
+                requests = {case_id: binding.render(frozen, value) for case_id, value in inputs.items()}
+                for request in requests.values():
+                    if len(request.body.encode("utf-8")) > profile.max_request_bytes:
+                        raise ValueError
+                expanded_bytes = sum(len(requests[entry["case_id"]].body.encode("utf-8")) for entry in manifest)
+                if expanded_bytes > profile.max_total_bytes:
+                    raise ValueError
+            except (KeyError, TypeError, ValueError, Conflict, RequestProtectionError):
+                raise ExecutionSnapshotInvalid from None
             return {
                 "run_id": run_id,
                 "scenario_hash": run["scenario_hash"],
@@ -318,6 +423,7 @@ class PerformanceRunRepository(EvaluationRepository):
                 "manifest_hash": run["manifest_hash"],
                 "profile": profile,
                 "manifest": [dict(entry) for entry in manifest],
+                "requests": requests,
             }
 
     async def _run(self, session, owner, project_id, run_id, *, lock=False):
@@ -902,7 +1008,7 @@ class PerformanceRunRepository(EvaluationRepository):
 
     async def interrupt_run(self, owner, project_id, run_id, *, at_ns, reason="delivery_unknown"):
         _bounded_int(at_ns, maximum=9_223_372_036_854_775_807)
-        if type(reason) is not str or reason not in {"delivery_unknown", "duration_limit", "wall_time_limit", "request_byte_budget", "response_byte_budget", "aggregate_byte_budget", "evidence_write_failed"}:
+        if type(reason) is not str or reason not in {"delivery_unknown", "preflight_invalid", "duration_limit", "wall_time_limit", "request_byte_budget", "response_byte_budget", "aggregate_byte_budget", "evidence_write_failed"}:
             raise Conflict
         async with self.sf.begin() as session:
             run = await self._run(session, owner, project_id, run_id, lock=True)

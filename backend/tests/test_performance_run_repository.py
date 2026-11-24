@@ -9,7 +9,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from cryptography.fernet import Fernet
-from sqlalchemy import select, update
+from sqlalchemy import event, select, update
 from sqlalchemy.exc import IntegrityError
 from test_dispatch_journal import prepared as prepared
 from test_evaluation_plans import draft, limits
@@ -707,3 +707,56 @@ async def test_ack_rejects_expired_lease_without_reserving_artifact(prepared):
         artifact = (await session.execute(select(t.performance_response_artifacts).where(t.performance_response_artifacts.c.run_id == run["id"], t.performance_response_artifacts.c.ordinal == 0))).first()
     assert dispatch["state"] == "pending"
     assert artifact is None
+
+
+@pytest.mark.asyncio
+async def test_execution_snapshot_does_not_join_expected_answers_into_sample_input_query(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    statements = []
+    connection_engine = repo.sf.kw["bind"].sync_engine
+
+    def listener(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    event.listen(connection_engine, "before_cursor_execute", listener)
+    try:
+        await runs.get_execution_snapshot("owner", project_id, run["id"])
+    finally:
+        event.remove(connection_engine, "before_cursor_execute", listener)
+
+    sample_selects = [statement.lower() for statement in statements if "samples" in statement.lower()]
+    assert sample_selects
+    assert all("evaluation_qa_references.expected" not in statement for statement in sample_selects)
+
+
+@pytest.mark.asyncio
+async def test_execution_snapshot_rejects_sample_content_drift_without_metadata_drift(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    dataset_id = scenario["definition"]["dataset_id"]
+    async with repo.sf.begin() as session:
+        await session.execute(update(t.samples).where(t.samples.c.dataset_id == dataset_id, t.samples.c.sample_id == "a").values(input="TAMPERED_INPUT"))
+
+    with pytest.raises(Conflict):
+        await runs.get_execution_snapshot("owner", project_id, run["id"])
+    assert all(row["state"] == "pending" for row in await runs.list_dispatches("owner", project_id, run["id"]))
+
+
+@pytest.mark.asyncio
+async def test_execution_snapshot_rejects_dataset_metadata_drift_before_dispatch(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    dataset_id = scenario["definition"]["dataset_id"]
+    async with repo.sf.begin() as session:
+        await session.execute(update(t.datasets).where(t.datasets.c.id == dataset_id).values(content_hash="0" * 64))
+
+    with pytest.raises(Conflict):
+        await runs.get_execution_snapshot("owner", project_id, run["id"])
+    assert all(row["state"] == "pending" for row in await runs.list_dispatches("owner", project_id, run["id"]))
