@@ -164,7 +164,9 @@ test("normalized cURL imports show a review notice before request send", async (
     .getByLabel("cURL", { exact: true })
     .fill("curl https://internal.example/api --json '{}' ");
   await page.getByRole("button", { name: "Import cURL", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(/JSON formatting\/line continuation.*review the preview/i);
+  await expect(page.getByRole("status")).toContainText(
+    /JSON formatting\/line continuation.*review the preview/i,
+  );
   await expect(page.getByLabel("Request body")).toHaveValue(
     '{"q":"synthetic"}',
   );
