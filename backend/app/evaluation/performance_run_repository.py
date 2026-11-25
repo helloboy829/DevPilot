@@ -32,6 +32,26 @@ from app.evaluation.request_protection import RequestProtectionError
 from app.evaluation.request_version_repository import RequestVersionRepository
 
 
+def _verify_frozen_dataset_and_render_requests(dataset, sample_rows, reference_rows, case_order, expected_dataset_hash, binding, frozen, manifest, profile):
+    """Run bounded but CPU-heavy frozen input verification and rendering off-loop."""
+    expected_by_id = {row["sample_id"]: row["expected"] for row in reference_rows}
+    inputs = {row["sample_id"]: row["input"] for row in sample_rows}
+    if len(sample_rows) != dataset["sample_count"] or list(inputs) != case_order or not set(expected_by_id).issubset(inputs):
+        raise ValueError
+    integrity_samples = [QASample.model_validate({**dict(row), "expected": expected_by_id.get(row["sample_id"])}) for row in sample_rows]
+    if dataset_hash(dataset["source"], dataset["purpose"], integrity_samples) != expected_dataset_hash:
+        raise ValueError
+
+    requests = {case_id: binding.render(frozen, value) for case_id, value in inputs.items()}
+    for request in requests.values():
+        if len(request.body.encode("utf-8")) > profile.max_request_bytes:
+            raise ValueError
+    expanded_bytes = sum(len(requests[entry["case_id"]].body.encode("utf-8")) for entry in manifest)
+    if expanded_bytes > profile.max_total_bytes:
+        raise ValueError
+    return requests
+
+
 class ExecutionSnapshotInvalid(Conflict):
     """Frozen inputs failed integrity checks before any dispatch could start."""
 
@@ -379,13 +399,6 @@ class PerformanceRunRepository(EvaluationRepository):
                     .all()
                 )
                 reference_rows = (await session.execute(select(t.references.c.sample_id, t.references.c.expected).where(t.references.c.dataset_id == definition["dataset_id"]).order_by(t.references.c.sample_id))).mappings().all()
-                expected_by_id = {row["sample_id"]: row["expected"] for row in reference_rows}
-                inputs = {row["sample_id"]: row["input"] for row in sample_rows}
-                if len(sample_rows) != dataset["sample_count"] or list(inputs) != definition["case_order"] or not set(expected_by_id).issubset(inputs):
-                    raise ValueError
-                integrity_samples = [QASample.model_validate({**dict(row), "expected": expected_by_id.get(row["sample_id"])}) for row in sample_rows]
-                if dataset_hash(dataset["source"], dataset["purpose"], integrity_samples) != definition["dataset_hash"]:
-                    raise ValueError
 
                 version_row = (
                     (
@@ -407,13 +420,18 @@ class PerformanceRunRepository(EvaluationRepository):
                 if frozen.template.fingerprint != plan_definition["request_template_fingerprint"]:
                     raise ValueError
                 binding = QAJSONBinding.from_dict(plan_definition["binding"])
-                requests = {case_id: binding.render(frozen, value) for case_id, value in inputs.items()}
-                for request in requests.values():
-                    if len(request.body.encode("utf-8")) > profile.max_request_bytes:
-                        raise ValueError
-                expanded_bytes = sum(len(requests[entry["case_id"]].body.encode("utf-8")) for entry in manifest)
-                if expanded_bytes > profile.max_total_bytes:
-                    raise ValueError
+                requests = await asyncio.to_thread(
+                    _verify_frozen_dataset_and_render_requests,
+                    dict(dataset),
+                    sample_rows,
+                    reference_rows,
+                    definition["case_order"],
+                    definition["dataset_hash"],
+                    binding,
+                    frozen,
+                    manifest,
+                    profile,
+                )
             except (KeyError, TypeError, ValueError, Conflict, RequestProtectionError):
                 raise ExecutionSnapshotInvalid from None
             return {
