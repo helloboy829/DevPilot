@@ -63,6 +63,50 @@ async def test_execution_is_human_authorized_idempotent_private_and_never_sends_
 
 
 @pytest.mark.asyncio
+async def test_execution_reconciliation_is_original_id_read_only_and_owner_scoped(api, monkeypatch, tmp_path):
+    client, app, base, _ = api
+    path, payload = await setup_execution(api, monkeypatch, tmp_path)
+    created = await client.put(path, json=payload)
+    reconciliation_path = path + "/reconciliation"
+    assert (await client.get(base + "/execution-runs/" + uuid4().hex + "/reconciliation")).status_code == 404
+
+    before = await client.get(path)
+    result = await client.get(reconciliation_path)
+    assert result.status_code == 200
+    body = result.json()
+    assert body["execution"] == created.json()
+    assert body["safety"]["scope"] == "execution_safety_observation_only"
+    assert body["safety"]["state"] == "queued_ready"
+    assert body["safety"]["worker_liveness"] == "not_established"
+    assert body["safety"]["dispatch_authorized"] is False
+    assert "claim_hash" not in result.text and "SYNTHETIC" not in result.text
+    assert "no-store" in result.headers["cache-control"]
+    assert (await client.get(path)).json() == before.json()
+
+    assert (await client.get(reconciliation_path + "?unsupported=true")).status_code == 422
+    app.state.actor = 2
+    assert (await client.get(reconciliation_path)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_execution_reconciliation_fails_closed_for_inconsistent_rows(api, monkeypatch, tmp_path):
+    from sqlalchemy import update
+
+    from app.evaluation import tables as t
+
+    client, app, _, _ = api
+    path, payload = await setup_execution(api, monkeypatch, tmp_path)
+    await client.put(path, json=payload)
+    execution_id = path.rsplit("/", 1)[1]
+    async with app.state.evaluation_execution_repo.sf.begin() as session:
+        await session.execute(update(t.executions).where(t.executions.c.id == execution_id).values(state="running", reservation_held=False))
+
+    result = await client.get(path + "/reconciliation")
+    assert result.status_code == 409
+    assert "claim_hash" not in result.text and "SYNTHETIC" not in result.text
+
+
+@pytest.mark.asyncio
 async def test_operator_disabled_and_confirmation_validation_fail_closed(api, monkeypatch, tmp_path):
     client, app, base, _ = api
     path, payload = await setup_execution(api, monkeypatch, tmp_path)

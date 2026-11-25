@@ -19,7 +19,7 @@ from a prior SHA. The original implementation scope below remains unchanged.
 4. The browser generates one execution identifier before PUT. Keep that identifier
    if a response is uncertain. GET inspects the same receipt; there is no automatic
    write retry, new identifier, replay, or debugger send.
-5. Explicitly refresh the receipt. Technical collection is not quality PASS. Use
+5. Explicitly refresh the receipt or GET `/execution-runs/{execution_id}/reconciliation` using the original execution ID. Reconciliation is owner/project-scoped and read-only; it returns the original public receipt plus a fixed safety projection. It never creates an ID, changes state, releases quota, or authorizes retry/resend. Worker liveness remains `not_established`; a reached deadline is not proof of worker death. Technical collection is not quality PASS. Use
    **Human result review** to inspect Q / actual A / expected / source and append
    a revisioned decision and reason.
 
