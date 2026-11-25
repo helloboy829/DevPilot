@@ -403,6 +403,14 @@ async def get_execution(project_id: str, execution_id: str, request: Request):
     return await _result(repository.get_execution(owner, project_id, execution_id))
 
 
+@router.get("/{project_id}/execution-runs/{execution_id}/reconciliation")
+@require_permission("evaluation_projects", "read")
+async def reconcile_execution(project_id: str, execution_id: str, request: Request):
+    _reject_unknown_query_params(request, set())
+    owner, repository = await _execution_context(request, project_id)
+    return await _result(repository.reconcile_execution(owner, project_id, execution_id))
+
+
 @router.put("/{project_id}/execution-runs/{execution_id}")
 @require_permission("evaluation_projects", "read")
 @require_permission("evaluation_projects", "write")
