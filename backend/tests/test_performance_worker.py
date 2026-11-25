@@ -3,7 +3,6 @@
 import asyncio
 import json
 import socket
-from dataclasses import replace
 
 import pytest
 from cryptography.fernet import Fernet
@@ -87,27 +86,28 @@ async def test_worker_sends_rendered_frozen_case_body(prepared, tmp_path, monkey
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
 
     captured_bodies = []
-    original_snapshot = runs.get_execution_snapshot
     original_request = SyntheticPerformanceTransport.request
-
-    async def distinct_case_snapshot(*args, **kwargs):
-        snapshot = await original_snapshot(*args, **kwargs)
-        snapshot["requests"] = {case_id: replace(request, body=json.dumps({"q": f"CASE:{case_id}"})) for case_id, request in snapshot["requests"].items()}
-        return snapshot
 
     async def capture_request(transport, request_body, *, ordinal):
         captured_bodies.append((ordinal, request_body))
         return await original_request(transport, request_body, ordinal=ordinal)
 
-    monkeypatch.setattr(runs, "get_execution_snapshot", distinct_case_snapshot)
     monkeypatch.setattr(SyntheticPerformanceTransport, "request", capture_request)
     result = await PerformanceWorker(runs, transport=SyntheticPerformanceTransport()).run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
 
     assert result["status"] == "completed"
     assert len(captured_bodies) == len(scenario["definition"]["manifest"]) == 6
-    rendered = [(ordinal, json.loads(body)) for ordinal, body in captured_bodies]
-    expected_case_bodies = [f"CASE:{entry['case_id']}" for entry in scenario["definition"]["manifest"]]
-    assert [body["q"] for _, body in rendered] == expected_case_bodies
+    manifest = scenario["definition"]["manifest"]
+    async with repo.sf() as session:
+        frozen_inputs = dict((await session.execute(select(t.samples.c.sample_id, t.samples.c.input).where(t.samples.c.dataset_id == scenario["definition"]["dataset_id"]))).all())
+    bodies_by_ordinal = dict(captured_bodies)
+    assert len(bodies_by_ordinal) == len(captured_bodies) == len(manifest)
+    rendered = [(entry["ordinal"], json.loads(bodies_by_ordinal[entry["ordinal"]])) for entry in manifest]
+    assert [body for _, body in rendered] == [{"q": frozen_inputs[entry["case_id"]]} for entry in manifest]
+    bodies_by_case = {}
+    for entry, (_, body) in zip(manifest, rendered, strict=True):
+        bodies_by_case.setdefault(entry["case_id"], set()).add(json.dumps(body, sort_keys=True))
+    assert all(len(bodies) == 1 for bodies in bodies_by_case.values())
     assert all("SYNTHETIC_GOLD" not in body.values() for _, body in rendered)
     assert all("SYNTHETIC_SECRET" not in body.values() for _, body in rendered)
     assert all("ordinal" not in body for _, body in rendered)
@@ -119,7 +119,7 @@ async def test_worker_sends_rendered_frozen_case_body(prepared, tmp_path, monkey
                 select(t.performance_dispatches.c.ordinal, t.performance_dispatches.c.request_bytes, t.performance_dispatches.c.request_hash).where(t.performance_dispatches.c.run_id == run["id"]).order_by(t.performance_dispatches.c.ordinal)
             )
         ).all()
-    assert [(row.ordinal, row.request_bytes, row.request_hash) for row in dispatches] == [(ordinal, len(body), hashlib.sha256(body).hexdigest()) for ordinal, body in captured_bodies]
+    assert [(row.ordinal, row.request_bytes, row.request_hash) for row in dispatches] == [(ordinal, len(bodies_by_ordinal[ordinal]), hashlib.sha256(bodies_by_ordinal[ordinal]).hexdigest()) for ordinal in range(len(manifest))]
 
 
 @pytest.mark.parametrize("corrupt_target", ["plan", "scenario"])
