@@ -63,17 +63,26 @@ export default function EvaluationHome() {
       action: zh ? "查看效果结果" : "Browse results",
     },
     {
-      icon: FileText,
-      title: zh ? "05 浏览性能结果" : "05 Browse performance results",
+      icon: FlaskConical,
+      title: zh ? "05 配置性能场景" : "05 Configure performance scenarios",
       description: zh
-        ? "检查压测汇总、各阶段派发和逐请求状态与证据。"
-        : "Inspect load-test summaries, phase dispatches, request states and evidence.",
+        ? "冻结有界性能场景并创建台账；不会启动 Worker 或派发请求。"
+        : "Freeze bounded scenarios and create ledgers; no Worker or requests are dispatched.",
+      href: "/workspace/performance",
+      action: zh ? "打开性能工作台" : "Open performance workbench",
+    },
+    {
+      icon: FileText,
+      title: zh ? "06 浏览性能结果" : "06 Browse performance results",
+      description: zh
+        ? "检查汇总、派发和指标适用性；缺少实测证据不代表通过。"
+        : "Inspect summaries, dispatches and applicability; missing measurements are not a pass.",
       href: "/workspace/performance-results",
       action: zh ? "查看性能结果" : "Browse performance results",
     },
     {
       icon: FileText,
-      title: zh ? "06 汇总报告" : "06 Assemble reports",
+      title: zh ? "07 汇总报告" : "07 Assemble reports",
       description: zh
         ? "与助手逐轮明确需求，确认多组件事实，再生成版本固定的草稿。"
         : "Clarify requirements over multiple turns, confirm component facts, then render a version-pinned draft.",

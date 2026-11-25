@@ -58,6 +58,8 @@ cURL 调试器新增“**导出参数化请求模板**”：生成 `request-temp
 | 组件测试 `/workspace/component-tests`      | 注册组件、初版效果/性能执行；新增完整 cURL 粘贴、解析、编辑、单次发送、查看/复制响应                   |
 | 项目与数据 `/workspace/datasets`           | 本人项目、多组件关联与不可变提测清单、来源/授权声明、JSON/JSONL导入校验、Q/预期/来源并排检查和确认冻结 |
 | 定时评测 `/workspace/evaluation-schedules` | 单次/cron/时区、冻结参数、暂停/恢复、执行历史；直接进入确定性评测器，不生成聊天或推送任务              |
+| 性能工作台 `/workspace/performance`       | 加载冻结 performance plan，配置并确认有界场景、创建 run ledger；不会启动 Worker、派发请求或产生目标实测指标 |
+| 性能结果 `/workspace/performance-results` | 显式浏览 run、派发与指标适用性；`synthetic_only` / `not_measured` 不代表目标实测或通过                    |
 | 报告 `/workspace/reports`                  | 已验证多组件不可变存档与追加修订、冻结 Markdown/Word 草稿；人工填报与多轮 Agent 建议单独保留           |
 | 模型与分工 `/workspace/models`             | 管理员添加/编辑/删除模型、显式连接测试、加密且只写的 API Key、角色分配                                 |
 | 聊天                                       | 保留底座会话与单次模型选择，供有界 Agent 协作，不代替评测事实账本                                      |

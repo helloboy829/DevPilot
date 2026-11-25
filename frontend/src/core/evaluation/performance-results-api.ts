@@ -5,6 +5,100 @@ import { evaluationApi } from "@/core/evaluation/api";
 const base = (projectId: string) =>
   `evaluation/projects/${encodeURIComponent(projectId)}`;
 
+export type PerformanceProfile = {
+  concurrency: number;
+  measured_request_count: number;
+  warmup_request_count: number;
+  duration_limit_seconds: number | null;
+  request_timeout_ms: number;
+  max_in_flight: number;
+  wall_time_limit_seconds: number;
+  drain_limit_seconds: number;
+  max_request_bytes: number;
+  max_response_bytes: number;
+  max_total_bytes: number;
+};
+
+export type PerformanceScenarioCreate = {
+  plan_id: string;
+  profile: PerformanceProfile;
+  confirmed: true;
+};
+
+export type PerformanceScenario = {
+  id: string;
+  project_id: string;
+  component_id: string;
+  plan_id: string;
+  version: number;
+  definition: {
+    schema: "devpilot-performance-scenario.v1";
+    scope: "frozen_definition_only";
+    project_id: string;
+    component_id: string;
+    plan_id: string;
+    plan_hash: string;
+    dataset_id: string;
+    dataset_revision: number;
+    dataset_hash: string;
+    case_order: string[];
+    profile: PerformanceProfile;
+    manifest: Array<{
+      ordinal: number;
+      phase: "warmup" | "measurement";
+      case_id: string;
+      iteration: number;
+    }>;
+  };
+  definition_hash: string;
+  created_by: string;
+  created_at: string;
+};
+
+export type PerformanceRunCreate = {
+  run_id: string;
+  scenario_id: string;
+  scenario_hash: string;
+  confirmed: true;
+};
+
+export function listPerformanceScenarios(
+  projectId: string,
+  componentId: string,
+) {
+  return evaluationApi<{ scenarios: PerformanceScenario[] }>(
+    `${base(projectId)}/components/${encodeURIComponent(componentId)}/performance-scenarios`,
+    undefined,
+    "GET",
+    262144,
+  );
+}
+
+export function createPerformanceScenario(
+  projectId: string,
+  componentId: string,
+  payload: PerformanceScenarioCreate,
+) {
+  return evaluationApi<PerformanceScenario>(
+    `${base(projectId)}/components/${encodeURIComponent(componentId)}/performance-scenarios`,
+    payload,
+    "POST",
+    262144,
+  );
+}
+
+export function createPerformanceRun(
+  projectId: string,
+  payload: PerformanceRunCreate,
+) {
+  return evaluationApi<PerformanceRun>(
+    `${base(projectId)}/performance-runs`,
+    payload,
+    "POST",
+    262144,
+  );
+}
+
 export type PerformanceRun = {
   id: string;
   project_id: string;
