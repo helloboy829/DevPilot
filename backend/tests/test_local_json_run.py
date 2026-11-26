@@ -15,18 +15,12 @@ from devpilot.qa_json_attempt import AttemptObservation
 from devpilot.qa_json_binding import QAJSONBinding
 from devpilot.qa_json_run import JSONRunLimits, JSONRunStopped
 from devpilot.request_versions import FrozenRequest
+from test_network_guard import install_network_guard
 
 
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch):
-    import socket
-
-    def denied(*args, **kwargs):
-        raise AssertionError("Real network forbidden")
-
-    monkeypatch.setattr(socket, "getaddrinfo", denied)
-    for name in ("connect", "connect_ex", "sendto"):
-        monkeypatch.setattr(socket.socket, name, denied)
+    install_network_guard(monkeypatch, message="Synthetic test network is forbidden")
 
 
 @pytest.fixture(autouse=True)
@@ -650,7 +644,19 @@ class Deny(importlib.abc.MetaPathFinder):
   if fullname.split('.')[0] in {'app','deerflow','sqlalchemy','fastapi','openpyxl'}:raise AssertionError('business import')
 sys.meta_path.insert(0,Deny())
 def denied(*args,**kwargs):raise AssertionError('real network')
-socket.getaddrinfo=denied;socket.socket.connect=denied;socket.socket.connect_ex=denied;socket.socket.sendto=denied
+socket.getaddrinfo=denied
+import ipaddress
+def guard(method):
+ original=getattr(socket.socket,method)
+ def checked(sock,*args,**kwargs):
+  address=kwargs.get("address",args[1 if method=="sendto" else 0] if len(args)>(1 if method=="sendto" else 0) else None)
+  host=address[0] if isinstance(address,tuple) and address else None
+  try:allowed=isinstance(host,str) and ipaddress.ip_address(host.split("%",1)[0]).is_loopback
+  except ValueError:allowed=False
+  if not allowed:return denied(sock,*args,**kwargs)
+  return original(sock,*args,**kwargs)
+ return checked
+for method in ("connect","connect_ex","sendto"):setattr(socket.socket,method,guard(method))
 from contextlib import asynccontextmanager
 import httpx
 from devpilot.local_json_run import LocalJSONJournal,LocalRunDefinition,run_local_json_attempts

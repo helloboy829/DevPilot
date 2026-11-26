@@ -17,6 +17,11 @@ from devpilot.local_qa_retention import (
 from devpilot.qa_json_binding import QAJSONBinding
 from devpilot.request_templates import RequestTemplate
 
+posix_open_file_unlink = pytest.mark.skipif(
+    os.name != "posix",
+    reason="locked-file unlink and directory-fsync disposal semantics are POSIX-only",
+)
+
 
 @pytest.fixture
 def manifest():
@@ -133,6 +138,7 @@ def test_live_retention_writer_lock_blocks_inspection(manifest, tmp_path):
     assert result["content_status"] == "not_inspected"
 
 
+@posix_open_file_unlink
 def test_expired_incomplete_output_requires_explicit_consent_and_deletes_once(manifest, tmp_path):
     directory, receipt = prepare(tmp_path, manifest, now=1000, output=b"partial")
     source_hash = hashlib.sha256(b"partial").hexdigest()
@@ -177,6 +183,7 @@ def test_expired_incomplete_output_requires_explicit_consent_and_deletes_once(ma
 
 
 @pytest.mark.parametrize("failure", ["before_unlink", "after_unlink_sync", "completion_write"])
+@posix_open_file_unlink
 def test_unknown_disposal_is_same_id_read_only_and_never_unlinks_again(manifest, tmp_path, monkeypatch, failure):
     import devpilot.local_qa_retention as retention
 
@@ -290,6 +297,7 @@ def test_active_output_descriptor_blocks_disposal(manifest, tmp_path):
     assert (directory / "observations.encrypted.jsonl").read_bytes() == b"partial"
 
 
+@posix_open_file_unlink
 def test_disposal_keeps_original_output_locked_through_unlink(manifest, tmp_path, monkeypatch):
     import devpilot.local_qa_retention as retention
     from devpilot.local_qa_output import _lock
@@ -388,6 +396,7 @@ def test_allowlisted_distribution_can_read_actual_sources():
 
 
 @pytest.mark.parametrize("field,value", [("output_removed", 1), ("secure_erasure_proven", 0), ("resend_permitted", 0)])
+@posix_open_file_unlink
 def test_reconciliation_rejects_coercible_completion_flags(manifest, tmp_path, field, value):
     directory, receipt = prepare(tmp_path, manifest, output=b"partial")
     args = disposal_arguments(directory, receipt, manifest)

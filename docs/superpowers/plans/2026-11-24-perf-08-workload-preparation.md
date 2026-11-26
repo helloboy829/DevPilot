@@ -55,10 +55,10 @@
 
 ## Task 4: Document boundary and verify
 
-- [ ] Update the performance design's current implementation boundary: synthetic runs now consume rendered frozen case requests but still do not send to AI targets or produce target metrics.
-- [ ] Correct stale statements that metrics API / results UI do not exist; link the current state page for commit/CI evidence instead of duplicating stale counts.
-- [ ] Run focused performance/repository/evidence tests, Ruff check and format, backend Blocking IO gate, `git diff --check`, and full offline backend suite where the existing environment allows. Do not weaken gates or modify dependencies to hide environment failures.
-- [ ] Review the diff for secret/body leakage, expected-answer access, implicit network paths, or changed run terminal semantics.
+- [x] Update the performance design's current implementation boundary: synthetic runs now consume rendered frozen case requests but still do not send to AI targets or produce target metrics.
+- [x] Correct stale statements that metrics API / results UI do not exist; link the current state page for commit/CI evidence instead of duplicating stale counts.
+- [x] Run focused performance/repository/evidence tests, Ruff check and format, backend Blocking IO gate, `git diff --check`, and full offline backend suite where the existing environment allows. Do not weaken gates or modify dependencies to hide environment failures.
+- [x] Review the diff for secret/body leakage, expected-answer access, implicit network paths, or changed run terminal semantics.
 - [ ] Commit only this slice; push/merge after exact-SHA checks pass. Record SHA and actual CI results. Do not clean unrelated worktrees, containers, caches or local artifacts.
 
 ## Acceptance

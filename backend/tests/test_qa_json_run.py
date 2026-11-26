@@ -9,21 +9,14 @@ from devpilot.qa_json_attempt import AttemptObservation
 from devpilot.qa_json_binding import QAJSONBinding
 from devpilot.qa_json_run import JSONRunLimits, JSONRunStopped, run_json_attempts
 from devpilot.request_versions import FrozenRequest
+from test_network_guard import install_network_guard
 
 VERSION = "qa-json-run.v1"
 
 
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch):
-    import socket
-
-    def denied(*args, **kwargs):
-        raise AssertionError("Synthetic run cannot perform real DNS/socket I/O")
-
-    monkeypatch.setattr(socket, "getaddrinfo", denied)
-    monkeypatch.setattr(socket.socket, "connect", denied)
-    monkeypatch.setattr(socket.socket, "connect_ex", denied)
-    monkeypatch.setattr(socket.socket, "sendto", denied)
+    install_network_guard(monkeypatch, message="Synthetic test network is forbidden")
 
 
 def request():
@@ -414,7 +407,19 @@ class Deny(importlib.abc.MetaPathFinder):
   if fullname.split('.')[0] in {'app','deerflow','sqlalchemy','fastapi','openpyxl'}:raise AssertionError('business import')
 sys.meta_path.insert(0,Deny())
 def denied(*args,**kwargs):raise AssertionError('real network')
-socket.getaddrinfo=denied;socket.socket.connect=denied;socket.socket.connect_ex=denied;socket.socket.sendto=denied
+socket.getaddrinfo=denied
+import ipaddress
+def guard(method):
+ original=getattr(socket.socket,method)
+ def checked(sock,*args,**kwargs):
+  address=kwargs.get("address",args[1 if method=="sendto" else 0] if len(args)>(1 if method=="sendto" else 0) else None)
+  host=address[0] if isinstance(address,tuple) and address else None
+  try:allowed=isinstance(host,str) and ipaddress.ip_address(host.split("%",1)[0]).is_loopback
+  except ValueError:allowed=False
+  if not allowed:return denied(sock,*args,**kwargs)
+  return original(sock,*args,**kwargs)
+ return checked
+for method in ("connect","connect_ex","sendto"):setattr(socket.socket,method,guard(method))
 from contextlib import asynccontextmanager
 import httpx
 from devpilot.qa_json_attempt import collect_json_attempt

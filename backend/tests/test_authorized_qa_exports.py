@@ -5,7 +5,6 @@ import copy
 import hashlib
 import io
 import json
-import socket
 import threading
 import zipfile
 from uuid import UUID, uuid4
@@ -20,6 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from test_evaluation_plans_router import setup_plan
 from test_evaluation_registry_router import api as api
 from test_local_qa_cli import mock_wire
+from test_network_guard import install_network_guard
 
 from app.evaluation import authorized_exports as exports
 from app.evaluation import tables as t
@@ -36,12 +36,7 @@ SOFTWARE = "a" * 64
 
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch):
-    def denied(*args, **kwargs):
-        raise AssertionError("Real network forbidden")
-
-    monkeypatch.setattr(socket, "getaddrinfo", denied)
-    for name in ("connect", "connect_ex", "sendto"):
-        monkeypatch.setattr(socket.socket, name, denied)
+    install_network_guard(monkeypatch, message="Synthetic test network is forbidden")
 
 
 async def setup_export(api, monkeypatch, *, tier="baseline_inputs"):

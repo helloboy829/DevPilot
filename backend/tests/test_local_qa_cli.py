@@ -16,16 +16,12 @@ from devpilot.local_qa_cli import LocalOutboundPolicy, LocalRunManifest, execute
 from devpilot.pinned_http import EvaluationPolicyError, PinnedHTTPTransport
 from devpilot.qa_json_binding import QAJSONBinding
 from devpilot.request_templates import RequestTemplate
+from test_network_guard import install_network_guard
 
 
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch):
-    def denied(*args, **kwargs):
-        raise AssertionError("Real network forbidden")
-
-    monkeypatch.setattr(socket, "getaddrinfo", denied)
-    for name in ("connect", "connect_ex", "sendto"):
-        monkeypatch.setattr(socket.socket, name, denied)
+    install_network_guard(monkeypatch, message="Synthetic test network is forbidden")
 
 
 def manifest(**changes):
@@ -513,7 +509,25 @@ class Deny(importlib.abc.MetaPathFinder):
   if fullname.split('.')[0] in {'app','deerflow','sqlalchemy','fastapi','openpyxl'}:raise AssertionError('business import')
 sys.meta_path.insert(0,Deny())
 def denied(*args,**kwargs):raise AssertionError('real network')
-socket.getaddrinfo=denied;socket.socket.connect=denied;socket.socket.connect_ex=denied;socket.socket.sendto=denied
+import ipaddress
+real_getaddrinfo=socket.getaddrinfo
+def getaddrinfo(host,*args,**kwargs):
+ try:allowed=isinstance(host,str) and ipaddress.ip_address(host.split("%",1)[0]).is_loopback
+ except ValueError:allowed=False
+ if not allowed:return denied(host,*args,**kwargs)
+ return real_getaddrinfo(host,*args,**kwargs)
+socket.getaddrinfo=getaddrinfo
+def guard(method):
+ original=getattr(socket.socket,method)
+ def checked(sock,*args,**kwargs):
+  address=kwargs.get("address",args[1 if method=="sendto" else 0] if len(args)>(1 if method=="sendto" else 0) else None)
+  host=address[0] if isinstance(address,tuple) and address else None
+  try:allowed=isinstance(host,str) and ipaddress.ip_address(host.split("%",1)[0]).is_loopback
+  except ValueError:allowed=False
+  if not allowed:return denied(sock,*args,**kwargs)
+  return original(sock,*args,**kwargs)
+ return checked
+for method in ("connect","connect_ex","sendto"):setattr(socket.socket,method,guard(method))
 assert sys.argv[1] in importlib.util.find_spec('devpilot.local_qa_cli').origin
 import httpx
 from devpilot.pinned_http import PinnedHTTPTransport
