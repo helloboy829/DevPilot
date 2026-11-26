@@ -26,6 +26,7 @@ from sqlalchemy import func, insert, select, update
 from app.evaluation import tables as t
 from app.evaluation.datasets import StrictDTO
 from app.evaluation.dispatch_journal import JournalLimits, _positive_int
+from app.evaluation.execution_safety import classify_held_reservation
 from app.evaluation.plan_repository import _preflight, _verified_inputs
 from app.evaluation.plans import PlanCreate
 from app.evaluation.qa_attempts import AttemptCaptureState, AttemptObservation, collect_json_attempt
@@ -253,6 +254,15 @@ class ExecutionRepository(EvidenceRepository):
             if row is None:
                 raise NotFound
             return dict(row)
+
+    async def reconcile_execution(self, owner, project, key):
+        """Read one original execution receipt and a fixed safety-only projection."""
+        row = await self.get_execution(owner, project, key)
+        try:
+            safety = classify_held_reservation(row, now_ms=self._time())
+        except ValueError:
+            raise Conflict from None
+        return {"execution": row, "safety": safety}
 
     async def claim(self):
         if not self.policy.enabled:

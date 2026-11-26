@@ -6,9 +6,12 @@ rs.mock("@/core/config", () => ({ getBackendBaseURL: () => "/backend" }));
 import { fetch as fetcher } from "@/core/api/fetcher";
 import {
   createPerformanceEvidenceAccess,
+  createPerformanceRun,
+  createPerformanceScenario,
   getPerformanceMetrics,
   listPerformanceDispatches,
   listPerformanceRuns,
+  listPerformanceScenarios,
   readPerformanceEvidence,
 } from "@/core/evaluation/performance-results-api";
 
@@ -108,4 +111,77 @@ it("loads the versioned metrics projection independently from run metadata", asy
     method: "GET",
     cache: "no-store",
   });
+});
+
+it("lists component performance scenarios without caching", async () => {
+  mockedFetch.mockResolvedValue(
+    new Response(JSON.stringify({ scenarios: [] }), {
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  await listPerformanceScenarios("p/1", "component 1");
+  expect(mockedFetch.mock.calls[0]).toEqual([
+    "/backend/api/evaluation/projects/p%2F1/components/component%201/performance-scenarios",
+    { method: "GET", cache: "no-store", headers: undefined },
+  ]);
+});
+
+it("creates a frozen scenario with the explicit confirmation payload", async () => {
+  const payload = {
+    plan_id: "plan_1",
+    profile: {
+      concurrency: 1,
+      measured_request_count: 4,
+      warmup_request_count: 0,
+      duration_limit_seconds: null,
+      request_timeout_ms: 1000,
+      max_in_flight: 1,
+      wall_time_limit_seconds: 10,
+      drain_limit_seconds: 1,
+      max_request_bytes: 1024,
+      max_response_bytes: 1024,
+      max_total_bytes: 2048,
+    },
+    confirmed: true as const,
+  };
+  mockedFetch.mockResolvedValue(
+    new Response(JSON.stringify({ id: "scenario1" }), {
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  await createPerformanceScenario("p/1", "c/1", payload);
+  expect(mockedFetch.mock.calls[0]).toEqual([
+    "/backend/api/evaluation/projects/p%2F1/components/c%2F1/performance-scenarios",
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  ]);
+});
+
+it("creates a run ledger once with the exact caller-provided run ID", async () => {
+  const payload = {
+    run_id: "a".repeat(32),
+    scenario_id: "scenario_1",
+    scenario_hash: "b".repeat(64),
+    confirmed: true as const,
+  };
+  mockedFetch.mockResolvedValue(
+    new Response(JSON.stringify({ id: payload.run_id }), {
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  await createPerformanceRun("p/1", payload);
+  expect(mockedFetch.mock.calls[0]).toEqual([
+    "/backend/api/evaluation/projects/p%2F1/performance-runs",
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  ]);
+  expect(mockedFetch).toHaveBeenCalledTimes(1);
 });
