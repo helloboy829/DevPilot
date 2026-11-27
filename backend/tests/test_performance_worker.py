@@ -819,3 +819,87 @@ async def test_unexpected_transport_error_still_drains_fenced_peer(prepared, tmp
     with pytest.raises(Conflict):
         await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
     assert seen == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_worker_observes_durable_cancel_and_drains_current_synthetic_request(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared)
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    original = SyntheticPerformanceTransport.request
+    requested = False
+
+    async def cancel_during_request(transport, request_body, *, ordinal):
+        nonlocal requested
+        if not requested:
+            requested = True
+            await runs.request_cancel("owner", project_id, run["id"], confirmed=True)
+        await asyncio.sleep(0.05)
+        return await original(transport, request_body, ordinal=ordinal)
+
+    monkeypatch.setattr(SyntheticPerformanceTransport, "request", cancel_during_request)
+    result = await PerformanceWorker(runs, transport=SyntheticPerformanceTransport()).run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+    assert result["status"] == "interrupted"
+    assert result["stop_reason"] == "cancelled"
+    assert result["state_counts"]["succeeded"] >= 1
+    assert result["state_counts"]["pending"] == 0
+    assert result["state_counts"]["not_dispatched"] > 0
+    assert all(row["state"] != "pending" for row in await runs.list_dispatches("owner", project_id, run["id"]))
+    audit = await runs.run_audit("owner", project_id, run["id"])
+    assert [event["action"] for event in audit].count("run_cancel_requested") == 1
+    assert audit[-1]["action"] == "run_interrupted"
+
+
+@pytest.mark.asyncio
+async def test_cancel_winning_final_completion_race_finishes_as_interrupted(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared)
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    original_close = runs.close_measurement_window
+
+    async def request_cancel_before_close(owner, project, run_id, *, window_end_ns):
+        await runs.request_cancel(owner, project, run_id, confirmed=True)
+        return await original_close(owner, project, run_id, window_end_ns=window_end_ns)
+
+    monkeypatch.setattr(runs, "close_measurement_window", request_cancel_before_close)
+    result = await PerformanceWorker(runs, transport=SyntheticPerformanceTransport()).run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+    assert result["status"] == "interrupted"
+    assert result["stop_reason"] == "cancelled"
+    audit = await runs.run_audit("owner", project_id, run["id"])
+    assert audit[-1]["action"] == "run_interrupted"
+    assert not any(event["action"] == "run_finished" for event in audit)
+
+
+@pytest.mark.asyncio
+async def test_cancel_after_claim_before_ack_is_a_clean_stop_not_a_worker_error(prepared, tmp_path, monkeypatch):
+    repo, project_id, scenario = await make_scenario(prepared)
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    original_ack = runs.acknowledge_dispatch
+    requested = False
+
+    async def cancel_before_ack(*args, **kwargs):
+        nonlocal requested
+        if not requested:
+            requested = True
+            await runs.request_cancel("owner", project_id, run["id"], confirmed=True)
+        return await original_ack(*args, **kwargs)
+
+    monkeypatch.setattr(runs, "acknowledge_dispatch", cancel_before_ack)
+    result = await PerformanceWorker(runs, transport=SyntheticPerformanceTransport()).run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+    assert result["status"] == "interrupted"
+    assert result["stop_reason"] == "cancelled"
+    rows = await runs.list_dispatches("owner", project_id, run["id"])
+    assert all(row["send_started_ns"] is None for row in rows)
+    assert rows[0]["state"] == "not_dispatched"

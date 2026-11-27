@@ -483,6 +483,38 @@ class PerformanceRunRepository(EvaluationRepository):
             raise Conflict
         return value
 
+    async def request_cancel(self, owner, project_id, run_id, *, confirmed):
+        """Persist one owner-scoped cancellation request for an admitted run."""
+        if confirmed is not True:
+            raise Conflict
+        async with self.sf.begin() as session:
+            run = await self._run(session, owner, project_id, run_id, lock=True)
+            if run["status"] == "cancel_requested":
+                pass
+            elif run["status"] != "running":
+                raise Conflict
+            else:
+                changed = await session.execute(
+                    update(t.performance_runs)
+                    .where(
+                        t.performance_runs.c.project_id == project_id,
+                        t.performance_runs.c.id == run_id,
+                        t.performance_runs.c.owner_id == owner,
+                        t.performance_runs.c.status == "running",
+                    )
+                    .values(status="cancel_requested")
+                )
+                if changed.rowcount != 1:
+                    raise Conflict
+                await self._append_audit(session, project_id, run_id, owner, "run_cancel_requested", {})
+        return await self.get_run(owner, project_id, run_id)
+
+    async def cancellation_requested(self, owner, project_id, run_id):
+        """Read the durable stop fence without changing run state."""
+        async with self.sf() as session:
+            run = await self._run(session, owner, project_id, run_id)
+            return run["status"] == "cancel_requested"
+
     async def claim_dispatch(self, owner, project_id, run_id, ordinal, *, worker_id, lease_expires_at_ms):
         """Atomically lease one pending ordinal; claiming never means transport started."""
         _bounded_int(ordinal, maximum=10_999)
@@ -687,7 +719,7 @@ class PerformanceRunRepository(EvaluationRepository):
         _bounded_int(window_end_ns, maximum=9_223_372_036_854_775_807)
         async with self.sf.begin() as session:
             run = await self._run(session, owner, project_id, run_id, lock=True)
-            if run["status"] != "running" or run["window_start_ns"] is None or run["window_end_ns"] is not None or window_end_ns < run["window_start_ns"]:
+            if run["status"] not in {"running", "cancel_requested"} or run["window_start_ns"] is None or run["window_end_ns"] is not None or window_end_ns < run["window_start_ns"]:
                 raise Conflict
             pending = (await session.execute(select(t.performance_dispatches.c.ordinal).where(t.performance_dispatches.c.run_id == run_id, t.performance_dispatches.c.state == "pending").limit(1))).first()
             late = (
@@ -716,8 +748,11 @@ class PerformanceRunRepository(EvaluationRepository):
                 )
             ).scalar_one()
             if unfinished == 0:
-                await session.execute(update(t.performance_runs).where(t.performance_runs.c.id == run_id, t.performance_runs.c.status == "running").values(status="completed", finished_at=now()))
-                await self._append_audit(session, project_id, run_id, owner, "run_finished", {"population_count": run["population_count"]})
+                if run["status"] == "cancel_requested":
+                    await self._interrupt(session, run, owner, window_end_ns, reason="cancelled")
+                else:
+                    await session.execute(update(t.performance_runs).where(t.performance_runs.c.id == run_id, t.performance_runs.c.status == "running").values(status="completed", finished_at=now()))
+                    await self._append_audit(session, project_id, run_id, owner, "run_finished", {"population_count": run["population_count"]})
 
     async def record_observation(
         self,
@@ -786,7 +821,7 @@ class PerformanceRunRepository(EvaluationRepository):
             run = await self._run(session, owner, project_id, run_id, lock=True)
             dispatch = (await session.execute(select(t.performance_dispatches).where(t.performance_dispatches.c.run_id == run_id, t.performance_dispatches.c.ordinal == ordinal).with_for_update())).mappings().first()
             if (
-                run["status"] != "running"
+                run["status"] not in {"running", "cancel_requested"}
                 or dispatch is None
                 or dispatch["dispatch_id"] != dispatch_id
                 or dispatch["state"] != "dispatched"
@@ -1040,7 +1075,7 @@ class PerformanceRunRepository(EvaluationRepository):
             raise Conflict
         async with self.sf.begin() as session:
             run = await self._run(session, owner, project_id, run_id, lock=True)
-            if run["status"] not in {"created", "running"}:
+            if run["status"] not in {"created", "running", "cancel_requested"}:
                 return False
             await self._interrupt(session, run, owner, at_ns, reason)
         return True

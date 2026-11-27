@@ -101,6 +101,22 @@ async def admit_performance_run(project_id: str, run_id: str, payload: Performan
         raise HTTPException(503, "Evaluation persistence failed; reload and inspect current state") from None
 
 
+@router.post("/{project_id}/performance-runs/{run_id}/cancel")
+@require_permission("evaluation_projects", "write")
+@require_permission("evaluation_projects", "review")
+async def cancel_performance_run(project_id: str, run_id: str, payload: PerformanceRunAdmission, request: Request):
+    owner, repository = await _context(request)
+    _require_human(request)
+    try:
+        return await _run_repo(repository).request_cancel(owner, project_id, run_id, confirmed=payload.confirmed)
+    except NotFound:
+        raise HTTPException(404, "Project or performance run not found") from None
+    except Conflict:
+        raise HTTPException(409, "Performance run is not cancellable or confirmation is required") from None
+    except SQLAlchemyError:
+        raise HTTPException(503, "Evaluation persistence failed; reload and inspect current state") from None
+
+
 @router.get("/{project_id}/performance-runs")
 @require_permission("evaluation_projects", "read")
 async def list_performance_runs(

@@ -358,7 +358,7 @@ async def test_journal_survives_repeat_migration(prepared):
     assert (await repo.list_dispatches("owner", project, run["id"]))[0]["state"] == "dispatched"
     await repo.record_observation("owner", project, run["id"], ticket, observed())
     async with engine.connect() as conn:
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0030"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0031"
 
 
 @pytest.mark.asyncio
@@ -554,7 +554,7 @@ async def test_deployed_eval_0004_upgrade_preserves_old_rows_and_harness_ledger(
             if name == t.projects.name:
                 expected = [tuple(row) + (0,) for row in expected]
             assert (await conn.execute(text('SELECT * FROM "' + name + '"'))).all() == expected
-        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0030"
+        assert (await conn.execute(text("SELECT version_num FROM devpilot_alembic_version"))).scalar_one() == "eval_0031"
         assert not (await conn.execute(text("PRAGMA foreign_key_check"))).all()
     run = await record(prepared)
     assert len(await repo.list_dispatches("owner", project, run["id"])) == 2

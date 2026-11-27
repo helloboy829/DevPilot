@@ -1006,7 +1006,7 @@ performance_runs = Table(
     CheckConstraint("length(profile_hash) = 64 AND profile_hash = lower(profile_hash)", name="ck_evaluation_performance_run_profile_hash"),
     CheckConstraint("length(manifest_hash) = 64 AND manifest_hash = lower(manifest_hash)", name="ck_evaluation_performance_run_manifest_hash"),
     CheckConstraint("population_count BETWEEN 1 AND 11000", name="ck_evaluation_performance_run_population"),
-    CheckConstraint("status IN ('created','running','completed','interrupted','failed')", name="ck_evaluation_performance_run_status"),
+    CheckConstraint("status IN ('created','running','cancel_requested','completed','interrupted','failed')", name="ck_evaluation_performance_run_status"),
     CheckConstraint("execution_mode IN ('target','synthetic_only')", name="ck_evaluation_performance_run_execution_mode"),
     CheckConstraint("(window_start_ns IS NULL AND window_end_ns IS NULL) OR (window_start_ns >= 0 AND window_end_ns >= window_start_ns)", name="ck_evaluation_performance_run_window"),
 )
@@ -1141,7 +1141,7 @@ performance_run_audit = Table(
         "action IN ("
         "'run_created','run_admitted','dispatch_claimed','dispatch_acknowledged',"
         "'dispatch_started','measurement_window_closed','observation_recorded',"
-        "'run_interrupted','run_finished','response_access_granted','response_access_read','synthetic_mode_selected'"
+        "'run_interrupted','run_finished','response_access_granted','response_access_read','synthetic_mode_selected','run_cancel_requested'"
         ")",
         name="ck_evaluation_performance_run_audit_action",
     ),

@@ -56,6 +56,7 @@ REVISIONS = (
     "eval_0028",
     "eval_0029",
     "eval_0030",
+    "eval_0031",
 )
 ADDITIONS = (
     {"evaluation_review_tasks", "evaluation_review_task_assignments", "evaluation_review_task_decisions", "evaluation_review_task_resolutions", "evaluation_review_task_audit"},
@@ -76,6 +77,7 @@ ADDITIONS = (
     {"evaluation_performance_runs", "evaluation_performance_dispatches", "evaluation_performance_run_audit"},
     {"evaluation_performance_response_artifacts"},
     {"evaluation_performance_evidence_access_grants"},
+    set(),
     set(),
     set(),
     set(),
@@ -147,8 +149,14 @@ def unchanged(before, after, revision):
         assert after["tables"][name] == expected, "Historical table changed: " + name
     old_names = before["tables"].keys()
     before_definitions = [row for row in before["definitions"] if not (project_column_added and row[1] == "evaluation_projects")]
+    cancellation_constraints_added = revision == "eval_0031"
     after_definitions = [
-        row for row in after["definitions"] if row[2] in old_names and not (project_column_added and row[1] == "evaluation_projects") and not (dispatch_index_added and row[1] == "ix_evaluation_dispatch_run_project_started_id")
+        row
+        for row in after["definitions"]
+        if row[2] in old_names
+        and not (project_column_added and row[1] == "evaluation_projects")
+        and not (dispatch_index_added and row[1] == "ix_evaluation_dispatch_run_project_started_id")
+        and not (cancellation_constraints_added and row[2] in {"evaluation_performance_runs", "evaluation_performance_run_audit"})
     ]
     assert after_definitions == before_definitions
     if project_column_added:
@@ -157,6 +165,10 @@ def unchanged(before, after, revision):
     if dispatch_index_added:
         index_definition = next(row[3] for row in after["definitions"] if row[1] == "ix_evaluation_dispatch_run_project_started_id")
         assert "started_at_ms" in index_definition and "project_id" in index_definition
+    if cancellation_constraints_added:
+        run_definition = next(row[3] for row in after["definitions"] if row[1] == "evaluation_performance_runs")
+        audit_definition = next(row[3] for row in after["definitions"] if row[1] == "evaluation_performance_run_audit")
+        assert "cancel_requested" in run_definition and "run_cancel_requested" in audit_definition
 
 
 @dataclass

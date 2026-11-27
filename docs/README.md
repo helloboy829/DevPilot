@@ -51,7 +51,7 @@
 | 数据集质量、reference 与指标分母 | [数据集与指标规范](DevPilot_数据集与指标规范.md) | 数据构建工作流引用其质量/指标判定；模板规范只拥有交换文件格式。 |
 | 项目外材料到冻结评测数据的流程 | [评测数据构建工作流](DevPilot_评测数据构建工作流.md) | 材料与模板规范定义输入/输出文件格式，不重复审批状态机。 |
 | 不可变 RequestSpec 版本、凭据隔离与请求版本访问 | [请求定义版本](DevPilot_Request_Versions.md) | API 文档只维护路由映射和通用协议；模型连接/调试文档不得把连接成功当成冻结执行授权。 |
-| QA 执行授权、占用与未知 Worker 安全 | [执行安全合同](DevPilot_Execution_Safety_Contract.md)、[耐久派发日志](DevPilot_Durable_Dispatch_Journal.md) | 授权、派发、观察、排空和未知结果分别建模；deadline 不证明 Worker 已停止，诊断接口不授予处置权限。 |
+| QA 执行授权、占用与未知 Worker 安全 | [执行安全合同](DevPilot_Execution_Safety_Contract.md)、[耐久派发日志](DevPilot_Durable_Dispatch_Journal.md)、[合成性能运行取消](DevPilot_Performance_Cancellation.md) | 授权、派发、观察、排空和未知结果分别建模；持久取消只表示已请求停止，不证明 Worker 已停止，未知请求不重发。 |
 | QA 调度准入与调度器边界 | [调度准入诊断](DevPilot_Scheduling_Admission.md)、[已准入 QA 执行](DevPilot_Admitted_QA_Execution.md) | legacy component-test scheduler 不作为 QA 主链；共享编排核心不接管 App 授权、持久化和耐久边界。 |
 | 版本化 QA JSON 请求、attempt、response 与有限 run 核心 | [共享 QA JSON 核心](DevPilot_Shared_QA_JSON_Run_Core.md)及同目录下 Request/Attempt/Response 合同 | 纯核心负责确定性协议与有界编排；平台、本地适配器分别拥有授权、配额、密钥、存储和耐久回执。 |
 | 已采集 QA 输出、技术观测与 owner 自复核 | [加密输出证据与人工复核](DevPilot_QA_Evidence_Review.md) | 人工复核工作台只定义跨页面体验目标；独立任务另有窄授权合同，不覆盖 owner 自复核。 |

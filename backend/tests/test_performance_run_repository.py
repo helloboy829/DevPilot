@@ -799,3 +799,44 @@ async def test_execution_snapshot_rejects_dataset_metadata_drift_before_dispatch
     with pytest.raises(Conflict):
         await runs.get_execution_snapshot("owner", project_id, run["id"])
     assert all(row["state"] == "pending" for row in await runs.list_dispatches("owner", project_id, run["id"]))
+
+
+@pytest.mark.asyncio
+async def test_cancel_request_is_persisted_idempotent_and_owner_scoped(prepared):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+
+    cancelled = await runs.request_cancel("owner", project_id, run["id"], confirmed=True)
+    replay = await runs.request_cancel("owner", project_id, run["id"], confirmed=True)
+
+    assert cancelled["status"] == replay["status"] == "cancel_requested"
+    assert await runs.cancellation_requested("owner", project_id, run["id"])
+    with pytest.raises(Conflict):
+        await runs.claim_dispatch(
+            "owner",
+            project_id,
+            run["id"],
+            0,
+            worker_id="synthetic-worker",
+            lease_expires_at_ms=int(time.time() * 1000) + 60_000,
+        )
+    async with repo.sf() as session:
+        events = (
+            (
+                await session.execute(
+                    select(t.performance_run_audit).where(
+                        t.performance_run_audit.c.run_id == run["id"],
+                        t.performance_run_audit.c.action == "run_cancel_requested",
+                    )
+                )
+            )
+            .mappings()
+            .all()
+        )
+    assert len(events) == 1
+    with pytest.raises(NotFound):
+        await runs.request_cancel("another-owner", project_id, run["id"], confirmed=True)
+    with pytest.raises(Conflict):
+        await runs.request_cancel("owner", project_id, run["id"], confirmed=False)

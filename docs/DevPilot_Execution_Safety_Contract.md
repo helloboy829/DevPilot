@@ -56,3 +56,10 @@ uv run ruff check . && uv run ruff format --check .
 回归覆盖：七种状态与到期边界、配额保留、固定投影键、敏感字段不泄漏、类型伪装/未知状态/非一致行失败关闭、模块纯同步且无 I/O 依赖、调度器与正式批准不能绕过/触发执行、运维路由只有聚合 GET。
 
 English: this slice adds a pure, synchronous classifier over one held execution row that never authorizes release, reclaim, requeue, retry, resend or dispatch. Deadline, queue state and terminal flags remain non-proofs of worker death; malformed or incoherent rows fail closed. Boundary regressions pin that the scheduler and formal approval cannot bypass or trigger QA execution and that operations expose only an aggregate GET.
+
+
+## Synthetic performance-run cancellation (2026-11-27 candidate)
+
+`POST /api/evaluation/projects/{project_id}/performance-runs/{run_id}/cancel` is a human-only, owner-scoped, explicitly confirmed stop request for an admitted performance run. The atomic `running ? cancel_requested` transition and one `run_cancel_requested` audit event establish a monotonic dispatch fence. Replaying the same request is idempotent; it is not evidence that the worker stopped.
+
+The synthetic worker stops opening new dispatch fences, drains already-started requests under the existing bounded policy, persists successful observations/evidence, and marks unresolved send-started requests `unknown` without retry. Completion cannot overwrite `cancel_requested`; the original worker performs the terminal interruption after drain. If cancellation wins before the worker starts, it records an interrupted run without dispatch. This performance-run lifecycle is distinct from `ExecutionRepository.cancel()` above.

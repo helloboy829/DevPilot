@@ -89,6 +89,11 @@ class PerformanceWorker:
 
     async def run_admitted(self, owner: str, project_id: str, run_id: str, *, worker_id: str) -> dict:
         start_wall_ns = time.monotonic_ns()
+        if await self.repository.cancellation_requested(owner, project_id, run_id):
+            await self.repository.interrupt_run(owner, project_id, run_id, at_ns=time.monotonic_ns(), reason="cancelled")
+            result = await self.repository.get_run(owner, project_id, run_id)
+            result["stop_reason"] = "cancelled"
+            return result
         try:
             snapshot = await self.repository.get_execution_snapshot(owner, project_id, run_id)
         except ExecutionSnapshotInvalid:
@@ -96,7 +101,15 @@ class PerformanceWorker:
             if not interrupted:
                 raise
             return await self.repository.get_run(owner, project_id, run_id)
-        await self.repository.mark_synthetic_execution(owner, project_id, run_id)
+        try:
+            await self.repository.mark_synthetic_execution(owner, project_id, run_id)
+        except Conflict:
+            if not await self.repository.cancellation_requested(owner, project_id, run_id):
+                raise
+            await self.repository.interrupt_run(owner, project_id, run_id, at_ns=time.monotonic_ns(), reason="cancelled")
+            result = await self.repository.get_run(owner, project_id, run_id)
+            result["stop_reason"] = "cancelled"
+            return result
         profile = snapshot["profile"]
         manifest = snapshot["manifest"]
         requests = snapshot["requests"]
@@ -270,26 +283,38 @@ class PerformanceWorker:
                             if not active:
                                 stop_reason, stop_at = "aggregate_byte_budget", now_ns
                         else:
-                            lease = await self.repository.claim_dispatch(
-                                owner,
-                                project_id,
-                                run_id,
-                                entry["ordinal"],
-                                worker_id=worker_id,
-                                lease_expires_at_ms=int(time.time() * 1000) + profile.drain_limit_seconds * 1000 + profile.request_timeout_ms,
-                            )
+                            try:
+                                lease = await self.repository.claim_dispatch(
+                                    owner,
+                                    project_id,
+                                    run_id,
+                                    entry["ordinal"],
+                                    worker_id=worker_id,
+                                    lease_expires_at_ms=int(time.time() * 1000) + profile.drain_limit_seconds * 1000 + profile.request_timeout_ms,
+                                )
+                            except Conflict:
+                                if not await self.repository.cancellation_requested(owner, project_id, run_id):
+                                    raise
+                                stop_reason, stop_at = "cancelled", time.monotonic_ns()
+                                continue
                             if transport_failure_landed():
                                 continue
-                            ticket = await self.repository.acknowledge_dispatch(
-                                owner,
-                                project_id,
-                                run_id,
-                                entry["ordinal"],
-                                worker_id=worker_id,
-                                lease_epoch=lease["lease_epoch"],
-                                request_bytes=len(body),
-                                request_hash=hashlib.sha256(body).hexdigest(),
-                            )
+                            try:
+                                ticket = await self.repository.acknowledge_dispatch(
+                                    owner,
+                                    project_id,
+                                    run_id,
+                                    entry["ordinal"],
+                                    worker_id=worker_id,
+                                    lease_epoch=lease["lease_epoch"],
+                                    request_bytes=len(body),
+                                    request_hash=hashlib.sha256(body).hexdigest(),
+                                )
+                            except Conflict:
+                                if not await self.repository.cancellation_requested(owner, project_id, run_id):
+                                    raise
+                                stop_reason, stop_at = "cancelled", time.monotonic_ns()
+                                continue
                             started_ns = time.monotonic_ns()
                             if started_ns >= deadline:
                                 stop_reason, stop_at = deadline_reason, deadline
@@ -297,7 +322,13 @@ class PerformanceWorker:
                                 # Observe the already-landed failure before opening another fence.
                                 continue
                             else:
-                                started = await self.repository.start_dispatch(owner, project_id, run_id, ticket, worker_id=worker_id, lease_epoch=lease["lease_epoch"], send_started_ns=started_ns)
+                                try:
+                                    started = await self.repository.start_dispatch(owner, project_id, run_id, ticket, worker_id=worker_id, lease_epoch=lease["lease_epoch"], send_started_ns=started_ns)
+                                except Conflict:
+                                    if not await self.repository.cancellation_requested(owner, project_id, run_id):
+                                        raise
+                                    stop_reason, stop_at = "cancelled", time.monotonic_ns()
+                                    continue
                                 if phase == "measurement" and measurement_start is None:
                                     measurement_start = started_ns
                                     if profile.duration_limit_seconds is not None:
@@ -316,8 +347,11 @@ class PerformanceWorker:
                             wake_at = min(phase_drains_at, deadline + drain_ns)
                         else:
                             wake_at = deadline
-                        done, _ = await asyncio.wait(active, timeout=max(0, (wake_at - time.monotonic_ns()) / 1_000_000_000), return_when=asyncio.FIRST_COMPLETED)
-                        if not done and (stop_at is not None or phase_drains_at is not None):
+                        poll_at = min(wake_at, time.monotonic_ns() + 100_000_000)
+                        done, _ = await asyncio.wait(active, timeout=max(0, (poll_at - time.monotonic_ns()) / 1_000_000_000), return_when=asyncio.FIRST_COMPLETED)
+                        if not done and stop_reason is None and await self.repository.cancellation_requested(owner, project_id, run_id):
+                            stop_reason, stop_at = "cancelled", time.monotonic_ns()
+                        if not done and time.monotonic_ns() >= wake_at and (stop_at is not None or phase_drains_at is not None):
                             if stop_reason is None:
                                 stop_at = min(wake_at, deadline)
                                 stop_reason = deadline_reason if deadline <= wake_at else "delivery_unknown"
@@ -350,4 +384,6 @@ class PerformanceWorker:
         result = await self.repository.get_run(owner, project_id, run_id)
         if stop_reason is not None:
             result["stop_reason"] = stop_reason
+        elif result["status"] == "interrupted":
+            result["stop_reason"] = "cancelled"
         return result

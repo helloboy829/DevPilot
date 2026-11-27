@@ -222,8 +222,22 @@ async def test_run_admission_is_explicit_idempotent_and_owner_scoped(api, monkey
     dispatches = await client.get(run_path + "/dispatches")
     assert all(row["state"] == "pending" and row["send_started_ns"] is None for row in dispatches.json()["dispatches"])
 
+    cancel_path = run_path + "/cancel"
+    assert (await client.post(cancel_path, json={"confirmed": False})).status_code == 422
+    cancelled = await client.post(cancel_path, json={"confirmed": True})
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["status"] == "cancel_requested"
+    repeated_cancel = await client.post(cancel_path, json={"confirmed": True})
+    assert repeated_cancel.status_code == 200
+    assert repeated_cancel.json() == cancelled.json()
+    assert (await client.post(admission_path, json={"confirmed": True})).status_code == 409
+
     app.state.actor = 2
     assert (await client.post(admission_path, json={"confirmed": True})).status_code == 404
+    assert (await client.post(cancel_path, json={"confirmed": True})).status_code == 404
+    app.state.actor = 1
+    app.state.internal = True
+    assert (await client.post(cancel_path, json={"confirmed": True})).status_code == 403
 
 
 @pytest.mark.asyncio
