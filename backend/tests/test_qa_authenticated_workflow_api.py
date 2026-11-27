@@ -7,7 +7,7 @@ middleware. No production lifespan, configuration, target, model or deployment.
 
 import asyncio
 import io
-import socket
+import os
 from contextlib import AsyncExitStack
 from datetime import timedelta
 from http.cookies import SimpleCookie
@@ -20,6 +20,7 @@ import pytest_asyncio
 from fastapi import FastAPI
 from pdfminer.high_level import extract_text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from test_network_guard import install_network_guard
 from test_qa_workflow_api import CANARIES, GOLD, INPUTS, NOTE, OUTPUTS, collect, create_plan, response_json, review
 from test_qa_workflow_api import workflow as workflow
 
@@ -44,6 +45,10 @@ PASSWORD = "Synthetic-only-Password42!"
 TASK_ROOT = "/api/evaluation/review-tasks/"
 PERMISSIONS = [Permissions.EVALUATION_PROJECTS_READ, Permissions.EVALUATION_PROJECTS_WRITE, Permissions.EVALUATION_PROJECTS_REVIEW]
 ACTORS = ("owner", "reviewer_a", "reviewer_b", "arbitrator", "outsider")
+posix_qa_artifacts = pytest.mark.skipif(
+    os.name != "posix",
+    reason="end-to-end QA collection requires durable response artifact storage",
+)
 
 
 def route_policy(*, deny=(), allow=None):
@@ -88,13 +93,8 @@ async def api(tmp_path, monkeypatch):
     policy = {"value": route_policy()}
     monkeypatch.setattr(authz, "_get_route_authorization_config", lambda: policy["value"])
 
-    def forbidden_network(*args, **kwargs):
-        raise AssertionError("Real network forbidden in authenticated synthetic QA")
-
-    monkeypatch.setattr(socket, "getaddrinfo", forbidden_network)
-    for method in ("connect", "connect_ex", "sendto"):
-        monkeypatch.setattr(socket.socket, method, forbidden_network)
-    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", forbidden_network)
+    install_network_guard(monkeypatch, message="Real network forbidden in authenticated synthetic QA")
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("Real network forbidden in authenticated synthetic QA")))
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'authenticated-qa.db'}")
     try:
         async with engine.begin() as conn:
@@ -260,6 +260,7 @@ async def test_password_change_revokes_old_cookie_but_keeps_new_session_and_othe
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["missing", "needs_setup", "owner", "duplicate", "reference_not_shared"])
+@posix_qa_artifacts
 async def test_real_account_lookup_and_explicit_independent_sharing_are_required(workflow, mode):
     state = workflow
     root, execution = await collect(state, await create_plan(state, "v1"), build="v1")
@@ -291,6 +292,7 @@ async def test_real_account_lookup_and_explicit_independent_sharing_are_required
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("permission", PERMISSIONS)
+@posix_qa_artifacts
 async def test_real_login_members_review_without_rbac_grants_and_keep_task_isolation(workflow, permission):
     state = workflow
     plan = await create_plan(state, "v1", timeout_ms=5000)
@@ -316,6 +318,7 @@ async def test_real_login_members_review_without_rbac_grants_and_keep_task_isola
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("concurrency", [1, 2])
+@posix_qa_artifacts
 async def test_authenticated_worker_blind_review_historical_archives_and_exports(workflow, caplog, concurrency):
     state, records, reports, task_paths = workflow, [], [], []
     identities = accounts(state)

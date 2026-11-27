@@ -9,6 +9,11 @@ import app.evaluation.qa_artifact_store as artifact_store_module
 from app.evaluation.qa_artifact_store import ResponseArtifactStore
 from app.evaluation.request_protection import RequestProtectionError, RequestProtectionUnavailable
 
+posix_durable_storage = pytest.mark.skipif(
+    os.name != "posix",
+    reason="successful response artifact publication requires POSIX directory fsync",
+)
+
 
 def _binding(**changes):
     value = {
@@ -58,6 +63,7 @@ def range_artifact_store(tmp_path, monkeypatch):
     return ResponseArtifactStore(tmp_path / "response-evidence", Fernet.generate_key())
 
 
+@posix_durable_storage
 def test_publish_encrypts_raw_bytes_and_returns_a_verifiable_receipt(artifact_store):
     artifact_id = "1" * 32
     body = b"\x00native response\xff"
@@ -187,6 +193,7 @@ def test_non_posix_directory_durability_fails_closed(artifact_store, monkeypatch
     ("status", "scope", "body", "observed_bytes"),
     [("partial", "prefix", b"prefix", 9), ("truncated", "prefix", b"limit", 6)],
 )
+@posix_durable_storage
 def test_partial_and_truncated_artifacts_keep_only_prefix_hash_scope(artifact_store, status, scope, body, observed_bytes):
     artifact_id = "6" * 32
     metadata = _metadata(body, capture_status=status, hash_scope=scope, observed_bytes=observed_bytes)
@@ -199,6 +206,7 @@ def test_partial_and_truncated_artifacts_keep_only_prefix_hash_scope(artifact_st
     assert artifact_store.open(artifact_id, _binding()) == (metadata, body)
 
 
+@posix_durable_storage
 def test_publish_is_idempotent_for_the_same_id_and_cannot_replace_its_body(artifact_store):
     artifact_id = "2" * 32
     binding = _binding()
@@ -214,6 +222,7 @@ def test_publish_is_idempotent_for_the_same_id_and_cannot_replace_its_body(artif
     assert artifact_store.open(artifact_id, binding)[1] == body
 
 
+@posix_durable_storage
 def test_artifact_context_prevents_cross_run_reads(artifact_store):
     artifact_id = "3" * 32
     body = b"private response"
@@ -256,6 +265,7 @@ def test_open_range_caps_large_end_at_frozen_body_length(range_artifact_store):
     assert content_range == "bytes 7-9/10"
 
 
+@posix_durable_storage
 def test_inspect_is_read_only_and_reports_only_sealed_object_metadata(artifact_store):
     artifact_id = "4" * 32
 
@@ -276,6 +286,7 @@ def test_artifact_id_cannot_select_a_path(artifact_store, artifact_id):
         artifact_store.inspect(artifact_id, _binding())
 
 
+@posix_durable_storage
 def test_corrupt_ciphertext_is_rejected(artifact_store):
     artifact_id = "5" * 32
     body = b"private response"

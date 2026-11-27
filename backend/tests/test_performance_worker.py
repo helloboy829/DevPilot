@@ -6,7 +6,7 @@ import socket
 
 import pytest
 from cryptography.fernet import Fernet
-from sqlalchemy import select
+from sqlalchemy import select, update
 from test_dispatch_journal import prepared as prepared
 from test_performance_run_repository import make_scenario
 
@@ -28,7 +28,7 @@ async def test_admitted_run_records_each_frozen_ordinal_with_synthetic_evidence(
     monkeypatch.setattr(socket, "getaddrinfo", deny_network)
     repo, project_id, scenario = await make_scenario(prepared)
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
 
@@ -77,11 +77,101 @@ async def test_admitted_run_records_each_frozen_ordinal_with_synthetic_evidence(
 
 
 @pytest.mark.asyncio
+async def test_worker_sends_rendered_frozen_case_body(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared)
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+
+    captured_bodies = []
+    original_request = SyntheticPerformanceTransport.request
+
+    async def capture_request(transport, request_body, *, ordinal):
+        captured_bodies.append((ordinal, request_body))
+        return await original_request(transport, request_body, ordinal=ordinal)
+
+    monkeypatch.setattr(SyntheticPerformanceTransport, "request", capture_request)
+    result = await PerformanceWorker(runs, transport=SyntheticPerformanceTransport()).run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+    assert result["status"] == "completed"
+    assert len(captured_bodies) == len(scenario["definition"]["manifest"]) == 6
+    manifest = scenario["definition"]["manifest"]
+    async with repo.sf() as session:
+        frozen_inputs = dict((await session.execute(select(t.samples.c.sample_id, t.samples.c.input).where(t.samples.c.dataset_id == scenario["definition"]["dataset_id"]))).all())
+    bodies_by_ordinal = dict(captured_bodies)
+    assert len(bodies_by_ordinal) == len(captured_bodies) == len(manifest)
+    rendered = [(entry["ordinal"], json.loads(bodies_by_ordinal[entry["ordinal"]])) for entry in manifest]
+    assert [body for _, body in rendered] == [{"q": frozen_inputs[entry["case_id"]]} for entry in manifest]
+    bodies_by_case = {}
+    for entry, (_, body) in zip(manifest, rendered, strict=True):
+        bodies_by_case.setdefault(entry["case_id"], set()).add(json.dumps(body, sort_keys=True))
+    assert all(len(bodies) == 1 for bodies in bodies_by_case.values())
+    assert all("SYNTHETIC_GOLD" not in body.values() for _, body in rendered)
+    assert all("SYNTHETIC_SECRET" not in body.values() for _, body in rendered)
+    assert all("ordinal" not in body for _, body in rendered)
+    import hashlib
+
+    async with repo.sf() as session:
+        dispatches = (
+            await session.execute(
+                select(t.performance_dispatches.c.ordinal, t.performance_dispatches.c.request_bytes, t.performance_dispatches.c.request_hash).where(t.performance_dispatches.c.run_id == run["id"]).order_by(t.performance_dispatches.c.ordinal)
+            )
+        ).all()
+    assert [(row.ordinal, row.request_bytes, row.request_hash) for row in dispatches] == [(ordinal, len(bodies_by_ordinal[ordinal]), hashlib.sha256(bodies_by_ordinal[ordinal]).hexdigest()) for ordinal in range(len(manifest))]
+
+
+@pytest.mark.parametrize("corrupt_target", ["plan", "scenario"])
+@pytest.mark.asyncio
+async def test_worker_interrupts_run_when_frozen_definition_is_corrupt(prepared, tmp_path, corrupt_target):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    async with repo.sf.begin() as session:
+        if corrupt_target == "plan":
+            await session.execute(update(t.plans).where(t.plans.c.id == scenario["definition"]["plan_id"]).values(definition={"corrupt": True}))
+        else:
+            await session.execute(update(t.performance_scenarios).where(t.performance_scenarios.c.id == scenario["id"]).values(definition={"corrupt": True}))
+
+    result = await PerformanceWorker(runs, transport=SyntheticPerformanceTransport()).run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+    assert result["status"] == "interrupted"
+    assert result["state_counts"]["not_dispatched"] == result["population_count"]
+    assert all(row["send_started_ns"] is None for row in await runs.list_dispatches("owner", project_id, run["id"]))
+    audit = await runs.run_audit("owner", project_id, run["id"])
+    assert audit[-1]["action"] == "run_interrupted"
+    assert audit[-1]["details"]["reason"] == "preflight_invalid"
+
+
+@pytest.mark.asyncio
+async def test_worker_interrupts_run_when_frozen_sample_content_drifted(prepared, tmp_path):
+    repo, project_id, scenario = await make_scenario(prepared)
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    dataset_id = scenario["definition"]["dataset_id"]
+    async with repo.sf.begin() as session:
+        await session.execute(update(t.samples).where(t.samples.c.dataset_id == dataset_id, t.samples.c.sample_id == "a").values(input="TAMPERED_INPUT"))
+
+    result = await PerformanceWorker(runs, transport=SyntheticPerformanceTransport()).run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+    assert result["status"] == "interrupted"
+    assert result["state_counts"]["not_dispatched"] == result["population_count"]
+    assert all(row["send_started_ns"] is None for row in await runs.list_dispatches("owner", project_id, run["id"]))
+    audit = await runs.run_audit("owner", project_id, run["id"])
+    assert audit[-1]["action"] == "run_interrupted"
+    assert audit[-1]["details"]["reason"] == "preflight_invalid"
+
+
+@pytest.mark.asyncio
 async def test_worker_reentry_after_mode_mark_before_dispatch_is_safe(prepared, tmp_path, monkeypatch):
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared)
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     await runs.mark_synthetic_execution("owner", project_id, run["id"])
@@ -96,7 +186,7 @@ async def test_worker_reentry_after_mode_mark_before_dispatch_is_safe(prepared, 
 @pytest.mark.asyncio
 async def test_worker_refuses_unadmitted_run_without_claiming_dispatch(prepared):
     repo, project_id, scenario = await make_scenario(prepared)
-    runs = PerformanceRunRepository(repo.sf)
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
 
     worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport())
@@ -113,7 +203,7 @@ def test_worker_rejects_non_synthetic_transport_before_any_run_access(prepared):
 
     repo = prepared[0]
     with pytest.raises(ValueError, match="synthetic"):
-        PerformanceWorker(PerformanceRunRepository(repo.sf), transport=NetworkLikeTransport())
+        PerformanceWorker(PerformanceRunRepository(repo.sf, request_protection=repo.protection), transport=NetworkLikeTransport())
 
 
 @pytest.mark.asyncio
@@ -121,7 +211,7 @@ async def test_failure_after_start_is_unknown_and_never_resends(prepared, tmp_pa
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared)
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport(fail_at_ordinal=2))
@@ -141,7 +231,7 @@ async def test_failure_after_start_is_unknown_and_never_resends(prepared, tmp_pa
 @pytest.mark.asyncio
 async def test_cancellation_after_start_persists_unknown_without_retry(prepared):
     repo, project_id, scenario = await make_scenario(prepared)
-    runs = PerformanceRunRepository(repo.sf)
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport(delay_ms=250))
@@ -167,7 +257,7 @@ async def test_cancellation_marks_all_concurrent_fences_unknown_without_resend(p
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"concurrency": 2, "max_in_flight": 2})
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     transport = SyntheticPerformanceTransport(delay_ms=250)
@@ -176,14 +266,13 @@ async def test_cancellation_marks_all_concurrent_fences_unknown_without_resend(p
     both_started = asyncio.Event()
     hold_requests = asyncio.Event()
 
-    async def observe_start(body):
-        ordinal = json.loads(body)["ordinal"]
+    async def observe_start(body, *, ordinal):
         started.add(ordinal)
         if ordinal in {1, 2}:
             if {1, 2}.issubset(started):
                 both_started.set()
             await hold_requests.wait()
-        return await original_request(body)
+        return await original_request(body, ordinal=ordinal)
 
     monkeypatch.setattr(transport, "request", observe_start)
     worker = PerformanceWorker(runs, transport=transport)
@@ -208,7 +297,7 @@ async def test_duration_limit_stops_measurement_and_accounts_remaining_ordinals(
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"duration_limit_seconds": 1})
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport(delay_ms=400))
@@ -224,9 +313,9 @@ async def test_duration_limit_stops_measurement_and_accounts_remaining_ordinals(
 
 
 @pytest.mark.asyncio
-async def test_request_byte_budget_interrupts_before_start_and_accounts_population(prepared):
+async def test_request_byte_budget_rejects_snapshot_before_dispatch(prepared):
     repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"max_request_bytes": 1, "max_total_bytes": 10_001})
-    runs = PerformanceRunRepository(repo.sf)
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport())
@@ -234,9 +323,8 @@ async def test_request_byte_budget_interrupts_before_start_and_accounts_populati
     result = await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
 
     assert result["status"] == "interrupted"
-    assert result["stop_reason"] == "request_byte_budget"
-    assert result["state_counts"]["not_dispatched"] == 6
-    assert all(row["request_hash"] is None for row in await runs.list_dispatches("owner", project_id, run["id"]))
+    assert result["state_counts"]["not_dispatched"] == result["population_count"]
+    assert all(row["request_hash"] is None and row["send_started_ns"] is None for row in await runs.list_dispatches("owner", project_id, run["id"]))
 
 
 @pytest.mark.asyncio
@@ -244,7 +332,7 @@ async def test_response_byte_budget_records_failed_evidence_then_stops(prepared,
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"max_response_bytes": 1, "max_total_bytes": 10_001})
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport())
@@ -270,7 +358,7 @@ async def test_aggregate_byte_budget_stops_before_exceeding_total(prepared, tmp_
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"max_request_bytes": 500, "max_response_bytes": 500, "max_total_bytes": 1_000})
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport())
@@ -290,7 +378,7 @@ async def test_evidence_write_failure_interrupts_and_suppresses_synthetic_metric
     monkeypatch.setattr(ResponseArtifactStore, "publish", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("synthetic evidence write failure")))
     repo, project_id, scenario = await make_scenario(prepared)
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport())
@@ -309,7 +397,7 @@ async def test_worker_honors_bounded_concurrency_and_accounts_every_artifact(pre
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"concurrency": 2, "max_in_flight": 2})
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     transport = SyntheticPerformanceTransport(delay_ms=25)
@@ -318,17 +406,17 @@ async def test_worker_honors_bounded_concurrency_and_accounts_every_artifact(pre
     maximum = 0
     both_started = asyncio.Event()
 
-    async def measured_request(request_body):
+    async def measured_request(request_body, *, ordinal):
         nonlocal active, maximum
         active += 1
         maximum = max(maximum, active)
         if active >= 2:
             both_started.set()
         try:
-            if json.loads(request_body)["ordinal"] in (1, 2):
+            if ordinal in (1, 2):
                 # Prove concurrent transport without assuming a DB latency.
                 await both_started.wait()
-            return await original_request(request_body)
+            return await original_request(request_body, ordinal=ordinal)
         finally:
             active -= 1
 
@@ -354,7 +442,7 @@ async def test_failure_during_claim_does_not_acknowledge_next_ordinal(prepared, 
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"concurrency": 2, "max_in_flight": 2})
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
 
@@ -376,9 +464,9 @@ async def test_failure_during_claim_does_not_acknowledge_next_ordinal(prepared, 
         acknowledged.append(args[3])
         return await original_acknowledge(*args, **kwargs)
 
-    async def fail_second_send(self, body, timeout_ms):
-        result = await original_send(self, body, timeout_ms)
-        if json.loads(body)["ordinal"] == 1:
+    async def fail_second_send(self, body, ordinal, timeout_ms):
+        result = await original_send(self, body, ordinal, timeout_ms)
+        if ordinal == 1:
             transport_failure_returned.set()
         return result
 
@@ -402,7 +490,7 @@ async def test_failure_stops_new_admission_and_drains_fenced_peer(prepared, tmp_
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared)
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     transport = SyntheticPerformanceTransport(fail_at_ordinal=1)
@@ -411,20 +499,19 @@ async def test_failure_stops_new_admission_and_drains_fenced_peer(prepared, tmp_
     failure_delivered = asyncio.Event()
     seen = []
 
-    async def request(body):
-        ordinal = json.loads(body)["ordinal"]
+    async def request(body, *, ordinal):
         seen.append(ordinal)
         if ordinal == 1:
             await peer_started.wait()
             try:
-                return await original_request(body)
+                return await original_request(body, ordinal=ordinal)
             finally:
                 failure_delivered.set()
         if ordinal == 2:
             peer_started.set()
             await failure_delivered.wait()
             await asyncio.sleep(0.1)
-        return await original_request(body)
+        return await original_request(body, ordinal=ordinal)
 
     monkeypatch.setattr(transport, "request", request)
     worker = PerformanceWorker(runs, transport=transport)
@@ -444,7 +531,7 @@ async def test_unexpected_transport_error_still_drains_fenced_peer(prepared, tmp
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared)
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
-    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store)
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
     await runs.admit_run("owner", project_id, run["id"], confirmed=True)
     transport = SyntheticPerformanceTransport()
@@ -453,8 +540,7 @@ async def test_unexpected_transport_error_still_drains_fenced_peer(prepared, tmp
     failure_delivered = asyncio.Event()
     seen = []
 
-    async def request(body):
-        ordinal = json.loads(body)["ordinal"]
+    async def request(body, *, ordinal):
         seen.append(ordinal)
         if ordinal == 1:
             await peer_started.wait()
@@ -466,7 +552,7 @@ async def test_unexpected_transport_error_still_drains_fenced_peer(prepared, tmp
             peer_started.set()
             await failure_delivered.wait()
             await asyncio.sleep(0.1)
-        return await original_request(body)
+        return await original_request(body, ordinal=ordinal)
 
     monkeypatch.setattr(transport, "request", request)
     worker = PerformanceWorker(runs, transport=transport)

@@ -8,7 +8,7 @@ import json
 import time
 from dataclasses import dataclass
 
-from app.evaluation.performance_run_repository import PerformanceRunRepository
+from app.evaluation.performance_run_repository import ExecutionSnapshotInvalid, PerformanceRunRepository
 from app.evaluation.repository import Conflict
 
 
@@ -29,13 +29,13 @@ class SyntheticPerformanceTransport:
         self.fail_at_ordinal = fail_at_ordinal
         self.delay_ms = delay_ms
 
-    async def request(self, request_body: bytes) -> SyntheticResponse:
+    async def request(self, request_body: bytes, *, ordinal: int) -> SyntheticResponse:
         if self.delay_ms:
             await asyncio.sleep(self.delay_ms / 1000)
         else:
             await asyncio.sleep(0)
-        request = json.loads(request_body)
-        if request.get("ordinal") == self.fail_at_ordinal:
+        json.loads(request_body)
+        if ordinal == self.fail_at_ordinal:
             raise OSError("Synthetic transport failure")
         digest = hashlib.sha256(request_body).hexdigest()
         return SyntheticResponse(200, json.dumps({"synthetic": True, "request_sha256": digest}, separators=(",", ":")).encode())
@@ -57,9 +57,9 @@ class PerformanceWorker:
         self.repository = repository
         self.transport = transport
 
-    async def _send(self, body: bytes, timeout_ms: int) -> tuple[int, SyntheticResponse | None]:
+    async def _send(self, body: bytes, ordinal: int, timeout_ms: int) -> tuple[int, SyntheticResponse | None]:
         try:
-            response = await asyncio.wait_for(self.transport.request(body), timeout=timeout_ms / 1000)
+            response = await asyncio.wait_for(self.transport.request(body, ordinal=ordinal), timeout=timeout_ms / 1000)
         except Exception:
             # Any transport error after send_started is uncertain; let the coordinator
             # stop admission and drain peers before recording this fence as unknown.
@@ -89,10 +89,17 @@ class PerformanceWorker:
 
     async def run_admitted(self, owner: str, project_id: str, run_id: str, *, worker_id: str) -> dict:
         start_wall_ns = time.monotonic_ns()
-        snapshot = await self.repository.get_execution_snapshot(owner, project_id, run_id)
+        try:
+            snapshot = await self.repository.get_execution_snapshot(owner, project_id, run_id)
+        except ExecutionSnapshotInvalid:
+            interrupted = await self.repository.interrupt_run(owner, project_id, run_id, at_ns=time.monotonic_ns(), reason="preflight_invalid")
+            if not interrupted:
+                raise
+            return await self.repository.get_run(owner, project_id, run_id)
         await self.repository.mark_synthetic_execution(owner, project_id, run_id)
         profile = snapshot["profile"]
         manifest = snapshot["manifest"]
+        requests = snapshot["requests"]
         for offset in range(0, len(manifest), 200):
             prior = await self.repository.list_dispatches(owner, project_id, run_id, offset=offset, limit=min(200, len(manifest) - offset))
             if any(row["state"] != "pending" for row in prior):
@@ -152,10 +159,10 @@ class PerformanceWorker:
 
                     if stop_reason is None and index < len(entries) and len(active) < limit:
                         entry = entries[index]
-                        body = json.dumps(
-                            {"synthetic": True, "ordinal": entry["ordinal"], "phase": phase, "case_id": entry["case_id"], "iteration": entry["iteration"]},
-                            separators=(",", ":"),
-                        ).encode()
+                        try:
+                            body = requests[entry["case_id"]].body.encode("utf-8")
+                        except (KeyError, UnicodeError):
+                            raise Conflict from None
                         reservation = len(body) + profile.max_response_bytes
                         if len(body) > profile.max_request_bytes:
                             stop_reason, stop_at = "request_byte_budget", now_ns
@@ -197,7 +204,7 @@ class PerformanceWorker:
                                     measurement_start = started_ns
                                     if profile.duration_limit_seconds is not None:
                                         duration_deadline = started_ns + profile.duration_limit_seconds * 1_000_000_000
-                                active[asyncio.create_task(self._send(body, profile.request_timeout_ms))] = _Dispatch(started, started_ns, len(body))
+                                active[asyncio.create_task(self._send(body, entry["ordinal"], profile.request_timeout_ms))] = _Dispatch(started, started_ns, len(body))
                                 reserved_bytes += reservation
                                 index += 1
                                 if index == len(entries):

@@ -18,16 +18,17 @@ from devpilot.local_qa_output import LocalOutputProtection, inspect_output, open
 from devpilot.pinned_http import PinnedHTTPTransport
 from devpilot.qa_json_binding import QAJSONBinding
 from devpilot.request_templates import RequestTemplate
+from test_network_guard import install_network_guard
+
+posix_open_file_unlink = pytest.mark.skipif(
+    os.name != "posix",
+    reason="locked-file unlink and directory-fsync disposal semantics are POSIX-only",
+)
 
 
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch):
-    def denied(*args, **kwargs):
-        raise AssertionError("Real network forbidden")
-
-    monkeypatch.setattr(socket, "getaddrinfo", denied)
-    for name in ("connect", "connect_ex", "sendto"):
-        monkeypatch.setattr(socket.socket, name, denied)
+    install_network_guard(monkeypatch, message="Real network forbidden")
 
 
 @pytest.fixture
@@ -241,6 +242,7 @@ def test_explicit_open_is_private_literal_and_expiry_blocks_it(case, tmp_path, m
         assert opened.parent.stat().st_mode & 0o777 == 0o700
 
 
+@posix_open_file_unlink
 def test_expired_exact_ciphertext_purge_preserves_identity_and_journal(case, tmp_path, monkeypatch):
     directory = tmp_path / "protected"
     snapshot, _ = execute(case, directory, monkeypatch)
@@ -396,6 +398,7 @@ async def test_repeated_cancellation_drains_encryption_before_closing_journal(ca
 
 
 @pytest.mark.parametrize("failure", ["unlink", "after-unlink-sync", "completion-write"])
+@posix_open_file_unlink
 def test_unknown_purge_never_deletes_again_and_only_same_id_reconciles(case, tmp_path, monkeypatch, failure):
     import devpilot.local_qa_output as output
 
@@ -458,7 +461,16 @@ def test_active_writer_excludes_inspection_and_purge(case, tmp_path):
         store.close()
 
 
-@pytest.mark.parametrize("part", ["file-symlink", "file-hardlink", "public-file", "directory-symlink", "public-directory"])
+@pytest.mark.parametrize(
+    "part",
+    [
+        "file-symlink",
+        "file-hardlink",
+        pytest.param("public-file", marks=pytest.mark.skipif(os.name == "nt", reason="POSIX mode bits are unavailable")),
+        "directory-symlink",
+        pytest.param("public-directory", marks=pytest.mark.skipif(os.name == "nt", reason="POSIX mode bits are unavailable")),
+    ],
+)
 def test_output_filesystem_boundary_rejected(case, tmp_path, monkeypatch, part):
     directory = tmp_path / "protected"
     snapshot, _ = execute(case, directory, monkeypatch)
@@ -709,6 +721,7 @@ async def test_repeated_cancellation_drains_retention_creation_before_releasing_
 
 
 @pytest.mark.parametrize("stage", ["receipt", "header", "attempt"])
+@posix_open_file_unlink
 def test_actual_cli_hard_exit_preserves_retention_identity_without_resuming(case, tmp_path, stage):
     from devpilot.local_qa_retention import dispose_incomplete_output, inspect_retention, reconcile_incomplete_disposal
 
@@ -722,7 +735,19 @@ from devpilot.pinned_http import PinnedHTTPTransport
 stage, flags = sys.argv[1], sys.argv[2:]
 def denied(*args, **kwargs): raise AssertionError("Real network forbidden")
 socket.getaddrinfo = denied
-for name in ("connect", "connect_ex", "sendto"): setattr(socket.socket, name, denied)
+import ipaddress
+def guard(method):
+    original = getattr(socket.socket, method)
+    def checked(sock, *args, **kwargs):
+        index = 1 if method == "sendto" else 0
+        address = kwargs.get("address", args[index] if len(args) > index else None)
+        host = address[0] if isinstance(address, tuple) and address else None
+        try: loopback = isinstance(host, str) and ipaddress.ip_address(host.split("%", 1)[0]).is_loopback
+        except ValueError: loopback = False
+        if not loopback: return denied(sock, *args, **kwargs)
+        return original(sock, *args, **kwargs)
+    return checked
+for name in ("connect", "connect_ex", "sendto"): setattr(socket.socket, name, guard(name))
 async def lookup(self, host, port, **kwargs):
     return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port))]
 asyncio.BaseEventLoop.getaddrinfo = lookup

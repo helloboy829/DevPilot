@@ -3,7 +3,6 @@
 import asyncio
 import json
 import os
-import socket
 import subprocess
 import sys
 import threading
@@ -17,16 +16,12 @@ from devpilot.local_json_run import LocalJSONJournal
 from devpilot.local_qa_reconcile import reconcile
 from test_local_qa_cli import _ISOLATED_CLI, arguments, manifest, mock_wire, write_files
 from test_local_qa_reconcile import _ISOLATED_RECONCILE
+from test_network_guard import install_network_guard
 
 
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch):
-    def denied(*args, **kwargs):
-        raise AssertionError("Real network forbidden")
-
-    monkeypatch.setattr(socket, "getaddrinfo", denied)
-    for name in ("connect", "connect_ex", "sendto"):
-        monkeypatch.setattr(socket.socket, name, denied)
+    install_network_guard(monkeypatch, message="Synthetic test network is forbidden")
 
 
 def flags(value, directory):
