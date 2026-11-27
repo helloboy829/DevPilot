@@ -1026,7 +1026,17 @@ class PerformanceRunRepository(EvaluationRepository):
 
     async def interrupt_run(self, owner, project_id, run_id, *, at_ns, reason="delivery_unknown"):
         _bounded_int(at_ns, maximum=9_223_372_036_854_775_807)
-        if type(reason) is not str or reason not in {"delivery_unknown", "preflight_invalid", "duration_limit", "wall_time_limit", "request_byte_budget", "response_byte_budget", "aggregate_byte_budget", "evidence_write_failed"}:
+        if type(reason) is not str or reason not in {
+            "delivery_unknown",
+            "preflight_invalid",
+            "duration_limit",
+            "wall_time_limit",
+            "request_byte_budget",
+            "response_byte_budget",
+            "aggregate_byte_budget",
+            "evidence_write_failed",
+            "cancelled",
+        }:
             raise Conflict
         async with self.sf.begin() as session:
             run = await self._run(session, owner, project_id, run_id, lock=True)

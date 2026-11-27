@@ -120,6 +120,28 @@ class PerformanceWorker:
             await asyncio.gather(*active, return_exceptions=True)
             active.clear()
 
+        async def drain_transport_after_cancellation():
+            if active:
+                done, pending = await asyncio.wait(active, timeout=profile.drain_limit_seconds)
+                for task in done:
+                    dispatch = active.pop(task)
+                    try:
+                        finished_ns, response = task.result()
+                    except (asyncio.CancelledError, Exception):
+                        continue
+                    if response is not None:
+                        try:
+                            await self._observe(owner, project_id, dispatch, finished_ns, response, profile.max_response_bytes)
+                        except Exception:
+                            # The durable run interruption below preserves unresolved
+                            # dispatches as unknown if evidence could not be recorded.
+                            pass
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                active.clear()
+            await self.repository.interrupt_run(owner, project_id, run_id, at_ns=time.monotonic_ns(), reason="cancelled")
+
         def admission_deadline():
             if duration_deadline is not None and duration_deadline < wall_deadline:
                 return duration_deadline, "duration_limit"
@@ -226,7 +248,10 @@ class PerformanceWorker:
                             await cancel_transport()
                 if stop_reason is not None:
                     break
-        except (asyncio.CancelledError, Exception):
+        except asyncio.CancelledError:
+            await drain_transport_after_cancellation()
+            raise
+        except Exception:
             await cancel_transport()
             await self.repository.interrupt_run(owner, project_id, run_id, at_ns=time.monotonic_ns())
             raise

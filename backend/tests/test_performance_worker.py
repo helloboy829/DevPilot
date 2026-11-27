@@ -229,7 +229,7 @@ async def test_failure_after_start_is_unknown_and_never_resends(prepared, tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_cancellation_after_start_persists_unknown_without_retry(prepared):
+async def test_cancellation_after_start_drains_completed_request_without_retry(prepared):
     repo, project_id, scenario = await make_scenario(prepared)
     runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
     run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
@@ -248,12 +248,51 @@ async def test_cancellation_after_start_persists_unknown_without_retry(prepared)
 
     result = await runs.get_run("owner", project_id, run["id"])
     assert result["status"] == "interrupted"
-    assert result["state_counts"]["unknown"] == 1
+    assert result["state_counts"]["succeeded"] == 1
+    assert result["state_counts"]["unknown"] == 0
     assert result["state_counts"]["not_dispatched"] == 5
+    with pytest.raises(Conflict):
+        await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
 
 
 @pytest.mark.asyncio
-async def test_cancellation_marks_all_concurrent_fences_unknown_without_resend(prepared, tmp_path, monkeypatch):
+async def test_cancellation_marks_only_unresolved_dispatch_unknown_after_drain_deadline(prepared):
+    repo, project_id, scenario = await make_scenario(
+        prepared,
+        profile_overrides={"concurrency": 1, "max_in_flight": 1, "drain_limit_seconds": 1},
+    )
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    transport = SyntheticPerformanceTransport()
+    never_finishes = asyncio.Event()
+
+    async def hang_request(body, *, ordinal):
+        await never_finishes.wait()
+        return await transport.request(body, ordinal=ordinal)
+
+    transport.request = hang_request
+    worker = PerformanceWorker(runs, transport=transport)
+    task = asyncio.create_task(worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker"))
+    for _ in range(100):
+        rows = await runs.list_dispatches("owner", project_id, run["id"])
+        if rows[0]["state"] == "dispatched":
+            task.cancel()
+            break
+        await asyncio.sleep(0.01)
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    result = await runs.get_run("owner", project_id, run["id"])
+    assert result["status"] == "interrupted"
+    assert result["state_counts"]["unknown"] == 1
+    assert result["state_counts"]["not_dispatched"] == 5
+    with pytest.raises(Conflict):
+        await worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker")
+
+
+@pytest.mark.asyncio
+async def test_cancellation_drains_concurrent_fences_before_marking_run_interrupted(prepared, tmp_path, monkeypatch):
     monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
     repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"concurrency": 2, "max_in_flight": 2})
     store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
@@ -279,12 +318,13 @@ async def test_cancellation_marks_all_concurrent_fences_unknown_without_resend(p
     task = asyncio.create_task(worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker"))
     await asyncio.wait_for(both_started.wait(), timeout=3)
     task.cancel()
+    asyncio.get_running_loop().call_later(0.05, hold_requests.set)
     with pytest.raises(asyncio.CancelledError):
         await task
 
     rows = await runs.list_dispatches("owner", project_id, run["id"])
     assert started == {0, 1, 2}
-    assert [row["state"] for row in rows] == ["succeeded", "unknown", "unknown", "not_dispatched", "not_dispatched", "not_dispatched"]
+    assert [row["state"] for row in rows] == ["succeeded", "succeeded", "succeeded", "not_dispatched", "not_dispatched", "not_dispatched"]
     result = await runs.get_run("owner", project_id, run["id"])
     assert result["status"] == "interrupted"
     with pytest.raises(Conflict):

@@ -2,6 +2,8 @@
 
 > 状态：目标规格与已实现边界。现有源码支持冻结性能场景、持久准入与 dispatch 账本、合成 Worker、metrics API v1 和只读结果页；可运行工作台和真实目标传输未交付。原始 request body 不作为性能证据持久化。旧 `component-tests` / `evaluation-schedules` 是兼容路径，不作为新工作台基础。
 
+> **Synthetic Worker cancellation-drain candidate (2026-11-27):** When the caller cancels an admitted synthetic run, stop claiming new ordinals, allow already-started transport tasks to finish within the frozen `drain_limit_seconds`, serialize any completed observations/evidence, and interrupt the run with audit reason `cancelled`. Only fences still unresolved at the drain boundary become `unknown`; they are never resent. This does not authorize a target transport or prove that an external worker is dead.
+
 > **PERF-04 historical implementation boundary (2026-11-23):** The candidate implements PostgreSQL-first durable lease/fence primitives: `claim -> ACK ticket -> send_started`. `eval_0028` adds worker, epoch, and lease-deadline metadata. ACK does not start the measurement window or mark a request as sent; only the current worker/epoch with the stable ticket may transition to `dispatched`. This slice does not include Worker, real transport, admission authorization, cancel/drain, the complete metrics API, or the workbench UI.
 
 ## Metrics API v1 implementation boundary (2026-11-24)
