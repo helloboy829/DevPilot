@@ -256,6 +256,219 @@ async def test_cancellation_after_start_drains_completed_request_without_retry(p
 
 
 @pytest.mark.asyncio
+async def test_cancellation_drain_collects_peer_completed_during_evidence_write(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"concurrency": 2, "max_in_flight": 2})
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    transport = SyntheticPerformanceTransport()
+    original_request = transport.request
+    both_started = asyncio.Event()
+    first_observation_started = asyncio.Event()
+    started = set()
+
+    async def request(body, *, ordinal):
+        started.add(ordinal)
+        if {1, 2}.issubset(started):
+            both_started.set()
+        if ordinal == 2:
+            await first_observation_started.wait()
+        return await original_request(body, ordinal=ordinal)
+
+    monkeypatch.setattr(transport, "request", request)
+    worker = PerformanceWorker(runs, transport=transport)
+    original_observe = worker._observe
+
+    async def observe(owner, project, dispatch, finished, response, max_bytes):
+        if dispatch.ticket["ordinal"] == 1:
+            first_observation_started.set()
+            await asyncio.sleep(0.05)
+        return await original_observe(owner, project, dispatch, finished, response, max_bytes)
+
+    monkeypatch.setattr(worker, "_observe", observe)
+    task = asyncio.create_task(worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker"))
+    await asyncio.wait_for(both_started.wait(), timeout=3)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    rows = await runs.list_dispatches("owner", project_id, run["id"])
+    assert [row["state"] for row in rows] == ["succeeded", "succeeded", "succeeded", "not_dispatched", "not_dispatched", "not_dispatched"]
+
+
+@pytest.mark.asyncio
+async def test_cancellation_during_observation_waits_for_evidence_before_interrupting(prepared, tmp_path, monkeypatch):
+    monkeypatch.setattr(ResponseArtifactStore, "_fsync_directory", staticmethod(lambda _path: None))
+    repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"concurrency": 2, "max_in_flight": 2})
+    store = ResponseArtifactStore(tmp_path / "performance-artifacts", Fernet.generate_key())
+    runs = PerformanceRunRepository(repo.sf, response_artifact_store=store, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    transport = SyntheticPerformanceTransport()
+    original_request = transport.request
+    first_observation = asyncio.Event()
+    release_observation = asyncio.Event()
+    both_started = asyncio.Event()
+    started = set()
+
+    async def request(body, *, ordinal):
+        started.add(ordinal)
+        if {1, 2}.issubset(started):
+            both_started.set()
+        return await original_request(body, ordinal=ordinal)
+
+    monkeypatch.setattr(transport, "request", request)
+    worker = PerformanceWorker(runs, transport=transport)
+    original_observe = worker._observe
+
+    async def observe(owner, project, dispatch, finished, response, max_bytes):
+        if dispatch.ticket["ordinal"] == 1:
+            first_observation.set()
+            await release_observation.wait()
+        return await original_observe(owner, project, dispatch, finished, response, max_bytes)
+
+    monkeypatch.setattr(worker, "_observe", observe)
+    task = asyncio.create_task(worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker"))
+    await asyncio.wait_for(first_observation.wait(), timeout=3)
+    task.cancel()
+    asyncio.get_running_loop().call_later(0.05, release_observation.set)
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    rows = await runs.list_dispatches("owner", project_id, run["id"])
+    assert rows[1]["state"] == "succeeded"
+    assert (await runs.reconcile_response_artifact("owner", project_id, run["id"], 1))["status"] == "complete"
+    assert rows[2]["state"] in {"succeeded", "unknown"}
+    assert all(row["state"] == "not_dispatched" for row in rows[3:])
+    assert (await runs.get_run("owner", project_id, run["id"]))["status"] == "interrupted"
+
+
+@pytest.mark.asyncio
+async def test_cancellation_bounds_stalled_evidence_write_by_drain_deadline(prepared, monkeypatch):
+    repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"drain_limit_seconds": 1})
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport(delay_ms=50))
+    entered = asyncio.Event()
+    never_release = asyncio.Event()
+
+    async def stalled_observe(*_args):
+        entered.set()
+        await never_release.wait()
+
+    monkeypatch.setattr(worker, "_observe", stalled_observe)
+    task = asyncio.create_task(worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker"))
+    await asyncio.wait_for(entered.wait(), timeout=3)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, timeout=2.5)
+
+    result = await runs.get_run("owner", project_id, run["id"])
+    assert result["status"] == "interrupted"
+    assert result["state_counts"]["unknown"] == 1
+    audit = await runs.run_audit("owner", project_id, run["id"])
+    interruption = next(row for row in audit if row["action"] == "run_interrupted")
+    assert interruption["details"]["reason"] == "evidence_write_failed"
+
+
+@pytest.mark.asyncio
+async def test_cancellation_bounds_drain_time_evidence_write_by_drain_deadline(prepared, monkeypatch):
+    repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"drain_limit_seconds": 1})
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    worker = PerformanceWorker(runs, transport=SyntheticPerformanceTransport(delay_ms=50))
+    never_release = asyncio.Event()
+
+    async def stalled_observe(*_args):
+        await never_release.wait()
+
+    monkeypatch.setattr(worker, "_observe", stalled_observe)
+    task = asyncio.create_task(worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker"))
+    for _ in range(100):
+        rows = await runs.list_dispatches("owner", project_id, run["id"])
+        if rows[0]["state"] == "dispatched":
+            task.cancel()
+            break
+        await asyncio.sleep(0.01)
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, timeout=2.5)
+
+    result = await runs.get_run("owner", project_id, run["id"])
+    assert result["status"] == "interrupted"
+    assert result["state_counts"]["unknown"] == 1
+    audit = await runs.run_audit("owner", project_id, run["id"])
+    interruption = next(row for row in audit if row["action"] == "run_interrupted")
+    assert interruption["details"]["reason"] == "evidence_write_failed"
+
+
+@pytest.mark.asyncio
+async def test_cancellation_records_evidence_write_failure_as_run_stop_reason(prepared, monkeypatch):
+    repo, project_id, scenario = await make_scenario(prepared)
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    transport = SyntheticPerformanceTransport(delay_ms=50)
+    worker = PerformanceWorker(runs, transport=transport)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def fail_observe(*_args):
+        entered.set()
+        await release.wait()
+        raise OSError("synthetic evidence write failure")
+
+    monkeypatch.setattr(worker, "_observe", fail_observe)
+    task = asyncio.create_task(worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker"))
+    await asyncio.wait_for(entered.wait(), timeout=3)
+    task.cancel()
+    asyncio.get_running_loop().call_later(0.05, release.set)
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    result = await runs.get_run("owner", project_id, run["id"])
+    assert result["status"] == "interrupted"
+    assert result["state_counts"]["unknown"] == 1
+    audit = await runs.run_audit("owner", project_id, run["id"])
+    interruption = next(row for row in audit if row["action"] == "run_interrupted")
+    assert interruption["details"]["reason"] == "evidence_write_failed"
+
+
+@pytest.mark.asyncio
+async def test_repeated_cancellation_cannot_interrupt_durable_drain_cleanup(prepared):
+    repo, project_id, scenario = await make_scenario(prepared, profile_overrides={"drain_limit_seconds": 1})
+    runs = PerformanceRunRepository(repo.sf, request_protection=repo.protection)
+    run = await runs.create_run("owner", project_id, scenario["id"], scenario["definition_hash"], confirmed=True)
+    await runs.admit_run("owner", project_id, run["id"], confirmed=True)
+    transport = SyntheticPerformanceTransport()
+    never_finishes = asyncio.Event()
+
+    async def hang_request(body, *, ordinal):
+        await never_finishes.wait()
+        return await transport.request(body, ordinal=ordinal)
+
+    transport.request = hang_request
+    worker = PerformanceWorker(runs, transport=transport)
+    task = asyncio.create_task(worker.run_admitted("owner", project_id, run["id"], worker_id="synthetic-worker"))
+    for _ in range(100):
+        rows = await runs.list_dispatches("owner", project_id, run["id"])
+        if rows[0]["state"] == "dispatched":
+            task.cancel()
+            asyncio.get_running_loop().call_later(0.05, task.cancel)
+            break
+        await asyncio.sleep(0.01)
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    result = await runs.get_run("owner", project_id, run["id"])
+    assert result["status"] == "interrupted"
+    assert result["state_counts"]["unknown"] == 1
+
+
+@pytest.mark.asyncio
 async def test_cancellation_marks_only_unresolved_dispatch_unknown_after_drain_deadline(prepared):
     repo, project_id, scenario = await make_scenario(
         prepared,

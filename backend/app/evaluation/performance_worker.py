@@ -113,6 +113,17 @@ class PerformanceWorker:
         stop_reason = stop_at = None
         reserved_bytes = 0
         active: dict[asyncio.Task, _Dispatch] = {}
+        observation_tasks: set[asyncio.Task] = set()
+        cancellation_reason = "cancelled"
+
+        async def observe(dispatch, finished_ns, response):
+            task = asyncio.create_task(self._observe(owner, project_id, dispatch, finished_ns, response, profile.max_response_bytes))
+            observation_tasks.add(task)
+            try:
+                return await asyncio.shield(task)
+            finally:
+                if task.done() and not task.cancelled() and task.exception() is None:
+                    observation_tasks.discard(task)
 
         async def cancel_transport():
             for task in active:
@@ -121,26 +132,91 @@ class PerformanceWorker:
             active.clear()
 
         async def drain_transport_after_cancellation():
-            if active:
-                done, pending = await asyncio.wait(active, timeout=profile.drain_limit_seconds)
-                for task in done:
-                    dispatch = active.pop(task)
+            nonlocal cancellation_reason
+            drain_deadline_ns = time.monotonic_ns() + drain_ns
+            if observation_tasks:
+                _, pending_observations = await asyncio.wait(
+                    observation_tasks,
+                    timeout=max(0, (drain_deadline_ns - time.monotonic_ns()) / 1_000_000_000),
+                )
+                if pending_observations:
+                    cancellation_reason = "evidence_write_failed"
+                    for task in pending_observations:
+                        task.cancel()
+                observation_results = await asyncio.gather(*observation_tasks, return_exceptions=True)
+                if pending_observations or any(isinstance(result, BaseException) for result in observation_results):
+                    cancellation_reason = "evidence_write_failed"
+                observation_tasks.clear()
+
+            async def record_completed(tasks):
+                nonlocal cancellation_reason
+                for task in tasks:
+                    dispatch = active.pop(task, None)
+                    if dispatch is None:
+                        continue
                     try:
                         finished_ns, response = task.result()
                     except (asyncio.CancelledError, Exception):
                         continue
-                    if response is not None:
+                    if response is None or finished_ns > drain_deadline_ns:
+                        continue
+                    remaining_ns = drain_deadline_ns - time.monotonic_ns()
+                    if remaining_ns <= 0:
+                        cancellation_reason = "evidence_write_failed"
+                        continue
+                    observation = asyncio.create_task(self._observe(owner, project_id, dispatch, finished_ns, response, profile.max_response_bytes))
+                    observation_tasks.add(observation)
+                    completed, _ = await asyncio.wait({observation}, timeout=remaining_ns / 1_000_000_000)
+                    if not completed:
+                        cancellation_reason = "evidence_write_failed"
+                        observation.cancel()
+                        await asyncio.gather(observation, return_exceptions=True)
+                    else:
                         try:
-                            await self._observe(owner, project_id, dispatch, finished_ns, response, profile.max_response_bytes)
+                            evidence_failure = observation.result() == "evidence_write_failed"
                         except Exception:
-                            # The durable run interruption below preserves unresolved
-                            # dispatches as unknown if evidence could not be recorded.
-                            pass
-                for task in pending:
+                            evidence_failure = True
+                        if evidence_failure:
+                            cancellation_reason = "evidence_write_failed"
+                    observation_tasks.discard(observation)
+
+            pending = set(active)
+            while pending:
+                remaining_ns = drain_deadline_ns - time.monotonic_ns()
+                if remaining_ns <= 0:
+                    break
+                done, pending = await asyncio.wait(
+                    pending,
+                    timeout=remaining_ns / 1_000_000_000,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if not done:
+                    break
+                await record_completed(done)
+
+            # Evidence writes may let another transport task finish. Re-check its
+            # recorded completion time before cancelling, so healthy peers are not
+            # lost as unknown merely because result handling was serialized.
+            completed_by_deadline = set()
+            for task in pending:
+                if not task.done():
+                    continue
+                try:
+                    finished_ns, _ = task.result()
+                except (asyncio.CancelledError, Exception):
+                    completed_by_deadline.add(task)
+                else:
+                    if finished_ns <= drain_deadline_ns:
+                        completed_by_deadline.add(task)
+            await record_completed(completed_by_deadline)
+
+            unresolved = set(active)
+            for task in unresolved:
+                if not task.done():
                     task.cancel()
-                await asyncio.gather(*pending, return_exceptions=True)
-                active.clear()
-            await self.repository.interrupt_run(owner, project_id, run_id, at_ns=time.monotonic_ns(), reason="cancelled")
+            await asyncio.gather(*unresolved, return_exceptions=True)
+            active.clear()
+            await self.repository.interrupt_run(owner, project_id, run_id, at_ns=time.monotonic_ns(), reason=cancellation_reason)
 
         def admission_deadline():
             if duration_deadline is not None and duration_deadline < wall_deadline:
@@ -168,7 +244,7 @@ class PerformanceWorker:
                             reason = "delivery_unknown"
                         else:
                             reserved_bytes -= max(0, profile.max_response_bytes - len(response.body))
-                            reason = await self._observe(owner, project_id, dispatch, finished_ns, response, profile.max_response_bytes)
+                            reason = await observe(dispatch, finished_ns, response)
                         if stop_reason is None and finished_ns >= deadline:
                             stop_at, stop_reason = deadline, deadline_reason
                         elif reason and stop_reason is None:
@@ -249,7 +325,15 @@ class PerformanceWorker:
                 if stop_reason is not None:
                     break
         except asyncio.CancelledError:
-            await drain_transport_after_cancellation()
+            cleanup = asyncio.create_task(drain_transport_after_cancellation())
+            while True:
+                try:
+                    await asyncio.shield(cleanup)
+                    break
+                except asyncio.CancelledError:
+                    if cleanup.done():
+                        cleanup.result()
+                        break
             raise
         except Exception:
             await cancel_transport()
