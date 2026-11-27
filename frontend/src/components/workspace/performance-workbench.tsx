@@ -16,6 +16,7 @@ import {
   createPerformanceRun,
   createPerformanceScenario,
   getPerformanceRun,
+  listPerformanceRuns,
   listPerformanceScenarios,
   type PerformanceRun,
   type PerformanceScenario,
@@ -71,6 +72,9 @@ function PerformanceWorkbenchContent() {
   const [components, setComponents] = useState<ProjectComponent[]>([]);
   const [plans, setPlans] = useState<FrozenPlan[]>([]);
   const [scenarios, setScenarios] = useState<PerformanceScenario[]>([]);
+  const [runRows, setRunRows] = useState<PerformanceRun[]>([]);
+  const [runCursor, setRunCursor] = useState<string | null>(null);
+  const [runListLoaded, setRunListLoaded] = useState(false);
   const [projectId, setProjectId] = useState("");
   const [componentId, setComponentId] = useState("");
   const [planId, setPlanId] = useState("");
@@ -160,6 +164,9 @@ function PerformanceWorkbenchContent() {
     setComponents([]);
     setPlans([]);
     setScenarios([]);
+    setRunRows([]);
+    setRunCursor(null);
+    setRunListLoaded(false);
     setComponentsLoaded(false);
     setPlansLoaded(false);
     setScenarioWriteUncertain(false);
@@ -203,6 +210,30 @@ function PerformanceWorkbenchContent() {
       setProjects(result.projects);
       setProjectsLoaded(true);
       scopeChanged();
+    });
+  }
+
+  function loadRunLedgers(cursor?: string) {
+    if (!projectId) return;
+    const projectForRead = projectId;
+    const scopeEpoch = epoch.current;
+    void runAction("runs", async () => {
+      const result = await listPerformanceRuns(projectForRead, {
+        limit: 50,
+        ...(cursor ? { cursor } : {}),
+      });
+      if (
+        !alive.current ||
+        scopeEpoch !== epoch.current ||
+        projectId !== projectForRead
+      )
+        return;
+      setRunRows((current) => {
+        const next = cursor ? [...current, ...result.items] : result.items;
+        return Array.from(new Map(next.map((run) => [run.id, run])).values());
+      });
+      setRunCursor(result.next_cursor);
+      setRunListLoaded(true);
     });
   }
 
@@ -363,25 +394,31 @@ function PerformanceWorkbenchContent() {
     });
   }
 
-  function reconcileRun() {
-    if (!pendingRun || busy) return;
-    const exactPending = pendingRun;
+  function reconcileRunId(exactProjectId: string, exactRunId: string) {
+    if (busy) return;
+    const scopeEpoch = epoch.current;
     void runAction("reconcile", async () => {
-      const result = await getPerformanceRun(
-        exactPending.projectId,
-        exactPending.id,
-      );
-      if (!alive.current) return;
+      const result = await getPerformanceRun(exactProjectId, exactRunId);
+      if (!alive.current || scopeEpoch !== epoch.current) return;
       setCreatedRun(result);
-      setPendingRun(null);
+      setPendingRun((current) =>
+        current?.projectId === exactProjectId && current.id === exactRunId
+          ? null
+          : current,
+      );
       setRunConfirmed(false);
       setNotice(
         t(
           "The original run ID was reconciled. Ledger only; no Worker or target request was started.",
-          "已按原运行 ID 对账。仅为台账；未启动 Worker 或调用目标。",
+          "已按原运行ID对账。仅为台账；未启动Worker或目标请求。",
         ),
       );
     });
+  }
+
+  function reconcileRun() {
+    if (!pendingRun || busy) return;
+    reconcileRunId(pendingRun.projectId, pendingRun.id);
   }
 
   const freezeEnabled = Boolean(
@@ -550,6 +587,72 @@ function PerformanceWorkbenchContent() {
                 </select>
               </label>
             )}
+            {projectId && (
+              <section
+                className="space-y-4 rounded-xl border p-5"
+                aria-labelledby="performance-runs-heading"
+              >
+                <h2 id="performance-runs-heading" className="font-semibold">
+                  {t("Existing run ledgers", "已有运行台账")}
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  {t(
+                    "Load is explicit. Reconciliation reads each exact run ID once and never creates or dispatches a run.",
+                    "列表需显式加载。对账仅按精确运行ID读取、不会创建或派发运行。",
+                  )}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={Boolean(busy)}
+                  onClick={() => loadRunLedgers()}
+                >
+                  {t("Load run ledgers", "加载运行台账")}
+                </Button>
+                {runListLoaded && runRows.length === 0 && (
+                  <p className="text-sm">
+                    {t("No run ledgers found.", "没有找到运行台账。")}
+                  </p>
+                )}
+                {runRows.length > 0 && (
+                  <ul className="space-y-2">
+                    {runRows.map((run) => (
+                      <li
+                        key={run.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm"
+                      >
+                        <div className="min-w-0 space-y-1">
+                          <code className="break-all">{run.id}</code>
+                          <p className="text-muted-foreground">
+                            {run.status} · {run.scenario_id} ·{" "}
+                            {run.population_count} {t("requests", "个请求")}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={Boolean(busy)}
+                          onClick={() => reconcileRunId(projectId, run.id)}
+                        >
+                          {t("Reconcile exact run ID", "按精确运行ID对账")}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {runCursor && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={Boolean(busy)}
+                    onClick={() => loadRunLedgers(runCursor)}
+                  >
+                    {t("Load more run ledgers", "加载更多运行台账")}
+                  </Button>
+                )}
+              </section>
+            )}
+
             {selectedPlan && (
               <p className="text-sm">
                 {selectedPlan.definition.limits.request_count}{" "}

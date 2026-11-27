@@ -7,6 +7,7 @@ const mocks = rs.hoisted(() => ({
   scenarios: rs.fn(),
   createScenario: rs.fn(),
   createRun: rs.fn(),
+  listRuns: rs.fn(),
   getRun: rs.fn(),
 }));
 
@@ -33,6 +34,7 @@ rs.mock("@/core/evaluation/performance-results-api", () => ({
   listPerformanceScenarios: mocks.scenarios,
   createPerformanceScenario: mocks.createScenario,
   createPerformanceRun: mocks.createRun,
+  listPerformanceRuns: mocks.listRuns,
   getPerformanceRun: mocks.getRun,
 }));
 
@@ -103,6 +105,19 @@ beforeEach(() => {
     id: "1".repeat(32),
     scenario_id: "scenario-1",
   });
+  mocks.listRuns.mockResolvedValue({
+    items: [
+      {
+        id: "2".repeat(32),
+        status: "created",
+        scenario_id: "scenario-1",
+        created_at: "2026-11-25T00:00:00Z",
+        population_count: 12,
+      },
+    ],
+    total: 1,
+    next_cursor: "opaque-next",
+  });
   mocks.getRun.mockResolvedValue({
     id: "1".repeat(32),
     scenario_id: "scenario-1",
@@ -157,6 +172,38 @@ it("does not load owner data on mount and requires explicit scope loads", async 
   ).toBeNull();
 });
 
+it("explicitly lists existing ledgers and reconciles a selected exact run ID", async () => {
+  render(<PerformanceWorkbench />);
+  expect(mocks.listRuns).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByRole("button", { name: "Load projects" }));
+  await screen.findByRole("option", { name: "Project One" });
+  fireEvent.change(screen.getByRole("combobox", { name: "Project" }), {
+    target: { value: "project-1" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Load run ledgers" }));
+
+  const runId = "2".repeat(32);
+  await screen.findByText(runId);
+  expect(mocks.listRuns).toHaveBeenCalledWith("project-1", { limit: 50 });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load more run ledgers" }),
+  );
+  await screen.findByRole("button", { name: "Reconcile exact run ID" });
+  expect(mocks.listRuns).toHaveBeenNthCalledWith(2, "project-1", {
+    limit: 50,
+    cursor: "opaque-next",
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Reconcile exact run ID" }),
+  );
+  await screen.findByText(/original run ID was reconciled/i);
+  expect(mocks.getRun).toHaveBeenCalledWith("project-1", runId);
+  expect(mocks.createRun).not.toHaveBeenCalled();
+  expect(
+    mocks.api.mock.calls.some(([route]) => String(route).includes("/admit")),
+  ).toBe(false);
+});
 it("requires valid profile and fresh consent, revoking consent when profile or scope changes", async () => {
   render(<PerformanceWorkbench />);
   await loadPlan();
