@@ -1,3 +1,7 @@
+> **Current baseline sync (2026-11-27):** `origin/main` is `e00e5ee27cc540a5b80e163c9dea92e47959d3d7`, including durable performance-run cancellation. Exact-SHA Actions have 10 successful checks and a cancelled backend-unit-tests job (incomplete); see [delivery status](DevPilot_Delivery_Status.md). The current follow-up candidate explicitly lists owner-scoped performance run ledgers and supports exact-ID read-only reconciliation; it does not dispatch work or measure targets.
+>
+> **Next gates:** frontend lint/type/format, docs and integration of run-ledger browsing, followed by status/evidence views under the cancellation control contract. Real target transport remains gated on authorization, no-resend/unknown handling, cancellation/drain and evidence-contract acceptance.
+
 # DevPilot 实现进度与下一步
 
 > **Current baseline (2026-11-26):** `main`/`origin/main` is `7ac007e080827cba592fd160b297ee03d621abfd`, including PERF-07 bounded synthetic concurrency, metrics API v1, the read-only results browser, and the ledger-only workbench. PERF-08 candidate `feature/perf-08-workload-preparation` is at `ed0af1a42f143ef271f314431149b557b5369e36`, not merged; frozen dataset-backed requests are sent only to the synthetic adapter.
