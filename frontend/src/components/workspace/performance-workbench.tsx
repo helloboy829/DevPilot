@@ -491,6 +491,34 @@ function PerformanceWorkbenchContent() {
               </Button>
             </div>
           )}
+          {createdRun && (
+            <section
+              aria-label={t("Run reconciliation snapshot", "运行对账快照")}
+              className="space-y-2 rounded-md border p-3 text-sm"
+            >
+              <p>
+                {t("Run ID", "运行 ID")}: {createdRun.id}
+              </p>
+              <p>
+                {t("Run status", "运行状态")}: {createdRun.status}
+              </p>
+              <p>
+                {t("Run population", "运行总体数")}:{" "}
+                {createdRun.population_count}
+              </p>
+              {createdRun.state_counts && (
+                <ul aria-label={t("Run state counts", "运行状态\u8ba1\u6570")}>
+                  {Object.entries(createdRun.state_counts).map(
+                    ([state, count]) => (
+                      <li key={state}>
+                        {state}: {count}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              )}
+            </section>
+          )}
 
           <section
             className="space-y-4 rounded-xl border p-5"
@@ -840,20 +868,15 @@ function PerformanceWorkbenchContent() {
                 {t("Create run ledger", "创建运行台账")}
               </Button>
               {createdRun && (
-                <div className="space-y-2 text-sm">
-                  <p>
-                    {t("Ledger only", "仅台账")} · {createdRun.id}
-                  </p>
-                  <Link
-                    className="underline underline-offset-4"
-                    href="/workspace/performance-results"
-                  >
-                    {t(
-                      "Browse run results and applicability",
-                      "浏览运行结果与适用性",
-                    )}
-                  </Link>
-                </div>
+                <Link
+                  className="underline underline-offset-4"
+                  href="/workspace/performance-results"
+                >
+                  {t(
+                    "Browse run results and applicability",
+                    "浏览运行结果与适用性",
+                  )}
+                </Link>
               )}
             </section>
           )}

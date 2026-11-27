@@ -194,10 +194,21 @@ it("explicitly lists existing ledgers and reconciles a selected exact run ID", a
     limit: 50,
     cursor: "opaque-next",
   });
+  mocks.getRun.mockResolvedValueOnce({
+    id: runId,
+    scenario_id: "scenario-1",
+    status: "completed",
+    population_count: 12,
+    state_counts: { succeeded: 10, failed: 2 },
+  });
   fireEvent.click(
     screen.getByRole("button", { name: "Reconcile exact run ID" }),
   );
   await screen.findByText(/original run ID was reconciled/i);
+  expect(await screen.findByText("Run status: completed")).toBeTruthy();
+  expect(screen.getByText("Run population: 12")).toBeTruthy();
+  expect(screen.getByText("succeeded: 10")).toBeTruthy();
+  expect(screen.getByText("failed: 2")).toBeTruthy();
   expect(mocks.getRun).toHaveBeenCalledWith("project-1", runId);
   expect(mocks.createRun).not.toHaveBeenCalled();
   expect(
